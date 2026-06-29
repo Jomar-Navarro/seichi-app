@@ -1,26 +1,36 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+	--color-yoru: #0f1624;
+	--color-kage: #161e30;
+	--color-tsuki: #e8edf5;
+	--color-midori: #4db89a; /* entrate */
+	--color-aka: #e06b6b; /* uscite */
+	--color-ao: #7b9fe0; /* investimenti */
+	--color-kin: #c4a85a; /* risparmi */
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+	--color-background: var(--color-yoru);
+	--color-foreground: var(--color-tsuki);
+	--font-sans: var(--color-kage);
+	--font-mono: var(--color-kage);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+	:root {
+		--color-yoru: #0f1624;
+		--color-kage: #161e30;
+		--color-tsuki: #e8edf5;
+		--color-midori: #4db89a; /* entrate */
+		--color-aka: #e06b6b; /* uscite */
+		--color-ao: #7b9fe0; /* investimenti */
+		--color-kin: #c4a85a; /* risparmi */
+	}
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+	background: var(--color-yoru);
+	color: var(--color-tsuki);
+	font-family: Arial, Helvetica, sans-serif;
 }
