@@ -1,6 +1,6 @@
-import LoginForm from "@/components/LoginForm";
+import SignUpForm from "@/components/SignUpForm";
 
-export default function LoginPage({}) {
+export default function SignUpPage() {
 	return (
 		<>
 			<div className="h-lvh relative z-1 grow shrink basis-0 flex flex-col pt-16 px-7 pb-9 overflow-hidden">
@@ -9,7 +9,7 @@ export default function LoginPage({}) {
 				<div className="circle-2"></div>
 				<div className="circle-3"></div>
 
-				<LoginForm />
+				<SignUpForm />
 			</div>
 		</>
 	);
