@@ -1,4 +1,5 @@
 "use client";
+import { login } from "@/app/(auth)/login/action";
 import { LoaderCircle, Mail, Lock, Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -8,7 +9,7 @@ export default function LoginForm() {
 		<>
 			<div className="grow shrink basis-0 flex flex-col h-full">
 				{/* Logo and description */}
-				<div className="flex flex-col justify-center items-center text-center mb-10">
+				<div className="flex flex-col justify-center items-center text-center mb-5">
 					<div className="flex justify-center">
 						<div className="w-18 h-18 flex items-center justify-center border border-white/15 rounded-3xl bg-white/10 backdrop-blur-md mb-5">
 							<LoaderCircle size={36} />
@@ -25,8 +26,11 @@ export default function LoginForm() {
 				</div>
 
 				{/* Input form */}
-				<div className="flex flex-col justify-center my-4 gap-3">
-					<form action="" className="flex flex-col justify-center my-3 gap-3">
+				<form
+					action={login}
+					className="flex flex-col justify-center my-4 gap-3"
+				>
+					<div className="flex flex-col justify-center my-3 gap-3">
 						<div className="flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
 							<Mail size={18} className="shrink-0 text-gray-500" />
 							<input
@@ -49,22 +53,25 @@ export default function LoginForm() {
 								required
 								className="bg-transparent outline-none text-gray-400 px-4 w-full"
 							/>
-							<button className="bg-transparent cursor-pointer p-1 flex items-center">
+							<button
+								type="button"
+								className="bg-transparent cursor-pointer p-1 flex items-center"
+							>
 								<Eye size={18} className="shrink-0 text-gray-500" />
 							</button>
 						</div>
-					</form>
-				</div>
+					</div>
 
-				<div className="text-right mb-6 text-seichi-ao">
-					<span className="text-xs cursor-pointer text-seichi-ao tracking-widest">
-						Password dimenticata?
-					</span>
-				</div>
+					<div className="text-right mb-4 text-seichi-ao">
+						<span className="text-xs cursor-pointer text-seichi-ao tracking-widest">
+							Password dimenticata?
+						</span>
+					</div>
 
-				<button className="w-full p-4 rounded-2xl bg-seichi-ao text-seichi-yoru font-bold cursor-pointer shadow-xl shadow-seichi-ao/30 mb-5">
-					Accedi
-				</button>
+					<button className="w-full p-4 rounded-2xl bg-seichi-ao text-seichi-yoru font-bold cursor-pointer shadow-xl shadow-seichi-ao/30 mb-3">
+						Accedi
+					</button>
+				</form>
 
 				<div className="flex items-center gap-3 mb-5">
 					<span className="grow shrink basis-0 h-px bg-background-tsuki/10"></span>

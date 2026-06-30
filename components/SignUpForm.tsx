@@ -1,5 +1,6 @@
 "use client";
 
+import { signup } from "@/app/(auth)/login/action";
 import { Mail, Lock, Eye, User, ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -23,8 +24,11 @@ export default function SignUpForm() {
 					</div>
 				</div>
 				{/* Input form */}
-				<div className="flex flex-col justify-center mb-2 gap-3">
-					<form action="" className="flex flex-col justify-center my-3 gap-3">
+				<form
+					action={signup}
+					className="flex flex-col justify-center my-3 gap-3"
+				>
+					<div className="flex flex-col justify-center mb-2 gap-3">
 						<div className="flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
 							<User size={18} className="shrink-0 text-gray-500" />
 							<input
@@ -71,7 +75,10 @@ export default function SignUpForm() {
 								required
 								className="bg-transparent outline-none text-gray-400 px-4 w-full"
 							/>
-							<button className="bg-transparent cursor-pointer p-1 flex items-center">
+							<button
+								type="button"
+								className="bg-transparent cursor-pointer p-1 flex items-center"
+							>
 								<Eye size={18} className="shrink-0 text-gray-500" />
 							</button>
 						</div>
@@ -86,39 +93,44 @@ export default function SignUpForm() {
 								required
 								className="bg-transparent outline-none text-gray-400 px-4 w-full"
 							/>
-							<button className="bg-transparent cursor-pointer p-1 flex items-center">
+							<button
+								type="button"
+								className="bg-transparent cursor-pointer p-1 flex items-center"
+							>
 								<Eye size={18} className="shrink-0 text-gray-500" />
 							</button>
 						</div>
-					</form>
-				</div>
-
-				<div className="flex flex-col items-center gap-2 mb-5">
-					<div className="flex items-center gap-1.5 w-full">
-						<span className="grow shrink basis-0 h-1.5 rounded-sm bg-seichi-tsuki/5 transition-all"></span>
-						<span className="grow shrink basis-0 h-1.5 rounded-sm bg-seichi-tsuki/5 transition-all"></span>
-						<span className="grow shrink basis-0 h-1.5 rounded-sm bg-seichi-tsuki/5 transition-all"></span>
 					</div>
-				</div>
 
-				<div className="flex items-start gap-3 mb-6 cursor-pointer">
-					<input
-						id="privacy"
-						name="privacy"
-						type="checkbox"
-						className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 mt-px"
-					/>
-					<div className="text-xs text-gray-400 tracking-wider">
-						Accetto i{" "}
-						<span className="text-seichi-ao">Termini di servizio</span> e l'
-						<span className="text-seichi-ao">informativa sulla privacy</span> di
-						Seichi.
+					<div className="flex flex-col items-center gap-2 mb-5">
+						<div className="flex items-center gap-1.5 w-full">
+							<span className="grow shrink basis-0 h-1.5 rounded-sm bg-seichi-tsuki/5 transition-all"></span>
+							<span className="grow shrink basis-0 h-1.5 rounded-sm bg-seichi-tsuki/5 transition-all"></span>
+							<span className="grow shrink basis-0 h-1.5 rounded-sm bg-seichi-tsuki/5 transition-all"></span>
+						</div>
 					</div>
-				</div>
 
-				<button className="w-full p-4 rounded-2xl bg-seichi-ao text-seichi-yoru font-bold cursor-pointer shadow-xl shadow-seichi-ao/30 mb-5">
-					Crea account
-				</button>
+					<div className="flex items-start gap-3 mb-6 cursor-pointer">
+						<input
+							id="privacy"
+							name="privacy"
+							type="checkbox"
+							className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 mt-px"
+						/>
+						<div className="text-xs text-gray-400 tracking-wider">
+							Accetto i{" "}
+							<span className="text-seichi-ao">Termini di servizio</span> e l'
+							<span className="text-seichi-ao">
+								informativa sulla privacy
+							</span>{" "}
+							di Seichi.
+						</div>
+					</div>
+
+					<button className="w-full p-4 rounded-2xl bg-seichi-ao text-seichi-yoru font-bold cursor-pointer shadow-xl shadow-seichi-ao/30 mb-5">
+						Crea account
+					</button>
+				</form>
 
 				<div className="flex items-center gap-3 mb-5">
 					<span className="grow shrink basis-0 h-px bg-background-tsuki/10"></span>
