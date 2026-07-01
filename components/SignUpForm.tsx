@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useActionState } from "react";
 import { signup } from "@/app/(auth)/login/action";
 import PasswordField from "@/components/PasswordField";
 import { Mail, User, ChevronLeft } from "lucide-react";
@@ -10,11 +10,11 @@ import Input from "@/components/UI/Input";
 
 const checkStrength = (password: string) => {
 	const requirements = [
-		{ regex: /.{5,}/, text: "At least 5 characters" },
-		{ regex: /[0-9]/, text: "At least 1 number" },
-		{ regex: /[a-z]/, text: "At least 1 lowercase letter" },
-		{ regex: /[A-Z]/, text: "At least 1 uppercase letter" },
-		{ regex: /[^A-Za-z0-9]/, text: "At least 1 special character" },
+		{ regex: /.{5,}/, text: "Minimo 5 caratteri" },
+		{ regex: /[0-9]/, text: "Minimo un numero" },
+		{ regex: /[a-z]/, text: "Minimo una lettera minuscola" },
+		{ regex: /[A-Z]/, text: "Minimo una lettera maiuscola" },
+		{ regex: /[^A-Za-z0-9]/, text: "Minimo un carattere speciale" },
 	];
 	return requirements.map((req) => ({
 		met: req.regex.test(password),
@@ -25,6 +25,14 @@ const checkStrength = (password: string) => {
 export default function SignUpForm() {
 	const router = useRouter();
 	const [password, setPassword] = useState("");
+	const [confirmPassword, setConfirmPassword] = useState("");
+	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [state, formAction, pending] = useActionState(signup, {
+		error: "",
+	});
+	const [name, setName] = useState("");
+	const [surname, setSurname] = useState("");
+	const [email, setEmail] = useState("");
 
 	return (
 		<>
@@ -45,7 +53,11 @@ export default function SignUpForm() {
 				</div>
 				{/* Input form */}
 				<form
-					action={signup}
+					onSubmit={(e) => {
+						password !== confirmPassword ? e.preventDefault() : null;
+						setIsSubmitting(password !== confirmPassword);
+					}}
+					action={formAction}
 					className="flex flex-col justify-center my-3 gap-3"
 				>
 					<div className="flex flex-col justify-center mb-2 gap-3">
@@ -54,6 +66,8 @@ export default function SignUpForm() {
 							name="name"
 							placeholder="Nome"
 							type="text"
+							value={name}
+							onChange={setName}
 							icon={<User size={18} className="shrink-0 text-gray-500" />}
 						/>
 
@@ -62,6 +76,8 @@ export default function SignUpForm() {
 							name="surname"
 							placeholder="Cognome"
 							type="text"
+							value={surname}
+							onChange={setSurname}
 							icon={<User size={18} className="shrink-0 text-gray-500" />}
 						/>
 
@@ -70,6 +86,8 @@ export default function SignUpForm() {
 							name="email"
 							placeholder="Email"
 							type="email"
+							value={email}
+							onChange={setEmail}
 							icon={<Mail size={18} className="shrink-0 text-gray-500" />}
 						/>
 
@@ -83,8 +101,15 @@ export default function SignUpForm() {
 							id="confirm-password"
 							name="confirm-password"
 							placeholder="Conferma password"
+							onChange={setConfirmPassword}
 						/>
-						<div className="flex items-center gap-1.5 w-full mb-2">
+						{confirmPassword !== password && isSubmitting ? (
+							<div className="text-xs text-red-500 mb-2">
+								Le password non corrispondono
+							</div>
+						) : null}
+
+						<div className="flex items-center gap-1.5 w-full my-2">
 							{checkStrength(password).map((req, index) => (
 								<span
 									key={index}
@@ -94,6 +119,12 @@ export default function SignUpForm() {
 								/>
 							))}
 						</div>
+
+						{state.error && (
+							<div className="text-xs text-seichi-aka mt-1 text-center">
+								{state.error}
+							</div>
+						)}
 					</div>
 
 					<div className="flex items-start gap-3 mb-6 cursor-pointer">

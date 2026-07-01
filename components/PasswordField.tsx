@@ -7,9 +7,16 @@ interface PasswordFieldProps {
 	name: string;
 	placeholder: string;
 	onChange?: (value: string) => void;
+	value?: string;
 }
 
-export default function PasswordField({ id, name, placeholder, onChange }: PasswordFieldProps) {
+export default function PasswordField({
+	id,
+	name,
+	placeholder,
+	onChange,
+	value,
+}: PasswordFieldProps) {
 	const [isView, setIsView] = useState(false);
 
 	return (
@@ -21,6 +28,7 @@ export default function PasswordField({ id, name, placeholder, onChange }: Passw
 				type={isView ? "text" : "password"}
 				placeholder={placeholder}
 				onChange={(e) => onChange?.(e.target.value)}
+				value={value}
 				required
 				className="bg-transparent outline-none text-gray-400 px-4 w-full"
 			/>

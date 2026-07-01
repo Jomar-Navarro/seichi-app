@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 
-export async function login(formData: FormData) {
+export async function login(prevState: { error: string }, formData: FormData) {
 	const supabase = await createClient();
 
 	// type-casting here for convenience
@@ -18,14 +18,14 @@ export async function login(formData: FormData) {
 	const { error } = await supabase.auth.signInWithPassword(data);
 
 	if (error) {
-		redirect("/error");
+		return { error: "Credenziali di login errate" };
 	}
 
 	revalidatePath("/", "layout");
 	redirect("/");
 }
 
-export async function signup(formData: FormData) {
+export async function signup(prevState: { error: string }, formData: FormData) {
 	const supabase = await createClient();
 
 	// type-casting here for convenience
@@ -44,7 +44,7 @@ export async function signup(formData: FormData) {
 	const { error } = await supabase.auth.signUp(data);
 
 	if (error) {
-		redirect("/error");
+		return { error: error.message };
 	}
 
 	revalidatePath("/", "layout");

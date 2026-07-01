@@ -1,4 +1,5 @@
 "use client";
+import { useActionState } from "react";
 import { login } from "@/app/(auth)/login/action";
 import { LoaderCircle, Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -8,6 +9,9 @@ import Input from "@/components/UI/Input";
 import Button from "@/components/UI/Button";
 
 export default function LoginForm() {
+	const [state, formAction, pending] = useActionState(login, {
+		error: "",
+	});
 	const router = useRouter();
 	return (
 		<>
@@ -31,10 +35,10 @@ export default function LoginForm() {
 
 				{/* Input form */}
 				<form
-					action={login}
-					className="flex flex-col justify-center my-4 gap-3"
+					action={formAction}
+					className="flex flex-col justify-center my-3 gap-3"
 				>
-					<div className="flex flex-col justify-center my-3 gap-3">
+					<div className="flex flex-col justify-center mt-3 gap-3">
 						<Input
 							id="email"
 							name="email"
@@ -48,6 +52,11 @@ export default function LoginForm() {
 							name="password"
 							placeholder="Password"
 						/>
+						{state.error && (
+							<div className="text-xs text-seichi-aka mt-1 text-center">
+								{state.error}
+							</div>
+						)}
 					</div>
 
 					<div className="text-right mb-4 text-seichi-ao">
