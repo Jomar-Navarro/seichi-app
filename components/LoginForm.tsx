@@ -58,7 +58,7 @@ export default function LoginForm({ onTabChange }: LoginFormProps) {
 					</button>
 				</p>
 
-				<div className="pt-32"></div>
+				<div className="pt-40"></div>
 
 				<div className="flex items-center gap-3 mb-4">
 					<span className="grow shrink basis-0 h-px bg-glass-border" />
