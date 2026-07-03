@@ -8,6 +8,7 @@ import Button from "@/components/UI/Button";
 import { GoogleIcon, AppleIcon } from "@/components/icons";
 import Input from "@/components/UI/Input";
 import SignTab from "./UI/SignTab";
+import BrandHeader from "./UI/BrandHeader";
 
 interface SignUpFormProps {
 	onTabChange?: (value: "signin" | "signup") => void;
@@ -41,7 +42,9 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 
 	return (
 		<>
-			<div className="grow shrink basis-0 flex flex-col h-full">
+			<div className="grow shrink basis-0 flex flex-col h-full pt-12 px-7 overflow-y-auto pb-7">
+				<BrandHeader />
+
 				<SignTab
 					onSignUp={() => {}}
 					activeTab="signup"
@@ -49,11 +52,11 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 				/>
 
 				{/* Progress indicator — step 1 of 3 */}
-				<div className="flex items-center gap-2 justify-center mb-6">
+				{/* <div className="flex items-center gap-2 justify-center mb-6">
 					<div className="w-5 h-2 rounded-full bg-ao" />
 					<div className="w-2 h-2 rounded-full bg-glass-border" />
 					<div className="w-2 h-2 rounded-full bg-glass-border" />
-				</div>
+				</div> */}
 
 				{/* Input form */}
 				<form
@@ -72,7 +75,7 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 							type="text"
 							value={name}
 							onChange={setName}
-							icon={<User size={18} className="shrink-0 text-kage" />}
+							icon={<User size={18} className="shrink-0" />}
 						/>
 
 						<Input
@@ -82,7 +85,7 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 							type="text"
 							value={surname}
 							onChange={setSurname}
-							icon={<User size={18} className="shrink-0 text-kage" />}
+							icon={<User size={18} className="shrink-0 text-foreground" />}
 						/>
 
 						<Input
@@ -92,7 +95,9 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 							type="email"
 							value={email}
 							onChange={setEmail}
-							icon={<Mail size={18} className="shrink-0 text-kage" />}
+							icon={
+								<Mail size={18} className="shrink-0 text-shadow-foreground" />
+							}
 						/>
 
 						<PasswordField
@@ -139,9 +144,9 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 							className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 mt-px"
 						/>
 						<div className="text-xs text-muted tracking-wider">
-							Accetto i <span className="text-ao">Termini di servizio</span> e
-							l'
-							<span className="text-ao">informativa sulla privacy</span> di
+							Accetto i <span className="text-midori">Termini di servizio</span>{" "}
+							e l'
+							<span className="text-midori">informativa sulla privacy</span> di
 							Seichi.
 						</div>
 					</div>
@@ -164,7 +169,7 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 					<span className="me-1">Hai già un account?</span>
 					<button
 						onClick={() => router.push("/login")}
-						className="text-ao cursor-pointer font-medium"
+						className="text-midori cursor-pointer font-medium"
 					>
 						Accedi
 					</button>
