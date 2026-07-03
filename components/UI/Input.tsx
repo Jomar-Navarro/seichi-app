@@ -18,7 +18,7 @@ export default function Input({
 	onChange,
 }: InputProps) {
 	return (
-		<div className="flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
+		<div className="flex items-center gap-3 px-4 rounded-2xl bg-input-bg border border-background-tab segment-tab mb-3 text-muted">
 			{icon}
 			<input
 				id={id}
@@ -28,7 +28,7 @@ export default function Input({
 				value={value}
 				placeholder={placeholder}
 				onChange={(e) => onChange?.(e.target.value)}
-				className="bg-transparent outline-none text-gray-400 px-4 w-full"
+				className="grow shrink basis-0 bg-transparent outline-none text-foreground text-sm py-4"
 			/>
 		</div>
 	);

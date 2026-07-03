@@ -1,89 +1,200 @@
 @import "tailwindcss";
 
+/* ============================================================
+   SEICHI — ZEN GLASS DESIGN TOKENS
+   ============================================================ */
+
 :root {
-	--color-yoru: #0f1624;
-	--color-kage: #161e30;
-	--color-tsuki: #e8edf5;
-	--color-midori: #4db89a; /* entrate */
-	--color-aka: #e06b6b; /* uscite */
-	--color-ao: #7b9fe0; /* investimenti */
-	--color-kin: #c4a85a; /* risparmi */
+	color-scheme: light;
+
+	/* ---------- Brand ---------- */
+
+	--color-tsuki: #f5f1e8;
+	--color-kami: #ece6da;
+	--color-yoru: #33373d;
+	--color-kage: #4a4e45;
+	--color-kiri: #8e887b;
+	--color-hai: #9a9384;
+
+	--color-midori: #6f8a63;
+	--color-aka: #b47358;
+	--color-ao: #6e86a8;
+	--color-kin: #ae8b49;
+
+	/* ---------- Semantic ---------- */
+
+	--background: radial-gradient(
+		ellipse at 50% 0%,
+		#f5f1e8,
+		#ece6da 50%,
+		#e6dfd1 100%
+	);
+	--background-secondary: #e2ded4;
+
+	--surface: rgba(255, 255, 255, 0.52);
+	--surface-elevated: rgba(255, 255, 255, 0.7);
+
+	--border: rgba(70, 62, 48, 0.09);
+
+	--text-primary: var(--color-yoru);
+	--text-secondary: var(--color-kage);
+	--text-muted: var(--color-kiri);
+	--text-disabled: var(--color-hai);
 }
+
+/* ============================================================
+   DARK
+   ============================================================ */
+
+.dark {
+	color-scheme: dark;
+
+	--color-midori: #67b89a;
+	--color-aka: #cc8c74;
+	--color-ao: #7b9fe0;
+	--color-kin: #d4b26a;
+
+	--background: radial-gradient(
+		120% 90% at 50% 0%,
+		#1a2436 0%,
+		#151d2b 60%,
+		#101723 100%
+	);
+	--background-secondary: #1a2436;
+
+	--surface: rgba(230, 233, 239, 0.05);
+	--surface-elevated: rgba(236, 240, 248, 0.13);
+
+	--border: rgba(230, 233, 239, 0.09);
+	--seg-bg: rgba(230, 233, 239, 0.04);
+	--card-bd: rgba(230, 233, 239, 0.09);
+	--bg-tab: rgba(230, 233, 239, 0.1);
+	--text-primary: #e6e9ef;
+	--text-secondary: #c7cdda;
+	--text-muted: #8892a6;
+	--text-disabled: #6e7688;
+}
+
+/* ============================================================
+   TAILWIND THEME — mappa i token sui nomi usati nei componenti
+   ============================================================ */
 
 @theme inline {
-	--color-background-yoru: var(--color-yoru);
-	--color-background-tsuki: var(--color-tsuki);
-	--color-foreground: var(--color-tsuki);
-	--color-seichi-tsuki: var(--color-tsuki);
-	--color-seichi-yoru: var(--color-yoru);
-	--color-seichi-midori: var(--color-midori); /* entrate */
-	--color-seichi-aka: var(--color-aka); /* uscite */
-	--color-seichi-ao: var(--color-ao); /* investimenti */
-	--color-seichi-kin: var(--color-kin); /* risparmi */
-	--font-sans: var(--font-geist-sans);
+	--color-yoru: var(--color-yoru);
+	--color-tsuki: var(--color-tsuki);
+	--color-kami: var(--color-kami);
+	--color-kage: var(--color-kage);
+	--color-kiri: var(--color-kiri);
+	--color-hai: var(--color-hai);
+	--color-midori: var(--color-midori);
+	--color-aka: var(--color-aka);
+	--color-ao: var(--color-ao);
+	--color-kin: var(--color-kin);
+
+	--color-background: var(--background);
+	--color-foreground: var(--text-primary);
+	--color-secondary: var(--text-secondary);
+	--color-muted: var(--text-muted);
+
+	--color-surface: var(--surface);
+	--color-surface-elevated: var(--surface-elevated);
+	--color-glass-border: var(--border);
+	--color-background-tab: var(--bg-tab);
+	--color-input-bg: var(--seg-bg);
 }
 
-@media (prefers-color-scheme: dark) {
-	:root {
-		--color-yoru: #0f1624;
-		--color-kage: #161e30;
-		--color-tsuki: #e8edf5;
-		--color-midori: #4db89a; /* entrate */
-		--color-aka: #e06b6b; /* uscite */
-		--color-ao: #7b9fe0; /* investimenti */
-		--color-kin: #c4a85a; /* risparmi */
-	}
-}
+/* ============================================================
+   BASE
+   ============================================================ */
 
 body {
-	background: var(--color-yoru);
-	color: var(--color-tsuki);
+	background: var(--background);
+	background-attachment: fixed;
+	color: var(--text-primary);
+	min-height: 100vh;
 }
+
+/* ============================================================
+   BASE
+   ============================================================ */
+
+/* ============================================================
+   ZEN BACKGROUND
+   ============================================================ */
+
+/* ============================================================
+   GLASS
+   ============================================================ */
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+
+/* ============================================================
+   BACKGROUND CIRCLES
+   ============================================================ */
 
 .circle-1 {
 	position: absolute;
-	top: -100px;
-	left: -70px;
-	width: 320px;
-	height: 320px;
-	border-radius: 50%;
-	background: radial-gradient(
-		circle,
-		rgba(123, 159, 224, 0.24),
-		transparent 70%
-	);
-	filter: blur(22px);
-	pointer-events: none;
-}
-
-.circle-2 {
-	position: absolute;
-	top: 240px;
-	right: -120px;
+	top: -110px;
+	right: -90px;
 	width: 300px;
 	height: 300px;
 	border-radius: 50%;
 	background: radial-gradient(
 		circle,
-		rgba(155, 127, 212, 0.16),
-		transparent 70%
+		rgba(103, 184, 154, 0.12),
+		transparent 68%
 	);
-	filter: blur(22px);
+	filter: blur(46px);
+	opacity: 1;
+	animation: 15s ease-in-out infinite zg-breathe;
 	pointer-events: none;
 }
 
 .circle-3 {
 	position: absolute;
 	bottom: -80px;
-	left: -60px;
+	left: -80px;
 	width: 300px;
 	height: 300px;
 	border-radius: 50%;
 	background: radial-gradient(
 		circle,
-		rgba(196, 168, 90, 0.13),
-		transparent 70%
+		rgba(212, 178, 106, 0.13),
+		transparent 53%
 	);
-	filter: blur(22px);
+	filter: blur(48px);
+	opacity: 1;
+	animation: 18s ease-in-out 4s infinite zg-breathe;
 	pointer-events: none;
+}
+
+.deep-shadow {
+	background: rgba(236, 240, 248, 0.13);
+	border: 1px solid rgba(236, 240, 248, 0.2);
+	color: rgb(242, 245, 250);
+	box-shadow:
+		rgba(0, 0, 0, 0.36) 0px 18px 40px,
+		rgba(255, 255, 255, 0.16) 0px 1px 0px inset;
+	backdrop-filter: blur(24px);
+	transition:
+		transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+		box-shadow 0.4s;
+	margin-bottom: 16px;
+}
+
+.segment-tab {
+	border: 1px solid var(--card-bd);
+	box-shadow: rgba(255, 255, 255, 0.28) 0px 1px 0px inset;
+	background: var(--seg-bg);
+}
+
+.active-tab {
+	transition: 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+	background: rgba(230, 233, 239, 0.1);
+	color: rgb(230, 233, 239);
+	box-shadow:
+		rgba(255, 255, 255, 0.08) 0px 1px 0px inset,
+		rgba(0, 0, 0, 0.3) 0px 6px 16px;
+	border: medium;
 }

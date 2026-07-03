@@ -1,12 +1,17 @@
 "use client";
 import { useState, useActionState } from "react";
-import { signup } from "@/app/(auth)/login/action";
+import { signup } from "@/app/(auth)/sign/action";
 import PasswordField from "@/components/PasswordField";
-import { Mail, User, ChevronLeft } from "lucide-react";
+import { Mail, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/UI/Button";
 import { GoogleIcon, AppleIcon } from "@/components/icons";
 import Input from "@/components/UI/Input";
+import SignTab from "./UI/SignTab";
+
+interface SignUpFormProps {
+	onTabChange?: (value: "signin" | "signup") => void;
+}
 
 const checkStrength = (password: string) => {
 	const requirements = [
@@ -22,7 +27,7 @@ const checkStrength = (password: string) => {
 	}));
 };
 
-export default function SignUpForm() {
+export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 	const router = useRouter();
 	const [password, setPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
@@ -37,20 +42,19 @@ export default function SignUpForm() {
 	return (
 		<>
 			<div className="grow shrink basis-0 flex flex-col h-full">
-				<div className="flex items-center gap-3 mb-8">
-					<button
-						onClick={() => router.push("/login")}
-						className="w-10 h-10 flex shrink-0 items-center justify-center border border-white/15 rounded-xl bg-white/2 cursor-pointer backdrop-blur-md"
-					>
-						<ChevronLeft size={18} />
-					</button>
-					<div className="flex flex-col">
-						<h1 className="text-2xl font-semibold">Crea il tuo account</h1>
-						<h3 className="text-xs text-gray-400 mt-1 tracking-widest">
-							Inizia a mettere ordine nelle tue finanze
-						</h3>
-					</div>
+				<SignTab
+					onSignUp={() => {}}
+					activeTab="signup"
+					onSignIn={() => onTabChange?.("signin")}
+				/>
+
+				{/* Progress indicator — step 1 of 3 */}
+				<div className="flex items-center gap-2 justify-center mb-6">
+					<div className="w-5 h-2 rounded-full bg-ao" />
+					<div className="w-2 h-2 rounded-full bg-glass-border" />
+					<div className="w-2 h-2 rounded-full bg-glass-border" />
 				</div>
+
 				{/* Input form */}
 				<form
 					onSubmit={(e) => {
@@ -58,9 +62,9 @@ export default function SignUpForm() {
 						setIsSubmitting(password !== confirmPassword);
 					}}
 					action={formAction}
-					className="flex flex-col justify-center my-3 gap-3"
+					className="flex flex-col justify-center gap-3"
 				>
-					<div className="flex flex-col justify-center mb-2 gap-3">
+					<div className="flex flex-col justify-center gap-3">
 						<Input
 							id="name"
 							name="name"
@@ -68,7 +72,7 @@ export default function SignUpForm() {
 							type="text"
 							value={name}
 							onChange={setName}
-							icon={<User size={18} className="shrink-0 text-gray-500" />}
+							icon={<User size={18} className="shrink-0 text-kage" />}
 						/>
 
 						<Input
@@ -78,7 +82,7 @@ export default function SignUpForm() {
 							type="text"
 							value={surname}
 							onChange={setSurname}
-							icon={<User size={18} className="shrink-0 text-gray-500" />}
+							icon={<User size={18} className="shrink-0 text-kage" />}
 						/>
 
 						<Input
@@ -88,7 +92,7 @@ export default function SignUpForm() {
 							type="email"
 							value={email}
 							onChange={setEmail}
-							icon={<Mail size={18} className="shrink-0 text-gray-500" />}
+							icon={<Mail size={18} className="shrink-0 text-kage" />}
 						/>
 
 						<PasswordField
@@ -104,53 +108,51 @@ export default function SignUpForm() {
 							onChange={setConfirmPassword}
 						/>
 						{confirmPassword !== password && isSubmitting ? (
-							<div className="text-xs text-red-500 mb-2">
+							<div className="text-xs text-aka">
 								Le password non corrispondono
 							</div>
 						) : null}
 
-						<div className="flex items-center gap-1.5 w-full my-2">
+						<div className="flex items-center gap-1.5 w-full my-1">
 							{checkStrength(password).map((req, index) => (
 								<span
 									key={index}
 									className={`grow shrink basis-0 h-1.5 rounded-sm transition-all ${
-										req.met ? "bg-emerald-500" : "bg-seichi-tsuki/5"
+										req.met ? "bg-midori" : "bg-glass-border"
 									}`}
 								/>
 							))}
 						</div>
 
 						{state.error && (
-							<div className="text-xs text-seichi-aka mt-1 text-center">
+							<div className="text-xs text-aka mt-1 text-center">
 								{state.error}
 							</div>
 						)}
 					</div>
 
-					<div className="flex items-start gap-3 mb-6 cursor-pointer">
+					<div className="flex items-start gap-3 mb-4 cursor-pointer">
 						<input
 							id="privacy"
 							name="privacy"
 							type="checkbox"
 							className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 mt-px"
 						/>
-						<div className="text-xs text-gray-400 tracking-wider">
-							Accetto i{" "}
-							<span className="text-seichi-ao">Termini di servizio</span> e l'
-							<span className="text-seichi-ao">
-								informativa sulla privacy
-							</span>{" "}
-							di Seichi.
+						<div className="text-xs text-muted tracking-wider">
+							Accetto i <span className="text-ao">Termini di servizio</span> e
+							l'
+							<span className="text-ao">informativa sulla privacy</span> di
+							Seichi.
 						</div>
 					</div>
 
 					<Button title="Crea account" />
 				</form>
 
-				<div className="flex items-center gap-3 mb-5">
-					<span className="grow shrink basis-0 h-px bg-background-tsuki/10"></span>
-					<span className="text-[#727e95] text-xs">oppure</span>
-					<span className="grow shrink basis-0 h-px bg-background-tsuki/10"></span>
+				<div className="flex items-center gap-3 my-5">
+					<span className="grow shrink basis-0 h-px bg-glass-border"></span>
+					<span className="text-muted text-xs">oppure</span>
+					<span className="grow shrink basis-0 h-px bg-glass-border"></span>
 				</div>
 
 				<div className="flex gap-3">
@@ -158,11 +160,11 @@ export default function SignUpForm() {
 					<Button title="Apple" icon={<AppleIcon />} variant="oauth" />
 				</div>
 
-				<div className="mt-7 text-center text-sm text-[#8a97b0]">
+				<div className="mt-7 text-center text-sm text-kiri">
 					<span className="me-1">Hai già un account?</span>
 					<button
 						onClick={() => router.push("/login")}
-						className="text-seichi-ao cursor-pointer font-medium"
+						className="text-ao cursor-pointer font-medium"
 					>
 						Accedi
 					</button>

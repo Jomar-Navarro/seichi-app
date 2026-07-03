@@ -20,8 +20,8 @@ export default function PasswordField({
 	const [isView, setIsView] = useState(false);
 
 	return (
-		<div className="flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
-			<Lock size={18} className="shrink-0 text-gray-500" />
+		<div className="flex items-center gap-3 px-4 rounded-2xl bg-input-bg border border-background-tab segment-tab mb-3 text-muted">
+			<Lock size={18} className="shrink-0 text-shadow-foreground" />
 			<input
 				id={id}
 				name={name}
@@ -30,7 +30,7 @@ export default function PasswordField({
 				onChange={(e) => onChange?.(e.target.value)}
 				value={value}
 				required
-				className="bg-transparent outline-none text-gray-400 px-4 w-full"
+				className="grow shrink basis-0 bg-transparent outline-none text-foreground text-sm py-4"
 			/>
 			<button
 				type="button"
@@ -38,9 +38,9 @@ export default function PasswordField({
 				className="bg-transparent cursor-pointer p-1 flex items-center"
 			>
 				{isView ? (
-					<Eye size={18} className="shrink-0 text-gray-500" />
+					<Eye size={18} className="shrink-0 text-shadow-foreground" />
 				) : (
-					<EyeOff size={18} className="shrink-0 text-gray-500" />
+					<EyeOff size={18} className="shrink-0 text-shadow-foreground" />
 				)}
 			</button>
 		</div>
