@@ -1,9 +1,9 @@
 "use client";
 import { useActionState } from "react";
 import { login, signInWithFacebook } from "@/app/(auth)/sign/action";
-import { Sprout, Mail } from "lucide-react";
+import { Mail } from "lucide-react";
 import PasswordField from "@/components/PasswordField";
-import { GoogleIcon, AppleIcon, FacebookIcon } from "@/components/icons";
+import { GoogleIcon, FacebookIcon } from "@/components/icons";
 import Input from "@/components/UI/Input";
 import Button from "@/components/UI/Button";
 import SignTab from "@/components/UI/SignTab";

@@ -31,7 +31,7 @@ const checkStrength = (password: string) => {
 export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 	const [password, setPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
-	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [passwordMismatch, setPasswordMismatch] = useState(false);
 	const [state, formAction, pending] = useActionState(signup, {
 		error: "",
 	});
@@ -61,7 +61,7 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 				<form
 					onSubmit={(e) => {
 						password !== confirmPassword ? e.preventDefault() : null;
-						setIsSubmitting(password !== confirmPassword);
+						setPasswordMismatch(password !== confirmPassword);
 					}}
 					action={formAction}
 					className="flex flex-col justify-center gap-3"
@@ -111,7 +111,7 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 							placeholder="Conferma password"
 							onChange={setConfirmPassword}
 						/>
-						{confirmPassword !== password && isSubmitting ? (
+						{confirmPassword !== password && passwordMismatch ? (
 							<div className="text-xs text-aka">
 								Le password non corrispondono
 							</div>

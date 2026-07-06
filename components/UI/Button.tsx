@@ -28,7 +28,7 @@ export default function Button({ title, icon, variant, onClick }: ButtonProps) {
 		);
 	} else {
 		return (
-			<button className="w-full flex items-center justify-center gap-2.5 py-5 rounded-3xl text-base font-semibold cursor-pointer bg-surface-elevated deep-shadow mb-4 hover:-translate-y-0.5">
+			<button onClick={onClick} className="w-full flex items-center justify-center gap-2.5 py-5 rounded-3xl text-base font-semibold cursor-pointer bg-surface-elevated deep-shadow mb-4 hover:-translate-y-0.5">
 				{title}
 			</button>
 		);
