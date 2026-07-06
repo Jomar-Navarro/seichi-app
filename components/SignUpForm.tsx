@@ -9,6 +9,7 @@ import { GoogleIcon, AppleIcon, FacebookIcon } from "@/components/icons";
 import Input from "@/components/UI/Input";
 import SignTab from "./UI/SignTab";
 import BrandHeader from "./UI/BrandHeader";
+import { signInWithGoogle } from "@/app/(auth)/sign/action";
 
 interface SignUpFormProps {
 	onTabChange?: (value: "signin" | "signup") => void;
@@ -161,7 +162,12 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 				</div>
 
 				<div className="flex gap-3">
-					<Button title="Google" icon={<GoogleIcon />} variant="oauth" />
+					<Button
+						onClick={() => signInWithGoogle()}
+						title="Google"
+						icon={<GoogleIcon />}
+						variant="oauth"
+					/>
 					<Button title="Facebook" icon={<FacebookIcon />} variant="oauth" />
 				</div>
 

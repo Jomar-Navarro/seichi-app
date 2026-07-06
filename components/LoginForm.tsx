@@ -8,6 +8,7 @@ import Input from "@/components/UI/Input";
 import Button from "@/components/UI/Button";
 import SignTab from "@/components/UI/SignTab";
 import BrandHeader from "./UI/BrandHeader";
+import { signInWithGoogle } from "@/app/(auth)/sign/action";
 
 interface LoginFormProps {
 	onTabChange?: (value: "signin" | "signup") => void;
@@ -68,7 +69,12 @@ export default function LoginForm({ onTabChange }: LoginFormProps) {
 				</div>
 
 				<div className="flex gap-3">
-					<Button title="Google" icon={<GoogleIcon />} variant="oauth" />
+					<Button
+						onClick={() => signInWithGoogle()}
+						title="Google"
+						icon={<GoogleIcon />}
+						variant="oauth"
+					/>
 					<Button title="Facebook" icon={<FacebookIcon />} variant="oauth" />
 				</div>
 			</div>

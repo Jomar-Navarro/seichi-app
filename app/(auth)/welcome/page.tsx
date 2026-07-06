@@ -7,7 +7,7 @@ export default function WelcomePage() {
 	const router = useRouter();
 
 	return (
-		<div className="shrink grow basis-0 relative z-1 flex flex-col pt-11 px-7 pb-8">
+		<div className="shrink grow basis-0 relative z-1 flex flex-col pt-11 px-7 pb-8 overflow-hidden">
 			<div className="circle-1 z-0"></div>
 			<div className="circle-3 z-0"></div>
 
@@ -35,7 +35,7 @@ export default function WelcomePage() {
 
 			{/* Azioni */}
 			<Button
-				onClick={() => router.push("/signup")}
+				onClick={() => router.push("/sign")}
 				title="Inizia"
 				icon={<ArrowRight size={18} />}
 				variant="welcome"
@@ -43,7 +43,7 @@ export default function WelcomePage() {
 			<p className="text-center text-sm text-muted">
 				Ho già un account ·{" "}
 				<button
-					onClick={() => router.push("/login")}
+					onClick={() => router.push("/sign")}
 					className="text-midori cursor-pointer font-medium"
 				>
 					Accedi

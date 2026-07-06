@@ -50,3 +50,21 @@ export async function signup(prevState: { error: string }, formData: FormData) {
 	revalidatePath("/", "layout");
 	redirect("/");
 }
+
+export async function signInWithGoogle() {
+	const supabase = await createClient();
+
+	const { data } = await supabase.auth.signInWithOAuth({
+		provider: "google",
+		options: {
+			queryParams: {
+				access_type: "offline",
+				prompt: "consent",
+			},
+			redirectTo: "http://localhost:3000/callback",
+		},
+	});
+	if (data.url) {
+		redirect(data.url); // use the redirect API for your server framework
+	}
+}
