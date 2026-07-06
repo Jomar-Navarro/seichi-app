@@ -1,6 +1,6 @@
 "use client";
 import { useActionState } from "react";
-import { login } from "@/app/(auth)/sign/action";
+import { login, signInWithFacebook } from "@/app/(auth)/sign/action";
 import { Sprout, Mail } from "lucide-react";
 import PasswordField from "@/components/PasswordField";
 import { GoogleIcon, AppleIcon, FacebookIcon } from "@/components/icons";
@@ -75,7 +75,12 @@ export default function LoginForm({ onTabChange }: LoginFormProps) {
 						icon={<GoogleIcon />}
 						variant="oauth"
 					/>
-					<Button title="Facebook" icon={<FacebookIcon />} variant="oauth" />
+					<Button
+						onClick={() => signInWithFacebook()}
+						title="Facebook"
+						icon={<FacebookIcon />}
+						variant="oauth"
+					/>
 				</div>
 			</div>
 		</div>

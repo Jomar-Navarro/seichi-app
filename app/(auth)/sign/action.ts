@@ -68,3 +68,17 @@ export async function signInWithGoogle() {
 		redirect(data.url); // use the redirect API for your server framework
 	}
 }
+
+export async function signInWithFacebook() {
+	const supabase = await createClient();
+
+	const { data } = await supabase.auth.signInWithOAuth({
+		provider: "facebook",
+		options: {
+			redirectTo: "http://localhost:3000/callback",
+		},
+	});
+	if (data.url) {
+		redirect(data.url); // use the redirect API for your server framework
+	}
+}

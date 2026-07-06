@@ -1,11 +1,10 @@
 "use client";
 import { useState, useActionState } from "react";
-import { signup } from "@/app/(auth)/sign/action";
+import { signInWithFacebook, signup } from "@/app/(auth)/sign/action";
 import PasswordField from "@/components/PasswordField";
 import { Mail, User } from "lucide-react";
-import { useRouter } from "next/navigation";
 import Button from "@/components/UI/Button";
-import { GoogleIcon, AppleIcon, FacebookIcon } from "@/components/icons";
+import { GoogleIcon, FacebookIcon } from "@/components/icons";
 import Input from "@/components/UI/Input";
 import SignTab from "./UI/SignTab";
 import BrandHeader from "./UI/BrandHeader";
@@ -30,7 +29,6 @@ const checkStrength = (password: string) => {
 };
 
 export default function SignUpForm({ onTabChange }: SignUpFormProps) {
-	const router = useRouter();
 	const [password, setPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -168,7 +166,12 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 						icon={<GoogleIcon />}
 						variant="oauth"
 					/>
-					<Button title="Facebook" icon={<FacebookIcon />} variant="oauth" />
+					<Button
+						onClick={() => signInWithFacebook()}
+						title="Facebook"
+						icon={<FacebookIcon />}
+						variant="oauth"
+					/>
 				</div>
 
 				<div className="mt-7 text-center text-sm">
