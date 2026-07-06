@@ -3,7 +3,7 @@ import { useActionState } from "react";
 import { login } from "@/app/(auth)/sign/action";
 import { Sprout, Mail } from "lucide-react";
 import PasswordField from "@/components/PasswordField";
-import { GoogleIcon, AppleIcon } from "@/components/icons";
+import { GoogleIcon, AppleIcon, FacebookIcon } from "@/components/icons";
 import Input from "@/components/UI/Input";
 import Button from "@/components/UI/Button";
 import SignTab from "@/components/UI/SignTab";
@@ -34,7 +34,7 @@ export default function LoginForm({ onTabChange }: LoginFormProps) {
 						name="email"
 						placeholder="Email"
 						type="email"
-						icon={<Mail size={18} className="shrink-0 text-kage" />}
+						icon={<Mail size={18} className="shrink-0" />}
 					/>
 					<PasswordField id="password" name="password" placeholder="Password" />
 					{state.error && (
@@ -51,6 +51,7 @@ export default function LoginForm({ onTabChange }: LoginFormProps) {
 				<p className="text-center text-sm text-muted mb-5">
 					Non hai un account?{" "}
 					<button
+						onClick={() => onTabChange?.("signup")}
 						type="button"
 						className="text-midori cursor-pointer font-medium"
 					>
@@ -68,7 +69,7 @@ export default function LoginForm({ onTabChange }: LoginFormProps) {
 
 				<div className="flex gap-3">
 					<Button title="Google" icon={<GoogleIcon />} variant="oauth" />
-					<Button title="Apple" icon={<AppleIcon />} variant="oauth" />
+					<Button title="Facebook" icon={<FacebookIcon />} variant="oauth" />
 				</div>
 			</div>
 		</div>

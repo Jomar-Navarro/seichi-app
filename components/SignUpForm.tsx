@@ -5,7 +5,7 @@ import PasswordField from "@/components/PasswordField";
 import { Mail, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/UI/Button";
-import { GoogleIcon, AppleIcon } from "@/components/icons";
+import { GoogleIcon, AppleIcon, FacebookIcon } from "@/components/icons";
 import Input from "@/components/UI/Input";
 import SignTab from "./UI/SignTab";
 import BrandHeader from "./UI/BrandHeader";
@@ -85,7 +85,7 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 							type="text"
 							value={surname}
 							onChange={setSurname}
-							icon={<User size={18} className="shrink-0 text-foreground" />}
+							icon={<User size={18} className="shrink-0" />}
 						/>
 
 						<Input
@@ -162,13 +162,13 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 
 				<div className="flex gap-3">
 					<Button title="Google" icon={<GoogleIcon />} variant="oauth" />
-					<Button title="Apple" icon={<AppleIcon />} variant="oauth" />
+					<Button title="Facebook" icon={<FacebookIcon />} variant="oauth" />
 				</div>
 
-				<div className="mt-7 text-center text-sm text-kiri">
-					<span className="me-1">Hai già un account?</span>
+				<div className="mt-7 text-center text-sm">
+					<span className="me-1 text-muted">Hai già un account?</span>
 					<button
-						onClick={() => router.push("/login")}
+						onClick={() => onTabChange?.("signin")}
 						className="text-midori cursor-pointer font-medium"
 					>
 						Accedi
