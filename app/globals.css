@@ -35,6 +35,10 @@
 	--surface-elevated: rgba(255, 255, 255, 0.7);
 
 	--border: rgba(70, 62, 48, 0.09);
+	--background-blur: linear-gradient(
+		rgba(255, 255, 255, 0.45),
+		rgba(255, 255, 255, 0.15)
+	);
 
 	--text-primary: var(--color-yoru);
 	--text-secondary: var(--color-kage);
@@ -59,6 +63,10 @@
 		#1a2436 0%,
 		#151d2b 60%,
 		#101723 100%
+	);
+	--background-blur: linear-gradient(
+		rgba(230, 233, 239, 0.05),
+		rgba(230, 233, 239, 0.015)
 	);
 	--background-secondary: #1a2436;
 
@@ -122,6 +130,10 @@ body {
    ZEN BACKGROUND
    ============================================================ */
 
+@utility onboarding-blur {
+	background: var(--background-blur);
+}
+
 /* ============================================================
    GLASS
    ============================================================ */
@@ -172,7 +184,7 @@ body {
 .deep-shadow {
 	background: rgba(236, 240, 248, 0.13);
 	border: 1px solid rgba(236, 240, 248, 0.2);
-	color: rgb(242, 245, 250);
+	color: var(--text-primary);
 	box-shadow:
 		rgba(0, 0, 0, 0.36) 0px 18px 40px,
 		rgba(255, 255, 255, 0.16) 0px 1px 0px inset;
