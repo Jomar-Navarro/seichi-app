@@ -30,7 +30,7 @@ export default function PasswordField({
 				onChange={(e) => onChange?.(e.target.value)}
 				value={value}
 				required
-				className="grow shrink basis-0 bg-transparent outline-none text-foreground text-sm py-3"
+				className="grow shrink basis-0 bg-transparent outline-none text-foreground text-sm py-4"
 			/>
 			<button
 				type="button"

@@ -28,7 +28,7 @@ export default function Input({
 				value={value}
 				placeholder={placeholder}
 				onChange={(e) => onChange?.(e.target.value)}
-				className="grow shrink basis-0 bg-transparent outline-none text-foreground text-sm py-3"
+				className="grow shrink basis-0 bg-transparent outline-none text-foreground text-sm py-4"
 			/>
 		</div>
 	);
