@@ -49,7 +49,8 @@ export async function updateSession(request: NextRequest) {
 		!request.nextUrl.pathname.startsWith("/auth") &&
 		!request.nextUrl.pathname.startsWith("/sign") &&
 		!request.nextUrl.pathname.startsWith("/callback") &&
-		!request.nextUrl.pathname.startsWith("/welcome")
+		!request.nextUrl.pathname.startsWith("/welcome") &&
+		!request.nextUrl.pathname.startsWith("/error")
 	) {
 		// no user, potentially respond by redirecting the user to the login page
 		const url = request.nextUrl.clone();
