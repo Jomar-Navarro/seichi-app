@@ -13,14 +13,14 @@ export default function WelcomePage() {
 
 			{/* Brand panel — left column on desktop */}
 			<div className="grow lg:grow-0 flex flex-col items-center justify-center text-center lg:w-2/5 lg:border-r lg:border-glass-border lg:onboarding-blur">
-				<div className="w-20 h-20 2xl:w-28 2xl:h-28 flex items-center justify-center border border-glass-border rounded-3xl 2xl:rounded-[28px] bg-surface backdrop-blur-md mb-7 shadow-[0_18px_40px_rgba(0,0,0,0.18),rgba(255,255,255,0.12)_0px_1px_0px_inset]">
+				<div className="w-20 h-20 2xl:w-36 2xl:h-36 flex items-center justify-center border border-glass-border rounded-3xl bg-surface backdrop-blur-md mb-7 shadow-[0_18px_40px_rgba(0,0,0,0.18),rgba(255,255,255,0.12)_0px_1px_0px_inset]">
 					<Sprout size={36} className="text-midori 2xl:hidden" />
-					<Sprout size={48} className="text-midori hidden 2xl:block" />
+					<Sprout size={60} className="text-midori hidden 2xl:block" />
 				</div>
-				<h1 className="text-5xl 2xl:text-7xl font-semibold mb-3.5 tracking-wide">
+				<h1 className="text-5xl 2xl:text-8xl font-semibold mb-3.5 tracking-wide">
 					Seichi
 				</h1>
-				<h3 className="text-xs 2xl:text-sm text-muted uppercase mb-5 tracking-widest">
+				<h3 className="text-xs 2xl:text-base text-muted uppercase mb-5 tracking-widest">
 					整地 · ordine finanziario
 				</h3>
 				{/* Description — mobile only */}
