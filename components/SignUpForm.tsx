@@ -32,7 +32,7 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 	const [password, setPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
 	const [passwordMismatch, setPasswordMismatch] = useState(false);
-	const [state, formAction, pending] = useActionState(signup, {
+	const [state, formAction] = useActionState(signup, {
 		error: "",
 	});
 	const [name, setName] = useState("");
@@ -40,143 +40,155 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 	const [email, setEmail] = useState("");
 
 	return (
-		<div className="grow shrink basis-0 flex flex-col h-full overflow-y-auto pt-12 px-7 pb-7 md:py-18 md:px-20 lg:py-14 lg:px-22">
-			{/* BrandHeader — mobile only */}
-			<div className="lg:hidden">
-				<BrandHeader />
-			</div>
-
-			<SignTab
-				onSignUp={() => {}}
-				activeTab="signup"
-				onSignIn={() => onTabChange?.("signin")}
-			/>
-
-			{/* Input form */}
-			<form
-				onSubmit={(e) => {
-					password !== confirmPassword ? e.preventDefault() : null;
-					setPasswordMismatch(password !== confirmPassword);
-				}}
-				action={formAction}
-				className="flex flex-col justify-center gap-3"
-			>
-				<div className="flex flex-col justify-center gap-3">
-					<Input
-						id="name"
-						name="name"
-						placeholder="Nome"
-						type="text"
-						value={name}
-						onChange={setName}
-						icon={<User size={18} className="shrink-0" />}
-					/>
-
-					<Input
-						id="surname"
-						name="surname"
-						placeholder="Cognome"
-						type="text"
-						value={surname}
-						onChange={setSurname}
-						icon={<User size={18} className="shrink-0" />}
-					/>
-
-					<Input
-						id="email"
-						name="email"
-						placeholder="Email"
-						type="email"
-						value={email}
-						onChange={setEmail}
-						icon={
-							<Mail size={18} className="shrink-0 text-shadow-foreground" />
-						}
-					/>
-
-					<PasswordField
-						id="password"
-						name="password"
-						placeholder="Password"
-						onChange={setPassword}
-					/>
-					<PasswordField
-						id="confirm-password"
-						name="confirm-password"
-						placeholder="Conferma password"
-						onChange={setConfirmPassword}
-					/>
-					{confirmPassword !== password && passwordMismatch ? (
-						<div className="text-xs text-aka">
-							Le password non corrispondono
-						</div>
-					) : null}
-
-					<div className="flex items-center gap-1.5 w-full my-1">
-						{checkStrength(password).map((req, index) => (
-							<span
-								key={index}
-								className={`grow shrink basis-0 h-1.5 rounded-sm transition-all ${
-									req.met ? "bg-midori" : "bg-glass-border"
-								}`}
-							/>
-						))}
-					</div>
-
-					{state.error && (
-						<div className="text-xs text-aka mt-1 text-center">
-							{state.error}
-						</div>
-					)}
+		<div className="grow shrink basis-0 flex flex-col h-full overflow-y-auto pt-12 px-7 pb-7 md:py-18 md:px-20 lg:p-8">
+			<div className="w-full max-w-md xl:max-w-lg 2xl:max-w-xl mx-auto my-auto lg:bg-surface lg:border lg:border-glass-border lg:rounded-2xl lg:px-8 lg:py-8 xl:px-10 xl:py-10 lg:backdrop-blur-sm">
+				{/* BrandHeader — mobile only */}
+				<div className="lg:hidden">
+					<BrandHeader />
 				</div>
 
-				<div className="flex items-start gap-3 mb-4 cursor-pointer">
-					<input
-						id="privacy"
-						name="privacy"
-						type="checkbox"
-						className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 mt-px"
-					/>
-					<div className="text-xs text-muted tracking-wider">
-						Accetto i <span className="text-midori">Termini di servizio</span> e
-						l'
-						<span className="text-midori">informativa sulla privacy</span> di
-						Seichi.
-					</div>
+				{/* Desktop heading */}
+				<div className="hidden lg:block mb-6">
+					<span className="text-xs text-muted uppercase tracking-widest mb-2 block">
+						Benvenuto
+					</span>
+					<h2 className="text-3xl font-bold leading-tight">
+						Crea il tuo account.
+					</h2>
 				</div>
 
-				<Button title="Crea account" />
-			</form>
-
-			<div className="flex items-center gap-3 my-5">
-				<span className="grow shrink basis-0 h-px bg-glass-border"></span>
-				<span className="text-muted text-xs">oppure</span>
-				<span className="grow shrink basis-0 h-px bg-glass-border"></span>
-			</div>
-
-			<div className="flex gap-3 mb-7">
-				<Button
-					onClick={() => signInWithGoogle()}
-					title="Google"
-					icon={<GoogleIcon />}
-					variant="oauth"
+				<SignTab
+					onSignUp={() => {}}
+					activeTab="signup"
+					onSignIn={() => onTabChange?.("signin")}
 				/>
-				<Button
-					onClick={() => signInWithFacebook()}
-					title="Facebook"
-					icon={<FacebookIcon />}
-					variant="oauth"
-				/>
-			</div>
 
-			<div className="text-center text-sm">
-				<span className="me-1 text-muted">Hai già un account?</span>
-				<button
-					onClick={() => onTabChange?.("signin")}
-					className="text-midori cursor-pointer font-medium"
+				{/* Input form */}
+				<form
+					onSubmit={(e) => {
+						password !== confirmPassword ? e.preventDefault() : null;
+						setPasswordMismatch(password !== confirmPassword);
+					}}
+					action={formAction}
+					className="flex flex-col justify-center gap-3"
 				>
-					Accedi
-				</button>
+					<div className="flex flex-col justify-center gap-3">
+						<Input
+							id="name"
+							name="name"
+							placeholder="Nome"
+							type="text"
+							value={name}
+							onChange={setName}
+							icon={<User size={18} className="shrink-0" />}
+						/>
+
+						<Input
+							id="surname"
+							name="surname"
+							placeholder="Cognome"
+							type="text"
+							value={surname}
+							onChange={setSurname}
+							icon={<User size={18} className="shrink-0" />}
+						/>
+
+						<Input
+							id="email"
+							name="email"
+							placeholder="Email"
+							type="email"
+							value={email}
+							onChange={setEmail}
+							icon={
+								<Mail size={18} className="shrink-0 text-shadow-foreground" />
+							}
+						/>
+
+						<PasswordField
+							id="password"
+							name="password"
+							placeholder="Password"
+							onChange={setPassword}
+						/>
+						<PasswordField
+							id="confirm-password"
+							name="confirm-password"
+							placeholder="Conferma password"
+							onChange={setConfirmPassword}
+						/>
+						{confirmPassword !== password && passwordMismatch ? (
+							<div className="text-xs text-aka">
+								Le password non corrispondono
+							</div>
+						) : null}
+
+						<div className="flex items-center gap-1.5 w-full my-1">
+							{checkStrength(password).map((req, index) => (
+								<span
+									key={index}
+									className={`grow shrink basis-0 h-1.5 rounded-sm transition-all ${
+										req.met ? "bg-midori" : "bg-glass-border"
+									}`}
+								/>
+							))}
+						</div>
+
+						{state.error && (
+							<div className="text-xs text-aka mt-1 text-center">
+								{state.error}
+							</div>
+						)}
+					</div>
+
+					<div className="flex items-start gap-3 mb-4 cursor-pointer">
+						<input
+							id="privacy"
+							name="privacy"
+							type="checkbox"
+							className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 mt-px"
+						/>
+						<div className="text-xs text-muted tracking-wider">
+							Accetto i <span className="text-midori">Termini di servizio</span> e
+							l'
+							<span className="text-midori">informativa sulla privacy</span> di
+							Seichi.
+						</div>
+					</div>
+
+					<Button title="Crea account" />
+				</form>
+
+				<div className="flex items-center gap-3 my-5">
+					<span className="grow shrink basis-0 h-px bg-glass-border"></span>
+					<span className="text-muted text-xs">oppure</span>
+					<span className="grow shrink basis-0 h-px bg-glass-border"></span>
+				</div>
+
+				<div className="flex gap-3 mb-4">
+					<Button
+						onClick={() => signInWithGoogle()}
+						title="Google"
+						icon={<GoogleIcon />}
+						variant="oauth"
+					/>
+					<Button
+						onClick={() => signInWithFacebook()}
+						title="Facebook"
+						icon={<FacebookIcon />}
+						variant="oauth"
+					/>
+				</div>
+
+				<div className="text-center text-sm mt-4">
+					<span className="me-1 text-muted">Hai già un account?</span>
+					<button
+						onClick={() => onTabChange?.("signin")}
+						className="text-midori cursor-pointer font-medium"
+					>
+						Accedi
+					</button>
+				</div>
 			</div>
 		</div>
 	);

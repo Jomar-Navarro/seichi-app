@@ -13,50 +13,66 @@ export default function WelcomePage() {
 
 			{/* Brand panel — left column on desktop */}
 			<div className="grow lg:grow-0 flex flex-col items-center justify-center text-center lg:w-2/5 lg:border-r lg:border-glass-border lg:onboarding-blur">
-				<div className="w-20 h-20 flex items-center justify-center border border-glass-border rounded-3xl bg-surface backdrop-blur-md mb-7 shadow-[0_18px_40px_rgba(0,0,0,0.18),rgba(255,255,255,0.12)_0px_1px_0px_inset]">
-					<Sprout size={36} className="text-midori" />
+				<div className="w-20 h-20 2xl:w-28 2xl:h-28 flex items-center justify-center border border-glass-border rounded-3xl 2xl:rounded-[28px] bg-surface backdrop-blur-md mb-7 shadow-[0_18px_40px_rgba(0,0,0,0.18),rgba(255,255,255,0.12)_0px_1px_0px_inset]">
+					<Sprout size={36} className="text-midori 2xl:hidden" />
+					<Sprout size={48} className="text-midori hidden 2xl:block" />
 				</div>
-				<h1 className="text-5xl font-semibold mb-3.5 tracking-wide">Seichi</h1>
-				<h3 className="text-xs text-muted uppercase mb-5 tracking-widest">
+				<h1 className="text-5xl 2xl:text-7xl font-semibold mb-3.5 tracking-wide">
+					Seichi
+				</h1>
+				<h3 className="text-xs 2xl:text-sm text-muted uppercase mb-5 tracking-widest">
 					整地 · ordine finanziario
 				</h3>
-				{/* Description — mobile/portrait only */}
+				{/* Description — mobile only */}
 				<p className="lg:hidden text-base max-w-67 text-secondary leading-[1.7]">
 					Prepara il terreno prima di costruire. Metti in ordine le tue finanze
 					— con calma e intenzione.
 				</p>
+				{/* Description — desktop only with midori accent */}
+				<p className="hidden lg:block text-xl 2xl:text-2xl leading-[1.75] max-w-xs 2xl:max-w-sm mt-2">
+					Prepara il terreno prima di costruire.{" "}
+					<span className="text-muted">
+						Metti in ordine le tue finanze — con calma e intenzione.
+					</span>
+				</p>
 			</div>
 
 			{/* Right panel — actions on mobile, full content on desktop */}
-			<div className="mt-8 lg:mt-0 lg:grow lg:flex lg:flex-col lg:px-22 lg:py-16">
-				{/* Progress dots + heading — desktop only */}
-				<div className="hidden lg:flex flex-col grow">
-					<div className="grow flex flex-col justify-center">
-						<h2 className="text-4xl font-semibold mb-5 leading-tight max-w-lg">
-							Prepara il terreno prima di costruire.
-						</h2>
-						<p className="text-base text-secondary leading-[1.75] max-w-sm">
-							Metti in ordine le tue finanze — con calma e intenzione.
-						</p>
+			<div className="mt-8 lg:mt-0 lg:grow lg:flex lg:flex-col lg:px-12 lg:py-16">
+				<div className="w-full lg:max-w-sm xl:max-w-md 2xl:max-w-xl lg:mx-auto lg:grow lg:flex lg:flex-col">
+					{/* Desktop content */}
+					<div className="hidden lg:flex flex-col grow">
+						<div className="grow flex flex-col justify-center">
+							<span className="text-xs 2xl:text-sm text-muted uppercase tracking-widest mb-3 block">
+								Benvenuto
+							</span>
+							<h2 className="text-4xl 2xl:text-6xl font-bold mb-5 leading-tight max-w-xs 2xl:max-w-sm">
+								Iniziamo con calma.
+							</h2>
+							<p className="text-base 2xl:text-lg text-secondary leading-[1.75] max-w-sm 2xl:max-w-md">
+								Tre passi brevi per preparare il tuo spazio finanziario. Nessuna
+								fretta — puoi cambiare tutto più tardi.
+							</p>
+						</div>
 					</div>
-				</div>
 
-				{/* Actions */}
-				<Button
-					onClick={() => router.push("/sign")}
-					title="Inizia"
-					icon={<ArrowRight size={18} />}
-					variant="welcome"
-				/>
-				<p className="text-center text-sm text-muted">
-					Ho già un account ·{" "}
-					<button
+					{/* Actions */}
+					<Button
 						onClick={() => router.push("/sign")}
-						className="text-midori cursor-pointer font-medium"
-					>
-						Accedi
-					</button>
-				</p>
+						title="Inizia"
+						icon={<ArrowRight size={18} />}
+						variant="welcome"
+					/>
+					<p className="text-center text-sm text-muted">
+						Ho già un account ·{" "}
+						<button
+							onClick={() => router.push("/sign")}
+							className="text-midori cursor-pointer font-medium"
+						>
+							Accedi
+						</button>
+					</p>
+				</div>
 			</div>
 		</div>
 	);

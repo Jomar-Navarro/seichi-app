@@ -4,11 +4,6 @@ import LoginForm from "@/components/LoginForm";
 import SignUpForm from "@/components/SignUpForm";
 import BrandHeader from "@/components/UI/BrandHeader";
 
-const tabDescriptions = {
-	signin: "Bentornato. Riprendi da dove avevi lasciato — con calma.",
-	signup: "Prepara il terreno prima di costruire. Bastano pochi passi.",
-};
-
 export default function Sign() {
 	const [tab, setTab] = useState<"signin" | "signup">("signin");
 	return (
@@ -19,8 +14,11 @@ export default function Sign() {
 			{/* Brand panel — desktop only */}
 			<div className="hidden lg:flex flex-col items-center justify-center text-center w-2/5 border-r border-glass-border onboarding-blur">
 				<BrandHeader />
-				<p className="text-base text-secondary leading-[1.7] max-w-52 mt-1">
-					{tabDescriptions[tab]}
+				<p className="text-xl 2xl:text-2xl leading-[1.75] max-w-xs 2xl:max-w-sm mt-2">
+					Prepara il terreno prima di costruire.{" "}
+					<span className="text-muted">
+						Metti in ordine le tue finanze — con calma e intenzione.
+					</span>
 				</p>
 			</div>
 
