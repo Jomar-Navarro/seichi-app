@@ -50,7 +50,11 @@ export default function LoginForm({ onTabChange }: LoginFormProps) {
 							type="email"
 							icon={<Mail size={18} className="shrink-0" />}
 						/>
-						<PasswordField id="password" name="password" placeholder="Password" />
+						<PasswordField
+							id="password"
+							name="password"
+							placeholder="Password"
+						/>
 						{state.error && (
 							<div className="text-xs text-aka text-center">{state.error}</div>
 						)}
@@ -82,7 +86,7 @@ export default function LoginForm({ onTabChange }: LoginFormProps) {
 						<span className="grow shrink basis-0 h-px bg-glass-border" />
 					</div>
 
-					<div className="flex gap-3 pb-8 lg:pb-0">
+					<div className="flex gap-3 lg:pb-0">
 						<Button
 							onClick={() => signInWithGoogle()}
 							title="Google"
