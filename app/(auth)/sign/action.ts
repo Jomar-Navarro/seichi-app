@@ -40,8 +40,8 @@ export async function signup(
 		return { error: "Devi accettare i termini di servizio" };
 	}
 
-	if (password.length < 5) {
-		return { error: "La password deve essere di almeno 5 caratteri" };
+	if (password.length < 8) {
+		return { error: "La password deve essere di almeno 8 caratteri" };
 	}
 
 	if (password !== confirmPassword) {
@@ -67,7 +67,6 @@ export async function signup(
 	redirect("/start");
 }
 
-// Accesso/Registrazione con Google
 export async function signInWithGoogle() {
 	const supabase = await createClient();
 
@@ -86,7 +85,6 @@ export async function signInWithGoogle() {
 	}
 }
 
-// Accesso/Registrazione con Facebook
 export async function signInWithFacebook() {
 	const supabase = await createClient();
 

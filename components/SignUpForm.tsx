@@ -16,7 +16,7 @@ interface SignUpFormProps {
 
 const checkStrength = (password: string) => {
 	const requirements = [
-		{ regex: /.{5,}/, text: "Minimo 5 caratteri" },
+		{ regex: /.{8,}/, text: "Minimo 8 caratteri" },
 		{ regex: /[0-9]/, text: "Minimo un numero" },
 		{ regex: /[a-z]/, text: "Minimo una lettera minuscola" },
 		{ regex: /[A-Z]/, text: "Minimo una lettera maiuscola" },

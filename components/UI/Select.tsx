@@ -2,16 +2,16 @@
 import { useState } from "react";
 import { ChevronDown, Check } from "lucide-react";
 
-interface Option {
+export interface Option {
 	icon: React.ReactNode;
-	label: string; // "Euro"
-	value: string; // "EUR"
+	label: string;
+	value: string;
 }
 
-interface DropdownProps {
+export interface DropdownProps {
 	title: string;
 	options: Option[];
-	selected: string; // il value selezionato
+	selected: string;
 	onChange: (value: string) => void;
 }
 
@@ -50,7 +50,7 @@ export default function Select({
 			</button>
 
 			{isOpen && (
-				<div className="absolute top-full mt-2 left-0 right-0 z-30 p-2 rounded-[20px] bg-backgrounnd-secondary border border-glass-border backdrop-blur-[30px] input-shadow">
+				<div className="absolute top-full mt-2 left-0 right-0 z-30 p-2 rounded-[20px] bg-background-secondary border border-glass-border backdrop-blur-[30px] input-shadow">
 					{options.map((option) => (
 						<div
 							onClick={() => {
@@ -58,7 +58,7 @@ export default function Select({
 								setIsOpen(false);
 							}}
 							key={option.value}
-							className="flex items-center justify-between py-2.5 px-3 cursor-pointer transition-transform"
+							className="flex items-center justify-between py-2.5 px-3 cursor-pointer"
 						>
 							<span className="flex items-center gap-3">
 								<span className="w-6 text-center text-sm text-primary">
