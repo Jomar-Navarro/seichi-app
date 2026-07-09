@@ -4,7 +4,7 @@ import { ArrowRight } from "lucide-react";
 import Button from "@/components/UI/Button";
 import BrandHeader from "@/components/UI/BrandHeader";
 
-export default function WelcomePage() {
+export default function StartPage() {
 	const router = useRouter();
 
 	return (
@@ -15,31 +15,20 @@ export default function WelcomePage() {
 			{/* Content — centered in upper area */}
 			<div className="relative z-10 grow flex flex-col items-center justify-center text-center w-full max-w-xs">
 				<BrandHeader />
-				<p className="text-lg leading-[1.75]">
-					<strong>Prepara il terreno prima di costruire.</strong>{" "}
-					<span className="text-muted">
-						Metti in ordine le tue finanze — con calma e intenzione.
-					</span>
+				<p className="text-lg leading-[1.75] text-primary">
+					<span>Prepara il terreno prima di costruire.</span>{" "}
+					<span>Metti in ordine le tue finanze — con calma e intenzione.</span>
 				</p>
 			</div>
 
 			{/* Actions — pinned to bottom */}
 			<div className="relative z-10 w-full max-w-xs">
 				<Button
-					onClick={() => router.push("/sign?tab=signup")}
-					title="Crea il tuo account"
+					onClick={() => router.push("/preference")}
+					title="Inizia"
 					icon={<ArrowRight size={18} />}
 					variant="welcome"
 				/>
-				<p className="text-center text-sm text-muted">
-					Hai già un account?{" "}
-					<button
-						onClick={() => router.push("/sign")}
-						className="text-midori cursor-pointer font-medium"
-					>
-						Accedi
-					</button>
-				</p>
 			</div>
 		</div>
 	);

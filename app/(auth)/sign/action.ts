@@ -25,7 +25,10 @@ export async function login(_prevState: { error: string }, formData: FormData) {
 	redirect("/");
 }
 
-export async function signup(_prevState: { error: string }, formData: FormData) {
+export async function signup(
+	_prevState: { error: string },
+	formData: FormData,
+) {
 	const supabase = await createClient();
 
 	const email = formData.get("email") as string;
@@ -37,8 +40,8 @@ export async function signup(_prevState: { error: string }, formData: FormData) 
 		return { error: "Devi accettare i termini di servizio" };
 	}
 
-	if (password.length < 5) {
-		return { error: "La password deve essere di almeno 5 caratteri" };
+	if (password.length < 8) {
+		return { error: "La password deve essere di almeno 8 caratteri" };
 	}
 
 	if (password !== confirmPassword) {
@@ -60,8 +63,8 @@ export async function signup(_prevState: { error: string }, formData: FormData) 
 		return { error: error.message };
 	}
 
-	revalidatePath("/", "layout");
-	redirect("/");
+	revalidatePath("/start", "layout");
+	redirect("/start");
 }
 
 export async function signInWithGoogle() {

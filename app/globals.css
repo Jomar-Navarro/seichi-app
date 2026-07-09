@@ -68,7 +68,7 @@
 		rgba(230, 233, 239, 0.05),
 		rgba(230, 233, 239, 0.015)
 	);
-	--background-secondary: #1a2436;
+	--background-secondary: #1a2232;
 
 	--surface: rgba(230, 233, 239, 0.05);
 	--surface-elevated: rgba(236, 240, 248, 0.13);
@@ -100,6 +100,7 @@
 	--color-kin: var(--color-kin);
 
 	--color-background: var(--background);
+	--color-background-secondary: var(--background-secondary);
 	--color-foreground: var(--text-primary);
 	--color-secondary: var(--text-secondary);
 	--color-muted: var(--text-muted);
@@ -132,6 +133,12 @@ body {
 
 @utility onboarding-blur {
 	background: var(--background-blur);
+}
+
+@utility input-shadow {
+	box-shadow:
+		rgba(0, 0, 0, 0.26) 0px 14px 40px,
+		rgba(255, 255, 255, 0.05) 0px 1px 0px inset;
 }
 
 /* ============================================================

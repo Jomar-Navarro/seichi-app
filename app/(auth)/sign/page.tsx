@@ -1,11 +1,22 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import LoginForm from "@/components/LoginForm";
 import SignUpForm from "@/components/SignUpForm";
 import BrandHeader from "@/components/UI/BrandHeader";
 
 export default function Sign() {
+	const router = useRouter();
 	const [tab, setTab] = useState<"signin" | "signup">("signin");
+
+	useEffect(() => {
+		const params = new URLSearchParams(window.location.search);
+		if (params.get("tab") === "signup") {
+			setTab("signup");
+			router.replace("/sign");
+		}
+	}, []);
+
 	return (
 		<div className="h-lvh relative z-1 grow shrink basis-0 flex flex-col lg:flex-row overflow-hidden">
 			<div className="circle-1"></div>
