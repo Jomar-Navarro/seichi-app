@@ -25,7 +25,10 @@ export async function login(_prevState: { error: string }, formData: FormData) {
 	redirect("/");
 }
 
-export async function signup(_prevState: { error: string }, formData: FormData) {
+export async function signup(
+	_prevState: { error: string },
+	formData: FormData,
+) {
 	const supabase = await createClient();
 
 	const email = formData.get("email") as string;
@@ -60,10 +63,11 @@ export async function signup(_prevState: { error: string }, formData: FormData) 
 		return { error: error.message };
 	}
 
-	revalidatePath("/", "layout");
-	redirect("/");
+	revalidatePath("/start", "layout");
+	redirect("/start");
 }
 
+// Accesso/Registrazione con Google
 export async function signInWithGoogle() {
 	const supabase = await createClient();
 
@@ -82,6 +86,7 @@ export async function signInWithGoogle() {
 	}
 }
 
+// Accesso/Registrazione con Facebook
 export async function signInWithFacebook() {
 	const supabase = await createClient();
 
