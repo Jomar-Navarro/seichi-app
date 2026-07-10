@@ -31,7 +31,7 @@ export default function Select({
 			</div>
 			<button
 				onClick={() => setIsOpen((prev) => !prev)}
-				className="w-full flex items-center justify-between py-3.5 px-4 rounded-[20px] cursor-pointer text-inherit bg-input-bg border border-glass-border backdrop-blur-[20px] input-shadow"
+				className="w-full flex items-center justify-between py-3.5 px-4 rounded-[20px] cursor-pointer text-inherit bg-input-bg border border-glass-border backdrop-blur-[20px] box-shadow"
 			>
 				<span className="flex items-center gap-3">
 					<span className="w-10 h-10 rounded-xl bg-input-bg flex items-center justify-center text-lg text-primary">

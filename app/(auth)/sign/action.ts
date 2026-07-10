@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
@@ -15,18 +14,28 @@ export async function login(_prevState: { error: string }, formData: FormData) {
 		password: formData.get("password") as string,
 	};
 
-	const { error } = await supabase.auth.signInWithPassword(data);
+	const { data: { user }, error } = await supabase.auth.signInWithPassword(data);
 
 	if (error) {
 		return { error: "Credenziali di login errate" };
 	}
 
-	revalidatePath("/", "layout");
+	if (user) {
+		const { data: profile } = await supabase
+			.from("profiles")
+			.select("currency")
+			.eq("id", user.id)
+			.single();
+		if (!profile?.currency) {
+			redirect("/start");
+		}
+	}
+
 	redirect("/");
 }
 
 export async function signup(
-	_prevState: { error: string },
+	_prevState: { error: string; emailSent: boolean; email: string },
 	formData: FormData,
 ) {
 	const supabase = await createClient();
@@ -37,15 +46,15 @@ export async function signup(
 	const privacy = formData.get("privacy");
 
 	if (!privacy) {
-		return { error: "Devi accettare i termini di servizio" };
+		return { error: "Devi accettare i termini di servizio", emailSent: false, email: "" };
 	}
 
 	if (password.length < 8) {
-		return { error: "La password deve essere di almeno 8 caratteri" };
+		return { error: "La password deve essere di almeno 8 caratteri", emailSent: false, email: "" };
 	}
 
 	if (password !== confirmPassword) {
-		return { error: "Le password non corrispondono" };
+		return { error: "Le password non corrispondono", emailSent: false, email: "" };
 	}
 
 	const { error } = await supabase.auth.signUp({
@@ -60,11 +69,10 @@ export async function signup(
 	});
 
 	if (error) {
-		return { error: error.message };
+		return { error: error.message, emailSent: false, email: "" };
 	}
 
-	revalidatePath("/start", "layout");
-	redirect("/start");
+	return { error: "", emailSent: true, email };
 }
 
 export async function signInWithGoogle() {
