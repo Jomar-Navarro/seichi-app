@@ -82,7 +82,21 @@ const cardOptions = [
 
 export default function CategoryPage() {
 	const [selected, setSelected] = useState<string[]>([]);
+	const [isLoading, setIsLoading] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 	const router = useRouter();
+
+	const handleComplete = async () => {
+		setIsLoading(true);
+		setError(null);
+		const result = await saveCategories(selected);
+		if ("error" in result) {
+			setError(result.error ?? "Errore sconosciuto");
+			setIsLoading(false);
+			return;
+		}
+		router.push("/");
+	};
 
 	return (
 		<div className="shrink grow basis-0 flex flex-col lg:flex-row overflow-hidden">
@@ -147,8 +161,9 @@ export default function CategoryPage() {
 						}
 					/>
 					<div className="grow" />
+					{error && <p className="text-aka text-sm text-center mb-3">{error}</p>}
 					<div className="pb-10">
-						<Button onClick={async () => { await saveCategories(selected); router.push("/"); }} title="Completa la configurazione" variant="welcome" />
+						<Button onClick={handleComplete} disabled={isLoading} title={isLoading ? "Salvataggio…" : "Completa la configurazione"} variant="welcome" />
 					</div>
 				</div>
 
@@ -169,8 +184,9 @@ export default function CategoryPage() {
 							/>
 						</div>
 					</div>
+					{error && <p className="text-aka text-sm text-center w-full max-w-lg mx-auto mb-3">{error}</p>}
 					<div className="w-full max-w-lg mx-auto pb-14">
-						<Button onClick={async () => { await saveCategories(selected); router.push("/"); }} title="Completa la configurazione" variant="welcome" />
+						<Button onClick={handleComplete} disabled={isLoading} title={isLoading ? "Salvataggio…" : "Completa la configurazione"} variant="welcome" />
 					</div>
 				</div>
 			</div>

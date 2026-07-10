@@ -37,6 +37,20 @@ export default function PreferencePage() {
 	const router = useRouter();
 	const [currency, setCurrency] = useState("EUR");
 	const [language, setLanguage] = useState("IT");
+	const [isLoading, setIsLoading] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+
+	const handleContinue = async () => {
+		setIsLoading(true);
+		setError(null);
+		const result = await savePreferences(currency, language);
+		if ("error" in result) {
+			setError(result.error ?? "Errore sconosciuto");
+			setIsLoading(false);
+			return;
+		}
+		router.push("/category");
+	};
 
 	return (
 		<div className="shrink grow basis-0 flex flex-col lg:flex-row overflow-hidden">
@@ -87,25 +101,12 @@ export default function PreferencePage() {
 							momento.
 						</p>
 					</div>
-					<Select
-						title="Valuta"
-						options={currencies}
-						selected={currency}
-						onChange={setCurrency}
-					/>
-					<Select
-						title="Lingua"
-						options={languages}
-						selected={language}
-						onChange={setLanguage}
-					/>
+					<Select title="Valuta" options={currencies} selected={currency} onChange={setCurrency} />
+					<Select title="Lingua" options={languages} selected={language} onChange={setLanguage} />
 					<div className="grow" />
+					{error && <p className="text-aka text-sm text-center mb-3">{error}</p>}
 					<div className="pb-10">
-						<Button
-							onClick={async () => { await savePreferences(currency, language); router.push("/category"); }}
-							title="Continua"
-							variant="welcome"
-						/>
+						<Button onClick={handleContinue} disabled={isLoading} title={isLoading ? "Salvataggio…" : "Continua"} variant="welcome" />
 					</div>
 				</div>
 
@@ -117,8 +118,9 @@ export default function PreferencePage() {
 							<Select title="Lingua" options={languages} selected={language} onChange={setLanguage} />
 						</div>
 					</div>
+					{error && <p className="text-aka text-sm text-center w-full max-w-lg mx-auto mb-3">{error}</p>}
 					<div className="w-full max-w-lg mx-auto pb-14">
-						<Button onClick={async () => { await savePreferences(currency, language); router.push("/category"); }} title="Continua" variant="welcome" />
+						<Button onClick={handleContinue} disabled={isLoading} title={isLoading ? "Salvataggio…" : "Continua"} variant="welcome" />
 					</div>
 				</div>
 			</div>
