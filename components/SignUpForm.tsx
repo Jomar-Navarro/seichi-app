@@ -2,7 +2,7 @@
 import { useState, useActionState } from "react";
 import { signInWithFacebook, signup } from "@/app/(auth)/sign/action";
 import PasswordField from "@/components/PasswordField";
-import { Mail, User } from "lucide-react";
+import { Mail, User, MailCheck } from "lucide-react";
 import Button from "@/components/UI/Button";
 import { GoogleIcon, FacebookIcon } from "@/components/icons";
 import Input from "@/components/UI/Input";
@@ -34,10 +34,44 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 	const [passwordMismatch, setPasswordMismatch] = useState(false);
 	const [state, formAction] = useActionState(signup, {
 		error: "",
+		emailSent: false,
+		email: "",
 	});
 	const [name, setName] = useState("");
 	const [surname, setSurname] = useState("");
 	const [email, setEmail] = useState("");
+
+	if (state.emailSent) {
+		return (
+			<div className="grow shrink basis-0 flex flex-col h-full overflow-y-auto pt-12 px-7 pb-7 md:py-18 md:px-20 lg:p-8">
+				<div className="w-full max-w-md xl:max-w-lg 2xl:max-w-xl mx-auto my-auto lg:bg-surface lg:border lg:border-glass-border lg:rounded-2xl lg:px-8 lg:py-8 xl:px-10 xl:py-10 lg:backdrop-blur-sm">
+					<div className="lg:hidden mb-8">
+						<BrandHeader />
+					</div>
+					<div className="flex flex-col items-center text-center py-6">
+						<div className="w-14 h-14 flex items-center justify-center rounded-2xl bg-midori/15 mb-6">
+							<MailCheck size={26} className="text-midori" />
+						</div>
+						<h2 className="text-2xl font-bold mb-3">Controlla la tua email</h2>
+						<p className="text-muted text-sm leading-relaxed max-w-xs">
+							Abbiamo inviato un link di verifica a{" "}
+							<span className="text-foreground font-medium">{state.email}</span>.
+							Aprilo per attivare il tuo account.
+						</p>
+						<p className="text-muted text-xs mt-5">
+							Già verificato?{" "}
+							<button
+								onClick={() => onTabChange?.("signin")}
+								className="text-midori font-medium cursor-pointer"
+							>
+								Accedi
+							</button>
+						</p>
+					</div>
+				</div>
+			</div>
+		);
+	}
 
 	return (
 		<div className="grow shrink basis-0 flex flex-col h-full overflow-y-auto pt-12 px-7 pb-7 md:py-18 md:px-20 lg:p-8">
