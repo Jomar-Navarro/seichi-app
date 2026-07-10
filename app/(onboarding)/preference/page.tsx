@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { savePreferences } from "@/app/(onboarding)/actions";
 import {
 	Euro,
 	DollarSign,
@@ -101,7 +102,7 @@ export default function PreferencePage() {
 					<div className="grow" />
 					<div className="pb-10">
 						<Button
-							onClick={() => router.push("/category")}
+							onClick={async () => { await savePreferences(currency, language); router.push("/category"); }}
 							title="Continua"
 							variant="welcome"
 						/>
@@ -117,7 +118,7 @@ export default function PreferencePage() {
 						</div>
 					</div>
 					<div className="w-full max-w-lg mx-auto pb-14">
-						<Button onClick={() => router.push("/category")} title="Continua" variant="welcome" />
+						<Button onClick={async () => { await savePreferences(currency, language); router.push("/category"); }} title="Continua" variant="welcome" />
 					</div>
 				</div>
 			</div>

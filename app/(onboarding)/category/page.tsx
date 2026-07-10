@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { saveCategories } from "@/app/(onboarding)/actions";
 import { Sprout, Download, Share, TrendingUp, JapaneseYen, RefreshCw } from "lucide-react";
 import Button from "@/components/UI/Button";
 import Card from "@/components/UI/card";
@@ -147,7 +148,7 @@ export default function CategoryPage() {
 					/>
 					<div className="grow" />
 					<div className="pb-10">
-						<Button onClick={() => router.push("/")} title="Completa la configurazione" variant="welcome" />
+						<Button onClick={async () => { await saveCategories(selected); router.push("/"); }} title="Completa la configurazione" variant="welcome" />
 					</div>
 				</div>
 
@@ -169,7 +170,7 @@ export default function CategoryPage() {
 						</div>
 					</div>
 					<div className="w-full max-w-lg mx-auto pb-14">
-						<Button onClick={() => router.push("/")} title="Completa la configurazione" variant="welcome" />
+						<Button onClick={async () => { await saveCategories(selected); router.push("/"); }} title="Completa la configurazione" variant="welcome" />
 					</div>
 				</div>
 			</div>

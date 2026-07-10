@@ -3,9 +3,12 @@ interface Props {
 	className?: string;
 }
 
-export default function OnboardingProgress({ currentStep, className = "" }: Props) {
+export default function OnboardingProgress({
+	currentStep,
+	className = "",
+}: Props) {
 	return (
-		<div className={`flex gap-1.5 max-w-[120px] mx-auto ${className}`}>
+		<div className={`flex gap-1.5 max-w-30 mx-auto ${className}`}>
 			{[1, 2, 3].map((step) => (
 				<div
 					key={step}
