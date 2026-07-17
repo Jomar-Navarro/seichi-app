@@ -20,7 +20,7 @@ export default function PasswordField({
 	const [isView, setIsView] = useState(false);
 
 	return (
-		<div className="flex items-center gap-3 px-4 rounded-2xl bg-input-bg border border-background-tab segment-tab mb-1 text-muted">
+		<div className="flex items-center gap-3 px-4 rounded-2xl bg-input border border-subtle segment-tab mb-1 text-muted">
 			<Lock size={18} className="shrink-0 text-shadow-foreground" />
 			<input
 				id={id}

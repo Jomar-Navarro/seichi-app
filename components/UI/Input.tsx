@@ -18,7 +18,7 @@ export default function Input({
 	onChange,
 }: InputProps) {
 	return (
-		<div className="flex items-center gap-3 px-4 rounded-2xl bg-input-bg border border-background-tab segment-tab mb-1 text-muted">
+		<div className="flex items-center gap-3 px-4 rounded-2xl bg-input border border-subtle segment-tab mb-1 text-muted">
 			{icon}
 			<input
 				id={id}

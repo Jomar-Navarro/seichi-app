@@ -20,6 +20,7 @@
 	--color-aka: #b47358;
 	--color-ao: #6e86a8;
 	--color-kin: #ae8b49;
+	--color-murasaki: #8a6fc4;
 
 	/* ---------- Semantic ---------- */
 
@@ -58,6 +59,7 @@
 	--color-aka: #cc8c74;
 	--color-ao: #7b9fe0;
 	--color-kin: #d4b26a;
+	--color-murasaki: #9b7fd4;
 
 	--background: radial-gradient(
 		120% 90% at 50% 0%,
@@ -83,6 +85,12 @@
 	--text-secondary: #c7cdda;
 	--text-muted: #8892a6;
 	--text-disabled: #6e7688;
+
+	/* Modal */
+	--modal-bg: rgba(19, 26, 40, 0.92);
+	--modal-border: rgba(230, 233, 239, 0.12);
+	--modal-handle: rgba(230, 233, 239, 0.2);
+	--icon-btn-bg: rgba(230, 233, 239, 0.08);
 }
 
 /* ============================================================
@@ -90,6 +98,7 @@
    ============================================================ */
 
 @theme inline {
+	/* Brand */
 	--color-yoru: var(--color-yoru);
 	--color-tsuki: var(--color-tsuki);
 	--color-kami: var(--color-kami);
@@ -100,19 +109,27 @@
 	--color-aka: var(--color-aka);
 	--color-ao: var(--color-ao);
 	--color-kin: var(--color-kin);
+	--color-murasaki: var(--color-murasaki);
 
-	--color-background: var(--background);
-	--color-background-secondary: var(--background-secondary);
+	/* Text */
 	--color-foreground: var(--text-primary);
 	--color-secondary: var(--text-secondary);
 	--color-muted: var(--text-muted);
 
-	--color-surface: var(--surface);
+	/* Surfaces */
+	--color-background: var(--background);
+	--color-deep: var(--background-secondary);   /* superficie solida scura */
+	--color-surface: var(--surface);             /* vetro semitrasparente */
 	--color-surface-elevated: var(--surface-elevated);
-	--color-glass-border: var(--border);
-	--color-background-tab: var(--bg-tab);
-	--color-input-bg: var(--seg-bg);
-	--color-card-bg: var(--card);
+	--color-card: var(--card);                   /* sfondo card */
+	--color-input: var(--seg-bg);                /* sfondo input e segmenti */
+	--color-tab: var(--bg-tab);                  /* sfondo tab attivo */
+	--color-control: var(--icon-btn-bg);         /* sfondo bottoni icona e controlli */
+	--color-modal: var(--modal-bg);              /* sfondo modal/overlay */
+	--color-modal-handle: var(--modal-handle);   /* pill handle del modal */
+
+	/* Borders */
+	--color-subtle: var(--border);               /* bordo universale */
 }
 
 /* ============================================================
@@ -136,6 +153,28 @@ body {
 
 @utility onboarding-blur {
 	background: var(--background-blur);
+}
+
+@utility modal-shadow {
+	box-shadow: rgba(0, 0, 0, 0.5) 0px -24px 70px,
+		rgba(255, 255, 255, 0.05) 0px 1px 0px inset;
+}
+
+@utility transaction-type-card {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+	gap: 5px;
+	padding: 14px 8px;
+	border-radius: 26px;
+	cursor: pointer;
+	width: 100%;
+	height: 100%;
+	background: rgba(230, 233, 239, 0.05);
+	border: 1px solid rgba(230, 233, 239, 0.08);
 }
 
 @utility box-shadow {

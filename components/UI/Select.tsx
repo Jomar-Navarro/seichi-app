@@ -31,10 +31,10 @@ export default function Select({
 			</div>
 			<button
 				onClick={() => setIsOpen((prev) => !prev)}
-				className="w-full flex items-center justify-between py-3.5 px-4 rounded-[20px] cursor-pointer text-inherit bg-input-bg border border-glass-border backdrop-blur-[20px] box-shadow"
+				className="w-full flex items-center justify-between py-3.5 px-4 rounded-[20px] cursor-pointer text-inherit bg-input border border-subtle backdrop-blur-[20px] box-shadow"
 			>
 				<span className="flex items-center gap-3">
-					<span className="w-10 h-10 rounded-xl bg-input-bg flex items-center justify-center text-lg text-primary">
+					<span className="w-10 h-10 rounded-xl bg-input flex items-center justify-center text-lg text-primary">
 						{selectedOption?.icon}
 					</span>
 					<span className="flex flex-col gap-1 text-start">
@@ -50,7 +50,7 @@ export default function Select({
 			</button>
 
 			{isOpen && (
-				<div className="absolute top-full mt-2 left-0 right-0 z-30 p-2 rounded-[20px] bg-background-secondary border border-glass-border backdrop-blur-[30px] input-shadow">
+				<div className="absolute top-full mt-2 left-0 right-0 z-30 p-2 rounded-[20px] bg-deep border border-subtle backdrop-blur-[30px] input-shadow">
 					{options.map((option) => (
 						<div
 							onClick={() => {

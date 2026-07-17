@@ -21,7 +21,7 @@ const CATEGORY_MAP: Record<string, { name: string; icon: string; color: string; 
 	spese:        { name: "Spese",        icon: "Share",       color: "aka",    type: "spesa" },
 	investimenti: { name: "Investimenti", icon: "TrendingUp",  color: "ao",     type: "investimento" },
 	risparmi:     { name: "Risparmi",     icon: "JapaneseYen", color: "kin",    type: "risparmio" },
-	abbonamenti:  { name: "Abbonamenti",  icon: "RefreshCw",   color: "muted",  type: "abbonamento" },
+	abbonamenti:  { name: "Abbonamenti",  icon: "RefreshCw",   color: "murasaki",  type: "abbonamento" },
 };
 
 // Scoped to onboarding types so future custom categories are never touched
