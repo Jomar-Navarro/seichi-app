@@ -2,7 +2,23 @@
 import { useEffect, useState } from "react";
 import { TransactionType, Category } from "@/types";
 import { createClient } from "@/lib/supabase/client";
-import { Calendar, ChevronLeft, ChevronRight, Pencil, Delete, Check } from "lucide-react";
+import {
+	Calendar, ChevronLeft, ChevronRight, Pencil, Delete, Check,
+	Banknote, Briefcase, Award, Gift, ArrowDownLeft,
+	ShoppingCart, UtensilsCrossed, Car, HeartPulse, Shirt, Smile, Home,
+	Shield, Plane, Building2, Laptop,
+	BarChart2, TrendingUp, Bitcoin, PiggyBank,
+	Play, Music, Dumbbell, Zap, KeyRound,
+	type LucideIcon,
+} from "lucide-react";
+
+const ICON_MAP: Record<string, LucideIcon> = {
+	Banknote, Briefcase, Award, Gift, ArrowDownLeft,
+	ShoppingCart, UtensilsCrossed, Car, HeartPulse, Shirt, Smile, Home,
+	Shield, Plane, Building2, Laptop,
+	BarChart2, TrendingUp, Bitcoin, PiggyBank,
+	Play, Music, Dumbbell, Zap, KeyRound,
+};
 import Select from "@/components/UI/Select";
 import { saveTransaction } from "@/app/(main)/action";
 import { useUIStore } from "@/store/useUIStore";
@@ -82,16 +98,16 @@ export default function TransactionForm({ selectedType }: TransactionFormProps) 
 		});
 	}
 
-	const categoryOptions = categoryList.map((c) => ({
-		value: c.id,
-		label: c.name,
-		icon: (
-			<span
-				className="w-2.5 h-2.5 rounded-full inline-block"
-				style={{ background: `var(--color-${c.color})` }}
-			/>
-		),
-	}));
+	const categoryOptions = categoryList.map((c) => {
+		const Icon = ICON_MAP[c.icon];
+		return {
+			value: c.id,
+			label: c.name,
+			icon: Icon
+				? <Icon size={14} style={{ color: `var(--color-${c.color})` }} />
+				: <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: `var(--color-${c.color})` }} />,
+		};
+	});
 
 	const year = viewDate.getFullYear();
 	const month = viewDate.getMonth();
