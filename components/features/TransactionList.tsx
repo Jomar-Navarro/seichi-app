@@ -10,6 +10,7 @@ import {
 import { useUIStore } from "@/store/useUIStore";
 import type { Transaction } from "@/types";
 
+
 const ICON_MAP: Record<string, LucideIcon> = {
 	Banknote, Briefcase, Award, Gift, ArrowDownLeft,
 	ShoppingCart, UtensilsCrossed, Car, HeartPulse, Shirt, Smile, Home,
@@ -101,6 +102,8 @@ function EmptyState() {
 }
 
 export default function TransactionList({ transactions, loading }: TransactionListProps) {
+	const { openEditModal } = useUIStore();
+
 	if (loading) return <Skeleton />;
 	if (transactions.length === 0) return <EmptyState />;
 
@@ -124,7 +127,11 @@ export default function TransactionList({ transactions, loading }: TransactionLi
 							const amountColor = TIPO_COLOR[t.type] ?? "var(--text-primary)";
 
 							return (
-								<div key={t.id} className="flex items-center gap-3.5 px-4 py-3.5 rounded-2xl bg-card border border-subtle card-shadow">
+								<button
+									key={t.id}
+									onClick={() => openEditModal(t)}
+									className="w-full flex items-center gap-3.5 px-4 py-3.5 rounded-2xl bg-card border border-subtle card-shadow text-left active:opacity-75 transition-opacity"
+								>
 									<div
 										className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
 										style={{ background: `color-mix(in srgb, ${color} 16%, transparent)` }}
@@ -143,7 +150,7 @@ export default function TransactionList({ transactions, loading }: TransactionLi
 									<p className="text-sm font-semibold shrink-0" style={{ color: amountColor }}>
 										{formatAmount(t.amount, t.type)}
 									</p>
-								</div>
+								</button>
 							);
 						})}
 					</div>

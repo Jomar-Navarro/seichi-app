@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { getTransactions } from "@/app/(main)/action";
 import FilterBar from "@/components/features/Filterbar";
 import TransactionList from "@/components/features/TransactionList";
+import { useUIStore } from "@/store/useUIStore";
 import type { Transaction } from "@/types";
 
 export default function MovimentiPage() {
@@ -11,6 +12,7 @@ export default function MovimentiPage() {
 	const [periodo, setPeriodo] = useState("30d");
 	const [transactions, setTransactions] = useState<Transaction[]>([]);
 	const [loading, setLoading] = useState(true);
+	const transactionSavedAt = useUIStore((s) => s.transactionSavedAt);
 
 	const load = useCallback(async () => {
 		setLoading(true);
@@ -19,7 +21,7 @@ export default function MovimentiPage() {
 		setLoading(false);
 	}, [tipo, periodo]);
 
-	useEffect(() => { load(); }, [load]);
+	useEffect(() => { load(); }, [load, transactionSavedAt]);
 
 	const filtered = search.trim()
 		? transactions.filter((t) =>

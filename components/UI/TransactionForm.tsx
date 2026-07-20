@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { TransactionType, Category } from "@/types";
+import { TransactionType, Category, Transaction } from "@/types";
 import { createClient } from "@/lib/supabase/client";
 import {
 	Calendar,
@@ -9,6 +9,7 @@ import {
 	Pencil,
 	Delete,
 	Check,
+	Trash2,
 	Banknote,
 	Briefcase,
 	Award,
@@ -65,7 +66,11 @@ const ICON_MAP: Record<string, LucideIcon> = {
 	KeyRound,
 };
 import Select from "@/components/UI/Select";
-import { saveTransaction } from "@/app/(main)/action";
+import {
+	saveTransaction,
+	updateTransaction,
+	deleteTransaction,
+} from "@/app/(main)/action";
 import { useUIStore } from "@/store/useUIStore";
 
 const DAYS = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
@@ -76,24 +81,39 @@ function getDaysInMonth(year: number, month: number) {
 
 function getFirstWeekday(year: number, month: number) {
 	const day = new Date(year, month, 1).getDay();
-	return day === 0 ? 6 : day - 1; // Mon=0 … Sun=6
+	return day === 0 ? 6 : day - 1;
 }
 
 interface TransactionFormProps {
 	selectedType: TransactionType;
+	transaction?: Transaction;
 }
 
 export default function TransactionForm({
 	selectedType,
+	transaction,
 }: TransactionFormProps) {
-	const [amount, setAmount] = useState("");
-	const [categoryId, setCategoryId] = useState<string | null>(null);
-	const [description, setDescription] = useState<string | null>(null);
-	const [date, setDate] = useState(new Date());
+	const isEditing = !!transaction;
+
+	const [amount, setAmount] = useState(() =>
+		transaction ? transaction.amount.toString().replace(".", ",") : "",
+	);
+	const [categoryId, setCategoryId] = useState<string | null>(
+		transaction?.category_id ?? null,
+	);
+	const [description, setDescription] = useState<string | null>(
+		transaction?.notes ?? null,
+	);
+	const [date, setDate] = useState(() =>
+		transaction ? new Date(transaction.date) : new Date(),
+	);
 	const [categoryList, setCategoryList] = useState<Category[]>([]);
 	const [isDateOpen, setIsDateOpen] = useState(false);
-	const [viewDate, setViewDate] = useState(new Date());
-	const { closeTransactionModal } = useUIStore();
+	const [viewDate, setViewDate] = useState(() =>
+		transaction ? new Date(transaction.date) : new Date(),
+	);
+	const [isDeleteConfirm, setIsDeleteConfirm] = useState(false);
+	const { closeTransactionModal, notifyTransactionSaved } = useUIStore();
 
 	useEffect(() => {
 		async function loadCategories() {
@@ -105,7 +125,7 @@ export default function TransactionForm({
 			if (data) setCategoryList(data);
 		}
 		loadCategories();
-	}, []);
+	}, [selectedType.id]);
 
 	const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ",", "0", "⌫"];
 
@@ -125,18 +145,35 @@ export default function TransactionForm({
 
 	async function handleSave() {
 		if (!isValid) return;
-		const result = await saveTransaction(
-			parseFloat(amount.replace(",", ".")),
-			selectedType.id,
-			categoryId,
-			description,
-			date.toISOString(),
-		);
+		const importo = parseFloat(amount.replace(",", "."));
+		const result = isEditing
+			? await updateTransaction(
+					transaction.id,
+					importo,
+					selectedType.id,
+					categoryId,
+					description,
+					date.toISOString(),
+				)
+			: await saveTransaction(
+					importo,
+					selectedType.id,
+					categoryId,
+					description,
+					date.toISOString(),
+				);
+
 		if (!result?.error) {
-			setAmount("");
-			setCategoryId(null);
-			setDescription(null);
-			setDate(new Date());
+			notifyTransactionSaved();
+			closeTransactionModal();
+		}
+	}
+
+	async function handleDelete() {
+		if (!transaction) return;
+		const result = await deleteTransaction(transaction.id);
+		if (!result?.error) {
+			notifyTransactionSaved();
 			closeTransactionModal();
 		}
 	}
@@ -181,8 +218,8 @@ export default function TransactionForm({
 			{/* Importo */}
 			<div className="text-center pt-1 pb-3">
 				<p className="text-muted text-md mb-2">Importo</p>
-				<div className="text-5xl font-bold tracking-tight">
-					<span className="text-2xl mr-1">€</span>
+				<div className="text-7xl font-bold tracking-tight">
+					<span className="text-3xl mr-1">€</span>
 					{amount || "0"}
 				</div>
 			</div>
@@ -236,7 +273,6 @@ export default function TransactionForm({
 
 					{isDateOpen && (
 						<div className="absolute top-full mt-1 left-0 right-0 z-20 rounded-2xl bg-deep border border-subtle p-3">
-							{/* Header mese */}
 							<div className="flex items-center justify-between mb-2">
 								<button
 									type="button"
@@ -260,7 +296,6 @@ export default function TransactionForm({
 								</button>
 							</div>
 
-							{/* Intestazione giorni */}
 							<div className="grid grid-cols-7 mb-1">
 								{DAYS.map((d) => (
 									<span
@@ -272,7 +307,6 @@ export default function TransactionForm({
 								))}
 							</div>
 
-							{/* Griglia giorni */}
 							<div className="grid grid-cols-7 gap-0.5">
 								{Array.from({ length: firstWeekday }).map((_, i) => (
 									<div key={`e${i}`} />
@@ -320,20 +354,56 @@ export default function TransactionForm({
 							e.preventDefault();
 							handleKey(key);
 						}}
-						className="flex items-center justify-center h-14 rounded-2xl bg-card border border-subtle text-lg font-medium"
+						className={`flex items-center justify-center rounded-2xl bg-card border border-subtle text-lg font-medium ${isEditing ? "h-14" : "h-16"}`}
 					>
 						{key === "⌫" ? <Delete size={18} /> : key}
 					</button>
 				))}
 			</div>
+
 			<button
 				onClick={handleSave}
 				disabled={!isValid}
 				className="w-full mt-3 py-4 rounded-2xl btn-primary font-semibold flex items-center justify-center gap-2 disabled:opacity-40"
 			>
 				<Check size={18} />
-				Salva movimento
+				{isEditing ? "Salva modifiche" : "Salva movimento"}
 			</button>
+
+			{isEditing && (
+				<div className="mt-2">
+					{isDeleteConfirm ? (
+						<div className="flex gap-2">
+							<button
+								onClick={() => setIsDeleteConfirm(false)}
+								className="flex-1 py-3.5 rounded-2xl bg-card border border-subtle text-sm font-semibold"
+							>
+								Annulla
+							</button>
+							<button
+								onClick={handleDelete}
+								className="flex-1 py-3.5 rounded-2xl text-sm font-semibold"
+								style={{ background: "var(--color-aka)", color: "#fff" }}
+							>
+								Conferma eliminazione
+							</button>
+						</div>
+					) : (
+						<button
+							onClick={() => setIsDeleteConfirm(true)}
+							className="w-full py-3.5 rounded-2xl border text-sm font-semibold flex items-center justify-center gap-2"
+							style={{
+								borderColor:
+									"color-mix(in srgb, var(--color-aka) 40%, transparent)",
+								color: "var(--color-aka)",
+							}}
+						>
+							<Trash2 size={15} />
+							Elimina movimento
+						</button>
+					)}
+				</div>
+			)}
 		</div>
 	);
 }
