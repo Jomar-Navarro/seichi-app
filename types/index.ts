@@ -24,6 +24,24 @@ export interface Category {
 	type: string;
 }
 
+export interface Transaction {
+	id: string;
+	user_id: string;
+	amount: number;
+	type: string;
+	category_id: string | null;
+	investment_type: string | null;
+	date: string;
+	notes: string | null;
+	is_ricurrent: boolean;
+	frequency: string | null;
+	categories: {
+		name: string;
+		icon: string;
+		color: string;
+	} | null;
+}
+
 export const TRANSACTION_TYPES: TransactionType[] = [
 	{
 		id: "spesa",
