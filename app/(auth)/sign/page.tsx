@@ -23,7 +23,7 @@ export default function Sign() {
 			<div className="circle-3"></div>
 
 			{/* Brand panel — desktop only */}
-			<div className="hidden lg:flex flex-col items-center justify-center text-center w-2/5 border-r border-glass-border onboarding-blur">
+			<div className="hidden lg:flex flex-col items-center justify-center text-center w-2/5 border-r border-subtle onboarding-blur">
 				<BrandHeader />
 				<p className="text-xl 2xl:text-2xl leading-[1.75] max-w-xs 2xl:max-w-sm mt-2">
 					Prepara il terreno prima di costruire.{" "}

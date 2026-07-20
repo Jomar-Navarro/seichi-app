@@ -13,6 +13,7 @@ export interface DropdownProps {
 	options: Option[];
 	selected: string;
 	onChange: (value: string) => void;
+	variant?: "default" | "compact";
 }
 
 export default function Select({
@@ -20,9 +21,45 @@ export default function Select({
 	selected,
 	onChange,
 	title,
+	variant = "default",
 }: DropdownProps) {
 	const [isOpen, setIsOpen] = useState(false);
 	const selectedOption = options.find((o) => o.value === selected);
+
+	if (variant === "compact") {
+		return (
+			<div className="relative">
+				<p className="text-xs text-muted mb-1.5">{title}</p>
+				<button
+					onClick={() => setIsOpen((prev) => !prev)}
+					className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-card border border-subtle"
+				>
+					{selectedOption?.icon && (
+						<span className="shrink-0">{selectedOption.icon}</span>
+					)}
+					<span className="text-sm flex-1 text-left">
+						{selectedOption ? selectedOption.label : `Seleziona ${title.toLowerCase()}`}
+					</span>
+					<ChevronDown size={14} className="text-muted" />
+				</button>
+				{isOpen && (
+					<div className="absolute top-full mt-1 left-0 right-0 z-10 rounded-2xl bg-deep border border-subtle overflow-hidden">
+						{options.map((option) => (
+							<button
+								key={option.value}
+								onClick={() => { onChange(option.value); setIsOpen(false); }}
+								className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-card"
+							>
+								{option.icon && <span className="shrink-0">{option.icon}</span>}
+								<span className="flex-1 text-left">{option.label}</span>
+								{option.value === selected && <Check size={14} className="text-midori" />}
+							</button>
+						))}
+					</div>
+				)}
+			</div>
+		);
+	}
 
 	return (
 		<div className={`relative mb-4.5 ${isOpen ? "z-30" : "z-20"}`}>
@@ -31,10 +68,10 @@ export default function Select({
 			</div>
 			<button
 				onClick={() => setIsOpen((prev) => !prev)}
-				className="w-full flex items-center justify-between py-3.5 px-4 rounded-[20px] cursor-pointer text-inherit bg-input-bg border border-glass-border backdrop-blur-[20px] box-shadow"
+				className="w-full flex items-center justify-between py-3.5 px-4 rounded-[20px] cursor-pointer text-inherit bg-input border border-subtle backdrop-blur-[20px] box-shadow"
 			>
 				<span className="flex items-center gap-3">
-					<span className="w-10 h-10 rounded-xl bg-input-bg flex items-center justify-center text-lg text-primary">
+					<span className="w-10 h-10 rounded-xl bg-input flex items-center justify-center text-lg text-primary">
 						{selectedOption?.icon}
 					</span>
 					<span className="flex flex-col gap-1 text-start">
@@ -50,7 +87,7 @@ export default function Select({
 			</button>
 
 			{isOpen && (
-				<div className="absolute top-full mt-2 left-0 right-0 z-30 p-2 rounded-[20px] bg-background-secondary border border-glass-border backdrop-blur-[30px] input-shadow">
+				<div className="absolute top-full mt-2 left-0 right-0 z-30 p-2 rounded-[20px] bg-deep border border-subtle backdrop-blur-[30px] input-shadow">
 					{options.map((option) => (
 						<div
 							onClick={() => {

@@ -4,7 +4,7 @@ export default function BrandHeader() {
 	return (
 		// Logo, Title, Subtitle
 		<div className="flex flex-col items-center text-center mb-6">
-			<div className="w-24 h-24 2xl:w-32 2xl:h-32 flex items-center justify-center border border-glass-border rounded-3xl bg-surface-elevated backdrop-blur-md mb-4">
+			<div className="w-24 h-24 2xl:w-32 2xl:h-32 flex items-center justify-center border border-subtle rounded-3xl bg-surface-elevated backdrop-blur-md mb-4">
 				<Sprout size={40} className="text-midori 2xl:hidden" />
 				<Sprout size={54} className="text-midori hidden 2xl:block" />
 			</div>

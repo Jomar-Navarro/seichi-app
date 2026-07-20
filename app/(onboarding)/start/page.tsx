@@ -11,7 +11,7 @@ export default function StartPage() {
 	return (
 		<div className="shrink grow basis-0 flex flex-col lg:flex-row overflow-hidden">
 			{/* ── LEFT PANEL · desktop only ── */}
-			<div className="hidden lg:flex flex-col items-center justify-center text-center w-2/5 border-r border-glass-border onboarding-blur relative overflow-hidden">
+			<div className="hidden lg:flex flex-col items-center justify-center text-center w-2/5 border-r border-subtle onboarding-blur relative overflow-hidden">
 				<div className="circle-1 z-0" />
 				<div className="circle-3 z-0" />
 				<div className="relative z-10 flex flex-col items-center">

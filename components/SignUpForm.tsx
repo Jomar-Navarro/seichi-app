@@ -44,7 +44,7 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 	if (state.emailSent) {
 		return (
 			<div className="grow shrink basis-0 flex flex-col h-full overflow-y-auto pt-12 px-7 pb-7 md:py-18 md:px-20 lg:p-8">
-				<div className="w-full max-w-md xl:max-w-lg 2xl:max-w-xl mx-auto my-auto lg:bg-surface lg:border lg:border-glass-border lg:rounded-2xl lg:px-8 lg:py-8 xl:px-10 xl:py-10 lg:backdrop-blur-sm">
+				<div className="w-full max-w-md xl:max-w-lg 2xl:max-w-xl mx-auto my-auto lg:bg-surface lg:border lg:border-subtle lg:rounded-2xl lg:px-8 lg:py-8 xl:px-10 xl:py-10 lg:backdrop-blur-sm">
 					<div className="lg:hidden mb-8">
 						<BrandHeader />
 					</div>
@@ -75,7 +75,7 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 
 	return (
 		<div className="grow shrink basis-0 flex flex-col h-full overflow-y-auto pt-12 px-7 pb-7 md:py-18 md:px-20 lg:p-8">
-			<div className="w-full max-w-md xl:max-w-lg 2xl:max-w-xl mx-auto my-auto lg:bg-surface lg:border lg:border-glass-border lg:rounded-2xl lg:px-8 lg:py-8 xl:px-10 xl:py-10 lg:backdrop-blur-sm">
+			<div className="w-full max-w-md xl:max-w-lg 2xl:max-w-xl mx-auto my-auto lg:bg-surface lg:border lg:border-subtle lg:rounded-2xl lg:px-8 lg:py-8 xl:px-10 xl:py-10 lg:backdrop-blur-sm">
 				{/* BrandHeader — mobile only */}
 				<div className="lg:hidden">
 					<BrandHeader />
