@@ -63,9 +63,12 @@
 	/* ---------- CTA / FAB ---------- */
 	--cta-bg: #33373d;
 	--cta-text: #f5f1e8;
-	--fab-bg: #ece6da;
-	--fab-border: rgba(255, 255, 255, 0.7);
-	--fab-shadow: rgba(70, 62, 48, 0.2) 0px 12px 32px, rgba(255, 255, 255, 0.95) 0px 1px 0px inset;
+	--fab-bg: var(--surface-elevated);
+	--fab-text: var(--text-primary);
+	--fab-border: rgba(70, 62, 48, 0.12);
+	--fab-shadow:
+		rgba(70, 62, 48, 0.28) 0px 16px 40px,
+		rgba(255, 255, 255, 0.9) 0px 1px 0px inset;
 }
 
 /* ============================================================
@@ -98,18 +101,18 @@
 	--surface: rgba(230, 233, 239, 0.05);
 	--surface-elevated: rgba(236, 240, 248, 0.13);
 
-	--border: rgba(230, 233, 239, 0.09);
-	--seg-bg: rgba(230, 233, 239, 0.04);
-	--card-bd: rgba(230, 233, 239, 0.09);
-	--bg-tab: rgba(230, 233, 239, 0.1);
-	--card: rgba(230, 233, 239, 0.08);
+	--border: rgba(230, 233, 239, 0.12);
+	--seg-bg: rgba(230, 233, 239, 0.05);
+	--card-bd: rgba(230, 233, 239, 0.12);
+	--bg-tab: rgba(230, 233, 239, 0.12);
+	--card: rgba(230, 233, 239, 0.1);
 	--text-primary: #e6e9ef;
 	--text-secondary: #c7cdda;
 	--text-muted: #8892a6;
 	--text-disabled: #6e7688;
 
 	/* Modal */
-	--modal-bg: rgba(19, 26, 40, 0.92);
+	--modal-bg: rgba(19, 26, 40, 0.85);
 	--modal-border: rgba(230, 233, 239, 0.12);
 	--modal-handle: rgba(230, 233, 239, 0.2);
 	--icon-btn-bg: rgba(230, 233, 239, 0.08);
@@ -121,9 +124,12 @@
 	/* CTA / FAB */
 	--cta-bg: #e6e9ef;
 	--cta-text: #131a28;
-	--fab-bg: #1a2232;
-	--fab-border: rgba(255, 255, 255, 0.12);
-	--fab-shadow: rgba(0, 0, 0, 0.5) 0px 12px 32px, rgba(255, 255, 255, 0.08) 0px 1px 0px inset;
+	--fab-bg: var(--background-secondary);
+	--fab-text: var(--text-primary);
+	--fab-border: rgba(230, 233, 239, 0.18);
+	--fab-shadow:
+		rgba(0, 0, 0, 0.5) 0px 16px 40px,
+		rgba(255, 255, 255, 0.08) 0px 1px 0px inset;
 }
 
 /* ============================================================
@@ -230,8 +236,10 @@ body {
 
 @utility fab {
 	background: var(--fab-bg);
-	border: 1.5px solid var(--fab-border);
+	color: var(--fab-text);
+	border: 1px solid var(--fab-border);
 	box-shadow: var(--fab-shadow);
+	backdrop-filter: blur(14px);
 }
 
 /* ============================================================

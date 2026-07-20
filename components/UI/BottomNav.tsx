@@ -5,7 +5,7 @@ import { useUIStore } from "@/store/useUIStore";
 export default function BottomNav() {
 	const { openTransactionModal } = useUIStore();
 	return (
-		<div className="absolute left-[50%] translate-[-50%] bottom-0 min-w-88 flex items-center justify-between py-2.5 px-4 rounded-3xl z-6 border-subtle backdrop-blur-[26px] box-shadow h-16">
+		<div className="absolute left-[50%] translate-[-50%] bottom-0 min-w-88 flex items-center justify-between py-2.5 px-4 rounded-3xl z-6 border border-subtle bg-surface backdrop-blur-[26px] box-shadow h-16">
 			<div className="flex flex-col items-center gap-1 w-13.5 cursor-pointer justify-between">
 				<Home />
 			</div>
