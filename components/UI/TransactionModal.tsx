@@ -1,64 +1,10 @@
 "use client";
 
-import {
-	ArrowDownLeft,
-	ArrowUpRight,
-	ChevronLeft,
-	ChevronRight,
-	PiggyBank,
-	RefreshCw,
-	TrendingUp,
-	X,
-} from "lucide-react";
-import type { ElementType } from "react";
+import { ChevronLeft, ChevronRight, X, Check } from "lucide-react";
 import { useState } from "react";
 import { useUIStore } from "@/store/useUIStore";
-
-interface TransactionType {
-	id: string;
-	label: string;
-	description: string;
-	color: string;
-	icon: ElementType;
-}
-
-const TRANSACTION_TYPES: TransactionType[] = [
-	{
-		id: "spesa",
-		label: "Uscita",
-		description: "Spese e acquisti quotidiani",
-		color: "var(--color-aka)",
-		icon: ArrowUpRight,
-	},
-	{
-		id: "entrata",
-		label: "Entrata",
-		description: "Stipendio, rimborsi, regali",
-		color: "var(--color-midori)",
-		icon: ArrowDownLeft,
-	},
-	{
-		id: "risparmio",
-		label: "Risparmio",
-		description: "Accantonamenti e obiettivi",
-		color: "var(--color-kin)",
-		icon: PiggyBank,
-	},
-	{
-		id: "investimento",
-		label: "Investimento",
-		description: "Mercati, fondi, portafoglio",
-		color: "var(--color-ao)",
-		icon: TrendingUp,
-	},
-	{
-		id: "abbonamento",
-		label: "Ricorrente",
-		description: "Abbonamenti e pagamenti fissi",
-		color: "var(--color-murasaki)",
-		icon: RefreshCw,
-	},
-];
+import { TRANSACTION_TYPES } from "@/types";
+import TransactionForm from "./TransactionForm";
 
 export default function TransactionModal() {
 	const {
@@ -105,7 +51,7 @@ export default function TransactionModal() {
 						{step === "form" && (
 							<button
 								onClick={() => setStep("type")}
-								className="w-8 h-8 flex items-center justify-center rounded-full shrink-0 bg-control border border-subtle"
+								className="w-8 h-8 flex items-center justify-center rounded-xl shrink-0 bg-control border border-subtle"
 							>
 								<ChevronLeft size={16} />
 							</button>
@@ -129,7 +75,7 @@ export default function TransactionModal() {
 					</div>
 					<button
 						onClick={handleClose}
-						className="w-8 h-8 flex items-center justify-center rounded-full shrink-0 bg-control border border-subtle"
+						className="w-8 h-8 flex items-center justify-center rounded-xl shrink-0 bg-control border border-subtle"
 					>
 						<X size={15} />
 					</button>
@@ -159,10 +105,10 @@ export default function TransactionModal() {
 								>
 									{isSelected ? (
 										<span
-											className="absolute top-3 left-3.5 text-xs font-semibold"
+											className="absolute top-3 right-3.5 text-xs font-semibold"
 											style={{ color: type.color }}
 										>
-											✓
+											<Check size={18} />
 										</span>
 									) : (
 										<ChevronRight
@@ -203,17 +149,8 @@ export default function TransactionModal() {
 				)}
 
 				{/* Step: form placeholder */}
-				{step === "form" && (
-					<div className="flex-1 flex flex-col items-center justify-center gap-2">
-						<p className="text-muted text-sm">Form per</p>
-						<p
-							className="text-lg font-semibold"
-							style={{ color: selectedType?.color }}
-						>
-							{selectedType?.label}
-						</p>
-						<p className="text-muted text-xs mt-2">— da implementare —</p>
-					</div>
+				{step === "form" && selectedType && (
+					<TransactionForm selectedType={selectedType} />
 				)}
 			</div>
 		</div>
