@@ -218,7 +218,7 @@ export default function TransactionForm({ selectedType }: TransactionFormProps) 
 			<button
 				onClick={handleSave}
 				disabled={!isValid}
-				className="w-full mt-3 py-4 rounded-2xl bg-foreground text-yoru font-semibold flex items-center justify-center gap-2 disabled:opacity-40"
+				className="w-full mt-3 py-4 rounded-2xl btn-primary font-semibold flex items-center justify-center gap-2 disabled:opacity-40"
 			>
 				<Check size={18} />
 				Salva movimento

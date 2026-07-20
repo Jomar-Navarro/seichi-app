@@ -16,7 +16,7 @@ export default function BottomNav() {
 
 			<button
 				onClick={openTransactionModal}
-				className="w-13.5 h-13.5 mb-1 rounded-2xl shrink-0 bg-deep border-subtle flex items-center justify-center cursor-pointer box-shadow -translate-y-4.5"
+				className="w-13.5 h-13.5 mb-1 rounded-2xl shrink-0 fab flex items-center justify-center cursor-pointer -translate-y-4.5"
 			>
 				<Plus />
 			</button>
