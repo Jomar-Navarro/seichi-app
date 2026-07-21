@@ -7,8 +7,10 @@ import {
 } from "lucide-react";
 import type { ElementType } from "react";
 
+export type TransactionTypeId = "spesa" | "entrata" | "risparmio" | "investimento" | "abbonamento";
+
 export interface TransactionType {
-	id: string;
+	id: TransactionTypeId;
 	label: string;
 	description: string;
 	color: string;
@@ -22,6 +24,24 @@ export interface Category {
 	icon: string;
 	color: string;
 	type: string;
+}
+
+export interface Transaction {
+	id: string;
+	user_id: string;
+	amount: number;
+	type: TransactionTypeId;
+	category_id: string | null;
+	investment_type: string | null;
+	date: string;
+	notes: string | null;
+	is_ricurrent: boolean;
+	frequency: string | null;
+	categories: {
+		name: string;
+		icon: string;
+		color: string;
+	} | null;
 }
 
 export const TRANSACTION_TYPES: TransactionType[] = [

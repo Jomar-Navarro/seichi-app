@@ -1,26 +1,23 @@
 "use client";
 import { useEffect, useState } from "react";
-import { TransactionType, Category } from "@/types";
+import { TransactionType, Category, Transaction } from "@/types";
 import { createClient } from "@/lib/supabase/client";
 import {
-	Calendar, ChevronLeft, ChevronRight, Pencil, Delete, Check,
-	Banknote, Briefcase, Award, Gift, ArrowDownLeft,
-	ShoppingCart, UtensilsCrossed, Car, HeartPulse, Shirt, Smile, Home,
-	Shield, Plane, Building2, Laptop,
-	BarChart2, TrendingUp, Bitcoin, PiggyBank,
-	Play, Music, Dumbbell, Zap, KeyRound,
-	type LucideIcon,
+	Calendar,
+	ChevronLeft,
+	ChevronRight,
+	Pencil,
+	Delete,
+	Check,
+	Trash2,
 } from "lucide-react";
-
-const ICON_MAP: Record<string, LucideIcon> = {
-	Banknote, Briefcase, Award, Gift, ArrowDownLeft,
-	ShoppingCart, UtensilsCrossed, Car, HeartPulse, Shirt, Smile, Home,
-	Shield, Plane, Building2, Laptop,
-	BarChart2, TrendingUp, Bitcoin, PiggyBank,
-	Play, Music, Dumbbell, Zap, KeyRound,
-};
+import { ICON_MAP } from "@/lib/icon-map";
 import Select from "@/components/UI/Select";
-import { saveTransaction } from "@/app/(main)/action";
+import {
+	saveTransaction,
+	updateTransaction,
+	deleteTransaction,
+} from "@/app/(main)/action";
 import { useUIStore } from "@/store/useUIStore";
 
 const DAYS = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
@@ -31,22 +28,40 @@ function getDaysInMonth(year: number, month: number) {
 
 function getFirstWeekday(year: number, month: number) {
 	const day = new Date(year, month, 1).getDay();
-	return day === 0 ? 6 : day - 1; // Mon=0 … Sun=6
+	return day === 0 ? 6 : day - 1;
 }
 
 interface TransactionFormProps {
 	selectedType: TransactionType;
+	transaction?: Transaction;
 }
 
-export default function TransactionForm({ selectedType }: TransactionFormProps) {
-	const [amount, setAmount] = useState("");
-	const [categoryId, setCategoryId] = useState<string | null>(null);
-	const [description, setDescription] = useState<string | null>(null);
-	const [date, setDate] = useState(new Date());
+export default function TransactionForm({
+	selectedType,
+	transaction,
+}: TransactionFormProps) {
+	const isEditing = !!transaction;
+
+	const [amount, setAmount] = useState(() =>
+		transaction ? transaction.amount.toFixed(2).replace(".", ",") : "",
+	);
+	const [categoryId, setCategoryId] = useState<string | null>(
+		transaction?.category_id ?? null,
+	);
+	const [description, setDescription] = useState<string | null>(
+		transaction?.notes ?? null,
+	);
+	const [date, setDate] = useState(() =>
+		transaction ? new Date(transaction.date) : new Date(),
+	);
 	const [categoryList, setCategoryList] = useState<Category[]>([]);
 	const [isDateOpen, setIsDateOpen] = useState(false);
-	const [viewDate, setViewDate] = useState(new Date());
-	const { closeTransactionModal } = useUIStore();
+	const [viewDate, setViewDate] = useState(() =>
+		transaction ? new Date(transaction.date) : new Date(),
+	);
+	const [isDeleteConfirm, setIsDeleteConfirm] = useState(false);
+	const [isSaving, setIsSaving] = useState(false);
+	const { closeTransactionModal, notifyTransactionSaved } = useUIStore();
 
 	useEffect(() => {
 		async function loadCategories() {
@@ -58,30 +73,66 @@ export default function TransactionForm({ selectedType }: TransactionFormProps) 
 			if (data) setCategoryList(data);
 		}
 		loadCategories();
-	}, []);
+	}, [selectedType.id]);
 
 	const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ",", "0", "⌫"];
 
 	const handleKey = (key: string) => {
-		if (key === "⌫") { setAmount((prev) => prev.slice(0, -1)); return; }
-		if (key === ",") { setAmount((prev) => (prev.includes(",") ? prev : prev + ",")); return; }
+		if (key === "⌫") {
+			setAmount((prev) => prev.slice(0, -1));
+			return;
+		}
+		if (key === ",") {
+			setAmount((prev) => (prev.includes(",") ? prev : prev + ","));
+			return;
+		}
 		setAmount((prev) => prev + key);
 	};
 
 	const isValid = amount !== "" && parseFloat(amount.replace(",", ".")) > 0;
 
 	async function handleSave() {
-		if (!isValid) return;
-		const result = await saveTransaction(
-			parseFloat(amount.replace(",", ".")),
-			selectedType.id,
-			categoryId,
-			description,
-			date.toISOString(),
-		);
-		if (!result?.error) {
-			setAmount(""); setCategoryId(null); setDescription(null); setDate(new Date());
-			closeTransactionModal();
+		if (!isValid || isSaving) return;
+		setIsSaving(true);
+		try {
+			const importo = parseFloat(amount.replace(",", "."));
+			const result = isEditing
+				? await updateTransaction(
+						transaction.id,
+						importo,
+						selectedType.id,
+						categoryId,
+						description,
+						date.toISOString(),
+					)
+				: await saveTransaction(
+						importo,
+						selectedType.id,
+						categoryId,
+						description,
+						date.toISOString(),
+					);
+
+			if (!result?.error) {
+				notifyTransactionSaved();
+				closeTransactionModal();
+			}
+		} finally {
+			setIsSaving(false);
+		}
+	}
+
+	async function handleDelete() {
+		if (!transaction || isSaving) return;
+		setIsSaving(true);
+		try {
+			const result = await deleteTransaction(transaction.id);
+			if (!result?.error) {
+				notifyTransactionSaved();
+				closeTransactionModal();
+			}
+		} finally {
+			setIsSaving(false);
 		}
 	}
 
@@ -98,14 +149,26 @@ export default function TransactionForm({ selectedType }: TransactionFormProps) 
 		});
 	}
 
-	const categoryOptions = categoryList.map((c) => {
+	const effectiveCategoryList: Category[] =
+		categoryList.length > 0
+			? categoryList
+			: isEditing && transaction.categories && transaction.category_id
+				? [{ id: transaction.category_id, user_id: "", name: transaction.categories.name, icon: transaction.categories.icon, color: transaction.categories.color, type: selectedType.id }]
+				: [];
+
+	const categoryOptions = effectiveCategoryList.map((c) => {
 		const Icon = ICON_MAP[c.icon];
 		return {
 			value: c.id,
 			label: c.name,
-			icon: Icon
-				? <Icon size={14} style={{ color: `var(--color-${c.color})` }} />
-				: <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: `var(--color-${c.color})` }} />,
+			icon: Icon ? (
+				<Icon size={14} style={{ color: `var(--color-${c.color})` }} />
+			) : (
+				<span
+					className="w-2.5 h-2.5 rounded-full inline-block"
+					style={{ background: `var(--color-${c.color})` }}
+				/>
+			),
 		};
 	});
 
@@ -120,8 +183,8 @@ export default function TransactionForm({ selectedType }: TransactionFormProps) 
 			{/* Importo */}
 			<div className="text-center pt-1 pb-3">
 				<p className="text-muted text-md mb-2">Importo</p>
-				<div className="text-5xl font-bold tracking-tight">
-					<span className="text-2xl mr-1">€</span>
+				<div className="text-7xl font-bold tracking-tight">
+					<span className="text-3xl mr-1">€</span>
 					{amount || "0"}
 				</div>
 			</div>
@@ -156,45 +219,73 @@ export default function TransactionForm({ selectedType }: TransactionFormProps) 
 					<p className="text-xs text-muted mb-1.5">Data</p>
 					<button
 						type="button"
-						onClick={() => { setViewDate(new Date(date)); setIsDateOpen((p) => !p); }}
+						onClick={() => {
+							setViewDate(new Date(date));
+							setIsDateOpen((p) => !p);
+						}}
 						className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-card border border-subtle"
 					>
 						<Calendar size={14} className="text-muted shrink-0" />
 						<span className="text-sm flex-1 text-left">
-							{date.toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" })}
+							{date.toLocaleDateString("it-IT", {
+								day: "numeric",
+								month: "long",
+								year: "numeric",
+							})}
 						</span>
 						<ChevronRight size={14} className="text-muted" />
 					</button>
 
 					{isDateOpen && (
 						<div className="absolute top-full mt-1 left-0 right-0 z-20 rounded-2xl bg-deep border border-subtle p-3">
-							{/* Header mese */}
 							<div className="flex items-center justify-between mb-2">
-								<button type="button" onClick={() => navigateMonth(-1)} className="w-7 h-7 flex items-center justify-center rounded-xl bg-card border border-subtle">
+								<button
+									type="button"
+									onClick={() => navigateMonth(-1)}
+									className="w-7 h-7 flex items-center justify-center rounded-xl bg-card border border-subtle"
+								>
 									<ChevronLeft size={14} />
 								</button>
 								<span className="text-sm font-medium capitalize">
-									{viewDate.toLocaleDateString("it-IT", { month: "long", year: "numeric" })}
+									{viewDate.toLocaleDateString("it-IT", {
+										month: "long",
+										year: "numeric",
+									})}
 								</span>
-								<button type="button" onClick={() => navigateMonth(1)} className="w-7 h-7 flex items-center justify-center rounded-xl bg-card border border-subtle">
+								<button
+									type="button"
+									onClick={() => navigateMonth(1)}
+									className="w-7 h-7 flex items-center justify-center rounded-xl bg-card border border-subtle"
+								>
 									<ChevronRight size={14} />
 								</button>
 							</div>
 
-							{/* Intestazione giorni */}
 							<div className="grid grid-cols-7 mb-1">
 								{DAYS.map((d) => (
-									<span key={d} className="text-center text-[10px] text-muted py-1">{d}</span>
+									<span
+										key={d}
+										className="text-center text-[10px] text-muted py-1"
+									>
+										{d}
+									</span>
 								))}
 							</div>
 
-							{/* Griglia giorni */}
 							<div className="grid grid-cols-7 gap-0.5">
-								{Array.from({ length: firstWeekday }).map((_, i) => <div key={`e${i}`} />)}
+								{Array.from({ length: firstWeekday }).map((_, i) => (
+									<div key={`e${i}`} />
+								))}
 								{Array.from({ length: totalDays }).map((_, i) => {
 									const day = i + 1;
-									const isSelected = date.getDate() === day && date.getMonth() === month && date.getFullYear() === year;
-									const isToday = today.getDate() === day && today.getMonth() === month && today.getFullYear() === year;
+									const isSelected =
+										date.getDate() === day &&
+										date.getMonth() === month &&
+										date.getFullYear() === year;
+									const isToday =
+										today.getDate() === day &&
+										today.getMonth() === month &&
+										today.getFullYear() === year;
 									return (
 										<button
 											key={day}
@@ -204,8 +295,8 @@ export default function TransactionForm({ selectedType }: TransactionFormProps) 
 												isSelected
 													? "bg-foreground text-yoru font-semibold"
 													: isToday
-													? "border border-subtle font-medium"
-													: "hover:bg-card"
+														? "border border-subtle font-medium"
+														: "hover:bg-card"
 											}`}
 										>
 											{day}
@@ -224,21 +315,60 @@ export default function TransactionForm({ selectedType }: TransactionFormProps) 
 					<button
 						key={i}
 						type="button"
-						onPointerDown={(e) => { e.preventDefault(); handleKey(key); }}
-						className="flex items-center justify-center h-14 rounded-2xl bg-card border border-subtle text-lg font-medium"
+						onPointerDown={(e) => {
+							e.preventDefault();
+							handleKey(key);
+						}}
+						className={`flex items-center justify-center rounded-2xl bg-card border border-subtle text-lg font-medium ${isEditing ? "h-14" : "h-16"}`}
 					>
 						{key === "⌫" ? <Delete size={18} /> : key}
 					</button>
 				))}
 			</div>
+
 			<button
 				onClick={handleSave}
-				disabled={!isValid}
+				disabled={!isValid || isSaving}
 				className="w-full mt-3 py-4 rounded-2xl btn-primary font-semibold flex items-center justify-center gap-2 disabled:opacity-40"
 			>
 				<Check size={18} />
-				Salva movimento
+				{isEditing ? "Salva modifiche" : "Salva movimento"}
 			</button>
+
+			{isEditing && (
+				<div className="mt-2">
+					{isDeleteConfirm ? (
+						<div className="flex gap-2">
+							<button
+								onClick={() => setIsDeleteConfirm(false)}
+								className="flex-1 py-3.5 rounded-2xl bg-card border border-subtle text-sm font-semibold"
+							>
+								Annulla
+							</button>
+							<button
+								onClick={handleDelete}
+								className="flex-1 py-3.5 rounded-2xl text-sm font-semibold"
+								style={{ background: "var(--color-aka)", color: "#fff" }}
+							>
+								Conferma eliminazione
+							</button>
+						</div>
+					) : (
+						<button
+							onClick={() => setIsDeleteConfirm(true)}
+							className="w-full py-3.5 rounded-2xl border text-sm font-semibold flex items-center justify-center gap-2"
+							style={{
+								borderColor:
+									"color-mix(in srgb, var(--color-aka) 40%, transparent)",
+								color: "var(--color-aka)",
+							}}
+						>
+							<Trash2 size={15} />
+							Elimina movimento
+						</button>
+					)}
+				</div>
+			)}
 		</div>
 	);
 }

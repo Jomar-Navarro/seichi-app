@@ -1,18 +1,31 @@
 "use client";
 import { Home, List, Plus, ChartPie, ChartNoAxesColumn } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useUIStore } from "@/store/useUIStore";
+
+const NAV_ITEMS = [
+	{ href: "/",           icon: Home,             label: "Home" },
+	{ href: "/movimenti",  icon: List,             label: "Movimenti" },
+	{ href: "/budget",     icon: ChartPie,         label: "Budget" },
+	{ href: "/analisi",    icon: ChartNoAxesColumn, label: "Analisi" },
+];
 
 export default function BottomNav() {
 	const { openTransactionModal } = useUIStore();
-	return (
-		<div className="absolute left-[50%] translate-[-50%] bottom-0 min-w-88 flex items-center justify-between py-2.5 px-4 rounded-3xl z-6 border border-subtle bg-surface backdrop-blur-[26px] box-shadow h-16">
-			<div className="flex flex-col items-center gap-1 w-13.5 cursor-pointer justify-between">
-				<Home />
-			</div>
+	const pathname = usePathname();
 
-			<div className="flex flex-col items-center gap-1 w-13.5 cursor-pointer justify-between">
-				<List />
-			</div>
+	return (
+		<div className="absolute left-[50%] translate-[-50%] bottom-0 min-w-88 flex items-center justify-between py-2 px-4 rounded-3xl z-6 border border-subtle bg-surface backdrop-blur-[26px] box-shadow h-16">
+			{NAV_ITEMS.slice(0, 2).map(({ href, icon: Icon, label }) => {
+				const active = pathname === href;
+				return (
+					<Link key={href} href={href} className={`flex flex-col items-center gap-0.5 w-13.5 ${active ? "text-foreground" : "text-muted"}`}>
+						<Icon size={20} />
+						<span className="text-[10px] font-medium">{label}</span>
+					</Link>
+				);
+			})}
 
 			<button
 				onClick={openTransactionModal}
@@ -21,13 +34,15 @@ export default function BottomNav() {
 				<Plus />
 			</button>
 
-			<div className="flex flex-col items-center gap-1 w-13.5 cursor-pointer justify-between">
-				<ChartPie />
-			</div>
-
-			<div className="flex flex-col items-center gap-1 w-13.5 cursor-pointer justify-between">
-				<ChartNoAxesColumn />
-			</div>
+			{NAV_ITEMS.slice(2).map(({ href, icon: Icon, label }) => {
+				const active = pathname === href;
+				return (
+					<Link key={href} href={href} className={`flex flex-col items-center gap-0.5 w-13.5 ${active ? "text-foreground" : "text-muted"}`}>
+						<Icon size={20} />
+						<span className="text-[10px] font-medium">{label}</span>
+					</Link>
+				);
+			})}
 		</div>
 	);
 }

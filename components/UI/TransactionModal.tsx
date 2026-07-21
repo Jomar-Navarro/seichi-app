@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, X, Check } from "lucide-react";
-import { useState } from "react";
+import { useState, useLayoutEffect } from "react";
 import { useUIStore } from "@/store/useUIStore";
 import { TRANSACTION_TYPES } from "@/types";
 import TransactionForm from "./TransactionForm";
@@ -10,15 +10,22 @@ export default function TransactionModal() {
 	const {
 		isTransactionModalOpen,
 		selectedTransactionType,
+		editingTransaction,
 		closeTransactionModal,
 		setTransactionType,
 	} = useUIStore();
 
 	const [step, setStep] = useState<"type" | "form">("type");
 
-	const selectedType = TRANSACTION_TYPES.find(
-		(t) => t.id === selectedTransactionType,
-	);
+	useLayoutEffect(() => {
+		if (isTransactionModalOpen) {
+			setStep(editingTransaction ? "form" : "type");
+		}
+	}, [isTransactionModalOpen, editingTransaction]);
+
+	const selectedType = editingTransaction
+		? TRANSACTION_TYPES.find((t) => t.id === editingTransaction.type) ?? TRANSACTION_TYPES[0]
+		: TRANSACTION_TYPES.find((t) => t.id === selectedTransactionType);
 
 	function handleTypeSelect(id: string) {
 		setTransactionType(id);
@@ -41,14 +48,14 @@ export default function TransactionModal() {
 			/>
 
 			{/* Sheet */}
-			<div className="relative w-full flex flex-col h-195 rounded-t-4xl backdrop-blur-2xl pt-3.5 px-6 pb-6.5 modal-shadow border-t border-l border-r border-subtle bg-modal">
+			<div className="relative w-full flex flex-col h-dvh rounded-t-4xl backdrop-blur-2xl pt-3.5 px-6 pb-6.5 modal-shadow border-t border-l border-r border-subtle bg-modal">
 				{/* Handle */}
 				<div className="w-10 h-1 rounded-full mx-auto mb-1 bg-modal-handle" />
 
 				{/* Header */}
 				<div className="flex items-start justify-between mt-3 mb-4">
 					<div className="flex items-center gap-2">
-						{step === "form" && (
+						{step === "form" && !editingTransaction && (
 							<button
 								onClick={() => setStep("type")}
 								className="w-8 h-8 flex items-center justify-center rounded-xl shrink-0 bg-control border border-subtle"
@@ -65,7 +72,9 @@ export default function TransactionModal() {
 									{selectedType.label}
 								</p>
 							)}
-							<h2 className="text-xl font-semibold">Nuovo movimento</h2>
+							<h2 className="text-xl font-semibold">
+								{editingTransaction ? "Modifica movimento" : "Nuovo movimento"}
+							</h2>
 							{step === "type" && (
 								<p className="text-sm text-muted mt-1">
 									Che tipo di movimento vuoi registrare?
@@ -148,9 +157,12 @@ export default function TransactionModal() {
 					</div>
 				)}
 
-				{/* Step: form placeholder */}
+				{/* Step: form */}
 				{step === "form" && selectedType && (
-					<TransactionForm selectedType={selectedType} />
+					<TransactionForm
+						selectedType={selectedType}
+						transaction={editingTransaction ?? undefined}
+					/>
 				)}
 			</div>
 		</div>
