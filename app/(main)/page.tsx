@@ -1,13 +1,15 @@
 import BalanceCard from "@/components/features/BalanceCard";
 import { getDashboardTotals, getTransactions } from "./action";
-import SummaryCard from "@/components/features/SummaryCard";
+import SummaryCard from "@/components/UI/SummaryCard";
 import { TRANSACTION_TYPES } from "@/types";
 import RecentTransaction from "@/components/features/RecentTransaction";
 import DashboardRefresher from "@/components/features/DashboardRefresher";
 
 export default async function MainPage() {
-	const result = await getDashboardTotals();
-	const transaction = await getTransactions(undefined, undefined, 5);
+	const [result, transaction] = await Promise.all([
+		getDashboardTotals(),
+		getTransactions(undefined, undefined, 5),
+	]);
 	const entrata = TRANSACTION_TYPES.find((t) => t.id === "entrata")!;
 	const uscita = TRANSACTION_TYPES.find((t) => t.id === "spesa")!;
 	const investimento = TRANSACTION_TYPES.find((t) => t.id === "investimento")!;

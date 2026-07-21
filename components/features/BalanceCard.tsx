@@ -7,11 +7,6 @@ interface BalanceCardProps {
 	saldoMese: number;
 }
 
-const intFormatter = new Intl.NumberFormat("it-IT", {
-	minimumFractionDigits: 0,
-	maximumFractionDigits: 0,
-});
-
 const decFormatter = new Intl.NumberFormat("it-IT", {
 	minimumFractionDigits: 2,
 	maximumFractionDigits: 2,
@@ -21,6 +16,7 @@ function splitAmount(amount: number) {
 	const formatted = decFormatter.format(Math.abs(amount));
 	const commaIdx = formatted.lastIndexOf(",");
 	return {
+		sign: amount < 0 ? "−" : "",
 		integer: formatted.slice(0, commaIdx),
 		decimal: formatted.slice(commaIdx),
 	};
@@ -29,7 +25,7 @@ function splitAmount(amount: number) {
 export default function BalanceCard({ saldoTotale, saldoMese }: BalanceCardProps) {
 	const [hidden, setHidden] = useState(false);
 	const isPositive = saldoMese >= 0;
-	const { integer, decimal } = splitAmount(saldoTotale);
+	const { sign, integer, decimal } = splitAmount(saldoTotale);
 
 	return (
 		<div className="rounded-3xl p-5 border border-subtle card-shadow bg-surface backdrop-blur-md">
@@ -49,7 +45,7 @@ export default function BalanceCard({ saldoTotale, saldoMese }: BalanceCardProps
 					<span className="text-5xl">••••••</span>
 				) : (
 					<>
-						<span className="text-5xl">{integer}</span>
+						<span className="text-5xl">{sign}{integer}</span>
 						<span className="text-3xl font-semibold text-muted">{decimal}</span>
 					</>
 				)}

@@ -223,11 +223,6 @@ body {
 		var(--shadow-inset) 0px 1px 0px inset;
 }
 
-@utility glass-card {
-	background: var(--color-card);
-	backdrop-filter: blur(12px);
-	-webkit-backdrop-filter: blur(12px);
-}
 
 @utility card-shadow {
 	box-shadow:

@@ -56,7 +56,7 @@ export async function getTransactions(
 		query = query.gte("date", from.toISOString());
 	}
 
-	if (limit) query = query.limit(limit);
+	if (limit !== undefined) query = query.limit(limit);
 
 	const { data, error } = await query;
 	return error ? { error: error.message } : { data };
@@ -131,7 +131,7 @@ export async function getDashboardTotals() {
 
 	const [
 		{ data, error },
-		{ data: dataTotale },
+		{ data: dataTotale, error: errorTotale },
 	] = await Promise.all([
 		query,
 		supabase.from("transactions").select("amount, type").eq("user_id", user.id),
@@ -169,14 +169,7 @@ export async function getDashboardTotals() {
 			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
 	const saldoTotale = entrateTotali - speseTotali;
 
-	return error
-		? { error: error.message }
-		: {
-				entrateMese,
-				speseMese,
-				investimentiMese,
-				risparmiMese,
-				saldoMese,
-				saldoTotale,
-			};
+	if (error || errorTotale) return { error: (error ?? errorTotale)!.message };
+
+	return { entrateMese, speseMese, investimentiMese, risparmiMese, saldoMese, saldoTotale };
 }

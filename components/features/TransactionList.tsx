@@ -3,43 +3,7 @@ import { Plus } from "lucide-react";
 import { ICON_MAP } from "@/lib/icon-map";
 import { useUIStore } from "@/store/useUIStore";
 import type { Transaction } from "@/types";
-
-const TIPO_COLOR: Record<string, string> = {
-	entrata:      "var(--color-midori)",
-	spesa:        "var(--color-aka)",
-	risparmio:    "var(--color-kin)",
-	investimento: "var(--color-ao)",
-	abbonamento:  "var(--color-murasaki)",
-};
-
-const TIPO_LABEL: Record<string, string> = {
-	entrata:      "Entrate",
-	spesa:        "Uscite",
-	risparmio:    "Risparmi",
-	investimento: "Investimenti",
-	abbonamento:  "Abbonamenti",
-};
-
-function formatDate(iso: string) {
-	const date = new Date(iso);
-	const today = new Date();
-	const yesterday = new Date();
-	yesterday.setDate(today.getDate() - 1);
-	if (date.toDateString() === today.toDateString()) return "Oggi";
-	if (date.toDateString() === yesterday.toDateString()) return "Ieri";
-	return date.toLocaleDateString("it-IT", { day: "numeric", month: "long" });
-}
-
-const numberFormatter = new Intl.NumberFormat("it-IT", {
-	minimumFractionDigits: 2,
-	maximumFractionDigits: 2,
-});
-
-function formatAmount(amount: number, type: string) {
-	const abs = numberFormatter.format(Math.abs(amount));
-	const sign = type === "entrata" ? "+ " : "− ";
-	return `${sign}€ ${abs}`;
-}
+import { TIPO_COLOR, TIPO_LABEL, numberFormatter, formatDate, formatAmount } from "@/lib/transaction-utils";
 
 interface TransactionListProps {
 	transactions: Transaction[];
