@@ -16,9 +16,16 @@ export default function MovimentiPage() {
 
 	const load = useCallback(async () => {
 		setLoading(true);
-		const result = await getTransactions(tipo || undefined, periodo);
-		if ("data" in result && result.data) setTransactions(result.data as Transaction[]);
-		setLoading(false);
+		try {
+			const result = await getTransactions(tipo || undefined, periodo);
+			if ("data" in result) {
+				setTransactions((result.data as Transaction[]) ?? []);
+			} else {
+				setTransactions([]);
+			}
+		} finally {
+			setLoading(false);
+		}
 	}, [tipo, periodo]);
 
 	useEffect(() => { load(); }, [load, transactionSavedAt]);

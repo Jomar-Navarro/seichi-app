@@ -48,6 +48,7 @@ export async function getTransactions(tipo?: string, periodo?: string) {
 		if (periodo === "7d") from.setDate(from.getDate() - 7);
 		else if (periodo === "30d") from.setDate(from.getDate() - 30);
 		else if (periodo === "3m") from.setMonth(from.getMonth() - 3);
+		from.setHours(0, 0, 0, 0);
 		query = query.gte("date", from.toISOString());
 	}
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, X, Check } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useLayoutEffect } from "react";
 import { useUIStore } from "@/store/useUIStore";
 import { TRANSACTION_TYPES } from "@/types";
 import TransactionForm from "./TransactionForm";
@@ -17,14 +17,14 @@ export default function TransactionModal() {
 
 	const [step, setStep] = useState<"type" | "form">("type");
 
-	useEffect(() => {
+	useLayoutEffect(() => {
 		if (isTransactionModalOpen) {
 			setStep(editingTransaction ? "form" : "type");
 		}
 	}, [isTransactionModalOpen, editingTransaction]);
 
 	const selectedType = editingTransaction
-		? TRANSACTION_TYPES.find((t) => t.id === editingTransaction.type)
+		? TRANSACTION_TYPES.find((t) => t.id === editingTransaction.type) ?? TRANSACTION_TYPES[0]
 		: TRANSACTION_TYPES.find((t) => t.id === selectedTransactionType);
 
 	function handleTypeSelect(id: string) {

@@ -1,23 +1,8 @@
 "use client";
-import {
-	Banknote, Briefcase, Award, Gift, ArrowDownLeft,
-	ShoppingCart, UtensilsCrossed, Car, HeartPulse, Shirt, Smile, Home,
-	Shield, Plane, Building2, Laptop,
-	BarChart2, TrendingUp, Bitcoin, PiggyBank,
-	Play, Music, Dumbbell, Zap, KeyRound,
-	Plus, type LucideIcon,
-} from "lucide-react";
+import { Plus } from "lucide-react";
+import { ICON_MAP } from "@/lib/icon-map";
 import { useUIStore } from "@/store/useUIStore";
 import type { Transaction } from "@/types";
-
-
-const ICON_MAP: Record<string, LucideIcon> = {
-	Banknote, Briefcase, Award, Gift, ArrowDownLeft,
-	ShoppingCart, UtensilsCrossed, Car, HeartPulse, Shirt, Smile, Home,
-	Shield, Plane, Building2, Laptop,
-	BarChart2, TrendingUp, Bitcoin, PiggyBank,
-	Play, Music, Dumbbell, Zap, KeyRound,
-};
 
 const TIPO_COLOR: Record<string, string> = {
 	entrata:      "var(--color-midori)",
@@ -45,11 +30,13 @@ function formatDate(iso: string) {
 	return date.toLocaleDateString("it-IT", { day: "numeric", month: "long" });
 }
 
+const numberFormatter = new Intl.NumberFormat("it-IT", {
+	minimumFractionDigits: 2,
+	maximumFractionDigits: 2,
+});
+
 function formatAmount(amount: number, type: string) {
-	const abs = new Intl.NumberFormat("it-IT", {
-		minimumFractionDigits: 2,
-		maximumFractionDigits: 2,
-	}).format(Math.abs(amount));
+	const abs = numberFormatter.format(Math.abs(amount));
 	const sign = type === "entrata" ? "+ " : "− ";
 	return `${sign}€ ${abs}`;
 }
@@ -118,7 +105,7 @@ export default function TransactionList({ transactions, loading }: TransactionLi
 		<div className="space-y-5">
 			{Object.entries(groups).map(([date, items]) => (
 				<div key={date}>
-					<p className="text-xs font-medium uppercase tracking-[1.6px] text-muted mb-2.5 ms-1">{date}</p>
+					<p className="text-xs font-medium tracking-[1.6px] text-muted mb-2.5 ms-1">{date}</p>
 					<div className="space-y-2">
 						{items.map((t) => {
 							const cat = t.categories;

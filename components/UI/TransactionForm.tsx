@@ -10,61 +10,8 @@ import {
 	Delete,
 	Check,
 	Trash2,
-	Banknote,
-	Briefcase,
-	Award,
-	Gift,
-	ArrowDownLeft,
-	ShoppingCart,
-	UtensilsCrossed,
-	Car,
-	HeartPulse,
-	Shirt,
-	Smile,
-	Home,
-	Shield,
-	Plane,
-	Building2,
-	Laptop,
-	BarChart2,
-	TrendingUp,
-	Bitcoin,
-	PiggyBank,
-	Play,
-	Music,
-	Dumbbell,
-	Zap,
-	KeyRound,
-	type LucideIcon,
 } from "lucide-react";
-
-const ICON_MAP: Record<string, LucideIcon> = {
-	Banknote,
-	Briefcase,
-	Award,
-	Gift,
-	ArrowDownLeft,
-	ShoppingCart,
-	UtensilsCrossed,
-	Car,
-	HeartPulse,
-	Shirt,
-	Smile,
-	Home,
-	Shield,
-	Plane,
-	Building2,
-	Laptop,
-	BarChart2,
-	TrendingUp,
-	Bitcoin,
-	PiggyBank,
-	Play,
-	Music,
-	Dumbbell,
-	Zap,
-	KeyRound,
-};
+import { ICON_MAP } from "@/lib/icon-map";
 import Select from "@/components/UI/Select";
 import {
 	saveTransaction,
@@ -96,7 +43,7 @@ export default function TransactionForm({
 	const isEditing = !!transaction;
 
 	const [amount, setAmount] = useState(() =>
-		transaction ? transaction.amount.toString().replace(".", ",") : "",
+		transaction ? transaction.amount.toFixed(2).replace(".", ",") : "",
 	);
 	const [categoryId, setCategoryId] = useState<string | null>(
 		transaction?.category_id ?? null,
@@ -113,6 +60,7 @@ export default function TransactionForm({
 		transaction ? new Date(transaction.date) : new Date(),
 	);
 	const [isDeleteConfirm, setIsDeleteConfirm] = useState(false);
+	const [isSaving, setIsSaving] = useState(false);
 	const { closeTransactionModal, notifyTransactionSaved } = useUIStore();
 
 	useEffect(() => {
@@ -144,37 +92,47 @@ export default function TransactionForm({
 	const isValid = amount !== "" && parseFloat(amount.replace(",", ".")) > 0;
 
 	async function handleSave() {
-		if (!isValid) return;
-		const importo = parseFloat(amount.replace(",", "."));
-		const result = isEditing
-			? await updateTransaction(
-					transaction.id,
-					importo,
-					selectedType.id,
-					categoryId,
-					description,
-					date.toISOString(),
-				)
-			: await saveTransaction(
-					importo,
-					selectedType.id,
-					categoryId,
-					description,
-					date.toISOString(),
-				);
+		if (!isValid || isSaving) return;
+		setIsSaving(true);
+		try {
+			const importo = parseFloat(amount.replace(",", "."));
+			const result = isEditing
+				? await updateTransaction(
+						transaction.id,
+						importo,
+						selectedType.id,
+						categoryId,
+						description,
+						date.toISOString(),
+					)
+				: await saveTransaction(
+						importo,
+						selectedType.id,
+						categoryId,
+						description,
+						date.toISOString(),
+					);
 
-		if (!result?.error) {
-			notifyTransactionSaved();
-			closeTransactionModal();
+			if (!result?.error) {
+				notifyTransactionSaved();
+				closeTransactionModal();
+			}
+		} finally {
+			setIsSaving(false);
 		}
 	}
 
 	async function handleDelete() {
-		if (!transaction) return;
-		const result = await deleteTransaction(transaction.id);
-		if (!result?.error) {
-			notifyTransactionSaved();
-			closeTransactionModal();
+		if (!transaction || isSaving) return;
+		setIsSaving(true);
+		try {
+			const result = await deleteTransaction(transaction.id);
+			if (!result?.error) {
+				notifyTransactionSaved();
+				closeTransactionModal();
+			}
+		} finally {
+			setIsSaving(false);
 		}
 	}
 
@@ -191,7 +149,14 @@ export default function TransactionForm({
 		});
 	}
 
-	const categoryOptions = categoryList.map((c) => {
+	const effectiveCategoryList: Category[] =
+		categoryList.length > 0
+			? categoryList
+			: isEditing && transaction.categories && transaction.category_id
+				? [{ id: transaction.category_id, user_id: "", name: transaction.categories.name, icon: transaction.categories.icon, color: transaction.categories.color, type: selectedType.id }]
+				: [];
+
+	const categoryOptions = effectiveCategoryList.map((c) => {
 		const Icon = ICON_MAP[c.icon];
 		return {
 			value: c.id,
@@ -363,7 +328,7 @@ export default function TransactionForm({
 
 			<button
 				onClick={handleSave}
-				disabled={!isValid}
+				disabled={!isValid || isSaving}
 				className="w-full mt-3 py-4 rounded-2xl btn-primary font-semibold flex items-center justify-center gap-2 disabled:opacity-40"
 			>
 				<Check size={18} />

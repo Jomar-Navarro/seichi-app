@@ -1,6 +1,7 @@
 "use client";
-import { Search, ChevronDown, SlidersHorizontal, Check } from "lucide-react";
+import { Search, ChevronDown, Check } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import { TRANSACTION_TYPES } from "@/types";
 
 interface FilterBarProps {
 	search: string;
@@ -11,13 +12,17 @@ interface FilterBarProps {
 	onPeriodoChange: (v: string) => void;
 }
 
+const TIPO_FILTER_LABELS: Record<string, string> = {
+	spesa: "Uscite",
+	entrata: "Entrate",
+	risparmio: "Risparmi",
+	investimento: "Investimenti",
+	abbonamento: "Abbonamenti",
+};
+
 const TIPO_OPTIONS = [
 	{ value: "", label: "Tutte" },
-	{ value: "entrata", label: "Entrate" },
-	{ value: "spesa", label: "Uscite" },
-	{ value: "risparmio", label: "Risparmi" },
-	{ value: "investimento", label: "Investimenti" },
-	{ value: "abbonamento", label: "Abbonamenti" },
+	...TRANSACTION_TYPES.map((t) => ({ value: t.id, label: TIPO_FILTER_LABELS[t.id] ?? t.label })),
 ];
 
 const PERIODO_OPTIONS = [
@@ -32,11 +37,11 @@ export default function FilterBar({ search, tipo, periodo, onSearchChange, onTip
 	const ref = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
-		function handleClick(e: MouseEvent) {
+		function handleClick(e: PointerEvent) {
 			if (ref.current && !ref.current.contains(e.target as Node)) setOpen(null);
 		}
-		document.addEventListener("mousedown", handleClick);
-		return () => document.removeEventListener("mousedown", handleClick);
+		document.addEventListener("pointerdown", handleClick);
+		return () => document.removeEventListener("pointerdown", handleClick);
 	}, []);
 
 	const tipoLabel = TIPO_OPTIONS.find((o) => o.value === tipo)?.label ?? "Tutte";
@@ -108,9 +113,6 @@ export default function FilterBar({ search, tipo, periodo, onSearchChange, onTip
 					)}
 				</div>
 
-				<button className="ml-auto w-9 h-9 flex items-center justify-center rounded-xl bg-card border border-subtle">
-					<SlidersHorizontal size={15} className="text-muted" />
-				</button>
 			</div>
 		</div>
 	);
