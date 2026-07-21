@@ -27,7 +27,11 @@ export async function saveTransaction(
 	return error ? { error: error.message } : { success: true };
 }
 
-export async function getTransactions(tipo?: string, periodo?: string) {
+export async function getTransactions(
+	tipo?: string,
+	periodo?: string,
+	limit?: number,
+) {
 	const supabase = await createClient();
 	const {
 		data: { user },
@@ -51,6 +55,8 @@ export async function getTransactions(tipo?: string, periodo?: string) {
 		from.setHours(0, 0, 0, 0);
 		query = query.gte("date", from.toISOString());
 	}
+
+	if (limit !== undefined) query = query.limit(limit);
 
 	const { data, error } = await query;
 	return error ? { error: error.message } : { data };
@@ -101,4 +107,69 @@ export async function deleteTransaction(id: string) {
 		.eq("user_id", user.id);
 
 	return error ? { error: error.message } : { success: true };
+}
+
+export async function getDashboardTotals() {
+	const supabase = await createClient();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+
+	if (!user) return { error: "Non autenticato" };
+
+	let query = supabase
+		.from("transactions")
+		.select("amount, type")
+		.eq("user_id", user.id);
+
+	const now = new Date();
+	const inizioMese = new Date(now.getFullYear(), now.getMonth(), 1);
+	const inizioMeseProssimo = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+	query = query
+		.gte("date", inizioMese.toISOString())
+		.lt("date", inizioMeseProssimo.toISOString());
+
+	const [
+		{ data, error },
+		{ data: dataTotale, error: errorTotale },
+	] = await Promise.all([
+		query,
+		supabase.from("transactions").select("amount, type").eq("user_id", user.id),
+	]);
+
+	const entrateMese =
+		data
+			?.filter((t) => t.type === "entrata")
+			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
+
+	const speseMese =
+		data
+			?.filter((t) => t.type === "spesa")
+			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
+
+	const investimentiMese =
+		data
+			?.filter((t) => t.type === "investimento")
+			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
+
+	const risparmiMese =
+		data
+			?.filter((t) => t.type === "risparmio")
+			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
+
+	const saldoMese = entrateMese - speseMese;
+
+	const entrateTotali =
+		dataTotale
+			?.filter((t) => t.type === "entrata")
+			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
+	const speseTotali =
+		dataTotale
+			?.filter((t) => t.type === "spesa")
+			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
+	const saldoTotale = entrateTotali - speseTotali;
+
+	if (error || errorTotale) return { error: (error ?? errorTotale)!.message };
+
+	return { entrateMese, speseMese, investimentiMese, risparmiMese, saldoMese, saldoTotale };
 }

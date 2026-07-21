@@ -16,7 +16,7 @@ export default function BottomNav() {
 	const pathname = usePathname();
 
 	return (
-		<div className="absolute left-[50%] translate-[-50%] bottom-0 min-w-88 flex items-center justify-between py-2 px-4 rounded-3xl z-6 border border-subtle bg-surface backdrop-blur-[26px] box-shadow h-16">
+		<div className="fixed left-[50%] translate-[-50%] bottom-4 min-w-88 flex items-center justify-between py-2 px-4 rounded-3xl z-40 border border-subtle bg-surface backdrop-blur-[26px] box-shadow h-16">
 			{NAV_ITEMS.slice(0, 2).map(({ href, icon: Icon, label }) => {
 				const active = pathname === href;
 				return (
