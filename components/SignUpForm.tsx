@@ -100,7 +100,7 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 				{/* Input form */}
 				<form
 					onSubmit={(e) => {
-						password !== confirmPassword ? e.preventDefault() : null;
+						if (password !== confirmPassword) e.preventDefault();
 						setPasswordMismatch(password !== confirmPassword);
 					}}
 					action={formAction}
@@ -183,9 +183,8 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 							className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 mt-px"
 						/>
 						<div className="text-xs text-muted tracking-wider">
-							Accetto i <span className="text-midori">Termini di servizio</span> e
-							l'
-							<span className="text-midori">informativa sulla privacy</span> di
+							Accetto i <span className="text-midori">Termini di servizio</span> e{" "}
+							l&apos;<span className="text-midori">informativa sulla privacy</span> di
 							Seichi.
 						</div>
 					</div>

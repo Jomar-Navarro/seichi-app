@@ -19,6 +19,7 @@ export default function TransactionModal() {
 
 	useLayoutEffect(() => {
 		if (isTransactionModalOpen) {
+			// eslint-disable-next-line react-hooks/set-state-in-effect
 			setStep(editingTransaction ? "form" : "type");
 		}
 	}, [isTransactionModalOpen, editingTransaction]);

@@ -1,4 +1,5 @@
 "use server";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
 export async function saveTransaction(
@@ -24,7 +25,9 @@ export async function saveTransaction(
 		date: data,
 	});
 
-	return error ? { error: error.message } : { success: true };
+	if (error) return { error: error.message };
+	revalidatePath("/", "layout");
+	return { success: true };
 }
 
 export async function getTransactions(
@@ -89,7 +92,9 @@ export async function updateTransaction(
 		.eq("id", id)
 		.eq("user_id", user.id);
 
-	return error ? { error: error.message } : { success: true };
+	if (error) return { error: error.message };
+	revalidatePath("/", "layout");
+	return { success: true };
 }
 
 export async function deleteTransaction(id: string) {
@@ -106,7 +111,9 @@ export async function deleteTransaction(id: string) {
 		.eq("id", id)
 		.eq("user_id", user.id);
 
-	return error ? { error: error.message } : { success: true };
+	if (error) return { error: error.message };
+	revalidatePath("/", "layout");
+	return { success: true };
 }
 
 export async function getDashboardTotals() {
@@ -129,13 +136,14 @@ export async function getDashboardTotals() {
 		.gte("date", inizioMese.toISOString())
 		.lt("date", inizioMeseProssimo.toISOString());
 
-	const [
-		{ data, error },
-		{ data: dataTotale, error: errorTotale },
-	] = await Promise.all([
-		query,
-		supabase.from("transactions").select("amount, type").eq("user_id", user.id),
-	]);
+	const [{ data, error }, { data: dataTotale, error: errorTotale }] =
+		await Promise.all([
+			query,
+			supabase
+				.from("transactions")
+				.select("amount, type")
+				.eq("user_id", user.id),
+		]);
 
 	const entrateMese =
 		data
@@ -171,5 +179,157 @@ export async function getDashboardTotals() {
 
 	if (error || errorTotale) return { error: (error ?? errorTotale)!.message };
 
-	return { entrateMese, speseMese, investimentiMese, risparmiMese, saldoMese, saldoTotale };
+	return {
+		entrateMese,
+		speseMese,
+		investimentiMese,
+		risparmiMese,
+		saldoMese,
+		saldoTotale,
+	};
+}
+
+const MESI = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
+const GIORNI = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"];
+
+export async function getAnalyticsData(periodo: string = "mese") {
+	const supabase = await createClient();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+
+	if (!user) return { error: "Non autenticato" };
+
+	const now = new Date();
+	const oggi = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+	// Calcola range corrente, precedente e punti del trend in base al periodo
+	let rangeStart: Date;
+	let rangeEnd: Date;
+	let prevStart: Date;
+	let prevEnd: Date;
+	let trendPoints: { label: string; start: Date; end: Date }[];
+	let fetchStart: Date;
+
+	if (periodo === "settimana") {
+		rangeStart = new Date(oggi.getFullYear(), oggi.getMonth(), oggi.getDate() - 6);
+		rangeEnd = new Date(oggi.getFullYear(), oggi.getMonth(), oggi.getDate() + 1);
+		prevStart = new Date(oggi.getFullYear(), oggi.getMonth(), oggi.getDate() - 13);
+		prevEnd = rangeStart;
+		fetchStart = prevStart;
+		trendPoints = Array.from({ length: 7 }, (_, i) => {
+			const d = new Date(oggi.getFullYear(), oggi.getMonth(), oggi.getDate() - 6 + i);
+			return {
+				label: GIORNI[d.getDay()],
+				start: d,
+				end: new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1),
+			};
+		});
+	} else if (periodo === "anno") {
+		rangeStart = new Date(now.getFullYear(), 0, 1);
+		rangeEnd = new Date(now.getFullYear() + 1, 0, 1);
+		prevStart = new Date(now.getFullYear() - 1, 0, 1);
+		prevEnd = rangeStart;
+		fetchStart = prevStart;
+		trendPoints = Array.from({ length: 12 }, (_, i) => ({
+			label: MESI[i],
+			start: new Date(now.getFullYear(), i, 1),
+			end: new Date(now.getFullYear(), i + 1, 1),
+		}));
+	} else {
+		// mese (default)
+		rangeStart = new Date(now.getFullYear(), now.getMonth(), 1);
+		rangeEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+		prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+		prevEnd = rangeStart;
+		fetchStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+		trendPoints = Array.from({ length: 6 }, (_, i) => {
+			const m = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
+			return {
+				label: MESI[m.getMonth()],
+				start: m,
+				end: new Date(now.getFullYear(), now.getMonth() - 5 + i + 1, 1),
+			};
+		});
+	}
+
+	const [
+		{ data: trendData, error: trendError },
+		{ data: speseData, error: speseError },
+	] = await Promise.all([
+		supabase
+			.from("transactions")
+			.select("amount, type, date")
+			.eq("user_id", user.id)
+			.in("type", ["entrata", "spesa"])
+			.gte("date", fetchStart.toISOString())
+			.lt("date", rangeEnd.toISOString()),
+		supabase
+			.from("transactions")
+			.select("amount, categories(name, color)")
+			.eq("user_id", user.id)
+			.eq("type", "spesa")
+			.gte("date", rangeStart.toISOString())
+			.lt("date", rangeEnd.toISOString()),
+	]);
+
+	if (trendError || speseError) return { error: (trendError ?? speseError)!.message };
+
+	// Trend
+	const trend = trendPoints.map(({ label, start, end }) => {
+		const pts = trendData?.filter((t) => {
+			const d = new Date(t.date);
+			return d >= start && d < end;
+		}) ?? [];
+		return {
+			mese: label,
+			entrate: pts.filter((t) => t.type === "entrata").reduce((acc, t) => acc + t.amount, 0),
+			uscite: pts.filter((t) => t.type === "spesa").reduce((acc, t) => acc + t.amount, 0),
+		};
+	});
+
+	// KPI periodo corrente
+	const currentData = trendData?.filter((t) => {
+		const d = new Date(t.date);
+		return d >= rangeStart && d < rangeEnd;
+	}) ?? [];
+	const entrateCorrente = currentData.filter((t) => t.type === "entrata").reduce((acc, t) => acc + t.amount, 0);
+	const speseCorrente = currentData.filter((t) => t.type === "spesa").reduce((acc, t) => acc + t.amount, 0);
+	const saldoMese = entrateCorrente - speseCorrente;
+
+	// Variazione vs periodo precedente
+	const prevData = trendData?.filter((t) => {
+		const d = new Date(t.date);
+		return d >= prevStart && d < prevEnd;
+	}) ?? [];
+	const entratePrev = prevData.filter((t) => t.type === "entrata").reduce((acc, t) => acc + t.amount, 0);
+	const spesePrev = prevData.filter((t) => t.type === "spesa").reduce((acc, t) => acc + t.amount, 0);
+	const saldoPrecedente = entratePrev - spesePrev;
+	const variazionePct = saldoPrecedente !== 0
+		? Math.round(((saldoMese - saldoPrecedente) / Math.abs(saldoPrecedente)) * 100)
+		: null;
+
+	// Spese per categoria (donut)
+	const spesePerCategoria = speseData?.reduce(
+		(acc, t) => {
+			const cat = t.categories as unknown as { name: string; color: string } | null;
+			const nome = cat?.name;
+			const color = cat?.color ?? "";
+			if (!nome) return acc;
+			if (!acc[nome]) {
+				acc[nome] = { name: nome, color, total: t.amount };
+			} else {
+				acc[nome].total += t.amount;
+			}
+			return acc;
+		},
+		{} as Record<string, { name: string; color: string; total: number }>,
+	);
+
+	return {
+		spese: Object.values(spesePerCategoria ?? {}),
+		saldoMese,
+		variazionePct,
+		trend,
+	};
 }
