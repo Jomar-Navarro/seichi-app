@@ -10,12 +10,12 @@ export default function Sign() {
 	const [tab, setTab] = useState<"signin" | "signup">("signin");
 
 	useEffect(() => {
-		const params = new URLSearchParams(window.location.search);
-		if (params.get("tab") === "signup") {
+		if (new URLSearchParams(window.location.search).get("tab") === "signup") {
+			// eslint-disable-next-line react-hooks/set-state-in-effect
 			setTab("signup");
 			router.replace("/sign");
 		}
-	}, []);
+	}, [router]);
 
 	return (
 		<div className="h-lvh relative z-1 grow shrink basis-0 flex flex-col lg:flex-row overflow-hidden">

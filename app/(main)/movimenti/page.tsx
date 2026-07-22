@@ -28,6 +28,7 @@ export default function MovimentiPage() {
 		}
 	}, [tipo, periodo]);
 
+	// eslint-disable-next-line react-hooks/set-state-in-effect
 	useEffect(() => { load(); }, [load, transactionSavedAt]);
 
 	const filtered = search.trim()

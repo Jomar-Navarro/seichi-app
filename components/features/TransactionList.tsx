@@ -3,7 +3,7 @@ import { Plus } from "lucide-react";
 import { ICON_MAP } from "@/lib/icon-map";
 import { useUIStore } from "@/store/useUIStore";
 import type { Transaction } from "@/types";
-import { TIPO_COLOR, TIPO_LABEL, numberFormatter, formatDate, formatAmount } from "@/lib/transaction-utils";
+import { TIPO_COLOR, TIPO_LABEL, formatDate, formatAmount } from "@/lib/transaction-utils";
 
 interface TransactionListProps {
 	transactions: Transaction[];
