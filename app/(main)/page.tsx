@@ -19,7 +19,7 @@ export default async function MainPage() {
 	if ("error" in transaction) return <p>Errore</p>;
 
 	return (
-		<div className="flex flex-col gap-4 px-5 pt-7 pb-36">
+		<div className="flex flex-col gap-4 px-5 pt-7 pb-32">
 			<BalanceCard
 				saldoTotale={result.saldoTotale}
 				saldoMese={result.saldoMese}

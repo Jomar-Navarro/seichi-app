@@ -16,6 +16,16 @@ export default function BottomNav() {
 	const pathname = usePathname();
 
 	return (
+		<>
+		{/* Blur overlay — sfuma il contenuto dietro la nav, edge-to-edge */}
+		<div
+			className="fixed bottom-0 left-0 right-0 h-28 pointer-events-none z-39 backdrop-blur-2xl"
+			style={{
+				WebkitMaskImage: "linear-gradient(to top, black 35%, transparent 100%)",
+				maskImage: "linear-gradient(to top, black 35%, transparent 100%)",
+				background: "linear-gradient(to top, rgba(15, 22, 36, 0.96) 0%, rgba(15, 22, 36, 0.4) 50%, transparent 100%)",
+			}}
+		/>
 		<div className="fixed left-[50%] translate-[-50%] bottom-0 min-w-88 flex items-center justify-between py-2 px-4 rounded-3xl z-40 border border-subtle bg-surface backdrop-blur-[26px] box-shadow h-16">
 			{NAV_ITEMS.slice(0, 2).map(({ href, icon: Icon, label }) => {
 				const active = pathname === href;
@@ -52,5 +62,6 @@ export default function BottomNav() {
 				);
 			})}
 		</div>
+		</>
 	);
 }
