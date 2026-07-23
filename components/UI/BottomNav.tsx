@@ -1,14 +1,20 @@
 "use client";
-import { Home, List, Plus, PiggyBank, ChartNoAxesColumn } from "lucide-react";
+import { Plus } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUIStore } from "@/store/useUIStore";
+import {
+	HomeIcon,
+	ReceiptIcon,
+	PiggyBankIcon,
+	ChartNoAxesCombinedIcon,
+} from "@/lib/seichi-icons";
 
 const NAV_ITEMS = [
-	{ href: "/", icon: Home, label: "Home" },
-	{ href: "/transazioni", icon: List, label: "Transazioni" },
-	{ href: "/risparmi", icon: PiggyBank, label: "Risparmi" },
-	{ href: "/analisi", icon: ChartNoAxesColumn, label: "Analisi" },
+	{ href: "/", icon: HomeIcon, label: "Home" },
+	{ href: "/transazioni", icon: ReceiptIcon, label: "Transazioni" },
+	{ href: "/risparmi", icon: PiggyBankIcon, label: "Risparmi" },
+	{ href: "/analisi", icon: ChartNoAxesCombinedIcon, label: "Analisi" },
 ];
 
 export default function BottomNav() {

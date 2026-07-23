@@ -1,11 +1,11 @@
-import {
-	ArrowDownLeft,
-	ArrowUpRight,
-	PiggyBank,
-	RefreshCw,
-	TrendingUp,
-} from "lucide-react";
 import type { ElementType } from "react";
+import {
+	WalletIcon,
+	ShoppingBagIcon,
+	PiggyBankIcon,
+	RepeatIcon,
+	TrendingUpIcon,
+} from "@/lib/seichi-icons";
 
 export type TransactionTypeId = "spesa" | "entrata" | "risparmio" | "investimento" | "abbonamento";
 
@@ -56,34 +56,34 @@ export const TRANSACTION_TYPES: TransactionType[] = [
 		label: "Uscita",
 		description: "Spese e acquisti quotidiani",
 		color: "var(--color-aka)",
-		icon: ArrowUpRight,
+		icon: ShoppingBagIcon,
 	},
 	{
 		id: "entrata",
 		label: "Entrata",
 		description: "Stipendio, rimborsi, regali",
 		color: "var(--color-midori)",
-		icon: ArrowDownLeft,
+		icon: WalletIcon,
 	},
 	{
 		id: "risparmio",
 		label: "Risparmio",
 		description: "Accantonamenti e obiettivi",
 		color: "var(--color-kin)",
-		icon: PiggyBank,
+		icon: PiggyBankIcon,
 	},
 	{
 		id: "investimento",
 		label: "Investimento",
 		description: "Mercati, fondi, portafoglio",
 		color: "var(--color-ao)",
-		icon: TrendingUp,
+		icon: TrendingUpIcon,
 	},
 	{
 		id: "abbonamento",
 		label: "Ricorrente",
 		description: "Abbonamenti e pagamenti fissi",
 		color: "var(--color-murasaki)",
-		icon: RefreshCw,
+		icon: RepeatIcon,
 	},
 ];
