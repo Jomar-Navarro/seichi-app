@@ -39,7 +39,7 @@ export default function MovimentiPage() {
 		: transactions;
 
 	return (
-		<div className="flex flex-col flex-1 px-5 pt-8 pb-24 overflow-y-auto">
+		<div className="flex flex-col flex-1 px-5 pt-8 pb-34 overflow-y-auto">
 			<h1 className="text-2xl font-semibold mb-5">Movimenti</h1>
 			<FilterBar
 				search={search}
