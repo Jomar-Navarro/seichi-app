@@ -27,7 +27,7 @@ export default function MonthlyLineChart({ trend }: MonthlyLineChartProps) {
 				</div>
 				<div className="flex items-center gap-1.75">
 					<span className="inline-block w-2.5 h-0.75 rounded-full bg-aka" />
-					<span className="text-xs text-kiri">Uscite</span>
+					<span className="text-xs text-kiri">Uscite totali</span>
 				</div>
 			</div>
 			<ResponsiveContainer width="100%" height={160}>

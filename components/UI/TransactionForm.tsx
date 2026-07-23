@@ -12,6 +12,7 @@ import {
 	Trash2,
 } from "lucide-react";
 import { ICON_MAP } from "@/lib/icon-map";
+import { GOAL_ICON_MAP } from "@/lib/goal-icons";
 import Select from "@/components/UI/Select";
 import {
 	saveTransaction,
@@ -157,7 +158,7 @@ export default function TransactionForm({
 				: [];
 
 	const categoryOptions = effectiveCategoryList.map((c) => {
-		const Icon = ICON_MAP[c.icon];
+		const Icon = ICON_MAP[c.icon] ?? GOAL_ICON_MAP[c.icon];
 		return {
 			value: c.id,
 			label: c.name,
