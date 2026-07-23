@@ -84,12 +84,16 @@ export default function GoalCard({ goal, onEdit }: GoalCardProps) {
 			<div className="flex items-center gap-3">
 				<span
 					className="w-10 h-10 shrink-0 rounded-2xl flex items-center justify-center"
-					style={{ background: "rgba(70,62,48,0.06)" }}
+					style={{
+						background: completed
+							? "rgba(138,151,176,0.10)"
+							: "color-mix(in srgb, var(--color-kin) 14%, transparent)",
+					}}
 				>
 					{Icon && (
 						<Icon
 							size={19} strokeWidth={1.5}
-							style={{ color: completed ? "var(--color-kiri)" : "var(--color-foreground)" }}
+							style={{ color: completed ? "var(--color-kiri)" : "var(--color-kin)" }}
 						/>
 					)}
 				</span>
@@ -113,7 +117,7 @@ export default function GoalCard({ goal, onEdit }: GoalCardProps) {
 				{hasTarget && <CircularRing percent={percent} completed={completed} />}
 
 				<span className="w-6 h-6 shrink-0 rounded-lg flex items-center justify-center"
-					style={{ opacity: completed ? 0.35 : 0.45 }}>
+					style={{ opacity: completed ? 0.4 : 0.65 }}>
 					<Pencil size={13} strokeWidth={1.5} className="text-muted" />
 				</span>
 			</div>

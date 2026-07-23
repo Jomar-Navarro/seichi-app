@@ -244,8 +244,11 @@ export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
 					<button
 						onClick={handleDelete}
 						disabled={loading}
-						className="mt-4 text-sm text-center w-full disabled:opacity-50"
-						style={{ color: "var(--color-aka)" }}
+						className="mt-3 w-full py-3.5 rounded-2xl text-sm font-semibold border disabled:opacity-50 transition-colors hover:bg-[color-mix(in_srgb,var(--color-aka)_8%,transparent)]"
+						style={{
+							color: "var(--color-aka)",
+							borderColor: "color-mix(in srgb, var(--color-aka) 35%, transparent)",
+						}}
 					>
 						Elimina obiettivo
 					</button>
