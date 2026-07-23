@@ -33,12 +33,14 @@ export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
 	const [submitted, setSubmitted] = useState(false);
 	const [loading, setLoading] = useState(false);
 	const [serverError, setServerError] = useState<string | null>(null);
+	const [confirmDelete, setConfirmDelete] = useState(false);
 
 	useLayoutEffect(() => {
 		if (isOpen) {
 			setSubmitted(false);
 			setLoading(false);
 			setServerError(null);
+			setConfirmDelete(false);
 			setForm(
 				goal
 					? {
@@ -76,31 +78,40 @@ export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
 			icon: form.icon,
 		};
 
-		const result = goal
-			? await updateGoal(goal.id, payload)
-			: await createGoal(payload);
-
-		setLoading(false);
-		if (result.error) {
-			setServerError(result.error);
-			return;
+		try {
+			const result = goal
+				? await updateGoal(goal.id, payload)
+				: await createGoal(payload);
+			if (result.error) {
+				setServerError(result.error);
+				return;
+			}
+			router.refresh();
+			onClose();
+		} finally {
+			setLoading(false);
 		}
-		router.refresh();
-		onClose();
 	}
 
 	async function handleDelete() {
 		if (!goal) return;
-		setLoading(true);
-		setServerError(null);
-		const result = await deleteGoal(goal.id);
-		setLoading(false);
-		if (result.error) {
-			setServerError(result.error);
+		if (!confirmDelete) {
+			setConfirmDelete(true);
 			return;
 		}
-		router.refresh();
-		onClose();
+		setLoading(true);
+		setServerError(null);
+		try {
+			const result = await deleteGoal(goal.id);
+			if (result.error) {
+				setServerError(result.error);
+				return;
+			}
+			router.refresh();
+			onClose();
+		} finally {
+			setLoading(false);
+		}
 	}
 
 	if (!isOpen) return null;
@@ -247,10 +258,15 @@ export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
 						className="mt-3 w-full py-3.5 rounded-2xl text-sm font-semibold border disabled:opacity-50 transition-colors hover:bg-[color-mix(in_srgb,var(--color-aka)_8%,transparent)]"
 						style={{
 							color: "var(--color-aka)",
-							borderColor: "color-mix(in srgb, var(--color-aka) 35%, transparent)",
+							borderColor: confirmDelete
+								? "var(--color-aka)"
+								: "color-mix(in srgb, var(--color-aka) 35%, transparent)",
+							background: confirmDelete
+								? "color-mix(in srgb, var(--color-aka) 12%, transparent)"
+								: undefined,
 						}}
 					>
-						Elimina obiettivo
+						{confirmDelete ? "Conferma eliminazione" : "Elimina obiettivo"}
 					</button>
 				)}
 			</div>

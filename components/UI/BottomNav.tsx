@@ -7,14 +7,14 @@ import {
 	HomeIcon,
 	ReceiptIcon,
 	PiggyBankIcon,
-	ChartNoAxesCombinedIcon,
+	TrendingUpIcon,
 } from "@/lib/seichi-icons";
 
 const NAV_ITEMS = [
 	{ href: "/", icon: HomeIcon, label: "Home" },
 	{ href: "/transazioni", icon: ReceiptIcon, label: "Transazioni" },
-	{ href: "/risparmi", icon: PiggyBankIcon, label: "Risparmi" },
-	{ href: "/analisi", icon: ChartNoAxesCombinedIcon, label: "Analisi" },
+	{ href: "/risparmi", icon: PiggyBankIcon, label: "Obiettivi" },
+	{ href: "/investimenti", icon: TrendingUpIcon, label: "Investimenti" },
 ];
 
 export default function BottomNav() {

@@ -19,12 +19,11 @@ export const numberFormatter = new Intl.NumberFormat("it-IT", {
 	maximumFractionDigits: 2,
 });
 
-const today = new Date();
-const yesterday = new Date(today);
-yesterday.setDate(today.getDate() - 1);
-
 export function formatDate(iso: string) {
 	const date = new Date(iso);
+	const today = new Date();
+	const yesterday = new Date(today);
+	yesterday.setDate(today.getDate() - 1);
 	if (date.toDateString() === today.toDateString()) return "Oggi";
 	if (date.toDateString() === yesterday.toDateString()) return "Ieri";
 	return date.toLocaleDateString("it-IT", { day: "numeric", month: "long" });
