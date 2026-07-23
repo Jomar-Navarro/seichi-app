@@ -4,7 +4,7 @@ export default function HomeSkeleton() {
 		<div className="flex flex-col gap-4 px-5 pt-7 pb-32">
 			{/* Balance card */}
 			<div
-				className="rounded-3xl h-[138px] zg-pulse"
+				className="rounded-3xl h-34.5 zg-pulse"
 				style={{ background: "var(--card)" }}
 			/>
 
@@ -13,15 +13,18 @@ export default function HomeSkeleton() {
 				{[0, 1, 2, 3].map((i) => (
 					<div
 						key={i}
-						className="rounded-2xl h-[92px] zg-pulse"
-						style={{ background: "var(--card)", animationDelay: `${i * 0.12}s` }}
+						className="rounded-2xl h-23 zg-pulse"
+						style={{
+							background: "var(--card)",
+							animationDelay: `${i * 0.12}s`,
+						}}
 					/>
 				))}
 			</div>
 
 			{/* Analisi shortcut */}
 			<div
-				className="rounded-2xl h-[66px] zg-pulse"
+				className="rounded-2xl h-16.5 zg-pulse"
 				style={{ background: "var(--card)", animationDelay: "0.2s" }}
 			/>
 
@@ -40,11 +43,16 @@ export default function HomeSkeleton() {
 					<div
 						key={i}
 						className="flex items-center gap-3 px-4 py-3.5"
-						style={{ borderBottom: i < 2 ? "1px solid var(--border)" : undefined }}
+						style={{
+							borderBottom: i < 2 ? "1px solid var(--border)" : undefined,
+						}}
 					>
 						<div
 							className="w-10 h-10 rounded-xl zg-pulse shrink-0"
-							style={{ background: "var(--surface-elevated)", animationDelay: `${i * 0.15}s` }}
+							style={{
+								background: "var(--surface-elevated)",
+								animationDelay: `${i * 0.15}s`,
+							}}
 						/>
 						<div className="flex-1 flex flex-col gap-2">
 							<div
