@@ -24,6 +24,12 @@ export interface Category {
 	icon: string;
 	color: string;
 	type: string;
+	target_amount?: number | null;
+	target_date?: string | null;
+}
+
+export interface GoalWithProgress extends Category {
+	saved_amount: number;
 }
 
 export interface Transaction {

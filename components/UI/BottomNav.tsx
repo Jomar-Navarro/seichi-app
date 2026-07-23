@@ -1,5 +1,5 @@
 "use client";
-import { Home, List, Plus, ChartPie, ChartNoAxesColumn } from "lucide-react";
+import { Home, List, Plus, PiggyBank, ChartNoAxesColumn } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUIStore } from "@/store/useUIStore";
@@ -7,7 +7,7 @@ import { useUIStore } from "@/store/useUIStore";
 const NAV_ITEMS = [
 	{ href: "/", icon: Home, label: "Home" },
 	{ href: "/transazioni", icon: List, label: "Transazioni" },
-	{ href: "/budget", icon: ChartPie, label: "Budget" },
+	{ href: "/risparmi", icon: PiggyBank, label: "Risparmi" },
 	{ href: "/analisi", icon: ChartNoAxesColumn, label: "Analisi" },
 ];
 

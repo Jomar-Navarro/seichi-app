@@ -165,7 +165,12 @@ export async function getDashboardTotals() {
 			?.filter((t) => t.type === "risparmio")
 			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
 
-	const saldoMese = entrateMese - speseMese;
+	const abbonaMese =
+		data
+			?.filter((t) => t.type === "abbonamento")
+			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
+
+	const saldoMese = entrateMese - speseMese - risparmiMese - investimentiMese - abbonaMese;
 
 	const entrateTotali =
 		dataTotale
@@ -175,7 +180,19 @@ export async function getDashboardTotals() {
 		dataTotale
 			?.filter((t) => t.type === "spesa")
 			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
-	const saldoTotale = entrateTotali - speseTotali;
+	const risparmiTotali =
+		dataTotale
+			?.filter((t) => t.type === "risparmio")
+			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
+	const investimentiTotali =
+		dataTotale
+			?.filter((t) => t.type === "investimento")
+			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
+	const abbonaTotali =
+		dataTotale
+			?.filter((t) => t.type === "abbonamento")
+			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
+	const saldoTotale = entrateTotali - speseTotali - risparmiTotali - investimentiTotali - abbonaTotali;
 
 	if (error || errorTotale) return { error: (error ?? errorTotale)!.message };
 
