@@ -279,7 +279,7 @@ export async function getAnalyticsData(periodo: string = "mese") {
 			.from("transactions")
 			.select("amount, type, date")
 			.eq("user_id", user.id)
-			.in("type", ["entrata", "spesa"])
+			.in("type", ["entrata", "spesa", "risparmio", "investimento", "abbonamento"])
 			.gte("date", fetchStart.toISOString())
 			.lt("date", rangeEnd.toISOString()),
 		supabase
@@ -302,7 +302,7 @@ export async function getAnalyticsData(periodo: string = "mese") {
 		return {
 			mese: label,
 			entrate: pts.filter((t) => t.type === "entrata").reduce((acc, t) => acc + t.amount, 0),
-			uscite: pts.filter((t) => t.type === "spesa").reduce((acc, t) => acc + t.amount, 0),
+			uscite: pts.filter((t) => t.type !== "entrata").reduce((acc, t) => acc + t.amount, 0),
 		};
 	});
 
@@ -312,8 +312,8 @@ export async function getAnalyticsData(periodo: string = "mese") {
 		return d >= rangeStart && d < rangeEnd;
 	}) ?? [];
 	const entrateCorrente = currentData.filter((t) => t.type === "entrata").reduce((acc, t) => acc + t.amount, 0);
-	const speseCorrente = currentData.filter((t) => t.type === "spesa").reduce((acc, t) => acc + t.amount, 0);
-	const saldoMese = entrateCorrente - speseCorrente;
+	const usciteCorrente = currentData.filter((t) => t.type !== "entrata").reduce((acc, t) => acc + t.amount, 0);
+	const saldoMese = entrateCorrente - usciteCorrente;
 
 	// Variazione vs periodo precedente
 	const prevData = trendData?.filter((t) => {
@@ -321,8 +321,8 @@ export async function getAnalyticsData(periodo: string = "mese") {
 		return d >= prevStart && d < prevEnd;
 	}) ?? [];
 	const entratePrev = prevData.filter((t) => t.type === "entrata").reduce((acc, t) => acc + t.amount, 0);
-	const spesePrev = prevData.filter((t) => t.type === "spesa").reduce((acc, t) => acc + t.amount, 0);
-	const saldoPrecedente = entratePrev - spesePrev;
+	const uscitePrev = prevData.filter((t) => t.type !== "entrata").reduce((acc, t) => acc + t.amount, 0);
+	const saldoPrecedente = entratePrev - uscitePrev;
 	const variazionePct = saldoPrecedente !== 0
 		? Math.round(((saldoMese - saldoPrecedente) / Math.abs(saldoPrecedente)) * 100)
 		: null;
