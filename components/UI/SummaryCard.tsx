@@ -1,5 +1,6 @@
 import { ElementType } from "react";
 import { numberFormatter } from "@/lib/transaction-utils";
+import Sparkline from "@/components/UI/Sparkline";
 
 interface SummaryCardProps {
 	label: string;
@@ -8,31 +9,6 @@ interface SummaryCardProps {
 	color: string;
 	trend?: number[];
 	progress?: number;
-}
-
-function Sparkline({ values, color }: { values: number[]; color: string }) {
-	if (values.length < 2) return null;
-	const max = Math.max(...values, 1);
-	const W = 56, H = 26;
-	const pts = values
-		.map((v, i) => {
-			const x = (i / (values.length - 1)) * W;
-			const y = H - 4 - (v / max) * (H - 8);
-			return `${x.toFixed(1)},${y.toFixed(1)}`;
-		})
-		.join(" ");
-	return (
-		<svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} fill="none">
-			<polyline
-				points={pts}
-				stroke={color}
-				strokeWidth="1.5"
-				strokeLinecap="round"
-				strokeLinejoin="round"
-				opacity={0.75}
-			/>
-		</svg>
-	);
 }
 
 function CircularProgress({ progress, color }: { progress: number; color: string }) {

@@ -7,32 +7,8 @@ import SummaryCard from "@/components/UI/SummaryCard";
 import { TRANSACTION_TYPES } from "@/types";
 import RecentTransaction from "@/components/features/RecentTransaction";
 import DashboardRefresher from "@/components/features/DashboardRefresher";
+import Sparkline from "@/components/UI/Sparkline";
 import { ChartNoAxesCombinedIcon } from "@/lib/seichi-icons";
-
-function AnalisiSparkline({ values }: { values: number[] }) {
-	if (values.length < 2) return null;
-	const max = Math.max(...values, 1);
-	const W = 48, H = 22;
-	const pts = values
-		.map((v, i) => {
-			const x = (i / (values.length - 1)) * W;
-			const y = H - 3 - (v / max) * (H - 6);
-			return `${x.toFixed(1)},${y.toFixed(1)}`;
-		})
-		.join(" ");
-	return (
-		<svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} fill="none" className="shrink-0">
-			<polyline
-				points={pts}
-				stroke="var(--color-kiri)"
-				strokeWidth="1.5"
-				strokeLinecap="round"
-				strokeLinejoin="round"
-				opacity={0.5}
-			/>
-		</svg>
-	);
-}
 
 export default async function MainPage() {
 	const [result, transaction, goalsResult] = await Promise.all([
@@ -50,8 +26,9 @@ export default async function MainPage() {
 	if ("error" in transaction) return <p>Errore</p>;
 
 	const goals = "error" in goalsResult ? [] : goalsResult.data;
-	const totalTarget = goals.reduce((acc, g) => acc + (g.target_amount ?? 0), 0);
-	const totalSaved = goals.reduce((acc, g) => acc + g.saved_amount, 0);
+	const goalsWithTarget = goals.filter((g) => (g.target_amount ?? 0) > 0);
+	const totalTarget = goalsWithTarget.reduce((acc, g) => acc + (g.target_amount ?? 0), 0);
+	const totalSaved = goalsWithTarget.reduce((acc, g) => acc + g.saved_amount, 0);
 	const risparmiProgress = totalTarget > 0 ? Math.min(100, Math.round((totalSaved / totalTarget) * 100)) : 0;
 
 	return (
@@ -92,7 +69,7 @@ export default async function MainPage() {
 					color={risparmio.color}
 					label={totalTarget > 0 ? `Risparmi · ${risparmiProgress}%` : "Risparmi"}
 					progress={totalTarget > 0 ? risparmiProgress : undefined}
-					trend={totalTarget > 0 ? undefined : result.entrateTrend.map(() => 0)}
+					trend={result.risparmiTrend}
 				/>
 			</div>
 
@@ -115,7 +92,14 @@ export default async function MainPage() {
 					</div>
 				</div>
 				<div className="flex items-center gap-2">
-					<AnalisiSparkline values={result.speseTrend} />
+					<Sparkline
+						values={result.speseTrend}
+						color="var(--color-kiri)"
+						width={48}
+						height={22}
+						opacity={0.5}
+						pad={3}
+					/>
 					<ChevronRight size={16} className="text-muted" />
 				</div>
 			</Link>

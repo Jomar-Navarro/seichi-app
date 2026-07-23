@@ -221,6 +221,7 @@ export async function getDashboardTotals() {
 		entrateTrend: monthlyTrend("entrata"),
 		speseTrend: monthlyTrend("spesa"),
 		investimentiTrend: monthlyTrend("investimento"),
+		risparmiTrend: monthlyTrend("risparmio"),
 	};
 }
 

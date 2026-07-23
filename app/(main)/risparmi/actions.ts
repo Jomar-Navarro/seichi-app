@@ -53,15 +53,18 @@ export async function getInvestments(): Promise<{ data: InvestmentData } | { err
 		.from("transactions")
 		.select("category_id, amount, investment_type, date, categories(name, icon, color)")
 		.eq("user_id", user.id)
-		.eq("type", "investimento");
+		.eq("type", "investimento")
+		.order("date", { ascending: false });
 
 	if (error) return { error: error.message };
 
 	const now = new Date();
 	const firstOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+	const firstOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
 	let total = 0;
-	let prevMonthTotal = 0;
+	let thisMonthContrib = 0;
+	let lastMonthContrib = 0;
 	const catMap = new Map<string, {
 		name: string; icon: string; color: string;
 		investment_type: string | null; total: number;
@@ -74,7 +77,9 @@ export async function getInvestments(): Promise<{ data: InvestmentData } | { err
 		const cat = t.categories as unknown as { name: string; icon: string; color: string };
 
 		total += t.amount;
-		if (new Date(t.date) < firstOfThisMonth) prevMonthTotal += t.amount;
+		const d = new Date(t.date);
+		if (d >= firstOfThisMonth) thisMonthContrib += t.amount;
+		else if (d >= firstOfLastMonth) lastMonthContrib += t.amount;
 
 		const existing = catMap.get(t.category_id);
 		if (existing) {
@@ -94,8 +99,8 @@ export async function getInvestments(): Promise<{ data: InvestmentData } | { err
 	}
 
 	const variazionePct =
-		prevMonthTotal > 0
-			? Math.round(((total - prevMonthTotal) / prevMonthTotal) * 1000) / 10
+		lastMonthContrib > 0
+			? Math.round(((thisMonthContrib - lastMonthContrib) / lastMonthContrib) * 1000) / 10
 			: null;
 
 	const byType = Array.from(typeMap.entries())
