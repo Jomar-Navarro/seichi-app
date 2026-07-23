@@ -1,35 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Target } from "lucide-react";
+import { Plus } from "lucide-react";
 import GoalCard from "./GoalCard";
 import GoalSheet from "./GoalSheet";
+import EmptyState from "@/components/UI/EmptyState";
 import type { GoalWithProgress } from "@/types";
-
-function EmptyState({ onNew }: { onNew: () => void }) {
-	return (
-		<div className="flex flex-col items-center justify-center text-center py-16 px-6">
-			<div
-				className="w-18 h-18 rounded-3xl flex items-center justify-center mb-5 border border-subtle card-shadow"
-				style={{ background: "var(--surface)" }}
-			>
-				<Target size={30} strokeWidth={1.4} style={{ color: "var(--color-kin)" }} />
-			</div>
-			<p className="text-[18px] font-semibold mb-2.5">Nessun obiettivo ancora</p>
-			<p className="text-sm text-muted leading-relaxed max-w-65 mb-7">
-				Crea il tuo primo obiettivo e guarda i tuoi progressi crescere, un passo alla volta.
-			</p>
-			<button
-				onClick={onNew}
-				className="flex items-center gap-2 px-5 py-3 rounded-full text-[13.5px] font-semibold card-shadow border border-subtle"
-				style={{ background: "var(--surface-elevated)" }}
-			>
-				<Plus size={14} strokeWidth={2.2} />
-				Crea il primo obiettivo
-			</button>
-		</div>
-	);
-}
 
 interface GoalsPageClientProps {
 	goals: GoalWithProgress[];
@@ -85,7 +61,12 @@ export default function GoalsPageClient({ goals }: GoalsPageClientProps) {
 			{/* Content */}
 			{goals.length === 0 ? (
 				<div className="flex-1 flex items-center justify-center">
-					<EmptyState onNew={openCreate} />
+					<EmptyState
+						title="Nessun obiettivo ancora"
+						description="Crea il tuo primo obiettivo per iniziare a metterlo da parte con calma."
+						actionLabel="Crea obiettivo"
+						onAction={openCreate}
+					/>
 				</div>
 			) : (
 				<div className="flex flex-col gap-3 mt-5">

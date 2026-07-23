@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import BalanceCard from "@/components/features/BalanceCard";
@@ -7,10 +8,19 @@ import SummaryCard from "@/components/UI/SummaryCard";
 import { TRANSACTION_TYPES } from "@/types";
 import RecentTransaction from "@/components/features/RecentTransaction";
 import DashboardRefresher from "@/components/features/DashboardRefresher";
+import HomeSkeleton from "@/components/features/HomeSkeleton";
 import Sparkline from "@/components/UI/Sparkline";
 import { ChartNoAxesCombinedIcon } from "@/lib/seichi-icons";
 
-export default async function MainPage() {
+export default function MainPage() {
+	return (
+		<Suspense fallback={<HomeSkeleton />}>
+			<DashboardContent />
+		</Suspense>
+	);
+}
+
+async function DashboardContent() {
 	const [result, transaction, goalsResult] = await Promise.all([
 		getDashboardTotals(),
 		getTransactions(undefined, undefined, 5),

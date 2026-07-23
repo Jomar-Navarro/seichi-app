@@ -307,6 +307,36 @@ body {
 	background: var(--seg-bg);
 }
 
+/* ============================================================
+   ANIMAZIONI — respiro zen e pulse per skeleton
+   ============================================================ */
+
+@keyframes zg-breathe {
+	0%,
+	100% {
+		opacity: 0.6;
+		transform: scale(1);
+	}
+	50% {
+		opacity: 0.88;
+		transform: scale(1.05);
+	}
+}
+
+@keyframes zg-pulse {
+	0%,
+	100% {
+		opacity: 0.55;
+	}
+	50% {
+		opacity: 1;
+	}
+}
+
+@utility zg-pulse {
+	animation: zg-pulse 2.4s ease-in-out infinite;
+}
+
 .active-tab {
 	transition: 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 	background: var(--bg-tab);
