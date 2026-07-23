@@ -201,6 +201,7 @@ export async function getDashboardTotals() {
 		speseMese,
 		investimentiMese,
 		risparmiMese,
+		abbonaMese,
 		saldoMese,
 		saldoTotale,
 	};

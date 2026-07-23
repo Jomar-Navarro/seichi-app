@@ -32,11 +32,13 @@ export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
 	const [form, setForm] = useState<FormState>(EMPTY_FORM);
 	const [submitted, setSubmitted] = useState(false);
 	const [loading, setLoading] = useState(false);
+	const [serverError, setServerError] = useState<string | null>(null);
 
 	useLayoutEffect(() => {
 		if (isOpen) {
 			setSubmitted(false);
 			setLoading(false);
+			setServerError(null);
 			setForm(
 				goal
 					? {
@@ -52,14 +54,21 @@ export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
 
 	const nameError = submitted && !form.name.trim();
 	const amountError =
-		submitted && form.targetAmount !== "" && parseFloat(form.targetAmount) <= 0;
+		submitted &&
+		form.targetAmount !== "" &&
+		(isNaN(parseFloat(form.targetAmount)) || parseFloat(form.targetAmount) <= 0);
 
 	async function handleSubmit() {
 		setSubmitted(true);
 		if (!form.name.trim()) return;
-		if (form.targetAmount !== "" && parseFloat(form.targetAmount) <= 0) return;
+		if (
+			form.targetAmount !== "" &&
+			(isNaN(parseFloat(form.targetAmount)) || parseFloat(form.targetAmount) <= 0)
+		)
+			return;
 
 		setLoading(true);
+		setServerError(null);
 		const payload = {
 			name: form.name.trim(),
 			target_amount: form.targetAmount !== "" ? parseFloat(form.targetAmount) : null,
@@ -72,16 +81,24 @@ export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
 			: await createGoal(payload);
 
 		setLoading(false);
-		if (!result.error) {
-			router.refresh();
-			onClose();
+		if (result.error) {
+			setServerError(result.error);
+			return;
 		}
+		router.refresh();
+		onClose();
 	}
 
 	async function handleDelete() {
 		if (!goal) return;
 		setLoading(true);
-		await deleteGoal(goal.id);
+		setServerError(null);
+		const result = await deleteGoal(goal.id);
+		if (result.error) {
+			setServerError(result.error);
+			setLoading(false);
+			return;
+		}
 		router.refresh();
 		onClose();
 	}
@@ -209,10 +226,16 @@ export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
 					</div>
 				</div>
 
+				{serverError && (
+					<p className="mt-5 text-xs text-center" style={{ color: "var(--color-aka)" }}>
+						{serverError}
+					</p>
+				)}
+
 				<button
 					onClick={handleSubmit}
 					disabled={loading}
-					className="mt-8 w-full py-4 rounded-2xl text-[14.5px] font-semibold btn-primary disabled:opacity-50"
+					className="mt-4 w-full py-4 rounded-2xl text-[14.5px] font-semibold btn-primary disabled:opacity-50"
 				>
 					{loading ? "Salvataggio…" : goal ? "Salva modifiche" : "Crea obiettivo"}
 				</button>

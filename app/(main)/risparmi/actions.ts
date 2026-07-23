@@ -102,6 +102,17 @@ export async function deleteGoal(id: string): Promise<{ error?: string }> {
 	const { data: { user } } = await supabase.auth.getUser();
 	if (!user) return { error: "Non autenticato" };
 
+	// Delete associated transactions first — otherwise they remain as
+	// orphaned outflows that permanently reduce the balance with no visible goal.
+	const { error: txnError } = await supabase
+		.from("transactions")
+		.delete()
+		.eq("category_id", id)
+		.eq("user_id", user.id)
+		.eq("type", "risparmio");
+
+	if (txnError) return { error: txnError.message };
+
 	const { error } = await supabase
 		.from("categories")
 		.delete()
@@ -110,5 +121,6 @@ export async function deleteGoal(id: string): Promise<{ error?: string }> {
 
 	if (error) return { error: error.message };
 	revalidatePath("/risparmi");
+	revalidatePath("/");
 	return {};
 }

@@ -44,7 +44,7 @@ export default function RecentTransaction({
 			<div className="flex items-center justify-between mb-3">
 				<p className="font-semibold">Transazioni recenti</p>
 				<Link
-					href="/movimenti"
+					href="/transazioni"
 					className="text-sm font-medium"
 					style={{ color: "var(--color-midori)" }}
 				>
