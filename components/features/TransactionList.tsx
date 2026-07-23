@@ -1,6 +1,7 @@
 "use client";
 import { Plus } from "lucide-react";
 import { ICON_MAP } from "@/lib/icon-map";
+import { GOAL_ICON_MAP } from "@/lib/goal-icons";
 import { useUIStore } from "@/store/useUIStore";
 import type { Transaction } from "@/types";
 import { TIPO_COLOR, TIPO_LABEL, formatDate, formatAmount } from "@/lib/transaction-utils";
@@ -73,7 +74,7 @@ export default function TransactionList({ transactions, loading }: TransactionLi
 					<div className="space-y-2">
 						{items.map((t) => {
 							const cat = t.categories;
-							const Icon = cat ? ICON_MAP[cat.icon] : null;
+							const Icon = cat ? (ICON_MAP[cat.icon] ?? GOAL_ICON_MAP[cat.icon]) : null;
 							const color = `var(--color-${cat?.color ?? "kiri"})`;
 							const amountColor = TIPO_COLOR[t.type] ?? "var(--text-primary)";
 

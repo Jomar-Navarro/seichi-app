@@ -94,9 +94,9 @@ export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
 		setLoading(true);
 		setServerError(null);
 		const result = await deleteGoal(goal.id);
+		setLoading(false);
 		if (result.error) {
 			setServerError(result.error);
-			setLoading(false);
 			return;
 		}
 		router.refresh();
@@ -245,7 +245,7 @@ export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
 						onClick={handleDelete}
 						disabled={loading}
 						className="mt-4 text-sm text-center w-full disabled:opacity-50"
-						style={{ color: "var(--color-aka)", opacity: 0.8 }}
+						style={{ color: "var(--color-aka)" }}
 					>
 						Elimina obiettivo
 					</button>

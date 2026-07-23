@@ -120,7 +120,6 @@ export async function deleteGoal(id: string): Promise<{ error?: string }> {
 		.eq("user_id", user.id);
 
 	if (error) return { error: error.message };
-	revalidatePath("/risparmi");
-	revalidatePath("/");
+	revalidatePath("/", "layout");
 	return {};
 }
