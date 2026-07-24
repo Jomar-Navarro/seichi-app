@@ -216,7 +216,7 @@ Ordine per priorità (il viewport è il problema più sentito):
 - **Email confirmation**: abilitata — dopo signup l'utente vede "controlla la tua email" nella stessa pagina (nessun redirect)
 - **Onboarding gate**: `profiles.currency` è il flag — NULL = onboarding non completato
 - **State globale**: Zustand (`store/useUIStore.ts`) per stato UI — modal transazione, edit, trigger di refresh. I dati DB arrivano dai server components / server actions, non sono in Zustand
-- **Obiettivi = categorie**: nessuna tabella goal separata — categorie `type='risparmio'` con `target_amount`/`target_date`; `saved_amount` calcolato dalle transazioni
+- **Obiettivi = categorie**: nessuna tabella goal separata — categorie `type='risparmio'` con `target_amount`/`target_date`; `saved_amount` calcolato dalle transazioni. Scelta confermata (no tabella dedicata finché non servono prelievi tracciati o stato completato persistito). Il "prelievo" da un obiettivo si fa cancellando la transazione (non lascia storico). Categorie risparmio e obiettivi **convivono** di proposito. NB Fase 13: eliminare una categoria risparmio = eliminare l'obiettivo → deve usare la stessa logica/conferma di `deleteGoal`, non un delete secco.
 - **Colonne DB in inglese**: `amount`, `type`, `category_id`, `notes`, `date` (non italiano)
 - **Ricorrenti**: generazione automatica lato server con pg_cron (non al login)
 - **Monetario**: DECIMAL(10,2) in DB, `Intl.NumberFormat` per display
