@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { ICON_MAP } from "@/lib/icon-map";
+import { GOAL_ICON_MAP } from "@/lib/goal-icons";
 import { useUIStore } from "@/store/useUIStore";
 import type { Transaction } from "@/types";
 import {
@@ -48,7 +49,7 @@ export default function RecentTransaction({
 					className="text-sm font-medium"
 					style={{ color: "var(--color-midori)" }}
 				>
-					Vedi tutti
+					Vedi tutte →
 				</Link>
 			</div>
 
@@ -62,7 +63,7 @@ export default function RecentTransaction({
 						<div className="flex flex-col gap-0">
 							{transactions.map((t, i) => {
 								const cat = t.categories;
-								const Icon = cat ? ICON_MAP[cat.icon] : null;
+								const Icon = cat ? (ICON_MAP[cat.icon] ?? GOAL_ICON_MAP[cat.icon]) : null;
 								const color = `var(--color-${cat?.color ?? "kiri"})`;
 								const amountColor = TIPO_COLOR[t.type] ?? "var(--text-primary)";
 								const isLast = i === transactions.length - 1;
@@ -93,8 +94,7 @@ export default function RecentTransaction({
 												{cat?.name ?? "—"}
 											</p>
 											<p className="text-xs text-muted mt-0.5">
-												{t.notes ? t.notes : TIPO_LABEL[t.type]} ·{" "}
-												{formatDate(t.date)}
+												{TIPO_LABEL[t.type]} · {formatDate(t.date)}
 											</p>
 										</div>
 										<p

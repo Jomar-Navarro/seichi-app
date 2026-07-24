@@ -50,6 +50,31 @@ export interface Transaction {
 	} | null;
 }
 
+export interface InvestmentByType {
+	type: string;
+	label: string;
+	color: string;
+	total: number;
+	pct: number;
+}
+
+export interface InvestmentPosition {
+	category_id: string;
+	name: string;
+	icon: string;
+	color: string;
+	investment_type: string | null;
+	total: number;
+	pct: number;
+}
+
+export interface InvestmentData {
+	total: number;
+	variazionePct: number | null;
+	byType: InvestmentByType[];
+	positions: InvestmentPosition[];
+}
+
 export const TRANSACTION_TYPES: TransactionType[] = [
 	{
 		id: "spesa",

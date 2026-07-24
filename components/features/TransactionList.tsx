@@ -1,8 +1,8 @@
 "use client";
-import { Plus } from "lucide-react";
 import { ICON_MAP } from "@/lib/icon-map";
 import { GOAL_ICON_MAP } from "@/lib/goal-icons";
 import { useUIStore } from "@/store/useUIStore";
+import EmptyState from "@/components/UI/EmptyState";
 import type { Transaction } from "@/types";
 import { TIPO_COLOR, TIPO_LABEL, formatDate, formatAmount } from "@/lib/transaction-utils";
 
@@ -28,27 +28,16 @@ function Skeleton() {
 	);
 }
 
-function EmptyState() {
+function TransactionsEmpty() {
 	const { openTransactionModal } = useUIStore();
 	return (
-		<div className="flex flex-col items-center justify-center py-16 text-center">
-			<button
-				onClick={openTransactionModal}
-				className="w-16 h-16 rounded-full bg-card border border-subtle flex items-center justify-center mb-5 card-shadow"
-			>
-				<Plus size={24} className="text-muted" />
-			</button>
-			<p className="font-semibold text-lg mb-2">Ancora nessun movimento</p>
-			<p className="text-sm text-muted max-w-xs leading-relaxed">
-				Aggiungi il primo movimento per iniziare a mettere ordine, con calma.
-			</p>
-			<button
-				onClick={openTransactionModal}
-				className="mt-6 flex items-center gap-2 px-5 py-3 rounded-2xl btn-primary text-sm font-semibold"
-			>
-				<Plus size={15} />
-				Aggiungi movimento
-			</button>
+		<div className="py-16">
+			<EmptyState
+				title="Nessuna transazione ancora"
+				description="Le tue entrate e uscite appariranno qui non appena registrerai il primo movimento."
+				actionLabel="Aggiungi movimento"
+				onAction={openTransactionModal}
+			/>
 		</div>
 	);
 }
@@ -57,7 +46,7 @@ export default function TransactionList({ transactions, loading }: TransactionLi
 	const { openEditModal } = useUIStore();
 
 	if (loading) return <Skeleton />;
-	if (transactions.length === 0) return <EmptyState />;
+	if (transactions.length === 0) return <TransactionsEmpty />;
 
 	const groups = transactions.reduce<Record<string, Transaction[]>>((acc, t) => {
 		const key = formatDate(t.date);

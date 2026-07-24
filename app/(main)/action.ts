@@ -141,7 +141,7 @@ export async function getDashboardTotals() {
 			query,
 			supabase
 				.from("transactions")
-				.select("amount, type")
+				.select("amount, type, date")
 				.eq("user_id", user.id),
 		]);
 
@@ -196,6 +196,20 @@ export async function getDashboardTotals() {
 
 	if (error || errorTotale) return { error: (error ?? errorTotale)!.message };
 
+	// Trend ultimi 6 mesi per sparkline
+	const trendMonths = Array.from({ length: 6 }, (_, i) => ({
+		start: new Date(now.getFullYear(), now.getMonth() - 5 + i, 1),
+		end: new Date(now.getFullYear(), now.getMonth() - 5 + i + 1, 1),
+	}));
+
+	function monthlyTrend(tipo: string): number[] {
+		return trendMonths.map(({ start, end }) =>
+			(dataTotale ?? [])
+				.filter((t) => t.type === tipo && new Date(t.date) >= start && new Date(t.date) < end)
+				.reduce((acc, t) => acc + t.amount, 0),
+		);
+	}
+
 	return {
 		entrateMese,
 		speseMese,
@@ -204,6 +218,10 @@ export async function getDashboardTotals() {
 		abbonaMese,
 		saldoMese,
 		saldoTotale,
+		entrateTrend: monthlyTrend("entrata"),
+		speseTrend: monthlyTrend("spesa"),
+		investimentiTrend: monthlyTrend("investimento"),
+		risparmiTrend: monthlyTrend("risparmio"),
 	};
 }
 

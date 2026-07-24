@@ -1,15 +1,32 @@
+import { Suspense } from "react";
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import BalanceCard from "@/components/features/BalanceCard";
 import { getDashboardTotals, getTransactions } from "./action";
+import { getGoals } from "./risparmi/actions";
 import SummaryCard from "@/components/UI/SummaryCard";
 import { TRANSACTION_TYPES } from "@/types";
 import RecentTransaction from "@/components/features/RecentTransaction";
 import DashboardRefresher from "@/components/features/DashboardRefresher";
+import HomeSkeleton from "@/components/features/HomeSkeleton";
+import Sparkline from "@/components/UI/Sparkline";
+import { ChartNoAxesCombinedIcon } from "@/lib/seichi-icons";
 
-export default async function MainPage() {
-	const [result, transaction] = await Promise.all([
+export default function MainPage() {
+	return (
+		<Suspense fallback={<HomeSkeleton />}>
+			<DashboardContent />
+		</Suspense>
+	);
+}
+
+async function DashboardContent() {
+	const [result, transaction, goalsResult] = await Promise.all([
 		getDashboardTotals(),
 		getTransactions(undefined, undefined, 5),
+		getGoals(),
 	]);
+
 	const entrata = TRANSACTION_TYPES.find((t) => t.id === "entrata")!;
 	const uscita = TRANSACTION_TYPES.find((t) => t.id === "spesa")!;
 	const investimento = TRANSACTION_TYPES.find((t) => t.id === "investimento")!;
@@ -17,6 +34,12 @@ export default async function MainPage() {
 
 	if ("error" in result) return <p>Errore</p>;
 	if ("error" in transaction) return <p>Errore</p>;
+
+	const goals = "error" in goalsResult ? [] : goalsResult.data;
+	const goalsWithTarget = goals.filter((g) => (g.target_amount ?? 0) > 0);
+	const totalTarget = goalsWithTarget.reduce((acc, g) => acc + (g.target_amount ?? 0), 0);
+	const totalSaved = goalsWithTarget.reduce((acc, g) => acc + g.saved_amount, 0);
+	const risparmiProgress = totalTarget > 0 ? Math.min(100, Math.round((totalSaved / totalTarget) * 100)) : 0;
 
 	return (
 		<div className="flex flex-col gap-4 px-5 pt-7 pb-32">
@@ -31,6 +54,7 @@ export default async function MainPage() {
 					icon={entrata.icon}
 					color={entrata.color}
 					label="Entrate"
+					trend={result.entrateTrend}
 				/>
 
 				<SummaryCard
@@ -38,6 +62,7 @@ export default async function MainPage() {
 					icon={uscita.icon}
 					color={uscita.color}
 					label="Spese"
+					trend={result.speseTrend}
 				/>
 
 				<SummaryCard
@@ -45,15 +70,49 @@ export default async function MainPage() {
 					icon={investimento.icon}
 					color={investimento.color}
 					label="Investimenti"
+					trend={result.investimentiTrend}
 				/>
 
 				<SummaryCard
 					amount={result.risparmiMese}
 					icon={risparmio.icon}
 					color={risparmio.color}
-					label="Risparmi"
+					label={totalTarget > 0 ? `Risparmi · ${risparmiProgress}%` : "Risparmi"}
+					progress={totalTarget > 0 ? risparmiProgress : undefined}
+					trend={result.risparmiTrend}
 				/>
 			</div>
+
+			{/* Analisi shortcut */}
+			<Link
+				href="/analisi"
+				className="flex items-center justify-between px-4 py-3.5 rounded-2xl border border-subtle card-shadow"
+				style={{ background: "var(--surface)" }}
+			>
+				<div className="flex items-center gap-3">
+					<div
+						className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+						style={{ background: "color-mix(in srgb, var(--color-ao) 14%, transparent)" }}
+					>
+						<ChartNoAxesCombinedIcon size={17} strokeWidth={1.5} style={{ color: "var(--color-ao)" }} />
+					</div>
+					<div>
+						<p className="text-sm font-semibold">Analisi</p>
+						<p className="text-xs text-muted">Grafici e statistiche</p>
+					</div>
+				</div>
+				<div className="flex items-center gap-2">
+					<Sparkline
+						values={result.speseTrend}
+						color="var(--color-kiri)"
+						width={48}
+						height={22}
+						opacity={0.5}
+						pad={3}
+					/>
+					<ChevronRight size={16} className="text-muted" />
+				</div>
+			</Link>
 
 			<RecentTransaction transactions={transaction.data} />
 			<DashboardRefresher />
