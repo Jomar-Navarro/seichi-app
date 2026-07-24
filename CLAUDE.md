@@ -4,7 +4,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 # Seichi (整地) — Personal Budgeting App
 
-Next.js 15 App Router, TypeScript strict, Tailwind CSS v4, Supabase (cloud), Zustand, Recharts. PWA via next-pwa. Deploy su Vercel.
+Next.js 16 App Router, TypeScript strict, Tailwind CSS v4, Supabase (cloud), Zustand, Recharts. PWA via next-pwa (Fase 15). Deploy su Vercel.
 
 ## Commands
 
@@ -18,52 +18,74 @@ npm run lint         # eslint
 
 ```
 app/
-├── (auth)/               # welcome, sign (login + signup), callback
+├── (auth)/               # welcome, sign (login + signup) + callback OAuth
 ├── (onboarding)/         # start, preference, category + actions.ts
-├── (main)/               # dashboard (da costruire)
-└── layout.tsx            # root layout
+├── (main)/               # app autenticata:
+│   ├── page.tsx          #   home dashboard + action.ts (server actions transazioni/totali)
+│   ├── transazioni/      #   lista + filtri
+│   ├── risparmi/         #   obiettivi + actions.ts (getGoals, getInvestments, CRUD goal)
+│   ├── investimenti/     #   breakdown portafoglio
+│   ├── analisi/          #   statistiche + grafici
+│   └── impostazioni/     #   stub (Fase 13)
+└── layout.tsx            # root layout (forza tema .dark su <html>)
 
 components/
-├── UI/                   # Button, Input, Card, Select, BrandHeader,
-│   │                     # OnboardingProgress, SignTab
-├── LoginForm.tsx
-├── SignUpForm.tsx
-├── PasswordField.tsx
+├── UI/                   # Button, Input, Select, card, BrandHeader, OnboardingProgress,
+│   │                     # SignTab, TransactionForm, TransactionModal, BottomNav,
+│   │                     # SummaryCard, Sparkline, EmptyState
+├── features/             # BalanceCard, TransactionList, RecentTransaction, Filterbar,
+│   │                     # GoalCard, GoalSheet, GoalsPageClient, InvestimentiTab,
+│   │                     # HomeSkeleton, DashboardRefresher, AnalyticsTabs,
+│   │                     # SpendingPieChart, MonthlyLineChart
+├── LoginForm.tsx, SignUpForm.tsx, PasswordField.tsx
 └── icons.tsx             # GoogleIcon, FacebookIcon
 
 lib/
-└── supabase/             # client.ts, server.ts, proxy.ts
+├── supabase/             # client.ts, server.ts, proxy.ts
+├── seichi-icons.tsx      # set icone SVG custom (SeichiIcon)
+├── icon-map.ts           # nome categoria → icona (Lucide)
+├── goal-icons.ts         # GOAL_ICON_MAP + GOAL_ICONS
+├── investment-types.ts   # INVESTMENT_TYPE_META (label + colore per tipo)
+└── transaction-utils.ts  # TIPO_COLOR/LABEL, formatDate, formatAmount, numberFormatter
+
+store/  useUIStore.ts      # Zustand: modal transazioni, edit, refresh trigger
+types/  index.ts           # Transaction, Category, GoalWithProgress, Investment*, TRANSACTION_TYPES
 ```
 
 ## Stack
 
-- **Framework**: Next.js 15 App Router
+- **Framework**: Next.js 16 App Router
 - **Language**: TypeScript strict (`"strict": true`)
 - **Styling**: Tailwind CSS v4 con token Zen Glass custom
 - **Database**: Supabase cloud (PostgreSQL)
 - **Auth**: Supabase Auth (JWT + Row Level Security) — email confirmation abilitata
-- **State**: Zustand (da aggiungere dalla Fase 7)
-- **Charts**: Recharts (da aggiungere dalla Fase 9)
-- **Icons**: Lucide React (outline only)
-- **PWA**: next-pwa (aggiunta alla fine)
+- **State**: Zustand (`store/useUIStore.ts`)
+- **Charts**: Recharts
+- **Icons**: set custom `lib/seichi-icons.tsx` (SVG outline) + Lucide React (outline only)
+- **PWA**: next-pwa — non ancora installata (Fase 15)
 
 ## Database Schema
 
 ```sql
 -- Sempre usare UUID, mai INT per gli ID
 -- Ogni tabella ha RLS abilitato
+-- NB: i nomi colonna sono in INGLESE (amount/type/date...), non italiano
 
 profiles: id (= auth.users.id), currency (TEXT), language (TEXT)
 
 categories: id, user_id, name (TEXT), icon (TEXT), color (TEXT),
-            type (TEXT), created_at
+            type (TEXT), created_at,
+            target_amount (DECIMAL 10,2, nullable), target_date (DATE, nullable)
 -- type values: 'spesa' | 'entrata' | 'investimento' | 'risparmio' | 'abbonamento'
 -- Vincolo DB: categories_type_check
+-- Gli OBIETTIVI di risparmio NON hanno tabella dedicata: sono categorie con
+--   type='risparmio' + target_amount/target_date. saved_amount è calcolato
+--   sommando le transazioni risparmio della categoria (vedi getGoals).
 
-transactions: id, user_id, importo (DECIMAL 10,2), tipo (TEXT),
-              categoria_id, investment_type, data (TIMESTAMP),
-              note, is_ricorrente, frequenza (TEXT), parent_id, created_at
--- frequenza values: 'settimanale' | 'mensile' | 'annuale'
+transactions: id, user_id, amount (DECIMAL 10,2), type (TEXT),
+              category_id, investment_type (TEXT, nullable), date (TIMESTAMP),
+              notes (TEXT), created_at
+-- Colonne ricorrenti (is_ricurrent, frequency) previste per Fase 14
 ```
 
 ## Auth Flow
@@ -80,25 +102,41 @@ transactions: id, user_id, importo (DECIMAL 10,2), tipo (TEXT),
 
 Stile ispirato al minimalismo giapponese. Superfici come vetro satinato, pietra, carta di riso. Mai effetti cyber o plastic glass.
 
-### Token CSS (definiti in globals.css)
+### Temi
+
+Doppio tema **light (default) + dark**, gestito dalla classe `.dark` su `<html>`.
+`globals.css` è la fonte di verità: `:root` = light, `.dark` = override.
+Attualmente il root layout **forza `.dark`** su `<html>`, quindi l'app rende sempre
+dark; l'infrastruttura per lo switch esiste già.
+
+### Token CSS (definiti in globals.css — valori light di default)
 
 ```css
---color-yoru: #0f1624    /* background */
---color-kage: #161e30    /* surface card */
---color-hane: #1e2a40    /* glass overlay */
---color-tsuki: #e8edf5   /* testo primario */
---color-kiri: #8a97b0    /* testo secondario */
---color-midori: #4db89a  /* entrate / positivo */
---color-aka: #e06b6b     /* uscite / negativo */
---color-ao: #7b9fe0      /* investimenti */
---color-kin: #c4a85a     /* risparmi / goals */
---color-murasaki: #9b7fd4 /* ricorrenti */
+/* Neutri (cambiano nel .dark) */
+--color-tsuki: #f5f1e8   /* carta chiara / superfici */
+--color-kami:  #ece6da
+--color-yoru:  #33373d   /* testo primario */
+--color-kage:  #4a4e45   /* testo secondario */
+--color-kiri:  #8e887b   /* testo muted */
+--color-hai:   #9a9384   /* testo disabled */
+
+/* Accenti finanziari (ruolo stabile in entrambi i temi) */
+--color-midori:   #6f8a63  /* entrate / positivo */
+--color-aka:      #b47358  /* uscite / negativo */
+--color-ao:       #6e86a8  /* investimenti */
+--color-kin:      #ae8b49  /* risparmi / goals */
+--color-murasaki: #8a6fc4  /* ricorrenti / abbonamenti */
 ```
+
+I token semantici (`--surface`, `--card`, `--border`, `--text-*`, ecc.) sono
+mappati sui nomi Tailwind in `@theme inline` → usare le classi (`bg-card`,
+`bg-surface`, `border-subtle`, `text-muted`…), non gli hex.
 
 ### Utility classi custom (globals.css)
 
-`onboarding-blur`, `circle-1`, `circle-3`, `card-shadow`, `deep-shadow`,
-`bg-surface`, `bg-surface-elevated`, `border-glass-border`
+`onboarding-blur`, `card-shadow`, `box-shadow`, `modal-shadow`, `deep-shadow`,
+`transaction-type-card`, `btn-primary`, `fab`, `segment-tab`, `active-tab`,
+`circle-1`, `circle-3`, `zg-pulse` (+ keyframes `zg-breathe`, `zg-pulse`)
 
 ### Regole stilistiche
 
@@ -123,10 +161,10 @@ Stile ispirato al minimalismo giapponese. Superfici come vetro satinato, pietra,
 - Variabili Supabase sempre in `.env.local`, mai hardcoded
 - I colori delle categorie finanziarie seguono il design system:
   verde = entrate, rosso = uscite, blu = investimenti, oro = risparmi
-- Componenti UI in `components/UI/`, logica di business in `components/features/` (da creare)
+- Componenti UI generici in `components/UI/`, logica di business in `components/features/`
 - Per i grafici usare sempre Recharts, non installare altre librerie chart
-- Le transazioni ricorrenti usano pg_cron + Supabase Edge Functions (Fase 13)
-- PWA viene aggiunta solo a progetto completato (Fase 14)
+- Le transazioni ricorrenti usano pg_cron + Supabase Edge Functions (Fase 14)
+- PWA viene aggiunta solo a progetto completato (Fase 15)
 - Server Actions (`"use server"`) per tutte le operazioni DB — mai chiamate API REST dirette
 - Pagine onboarding usano `"use client"` + handler async con `useState` per loading/error
 
@@ -140,13 +178,13 @@ Seguire questo ordine, non saltare fasi:
 4. ✅ Auth: login, register, sessione (email + OAuth Google/Facebook)
 5. ✅ Onboarding: start, preference, category — con salvataggio su profiles e categories
 6. ✅ Componenti base: Button, Input, Card, Select, BrandHeader, OnboardingProgress
-7. TransactionForm + CategoryDropdown
-8. Lista transazioni + FilterBar
-9. Homepage dashboard con totali
-10. Statistiche + grafici Recharts
-11. Savings + goals con ProgressBar
-12. Investimenti + breakdown portafoglio
-13. Impostazioni + categorie custom
+7. ✅ TransactionForm + CategoryDropdown
+8. ✅ Lista transazioni + FilterBar
+9. ✅ Homepage dashboard con totali
+10. ✅ Statistiche + grafici Recharts
+11. ✅ Savings + goals con ProgressBar
+12. ✅ Investimenti + breakdown portafoglio
+13. Impostazioni + categorie custom  ← prossima
 14. Transazioni ricorrenti (pg_cron + Edge Functions)
 15. PWA: manifest.json + Service Worker
 16. Mobile nativo — comportamento su dispositivo reale (vedi sotto)
@@ -177,6 +215,8 @@ Ordine per priorità (il viewport è il problema più sentito):
 - **Auth**: Supabase Auth con RLS — ogni utente vede solo i propri dati
 - **Email confirmation**: abilitata — dopo signup l'utente vede "controlla la tua email" nella stessa pagina (nessun redirect)
 - **Onboarding gate**: `profiles.currency` è il flag — NULL = onboarding non completato
-- **State globale**: Zustand per transactions, categories, theme, settings (dalla Fase 7)
+- **State globale**: Zustand (`store/useUIStore.ts`) per stato UI — modal transazione, edit, trigger di refresh. I dati DB arrivano dai server components / server actions, non sono in Zustand
+- **Obiettivi = categorie**: nessuna tabella goal separata — categorie `type='risparmio'` con `target_amount`/`target_date`; `saved_amount` calcolato dalle transazioni
+- **Colonne DB in inglese**: `amount`, `type`, `category_id`, `notes`, `date` (non italiano)
 - **Ricorrenti**: generazione automatica lato server con pg_cron (non al login)
 - **Monetario**: DECIMAL(10,2) in DB, `Intl.NumberFormat` per display
