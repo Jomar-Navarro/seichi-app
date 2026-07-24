@@ -149,8 +149,27 @@ Seguire questo ordine, non saltare fasi:
 13. Impostazioni + categorie custom
 14. Transazioni ricorrenti (pg_cron + Edge Functions)
 15. PWA: manifest.json + Service Worker
-16. Responsive tablet + ottimizzazione mobile
-17. Animazioni: transizioni morbide, micro-interazioni
+16. Mobile nativo — comportamento su dispositivo reale (vedi sotto)
+17. Responsive tablet + desktop
+18. Animazioni: transizioni morbide, micro-interazioni
+
+### Fase 16 — Mobile nativo (checklist)
+
+Ordine per priorità (il viewport è il problema più sentito):
+
+1. **Altezza viewport** — usare `dvh`/`svh`/`lvh`, mai `vh` puro. La bottom nav
+   e i bottoni pinned in fondo non devono finire sotto la toolbar dinamica di
+   Safari iOS; i container di scroll devono restare accessibili quando la barra
+   appare/scompare.
+2. **Safe area** — `viewport-fit=cover` + `env(safe-area-inset-*)` su bottom
+   nav, FAB, header e modal, per notch e home indicator.
+3. **Zoom sugli input** — font-size ≥ 16px su tutti gli `<input>`/`<textarea>`
+   per impedire lo zoom automatico di iOS al focus.
+4. **Tastiera** — nei form e nei bottom sheet il campo attivo non deve essere
+   coperto dalla tastiera; gestire lo scroll-into-view.
+5. **Touch target** — area toccabile ≥ 44×44px su tutti gli elementi interattivi.
+6. **Scroll** — momentum scroll e `overscroll-behavior` per evitare bounce/pull
+   indesiderati fuori dai container.
 
 ## Key Decisions
 
