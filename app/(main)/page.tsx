@@ -9,7 +9,9 @@ import { TRANSACTION_TYPES } from "@/types";
 import RecentTransaction from "@/components/features/RecentTransaction";
 import DashboardRefresher from "@/components/features/DashboardRefresher";
 import HomeSkeleton from "@/components/features/HomeSkeleton";
+import ProfileMenu from "@/components/features/ProfileMenu";
 import Sparkline from "@/components/UI/Sparkline";
+import { createClient } from "@/lib/supabase/server";
 import { ChartNoAxesCombinedIcon } from "@/lib/seichi-icons";
 
 export default function MainPage() {
@@ -21,11 +23,15 @@ export default function MainPage() {
 }
 
 async function DashboardContent() {
-	const [result, transaction, goalsResult] = await Promise.all([
+	const supabase = await createClient();
+	const [result, transaction, goalsResult, { data: { user } }] = await Promise.all([
 		getDashboardTotals(),
 		getTransactions(undefined, undefined, 5),
 		getGoals(),
+		supabase.auth.getUser(),
 	]);
+
+	const initials = (user?.email ?? "").slice(0, 2).toUpperCase() || "··";
 
 	const entrata = TRANSACTION_TYPES.find((t) => t.id === "entrata")!;
 	const uscita = TRANSACTION_TYPES.find((t) => t.id === "spesa")!;
@@ -43,6 +49,14 @@ async function DashboardContent() {
 
 	return (
 		<div className="flex flex-col gap-4 px-5 pt-7 pb-32">
+			<div className="flex items-center justify-between">
+				<div>
+					<p className="text-[13px] text-muted">Bentornato</p>
+					<p className="text-xl font-semibold leading-tight">Il tuo terreno</p>
+				</div>
+				<ProfileMenu initials={initials} />
+			</div>
+
 			<BalanceCard
 				saldoTotale={result.saldoTotale}
 				saldoMese={result.saldoMese}

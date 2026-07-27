@@ -350,3 +350,366 @@ export function StarIcon(p: SeichiIconProps) {
 		</svg>
 	);
 }
+
+
+// ─── Extended category library icons (Fase 13) ───────────────────
+
+export function LandmarkIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.5)}>
+			<path d="M3 21h18" />
+			<path d="M4 21V10M8 21V10M12 21V10M16 21V10M20 21V10" />
+			<path d="M2 10l10-6 10 6" />
+		</svg>
+	);
+}
+
+export function CoinsIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.5)}>
+			<circle cx="8.5" cy="8.5" r="5.5" />
+			<circle cx="15" cy="15" r="5.5" />
+		</svg>
+	);
+}
+
+export function ArrowDownToLineIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.6)}>
+			<path d="M12 4v12" />
+			<path d="M7 11l5 5 5-5" />
+			<path d="M4 20h16" />
+		</svg>
+	);
+}
+
+export function HandCoinsIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.5)}>
+			<circle cx="12" cy="8" r="4" />
+			<path d="M4 19c0-2.8 2.5-4.5 5.5-4.5H14a2 2 0 0 1 0 4h-3" />
+			<path d="M2 15.5h3" />
+		</svg>
+	);
+}
+
+export function PercentIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.6)}>
+			<path d="M5 19 19 5" />
+			<circle cx="7" cy="7" r="2.5" />
+			<circle cx="17" cy="17" r="2.5" />
+		</svg>
+	);
+}
+
+export function HandshakeIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.4)}>
+			<path d="M2 12h4l3-3 3 3 2-2h4" />
+			<path d="M6 12l3.5 3.5a1.5 1.5 0 0 0 2.1 0L15 12" />
+		</svg>
+	);
+}
+
+export function CircleDollarSignIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.5)}>
+			<circle cx="12" cy="12" r="9" />
+			<path d="M12 6v12M9.5 9a2.5 2.5 0 0 1 2.5-1.5c1.5 0 2.5.8 2.5 2s-1 1.7-2.5 2-2.5.8-2.5 2 1 2 2.5 2a2.5 2.5 0 0 0 2.5-1.5" />
+		</svg>
+	);
+}
+
+export function ShoppingBasketIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.5)}>
+			<path d="M4 10h16l-1.5 9a2 2 0 0 1-2 1.7H7.5a2 2 0 0 1-2-1.7L4 10z" />
+			<path d="M4 10l3-6M20 10l-3-6" />
+			<path d="M9 10a3 3 0 0 1 6 0" />
+		</svg>
+	);
+}
+
+export function UtensilsIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.5)}>
+			<path d="M7 2v7a2 2 0 0 1-2 2v11M9 2v6M11 2v6M7 11v-2" />
+			<path d="M17 2c-1.8 1-3 3.4-3 6 0 2.4 1.1 4.5 2.7 5.6L16 22" />
+		</svg>
+	);
+}
+
+export function WifiIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.5)}>
+			<path d="M2 8.5a15.5 15.5 0 0 1 20 0" />
+			<path d="M5.5 12.5a10.5 10.5 0 0 1 13 0" />
+			<path d="M9 16.3a5.5 5.5 0 0 1 6 0" />
+			<circle cx="12" cy="19.5" r="1.1" fill="currentColor" />
+		</svg>
+	);
+}
+
+export function FuelIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.5)}>
+			<path d="M4 21V6a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v15" />
+			<path d="M3 21h11" />
+			<path d="M14 9h2l3 3v6a1.5 1.5 0 0 1-3 0v-2a1 1 0 0 0-1-1h-1" />
+			<path d="M6 6h4v4H6z" />
+		</svg>
+	);
+}
+
+export function BabyIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.5)}>
+			<circle cx="12" cy="7" r="3.2" />
+			<path d="M7 20c0-3.5 2-6 5-6s5 2.5 5 6" />
+			<path d="M9.5 7c0 1 1 1.6 2.5 1.6s2.5-.6 2.5-1.6" />
+		</svg>
+	);
+}
+
+export function PawPrintIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.4)}>
+			<circle cx="8" cy="8" r="1.6" />
+			<circle cx="13" cy="6.5" r="1.6" />
+			<circle cx="17" cy="9" r="1.6" />
+			<path d="M9 15.5c0-2.2 1.8-3.5 4-3.5s4 1.3 4 3.5-1.8 3-4 3-4-.8-4-3Z" />
+		</svg>
+	);
+}
+
+export function CoffeeIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.5)}>
+			<path d="M4 8h13v6a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V8Z" />
+			<path d="M17 9h1.5a2.5 2.5 0 0 1 0 5H17" />
+			<path d="M7 4c0 1-1 1-1 2M11 4c0 1-1 1-1 2" />
+		</svg>
+	);
+}
+
+export function WrenchIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.4)}>
+			<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2-2Z" />
+		</svg>
+	);
+}
+
+export function StethoscopeIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.4)}>
+			<path d="M6 3v6a4 4 0 0 0 8 0V3" />
+			<path d="M6 3H4.5M14 3h1.5" />
+			<path d="M10 13v3a4 4 0 0 0 8 0v-1.5" />
+			<circle cx="19" cy="14" r="1.6" />
+		</svg>
+	);
+}
+
+export function LineChartIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.6)}>
+			<path d="M3 3v18h18" />
+			<path d="M7 14l3-3 3 2 5-6" />
+		</svg>
+	);
+}
+
+export function PieChartIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.5)}>
+			<path d="M12 3v9l7.8 4.5" />
+			<path d="M20.9 13.5A9 9 0 1 1 12 3" />
+		</svg>
+	);
+}
+
+export function LayersIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.4)}>
+			<path d="M12 3 3 8l9 5 9-5-9-5Z" />
+			<path d="M3 12l9 5 9-5" />
+			<path d="M3 16l9 5 9-5" />
+		</svg>
+	);
+}
+
+export function BarChart3Icon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.5)}>
+			<path d="M4 20V10M10 20V4M16 20v-7M4 20h16" />
+		</svg>
+	);
+}
+
+export function VaultIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.5)}>
+			<rect x="3" y="4" width="18" height="16" rx="2" />
+			<circle cx="12" cy="12" r="4" />
+			<circle cx="12" cy="12" r="1" fill="currentColor" />
+			<path d="M6 4v2M18 4v2M6 18v2M18 18v2" />
+		</svg>
+	);
+}
+
+export function GlobeIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.5)}>
+			<circle cx="12" cy="12" r="9" />
+			<path d="M3 12h18" />
+			<path d="M12 3c2.5 2.5 2.5 15.5 0 18M12 3c-2.5 2.5-2.5 15.5 0 18" />
+		</svg>
+	);
+}
+
+export function GemIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.4)}>
+			<path d="M6 3h12l4 6-10 12L2 9Z" />
+			<path d="M2 9h20M8.5 3 6 9l6 12 6-12-2.5-6" />
+		</svg>
+	);
+}
+
+export function TargetIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.5)}>
+			<circle cx="12" cy="12" r="9" />
+			<circle cx="12" cy="12" r="5.3" />
+			<circle cx="12" cy="12" r="1.6" fill="currentColor" />
+		</svg>
+	);
+}
+
+export function UmbrellaIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.4)}>
+			<path d="M12 2c5 0 9 4 9 8H3c0-4 4-8 9-8Z" />
+			<path d="M12 10v9a2 2 0 0 1-4 0" />
+			<path d="M12 2v2" />
+		</svg>
+	);
+}
+
+export function SunriseIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.5)}>
+			<path d="M12 3v5" />
+			<path d="M4.5 12a7.5 7.5 0 0 1 15 0" />
+			<path d="M2 12h1.5M20.5 12H22M5 5.5l1.5 1.5M19 5.5l-1.5 1.5" />
+			<path d="M2 17h20" />
+		</svg>
+	);
+}
+
+export function SparklesIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.3)}>
+			<path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3Z" />
+			<path d="M19 14l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7Z" />
+		</svg>
+	);
+}
+
+export function TvIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.5)}>
+			<rect x="3" y="6" width="18" height="12" rx="2" />
+			<path d="M8 21h8M12 18v3" />
+		</svg>
+	);
+}
+
+export function SmartphoneIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.5)}>
+			<rect x="7" y="2" width="10" height="20" rx="2" />
+			<path d="M11 18h2" />
+		</svg>
+	);
+}
+
+export function CloudIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.4)}>
+			<path d="M7 18h10a4 4 0 0 0 0-8 5.5 5.5 0 0 0-10.6 1.8A3.5 3.5 0 0 0 7 18Z" />
+		</svg>
+	);
+}
+
+export function NewspaperIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.4)}>
+			<path d="M4 4h13v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4Z" />
+			<path d="M17 8h3v10a2 2 0 0 1-2 2h-1" />
+			<path d="M7 8h6M7 11.5h6M7 15h4" />
+		</svg>
+	);
+}
+
+export function Gamepad2Icon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.5)}>
+			<rect x="2.5" y="7.5" width="19" height="10" rx="4" />
+			<path d="M7 10.5v4M5 12.5h4" />
+			<circle cx="16" cy="10.5" r="1" fill="currentColor" />
+			<circle cx="18.5" cy="13" r="1" fill="currentColor" />
+		</svg>
+	);
+}
+
+export function BookOpenIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.4)}>
+			<path d="M12 6c-2-1.3-4.5-2-7-2v14c2.5 0 5 .7 7 2 2-1.3 4.5-2 7-2V4c-2.5 0-5 .7-7 2Z" />
+			<path d="M12 6v14" />
+		</svg>
+	);
+}
+
+export function MailIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.5)}>
+			<rect x="3" y="5.5" width="18" height="13" rx="2.5" />
+			<path d="M3.5 7 12 13l8.5-6" />
+		</svg>
+	);
+}
+
+export function CreditCardIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.5)}>
+			<rect x="2.5" y="5" width="19" height="14" rx="2.5" />
+			<path d="M2.5 9.5h19" />
+			<path d="M6 15h4" />
+		</svg>
+	);
+}
+
+export function RadioIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.4)}>
+			<circle cx="12" cy="14" r="6" />
+			<circle cx="12" cy="14" r="1" fill="currentColor" />
+			<path d="M8 14a4 4 0 0 1 8 0" />
+			<path d="M4 9 20 5M4 9l3 1M20 5l-3 1" />
+		</svg>
+	);
+}
+
+export function HeadphonesIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.5)}>
+			<path d="M4 15v-3a8 8 0 0 1 16 0v3" />
+			<rect x="2.5" y="14" width="4" height="6" rx="1.5" />
+			<rect x="17.5" y="14" width="4" height="6" rx="1.5" />
+		</svg>
+	);
+}

@@ -2,6 +2,15 @@
 export default function HomeSkeleton() {
 	return (
 		<div className="flex flex-col gap-4 px-5 pt-7 pb-32">
+			{/* Header */}
+			<div className="flex items-center justify-between">
+				<div className="flex flex-col gap-2">
+					<div className="h-2.5 w-16 rounded-full zg-pulse" style={{ background: "var(--surface-elevated)" }} />
+					<div className="h-3.5 w-28 rounded-full zg-pulse" style={{ background: "var(--surface-elevated)", animationDelay: "0.1s" }} />
+				</div>
+				<div className="w-10 h-10 rounded-full zg-pulse" style={{ background: "var(--surface-elevated)" }} />
+			</div>
+
 			{/* Balance card */}
 			<div
 				className="rounded-3xl h-34.5 zg-pulse"
