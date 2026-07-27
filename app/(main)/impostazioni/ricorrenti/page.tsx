@@ -6,7 +6,7 @@ import type { RecurringRule } from "@/types";
 
 export default async function RicorrentiPage() {
 	const result = await getRecurringRules();
-	const rules = "error" in result ? [] : (result.data as RecurringRule[]);
+	const rules = "error" in result ? [] : ((result.data as RecurringRule[]) ?? []);
 
 	return (
 		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34">

@@ -10,14 +10,9 @@ import { RepeatIcon } from "@/lib/seichi-icons";
 import EmptyState from "@/components/UI/EmptyState";
 import RecurringSheet from "./RecurringSheet";
 import { deleteRecurringRule, setRecurringActive } from "@/app/(main)/action";
+import { FREQ_RECUR_LABEL } from "@/lib/recurring";
 import { useUIStore } from "@/store/useUIStore";
 import type { RecurringRule } from "@/types";
-
-const FREQ_LABEL: Record<string, string> = {
-	settimanale: "Ogni settimana",
-	mensile: "Ogni mese",
-	annuale: "Ogni anno",
-};
 
 function formatRuleAmount(r: RecurringRule) {
 	const sign = r.type === "entrata" ? "+ " : "";
@@ -110,7 +105,7 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 									</div>
 									<div className="flex items-center gap-1.5 mt-1">
 										<span className="text-[11px] font-semibold" style={{ color: "var(--color-murasaki)" }}>
-											{FREQ_LABEL[r.frequency] ?? r.frequency}
+											{FREQ_RECUR_LABEL[r.frequency] ?? r.frequency}
 										</span>
 										<span className="w-0.75 h-0.75 rounded-full bg-muted/50" />
 										<span className="text-[11px] text-muted">

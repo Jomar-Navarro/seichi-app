@@ -5,17 +5,11 @@ import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Select from "@/components/UI/Select";
-import { ICON_MAP } from "@/lib/icon-map";
-import { GOAL_ICON_MAP } from "@/lib/goal-icons";
+import FrequencySelector from "@/components/UI/FrequencySelector";
+import { buildCategoryOptions } from "@/lib/category-options";
 import { TIPO_COLOR } from "@/lib/transaction-utils";
 import { updateRecurringRule } from "@/app/(main)/action";
 import type { RecurringRule, Category, Frequency } from "@/types";
-
-const FREQUENCIES: { id: Frequency; label: string }[] = [
-	{ id: "settimanale", label: "Settimanale" },
-	{ id: "mensile", label: "Mensile" },
-	{ id: "annuale", label: "Annuale" },
-];
 
 interface RecurringSheetProps {
 	isOpen: boolean;
@@ -60,23 +54,10 @@ export default function RecurringSheet({ isOpen, rule, onClose }: RecurringSheet
 	if (!isOpen || !rule) return null;
 
 	const color = TIPO_COLOR[rule.type] ?? "var(--color-kiri)";
+	const todayISO = new Date().toLocaleDateString("sv-SE");
 	const importoValido = amount !== "" && parseFloat(amount.replace(",", ".")) > 0;
 
-	const categoryOptions = categoryList.map((c) => {
-		const Icon = ICON_MAP[c.icon] ?? GOAL_ICON_MAP[c.icon];
-		return {
-			value: c.id,
-			label: c.name,
-			icon: Icon ? (
-				<Icon size={14} style={{ color: `var(--color-${c.color})` }} />
-			) : (
-				<span
-					className="w-2.5 h-2.5 rounded-full inline-block"
-					style={{ background: `var(--color-${c.color})` }}
-				/>
-			),
-		};
-	});
+	const categoryOptions = buildCategoryOptions(categoryList);
 
 	async function handleSubmit() {
 		if (!importoValido || loading || !rule) return;
@@ -150,28 +131,7 @@ export default function RecurringSheet({ isOpen, rule, onClose }: RecurringSheet
 					{/* Frequenza */}
 					<div>
 						<label className="text-xs text-muted mb-1.5 block">Frequenza</label>
-						<div className="grid grid-cols-3 gap-2">
-							{FREQUENCIES.map((f) => {
-								const selected = frequency === f.id;
-								return (
-									<button
-										key={f.id}
-										type="button"
-										onClick={() => setFrequency(f.id)}
-										className="py-2.5 rounded-xl text-[12.5px] font-medium border transition-all"
-										style={{
-											background: selected
-												? `color-mix(in srgb, ${color} 16%, transparent)`
-												: "var(--color-card)",
-											borderColor: selected ? color : "var(--color-subtle)",
-											color: selected ? color : "var(--text-secondary)",
-										}}
-									>
-										{f.label}
-									</button>
-								);
-							})}
-						</div>
+						<FrequencySelector value={frequency} onChange={setFrequency} color={color} />
 					</div>
 
 					{/* Prossima data */}
@@ -181,6 +141,7 @@ export default function RecurringSheet({ isOpen, rule, onClose }: RecurringSheet
 							<input
 								type="date"
 								value={nextRun}
+								min={todayISO}
 								onChange={(e) => setNextRun(e.target.value)}
 								className="flex-1 bg-transparent outline-none text-sm text-muted appearance-none"
 								style={{ colorScheme: "inherit" }}

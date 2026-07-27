@@ -12,9 +12,9 @@ import {
 	Trash2,
 	Repeat,
 } from "lucide-react";
-import { ICON_MAP } from "@/lib/icon-map";
-import { GOAL_ICON_MAP } from "@/lib/goal-icons";
 import Select from "@/components/UI/Select";
+import FrequencySelector from "@/components/UI/FrequencySelector";
+import { buildCategoryOptions } from "@/lib/category-options";
 import {
 	saveTransaction,
 	updateTransaction,
@@ -67,12 +67,6 @@ export default function TransactionForm({
 	const [isRecurring, setIsRecurring] = useState(false);
 	const [frequency, setFrequency] = useState<Frequency>("mensile");
 	const { closeTransactionModal, notifyTransactionSaved } = useUIStore();
-
-	const FREQUENCIES: { id: Frequency; label: string }[] = [
-		{ id: "settimanale", label: "Settimanale" },
-		{ id: "mensile", label: "Mensile" },
-		{ id: "annuale", label: "Annuale" },
-	];
 
 	useEffect(() => {
 		async function loadCategories() {
@@ -176,21 +170,7 @@ export default function TransactionForm({
 				? [{ id: transaction.category_id, user_id: "", name: transaction.categories.name, icon: transaction.categories.icon, color: transaction.categories.color, type: selectedType.id }]
 				: [];
 
-	const categoryOptions = effectiveCategoryList.map((c) => {
-		const Icon = ICON_MAP[c.icon] ?? GOAL_ICON_MAP[c.icon];
-		return {
-			value: c.id,
-			label: c.name,
-			icon: Icon ? (
-				<Icon size={14} style={{ color: `var(--color-${c.color})` }} />
-			) : (
-				<span
-					className="w-2.5 h-2.5 rounded-full inline-block"
-					style={{ background: `var(--color-${c.color})` }}
-				/>
-			),
-		};
-	});
+	const categoryOptions = buildCategoryOptions(effectiveCategoryList);
 
 	const year = viewDate.getFullYear();
 	const month = viewDate.getMonth();
@@ -350,27 +330,12 @@ export default function TransactionForm({
 						</span>
 					</button>
 					{isRecurring && (
-						<div className="grid grid-cols-3 gap-2 mt-2">
-							{FREQUENCIES.map((f) => {
-								const selected = frequency === f.id;
-								return (
-									<button
-										key={f.id}
-										type="button"
-										onClick={() => setFrequency(f.id)}
-										className="py-2.5 rounded-xl text-[12.5px] font-medium border transition-all"
-										style={{
-											background: selected
-												? `color-mix(in srgb, ${selectedType.color} 16%, transparent)`
-												: "var(--color-card)",
-											borderColor: selected ? selectedType.color : "var(--color-subtle)",
-											color: selected ? selectedType.color : "var(--text-secondary)",
-										}}
-									>
-										{f.label}
-									</button>
-								);
-							})}
+						<div className="mt-2">
+							<FrequencySelector
+								value={frequency}
+								onChange={setFrequency}
+								color={selectedType.color}
+							/>
 						</div>
 					)}
 				</div>

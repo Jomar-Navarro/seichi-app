@@ -1,6 +1,8 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { firstRunFrom, rollForwardPastToday } from "@/lib/recurring";
+import type { Frequency } from "@/types";
 
 export async function saveTransaction(
 	importo: number,
@@ -141,7 +143,9 @@ export async function createRecurringRule(
 		notes: nota,
 		frequency,
 		start_date,
-		next_run: start_date,
+		// La generazione parte al più da oggi: evita il burst di movimenti
+		// retroattivi se start_date è nel passato.
+		next_run: firstRunFrom(start_date),
 	});
 
 	if (error) return { error: error.message };
@@ -213,7 +217,8 @@ export async function updateRecurringRule(
 			category_id: categoria_id,
 			notes: nota,
 			frequency,
-			next_run,
+			// "Prossima data" mai nel passato: evita back-fill al prossimo cron.
+			next_run: firstRunFrom(next_run),
 		})
 		.eq("id", id)
 		.eq("user_id", user.id);
@@ -231,9 +236,27 @@ export async function setRecurringActive(id: string, active: boolean) {
 
 	if (!user) return { error: "Non autenticato" };
 
+	// Al "riprendi": porta next_run al primo periodo futuro, così non genera
+	// una raffica di movimenti retroattivi per i periodi trascorsi in pausa.
+	let patch: { active: boolean; next_run?: string } = { active };
+	if (active) {
+		const { data: rule } = await supabase
+			.from("recurring_rules")
+			.select("frequency, next_run")
+			.eq("id", id)
+			.eq("user_id", user.id)
+			.single();
+		if (rule) {
+			patch = {
+				active,
+				next_run: rollForwardPastToday(rule.next_run, rule.frequency as Frequency),
+			};
+		}
+	}
+
 	const { error } = await supabase
 		.from("recurring_rules")
-		.update({ active })
+		.update(patch)
 		.eq("id", id)
 		.eq("user_id", user.id);
 
