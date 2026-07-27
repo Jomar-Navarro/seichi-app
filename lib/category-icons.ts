@@ -46,6 +46,7 @@ export const CATEGORY_LIBRARY: Record<string, { id: string; label: string }[]> =
 		{ id: "Vault", label: "Deposito" },
 		{ id: "Globe", label: "Fondi esteri" },
 		{ id: "Percent", label: "Rendimento %" },
+		{ id: "CircleDollarSign", label: "Dividendi" },
 	],
 	risparmio: [
 		{ id: "PiggyBank", label: "Generico" },
