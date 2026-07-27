@@ -1,25 +1,51 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { Pause, Play, Plus, Pencil } from "lucide-react";
 import { ICON_MAP } from "@/lib/icon-map";
 import { GOAL_ICON_MAP } from "@/lib/goal-icons";
-import { TIPO_COLOR, TIPO_LABEL, formatAmount, formatDate } from "@/lib/transaction-utils";
+import { TIPO_COLOR, TIPO_LABEL, formatDate, numberFormatter } from "@/lib/transaction-utils";
+import { RepeatIcon } from "@/lib/seichi-icons";
 import EmptyState from "@/components/UI/EmptyState";
-import { deleteRecurringRule } from "@/app/(main)/action";
+import RecurringSheet from "./RecurringSheet";
+import { deleteRecurringRule, setRecurringActive } from "@/app/(main)/action";
+import { useUIStore } from "@/store/useUIStore";
 import type { RecurringRule } from "@/types";
 
 const FREQ_LABEL: Record<string, string> = {
-	settimanale: "Settimanale",
-	mensile: "Mensile",
-	annuale: "Annuale",
+	settimanale: "Ogni settimana",
+	mensile: "Ogni mese",
+	annuale: "Ogni anno",
 };
+
+function formatRuleAmount(r: RecurringRule) {
+	const sign = r.type === "entrata" ? "+ " : "";
+	return `${sign}€ ${numberFormatter.format(r.amount)}`;
+}
 
 export default function RecurringManager({ rules }: { rules: RecurringRule[] }) {
 	const router = useRouter();
+	const { openTransactionModal, transactionSavedAt } = useUIStore();
 	const [pending, setPending] = useState<RecurringRule | null>(null);
+	const [editing, setEditing] = useState<RecurringRule | null>(null);
 	const [deleting, setDeleting] = useState(false);
+	const [busyId, setBusyId] = useState<string | null>(null);
+
+	// Aggiorna la lista quando una ricorrenza viene creata dal modale transazione
+	useEffect(() => {
+		if (transactionSavedAt) router.refresh();
+	}, [transactionSavedAt, router]);
+
+	async function togglePause(r: RecurringRule) {
+		setBusyId(r.id);
+		try {
+			const result = await setRecurringActive(r.id, !r.active);
+			if (!result.error) router.refresh();
+		} finally {
+			setBusyId(null);
+		}
+	}
 
 	async function confirmDelete() {
 		if (!pending) return;
@@ -39,59 +65,102 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 		return (
 			<div className="flex-1 flex items-center justify-center py-16">
 				<EmptyState
-					title="Nessuna ricorrenza"
-					description="Attiva “Ripeti” quando crei un movimento per generarlo automaticamente a ogni scadenza."
+					title="Nessun pagamento ricorrente"
+					description="I tuoi abbonamenti e pagamenti pianificati appariranno qui non appena ne aggiungerai uno."
+					actionLabel="Aggiungi ricorrente"
+					onAction={openTransactionModal}
 				/>
 			</div>
 		);
 	}
 
 	return (
-		<>
+		<div className="flex-1 flex flex-col">
+			<p className="text-[12.5px] text-muted mb-4">
+				{rules.length} {rules.length === 1 ? "pagamento pianificato" : "pagamenti pianificati"}
+			</p>
+
 			<div className="flex flex-col gap-2.5">
 				{rules.map((r) => {
 					const color = TIPO_COLOR[r.type];
 					const Icon = r.categories
-						? (ICON_MAP[r.categories.icon] ?? GOAL_ICON_MAP[r.categories.icon])
-						: null;
+						? (ICON_MAP[r.categories.icon] ?? GOAL_ICON_MAP[r.categories.icon] ?? RepeatIcon)
+						: RepeatIcon;
 					return (
 						<div
 							key={r.id}
-							className="flex items-center gap-3 rounded-[20px] px-4 py-3.5 bg-card border border-subtle card-shadow"
+							className="rounded-[22px] px-4 py-3.5 bg-card border border-subtle card-shadow"
+							style={{ opacity: r.active ? 1 : 0.6 }}
 						>
-							<span
-								className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-								style={{ background: `color-mix(in srgb, ${color} 14%, transparent)` }}
-							>
-								{Icon ? (
+							<div className="flex items-start gap-3">
+								<span
+									className="w-9.5 h-9.5 rounded-[13px] flex items-center justify-center shrink-0"
+									style={{ background: `color-mix(in srgb, ${color} 13%, transparent)` }}
+								>
 									<Icon size={17} strokeWidth={1.5} style={{ color }} />
-								) : (
-									<span className="w-2 h-2 rounded-full" style={{ background: color }} />
-								)}
-							</span>
-							<div className="flex-1 min-w-0">
-								<p className="text-sm font-semibold truncate">
-									{r.categories?.name ?? TIPO_LABEL[r.type]}
-								</p>
-								<p className="text-xs text-muted mt-0.5">
-									{FREQ_LABEL[r.frequency]} · prossima {formatDate(r.next_run)}
-								</p>
+								</span>
+								<div className="flex-1 min-w-0">
+									<div className="flex items-center justify-between gap-2">
+										<span className="text-[13.5px] font-semibold truncate">
+											{r.categories?.name ?? TIPO_LABEL[r.type]}
+										</span>
+										<span className="text-[13.5px] font-semibold whitespace-nowrap" style={{ color }}>
+											{formatRuleAmount(r)}
+										</span>
+									</div>
+									<div className="flex items-center gap-1.5 mt-1">
+										<span className="text-[11px] font-semibold" style={{ color: "var(--color-murasaki)" }}>
+											{FREQ_LABEL[r.frequency] ?? r.frequency}
+										</span>
+										<span className="w-0.75 h-0.75 rounded-full bg-muted/50" />
+										<span className="text-[11px] text-muted">
+											{r.active ? formatDate(r.next_run) : "in pausa"}
+										</span>
+									</div>
+								</div>
 							</div>
-							<p className="text-sm font-semibold shrink-0" style={{ color }}>
-								{formatAmount(r.amount, r.type)}
-							</p>
-							<button
-								onClick={() => setPending(r)}
-								className="w-7 h-7 rounded-[9px] flex items-center justify-center shrink-0"
-								style={{ background: "color-mix(in srgb, var(--color-aka) 8%, transparent)" }}
-								aria-label="Elimina ricorrenza"
-							>
-								<Trash2 size={13} style={{ color: "var(--color-aka)" }} />
-							</button>
+
+							<div className="flex items-center gap-4 mt-2.5 pt-2.5 border-t border-subtle">
+								<button
+									onClick={() => togglePause(r)}
+									disabled={busyId === r.id}
+									className="flex items-center gap-1.5 text-[11.5px] text-secondary active:opacity-70 disabled:opacity-50"
+								>
+									{r.active ? <Pause size={12} /> : <Play size={12} />}
+									{r.active ? "pausa" : "riprendi"}
+								</button>
+								<button
+									onClick={() => setEditing(r)}
+									className="flex items-center gap-1.5 text-[11.5px] text-secondary active:opacity-70"
+								>
+									<Pencil size={12} />
+									modifica
+								</button>
+								<span className="flex-1" />
+								<button
+									onClick={() => setPending(r)}
+									className="text-[11.5px] active:opacity-70"
+									style={{ color: "var(--color-aka)" }}
+								>
+									elimina
+								</button>
+							</div>
 						</div>
 					);
 				})}
 			</div>
+
+			<div className="flex-1" />
+
+			<button
+				onClick={openTransactionModal}
+				className="w-full py-4 mt-4 rounded-2xl btn-primary font-semibold flex items-center justify-center gap-2"
+			>
+				<Plus size={16} strokeWidth={2} />
+				Aggiungi ricorrente
+			</button>
+
+			<RecurringSheet isOpen={!!editing} rule={editing} onClose={() => setEditing(null)} />
 
 			{pending && (
 				<div className="fixed inset-0 z-50 flex items-center justify-center px-8">
@@ -120,6 +189,6 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 					</div>
 				</div>
 			)}
-		</>
+		</div>
 	);
 }

@@ -146,9 +146,9 @@ export async function createRecurringRule(
 
 	if (error) return { error: error.message };
 
-	// Materializza subito le occorrenze già dovute (scoping su auth.uid nella funzione)
-	const { error: genError } = await supabase.rpc("generate_recurring_transactions");
-	if (genError) return { error: genError.message };
+	// Materializza subito le occorrenze già dovute — best-effort:
+	// se l'RPC fallisce, la regola è comunque salvata e il cron genererà le occorrenze.
+	await supabase.rpc("generate_recurring_transactions");
 
 	revalidatePath("/", "layout");
 	return { success: true };
@@ -183,6 +183,57 @@ export async function deleteRecurringRule(id: string) {
 	const { error } = await supabase
 		.from("recurring_rules")
 		.delete()
+		.eq("id", id)
+		.eq("user_id", user.id);
+
+	if (error) return { error: error.message };
+	revalidatePath("/", "layout");
+	return { success: true };
+}
+
+export async function updateRecurringRule(
+	id: string,
+	importo: number,
+	categoria_id: string | null,
+	nota: string | null,
+	frequency: string,
+	next_run: string, // YYYY-MM-DD
+) {
+	const supabase = await createClient();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+
+	if (!user) return { error: "Non autenticato" };
+
+	const { error } = await supabase
+		.from("recurring_rules")
+		.update({
+			amount: importo,
+			category_id: categoria_id,
+			notes: nota,
+			frequency,
+			next_run,
+		})
+		.eq("id", id)
+		.eq("user_id", user.id);
+
+	if (error) return { error: error.message };
+	revalidatePath("/", "layout");
+	return { success: true };
+}
+
+export async function setRecurringActive(id: string, active: boolean) {
+	const supabase = await createClient();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+
+	if (!user) return { error: "Non autenticato" };
+
+	const { error } = await supabase
+		.from("recurring_rules")
+		.update({ active })
 		.eq("id", id)
 		.eq("user_id", user.id);
 
