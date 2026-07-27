@@ -184,8 +184,8 @@ Seguire questo ordine, non saltare fasi:
 10. ✅ Statistiche + grafici Recharts
 11. ✅ Savings + goals con ProgressBar
 12. ✅ Investimenti + breakdown portafoglio
-13. Impostazioni + categorie custom  ← prossima
-14. Transazioni ricorrenti (pg_cron + Edge Functions)
+13. ✅ Impostazioni + categorie custom
+14. Transazioni ricorrenti (pg_cron + Edge Functions)  ← prossima
 15. PWA: manifest.json + Service Worker
 16. Mobile nativo — comportamento su dispositivo reale (vedi sotto)
 17. Responsive tablet + desktop
