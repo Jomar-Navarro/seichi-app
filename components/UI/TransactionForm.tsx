@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { TransactionType, Category, Transaction } from "@/types";
+import { TransactionType, Category, Transaction, Frequency } from "@/types";
 import { createClient } from "@/lib/supabase/client";
 import {
 	Calendar,
@@ -10,6 +10,7 @@ import {
 	Delete,
 	Check,
 	Trash2,
+	Repeat,
 } from "lucide-react";
 import { ICON_MAP } from "@/lib/icon-map";
 import { GOAL_ICON_MAP } from "@/lib/goal-icons";
@@ -18,6 +19,7 @@ import {
 	saveTransaction,
 	updateTransaction,
 	deleteTransaction,
+	createRecurringRule,
 } from "@/app/(main)/action";
 import { useUIStore } from "@/store/useUIStore";
 
@@ -62,7 +64,15 @@ export default function TransactionForm({
 	);
 	const [isDeleteConfirm, setIsDeleteConfirm] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
+	const [isRecurring, setIsRecurring] = useState(false);
+	const [frequency, setFrequency] = useState<Frequency>("mensile");
 	const { closeTransactionModal, notifyTransactionSaved } = useUIStore();
+
+	const FREQUENCIES: { id: Frequency; label: string }[] = [
+		{ id: "settimanale", label: "Settimanale" },
+		{ id: "mensile", label: "Mensile" },
+		{ id: "annuale", label: "Annuale" },
+	];
 
 	useEffect(() => {
 		async function loadCategories() {
@@ -106,13 +116,22 @@ export default function TransactionForm({
 						description,
 						date.toISOString(),
 					)
-				: await saveTransaction(
-						importo,
-						selectedType.id,
-						categoryId,
-						description,
-						date.toISOString(),
-					);
+				: isRecurring
+					? await createRecurringRule(
+							importo,
+							selectedType.id,
+							categoryId,
+							description,
+							date.toLocaleDateString("sv-SE"), // YYYY-MM-DD in locale, no shift UTC
+							frequency,
+						)
+					: await saveTransaction(
+							importo,
+							selectedType.id,
+							categoryId,
+							description,
+							date.toISOString(),
+						);
 
 			if (!result?.error) {
 				notifyTransactionSaved();
@@ -180,7 +199,7 @@ export default function TransactionForm({
 	const today = new Date();
 
 	return (
-		<div className="flex flex-col flex-1 min-h-0">
+		<div className="flex flex-col flex-1 min-h-0 overflow-y-auto overscroll-contain">
 			{/* Importo */}
 			<div className="text-center pt-1 pb-3">
 				<p className="text-muted text-md mb-2">Importo</p>
@@ -310,6 +329,53 @@ export default function TransactionForm({
 				</div>
 			</div>
 
+			{/* Ripeti (solo nuovi movimenti) */}
+			{!isEditing && (
+				<div className="mb-3">
+					<button
+						type="button"
+						onClick={() => setIsRecurring((v) => !v)}
+						className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-card border border-subtle"
+					>
+						<Repeat size={14} className="text-muted shrink-0" />
+						<span className="text-sm flex-1 text-left">Ripeti</span>
+						<span
+							className="w-10 h-6 rounded-full relative transition-colors shrink-0"
+							style={{ background: isRecurring ? selectedType.color : "var(--color-input)" }}
+						>
+							<span
+								className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all"
+								style={{ left: isRecurring ? "18px" : "2px" }}
+							/>
+						</span>
+					</button>
+					{isRecurring && (
+						<div className="grid grid-cols-3 gap-2 mt-2">
+							{FREQUENCIES.map((f) => {
+								const selected = frequency === f.id;
+								return (
+									<button
+										key={f.id}
+										type="button"
+										onClick={() => setFrequency(f.id)}
+										className="py-2.5 rounded-xl text-[12.5px] font-medium border transition-all"
+										style={{
+											background: selected
+												? `color-mix(in srgb, ${selectedType.color} 16%, transparent)`
+												: "var(--color-card)",
+											borderColor: selected ? selectedType.color : "var(--color-subtle)",
+											color: selected ? selectedType.color : "var(--text-secondary)",
+										}}
+									>
+										{f.label}
+									</button>
+								);
+							})}
+						</div>
+					)}
+				</div>
+			)}
+
 			{/* Tastierino */}
 			<div className="grid grid-cols-3 gap-2">
 				{KEYS.map((key, i) => (
@@ -333,7 +399,7 @@ export default function TransactionForm({
 				className="w-full mt-3 py-4 rounded-2xl btn-primary font-semibold flex items-center justify-center gap-2 disabled:opacity-40"
 			>
 				<Check size={18} />
-				{isEditing ? "Salva modifiche" : "Salva movimento"}
+				{isEditing ? "Salva modifiche" : isRecurring ? "Crea ricorrenza" : "Salva movimento"}
 			</button>
 
 			{isEditing && (

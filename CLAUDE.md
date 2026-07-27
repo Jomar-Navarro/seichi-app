@@ -84,8 +84,15 @@ categories: id, user_id, name (TEXT), icon (TEXT), color (TEXT),
 
 transactions: id, user_id, amount (DECIMAL 10,2), type (TEXT),
               category_id, investment_type (TEXT, nullable), date (TIMESTAMP),
-              notes (TEXT), created_at
--- Colonne ricorrenti (is_ricurrent, frequency) previste per Fase 14
+              notes (TEXT), created_at, recurring_rule_id (UUID, nullable)
+-- recurring_rule_id: se valorizzato, la transazione è stata generata da una regola ricorrente
+
+recurring_rules: id, user_id, amount (DECIMAL 10,2), type (TEXT), category_id,
+                 notes (TEXT), frequency (TEXT), start_date (DATE), next_run (DATE),
+                 end_date (DATE, nullable), active (BOOL), created_at
+-- frequency: 'settimanale' | 'mensile' | 'annuale'
+-- pg_cron chiama generate_recurring_transactions() (giornaliero): per ogni regola
+--   attiva con next_run <= oggi inserisce transazioni e avanza next_run (idempotente)
 ```
 
 ## Auth Flow
@@ -163,7 +170,7 @@ mappati sui nomi Tailwind in `@theme inline` → usare le classi (`bg-card`,
   verde = entrate, rosso = uscite, blu = investimenti, oro = risparmi
 - Componenti UI generici in `components/UI/`, logica di business in `components/features/`
 - Per i grafici usare sempre Recharts, non installare altre librerie chart
-- Le transazioni ricorrenti usano pg_cron + Supabase Edge Functions (Fase 14)
+- Le transazioni ricorrenti usano pg_cron + una funzione SQL `generate_recurring_transactions()` (Fase 14). Regole in tabella `recurring_rules`; il job inserisce transazioni normali con `recurring_rule_id`
 - PWA viene aggiunta solo a progetto completato (Fase 26)
 - Server Actions (`"use server"`) per tutte le operazioni DB — mai chiamate API REST dirette
 - Pagine onboarding usano `"use client"` + handler async con `useState` per loading/error
@@ -185,8 +192,8 @@ Seguire questo ordine, non saltare fasi:
 11. ✅ Savings + goals con ProgressBar
 12. ✅ Investimenti + breakdown portafoglio
 13. ✅ Impostazioni + categorie custom
-14. Transazioni ricorrenti (pg_cron + Edge Functions)  ← prossima
-15. Notifiche — pannello + generazione eventi (stipendio registrato, obiettivo a %, portafoglio, rinnovo abbonamento) — vedi design "Stati Supporto"
+14. ✅ Transazioni ricorrenti (pg_cron + funzione SQL `generate_recurring_transactions`)
+15. Notifiche — pannello + generazione eventi (stipendio registrato, obiettivo a %, portafoglio, rinnovo abbonamento) — vedi design "Stati Supporto"  ← prossima
 16. Gestione account e sicurezza — email, cambio password, reset password dimenticata, avatar, eliminazione account (issue #12 + #7)
 17. Budget per categoria — impostazione limite mensile + tracking/avvisi (issue #10)
 18. Tema chiaro/scuro — switch nelle impostazioni (infra `.dark` già presente; ora il root layout forza dark)

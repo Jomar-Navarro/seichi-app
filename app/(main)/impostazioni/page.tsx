@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, LayoutGrid, LogOut } from "lucide-react";
+import { ChevronLeft, ChevronRight, LayoutGrid, LogOut, Repeat } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import PreferencesSection from "@/components/features/PreferencesSection";
 import { signOut } from "./actions";
@@ -68,6 +68,21 @@ export default async function ImpostazioniPage() {
 				</span>
 				<span className="flex-1 text-sm font-medium">Gestisci categorie</span>
 				<span className="text-[13px] text-muted">{categoriesCount ?? 0}</span>
+				<ChevronRight size={15} className="text-muted" />
+			</Link>
+
+			{/* Automazione */}
+			<p className="text-[11.5px] font-semibold tracking-[1.6px] uppercase text-disabled mb-2.5 ml-0.5">
+				Automazione
+			</p>
+			<Link
+				href="/impostazioni/ricorrenti"
+				className="flex items-center gap-3 h-15.5 px-4 mb-6 rounded-[22px] bg-card border border-subtle card-shadow active:opacity-80"
+			>
+				<span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-control">
+					<Repeat size={17} className="text-secondary" />
+				</span>
+				<span className="flex-1 text-sm font-medium">Transazioni ricorrenti</span>
 				<ChevronRight size={15} className="text-muted" />
 			</Link>
 

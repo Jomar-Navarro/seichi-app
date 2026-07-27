@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, X, Check } from "lucide-react";
-import { useState, useLayoutEffect } from "react";
+import { useState, useLayoutEffect, useEffect } from "react";
 import { useUIStore } from "@/store/useUIStore";
 import { TRANSACTION_TYPES } from "@/types";
 import TransactionForm from "./TransactionForm";
@@ -16,6 +16,16 @@ export default function TransactionModal() {
 	} = useUIStore();
 
 	const [step, setStep] = useState<"type" | "form">("type");
+
+	// Blocca lo scroll della pagina dietro il modale
+	useEffect(() => {
+		if (!isTransactionModalOpen) return;
+		const prev = document.body.style.overflow;
+		document.body.style.overflow = "hidden";
+		return () => {
+			document.body.style.overflow = prev;
+		};
+	}, [isTransactionModalOpen]);
 
 	useLayoutEffect(() => {
 		if (isTransactionModalOpen) {

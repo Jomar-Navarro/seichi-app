@@ -116,6 +116,81 @@ export async function deleteTransaction(id: string) {
 	return { success: true };
 }
 
+// ─── Transazioni ricorrenti (Fase 14) ──────────────────────────────────────────
+
+export async function createRecurringRule(
+	importo: number,
+	tipo: string,
+	categoria_id: string | null,
+	nota: string | null,
+	start_date: string, // YYYY-MM-DD
+	frequency: string,
+) {
+	const supabase = await createClient();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+
+	if (!user) return { error: "Non autenticato" };
+
+	const { error } = await supabase.from("recurring_rules").insert({
+		user_id: user.id,
+		amount: importo,
+		type: tipo,
+		category_id: categoria_id,
+		notes: nota,
+		frequency,
+		start_date,
+		next_run: start_date,
+	});
+
+	if (error) return { error: error.message };
+
+	// Materializza subito le occorrenze già dovute (scoping su auth.uid nella funzione)
+	const { error: genError } = await supabase.rpc("generate_recurring_transactions");
+	if (genError) return { error: genError.message };
+
+	revalidatePath("/", "layout");
+	return { success: true };
+}
+
+export async function getRecurringRules() {
+	const supabase = await createClient();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+
+	if (!user) return { error: "Non autenticato" };
+
+	const { data, error } = await supabase
+		.from("recurring_rules")
+		.select("*, categories(name, icon, color)")
+		.eq("user_id", user.id)
+		.order("created_at", { ascending: false });
+
+	return error ? { error: error.message } : { data };
+}
+
+export async function deleteRecurringRule(id: string) {
+	const supabase = await createClient();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+
+	if (!user) return { error: "Non autenticato" };
+
+	// Elimina solo la regola: le transazioni già generate restano (recurring_rule_id -> null)
+	const { error } = await supabase
+		.from("recurring_rules")
+		.delete()
+		.eq("id", id)
+		.eq("user_id", user.id);
+
+	if (error) return { error: error.message };
+	revalidatePath("/", "layout");
+	return { success: true };
+}
+
 export async function getDashboardTotals() {
 	const supabase = await createClient();
 	const {
