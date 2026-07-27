@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2, Plus, Check } from "lucide-react";
+import { Pencil, Trash2, Plus } from "lucide-react";
 import { ICON_MAP } from "@/lib/icon-map";
 import { GOAL_ICON_MAP } from "@/lib/goal-icons";
 import { TIPO_COLOR } from "@/lib/transaction-utils";
@@ -17,9 +17,9 @@ export default function CategoryManager({ categories }: { categories: Category[]
 	const [sheetOpen, setSheetOpen] = useState(false);
 	const [editing, setEditing] = useState<Category | null>(null);
 	const [presetType, setPresetType] = useState<string | null>(null);
-	const [confirmId, setConfirmId] = useState<string | null>(null);
-	const [busyId, setBusyId] = useState<string | null>(null);
-	const [banner, setBanner] = useState<string | null>(null);
+	const [pending, setPending] = useState<Category | null>(null);
+	const [deleting, setDeleting] = useState(false);
+	const [dialogError, setDialogError] = useState<string | null>(null);
 
 	function openCreate(type: string) {
 		setEditing(null);
@@ -33,41 +33,34 @@ export default function CategoryManager({ categories }: { categories: Category[]
 		setSheetOpen(true);
 	}
 
-	async function handleDelete(id: string) {
-		if (confirmId !== id) {
-			setConfirmId(id);
-			setBanner(null);
-			return;
-		}
-		setBusyId(id);
+	function requestDelete(cat: Category) {
+		setPending(cat);
+		setDialogError(null);
+	}
+
+	function closeDialog() {
+		setPending(null);
+		setDialogError(null);
+	}
+
+	async function confirmDelete() {
+		if (!pending) return;
+		setDeleting(true);
 		try {
-			const result = await deleteCategory(id);
+			const result = await deleteCategory(pending.id);
 			if (result.error) {
-				setBanner(result.error);
+				setDialogError(result.error);
 				return;
 			}
 			router.refresh();
+			setPending(null);
 		} finally {
-			setBusyId(null);
-			setConfirmId(null);
+			setDeleting(false);
 		}
 	}
 
 	return (
 		<>
-			{banner && (
-				<div
-					className="mb-4 rounded-2xl px-4 py-3 text-[12.5px] leading-relaxed border"
-					style={{
-						background: "color-mix(in srgb, var(--color-aka) 10%, transparent)",
-						borderColor: "color-mix(in srgb, var(--color-aka) 30%, transparent)",
-						color: "var(--color-aka)",
-					}}
-				>
-					{banner}
-				</div>
-			)}
-
 			<div className="flex flex-col gap-5.5">
 				{TYPES.map((type) => {
 					const items = categories.filter((c) => c.type === type);
@@ -91,7 +84,6 @@ export default function CategoryManager({ categories }: { categories: Category[]
 							<div className="rounded-[22px] bg-card border border-subtle card-shadow overflow-hidden">
 								{items.map((cat) => {
 									const Icon = ICON_MAP[cat.icon] ?? GOAL_ICON_MAP[cat.icon];
-									const confirming = confirmId === cat.id;
 									return (
 										<div
 											key={cat.id}
@@ -117,21 +109,12 @@ export default function CategoryManager({ categories }: { categories: Category[]
 												<Pencil size={13} className="text-muted" />
 											</button>
 											<button
-												onClick={() => handleDelete(cat.id)}
-												disabled={busyId === cat.id}
-												className="w-7 h-7 rounded-[9px] flex items-center justify-center active:opacity-70 disabled:opacity-50"
-												style={{
-													background: confirming
-														? "color-mix(in srgb, var(--color-aka) 22%, transparent)"
-														: "color-mix(in srgb, var(--color-aka) 8%, transparent)",
-												}}
-												aria-label={confirming ? "Conferma eliminazione" : "Elimina"}
+												onClick={() => requestDelete(cat)}
+												className="w-7 h-7 rounded-[9px] flex items-center justify-center active:opacity-70"
+												style={{ background: "color-mix(in srgb, var(--color-aka) 8%, transparent)" }}
+												aria-label="Elimina"
 											>
-												{confirming ? (
-													<Check size={13} style={{ color: "var(--color-aka)" }} />
-												) : (
-													<Trash2 size={13} style={{ color: "var(--color-aka)" }} />
-												)}
+												<Trash2 size={13} style={{ color: "var(--color-aka)" }} />
 											</button>
 										</div>
 									);
@@ -159,6 +142,44 @@ export default function CategoryManager({ categories }: { categories: Category[]
 				presetType={presetType}
 				onClose={() => setSheetOpen(false)}
 			/>
+
+			{/* Dialog conferma eliminazione */}
+			{pending && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center px-8">
+					<div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={closeDialog} />
+
+					<div className="relative w-full max-w-xs rounded-3xl p-6 bg-modal border border-subtle modal-shadow backdrop-blur-2xl">
+						<h3 className="text-[17px] font-semibold mb-2">Elimina categoria</h3>
+						<p className="text-[13px] text-muted leading-relaxed mb-5">
+							{dialogError ?? (
+								<>
+									Vuoi eliminare <span className="font-medium text-foreground">{pending.name}</span>?
+									L&apos;azione non si può annullare.
+								</>
+							)}
+						</p>
+
+						<div className="flex gap-2.5">
+							<button
+								onClick={closeDialog}
+								className="flex-1 py-3 rounded-2xl text-sm font-semibold bg-control border border-subtle active:opacity-80"
+							>
+								Annulla
+							</button>
+							{!dialogError && (
+								<button
+									onClick={confirmDelete}
+									disabled={deleting}
+									className="flex-1 py-3 rounded-2xl text-sm font-semibold disabled:opacity-50 active:opacity-80"
+									style={{ background: "var(--color-aka)", color: "#fff" }}
+								>
+									{deleting ? "Elimino…" : "Elimina"}
+								</button>
+							)}
+						</div>
+					</div>
+				</div>
+			)}
 		</>
 	);
 }
