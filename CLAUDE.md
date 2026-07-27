@@ -164,7 +164,7 @@ mappati sui nomi Tailwind in `@theme inline` → usare le classi (`bg-card`,
 - Componenti UI generici in `components/UI/`, logica di business in `components/features/`
 - Per i grafici usare sempre Recharts, non installare altre librerie chart
 - Le transazioni ricorrenti usano pg_cron + Supabase Edge Functions (Fase 14)
-- PWA viene aggiunta solo a progetto completato (Fase 20)
+- PWA viene aggiunta solo a progetto completato (Fase 26)
 - Server Actions (`"use server"`) per tutte le operazioni DB — mai chiamate API REST dirette
 - Pagine onboarding usano `"use client"` + handler async con `useState` per loading/error
 
@@ -189,14 +189,20 @@ Seguire questo ordine, non saltare fasi:
 15. Notifiche — pannello + generazione eventi (stipendio registrato, obiettivo a %, portafoglio, rinnovo abbonamento) — vedi design "Stati Supporto"
 16. Gestione account e sicurezza — email, cambio password, reset password dimenticata, avatar, eliminazione account (issue #12 + #7)
 17. Budget per categoria — impostazione limite mensile + tracking/avvisi (issue #10)
-18. Import dati — CSV / estratto Trade Republic via file (nessuna API ufficiale TR: si importa un CSV, es. generato da `pytr`; l'app non gestisce credenziali)
-19. AI Financial Coach — suggerimenti personalizzati basati su metodologie (50/30/20, ecc.) via Claude API
-20. PWA: manifest.json + Service Worker
-21. Mobile nativo — comportamento su dispositivo reale (vedi sotto)
-22. Responsive tablet + desktop
-23. Animazioni: transizioni morbide, micro-interazioni
+18. Tema chiaro/scuro — switch nelle impostazioni (infra `.dark` già presente; ora il root layout forza dark)
+19. Lingua i18n (it/en) — collegare la preferenza `profiles.language` già salvata ma inattiva
+20. Conti/wallet multipli — tabella `accounts` + `account_id` su transactions + trasferimenti (feature STRUTTURALE: decide lo schema presto)
+21. Import dati — CSV / estratto Trade Republic via file (nessuna API ufficiale TR: si importa un CSV, es. generato da `pytr`; l'app non gestisce credenziali)
+22. Allegati/ricevute — foto scontrino sulle transazioni via Supabase Storage
+23. Export dati / report PDF mensile — complementa l'import (Fase 21)
+24. AI Financial Coach — suggerimenti personalizzati basati su metodologie (50/30/20, ecc.) via Claude API
+25. Blocco app — PIN / biometrico (sezione "Sicurezza" del mockup impostazioni, saltata in Fase 13)
+26. PWA: manifest.json + Service Worker
+27. Mobile nativo — comportamento su dispositivo reale (vedi sotto)
+28. Responsive tablet + desktop
+29. Animazioni: transizioni morbide, micro-interazioni
 
-### Fase 21 — Mobile nativo (checklist)
+### Fase 27 — Mobile nativo (checklist)
 
 Ordine per priorità (il viewport è il problema più sentito):
 
