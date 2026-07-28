@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { TransactionType, Category, Transaction } from "@/types";
+import { TransactionType, Category, Transaction, Frequency } from "@/types";
 import { createClient } from "@/lib/supabase/client";
 import {
 	Calendar,
@@ -10,14 +10,16 @@ import {
 	Delete,
 	Check,
 	Trash2,
+	Repeat,
 } from "lucide-react";
-import { ICON_MAP } from "@/lib/icon-map";
-import { GOAL_ICON_MAP } from "@/lib/goal-icons";
 import Select from "@/components/UI/Select";
+import FrequencySelector from "@/components/UI/FrequencySelector";
+import { buildCategoryOptions } from "@/lib/category-options";
 import {
 	saveTransaction,
 	updateTransaction,
 	deleteTransaction,
+	createRecurringRule,
 } from "@/app/(main)/action";
 import { useUIStore } from "@/store/useUIStore";
 
@@ -62,7 +64,10 @@ export default function TransactionForm({
 	);
 	const [isDeleteConfirm, setIsDeleteConfirm] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
-	const { closeTransactionModal, notifyTransactionSaved } = useUIStore();
+	const { closeTransactionModal, notifyTransactionSaved, recurringDefault } =
+		useUIStore();
+	const [isRecurring, setIsRecurring] = useState(recurringDefault);
+	const [frequency, setFrequency] = useState<Frequency>("mensile");
 
 	useEffect(() => {
 		async function loadCategories() {
@@ -106,13 +111,22 @@ export default function TransactionForm({
 						description,
 						date.toISOString(),
 					)
-				: await saveTransaction(
-						importo,
-						selectedType.id,
-						categoryId,
-						description,
-						date.toISOString(),
-					);
+				: isRecurring
+					? await createRecurringRule(
+							importo,
+							selectedType.id,
+							categoryId,
+							description,
+							date.toLocaleDateString("sv-SE"), // YYYY-MM-DD in locale, no shift UTC
+							frequency,
+						)
+					: await saveTransaction(
+							importo,
+							selectedType.id,
+							categoryId,
+							description,
+							date.toISOString(),
+						);
 
 			if (!result?.error) {
 				notifyTransactionSaved();
@@ -154,24 +168,19 @@ export default function TransactionForm({
 		categoryList.length > 0
 			? categoryList
 			: isEditing && transaction.categories && transaction.category_id
-				? [{ id: transaction.category_id, user_id: "", name: transaction.categories.name, icon: transaction.categories.icon, color: transaction.categories.color, type: selectedType.id }]
+				? [
+						{
+							id: transaction.category_id,
+							user_id: "",
+							name: transaction.categories.name,
+							icon: transaction.categories.icon,
+							color: transaction.categories.color,
+							type: selectedType.id,
+						},
+					]
 				: [];
 
-	const categoryOptions = effectiveCategoryList.map((c) => {
-		const Icon = ICON_MAP[c.icon] ?? GOAL_ICON_MAP[c.icon];
-		return {
-			value: c.id,
-			label: c.name,
-			icon: Icon ? (
-				<Icon size={14} style={{ color: `var(--color-${c.color})` }} />
-			) : (
-				<span
-					className="w-2.5 h-2.5 rounded-full inline-block"
-					style={{ background: `var(--color-${c.color})` }}
-				/>
-			),
-		};
-	});
+	const categoryOptions = buildCategoryOptions(effectiveCategoryList);
 
 	const year = viewDate.getFullYear();
 	const month = viewDate.getMonth();
@@ -180,7 +189,7 @@ export default function TransactionForm({
 	const today = new Date();
 
 	return (
-		<div className="flex flex-col flex-1 min-h-0">
+		<div className="flex flex-col flex-1 min-h-0 overflow-y-auto overscroll-contain">
 			{/* Importo */}
 			<div className="text-center pt-1 pb-3">
 				<p className="text-muted text-md mb-2">Importo</p>
@@ -310,6 +319,43 @@ export default function TransactionForm({
 				</div>
 			</div>
 
+			{/* Ripeti (solo nuovi movimenti) */}
+			{!isEditing && (
+				<div className="mb-3">
+					<p className="text-xs text-muted mb-1.5">Ricorrenti</p>
+					<button
+						type="button"
+						onClick={() => setIsRecurring((v) => !v)}
+						className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-card border border-subtle"
+					>
+						<Repeat size={14} className="text-muted shrink-0" />
+						<span className="text-sm flex-1 text-left">Ripeti</span>
+						<span
+							className="w-10 h-6 rounded-full relative transition-colors shrink-0"
+							style={{
+								background: isRecurring
+									? selectedType.color
+									: "var(--color-input)",
+							}}
+						>
+							<span
+								className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all"
+								style={{ left: isRecurring ? "18px" : "2px" }}
+							/>
+						</span>
+					</button>
+					{isRecurring && (
+						<div className="mt-2">
+							<FrequencySelector
+								value={frequency}
+								onChange={setFrequency}
+								color={selectedType.color}
+							/>
+						</div>
+					)}
+				</div>
+			)}
+
 			{/* Tastierino */}
 			<div className="grid grid-cols-3 gap-2">
 				{KEYS.map((key, i) => (
@@ -320,7 +366,7 @@ export default function TransactionForm({
 							e.preventDefault();
 							handleKey(key);
 						}}
-						className={`flex items-center justify-center rounded-2xl bg-card border border-subtle text-lg font-medium ${isEditing ? "h-14" : "h-16"}`}
+						className={`flex items-center justify-center rounded-2xl bg-card border border-subtle text-lg font-medium ${isRecurring ? "h-12" : "h-14"}`}
 					>
 						{key === "⌫" ? <Delete size={18} /> : key}
 					</button>
@@ -333,7 +379,11 @@ export default function TransactionForm({
 				className="w-full mt-3 py-4 rounded-2xl btn-primary font-semibold flex items-center justify-center gap-2 disabled:opacity-40"
 			>
 				<Check size={18} />
-				{isEditing ? "Salva modifiche" : "Salva movimento"}
+				{isEditing
+					? "Salva modifiche"
+					: isRecurring
+						? "Crea ricorrenza"
+						: "Salva movimento"}
 			</button>
 
 			{isEditing && (

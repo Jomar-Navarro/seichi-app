@@ -17,7 +17,7 @@ function EmptyState() {
 	return (
 		<div className="flex flex-col items-center justify-center py-10 text-center">
 			<button
-				onClick={openTransactionModal}
+				onClick={() => openTransactionModal()}
 				className="w-14 h-14 rounded-full bg-card border border-subtle flex items-center justify-center mb-4 card-shadow"
 			>
 				<Plus size={20} className="text-muted" />

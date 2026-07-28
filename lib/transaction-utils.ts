@@ -20,7 +20,13 @@ export const numberFormatter = new Intl.NumberFormat("it-IT", {
 });
 
 export function formatDate(iso: string) {
-	const date = new Date(iso);
+	// Le stringhe date-only "YYYY-MM-DD" (es. recurring_rules.next_run) vanno
+	// costruite come data locale: `new Date("2026-08-15")` sarebbe mezzanotte
+	// UTC e slitterebbe al giorno prima nei fusi negativi.
+	const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+	const date = dateOnly
+		? new Date(+dateOnly[1], +dateOnly[2] - 1, +dateOnly[3])
+		: new Date(iso);
 	const today = new Date();
 	const yesterday = new Date(today);
 	yesterday.setDate(today.getDate() - 1);

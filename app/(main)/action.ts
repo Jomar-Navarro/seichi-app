@@ -1,6 +1,8 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { firstRunFrom, rollForwardPastToday } from "@/lib/recurring";
+import type { Frequency } from "@/types";
 
 export async function saveTransaction(
 	importo: number,
@@ -108,6 +110,153 @@ export async function deleteTransaction(id: string) {
 	const { error } = await supabase
 		.from("transactions")
 		.delete()
+		.eq("id", id)
+		.eq("user_id", user.id);
+
+	if (error) return { error: error.message };
+	revalidatePath("/", "layout");
+	return { success: true };
+}
+
+// ─── Transazioni ricorrenti (Fase 14) ──────────────────────────────────────────
+
+export async function createRecurringRule(
+	importo: number,
+	tipo: string,
+	categoria_id: string | null,
+	nota: string | null,
+	start_date: string, // YYYY-MM-DD
+	frequency: string,
+) {
+	const supabase = await createClient();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+
+	if (!user) return { error: "Non autenticato" };
+
+	const { error } = await supabase.from("recurring_rules").insert({
+		user_id: user.id,
+		amount: importo,
+		type: tipo,
+		category_id: categoria_id,
+		notes: nota,
+		frequency,
+		start_date,
+		// La generazione parte al più da oggi: evita il burst di movimenti
+		// retroattivi se start_date è nel passato.
+		next_run: firstRunFrom(start_date),
+	});
+
+	if (error) return { error: error.message };
+
+	// Materializza subito le occorrenze già dovute — best-effort:
+	// se l'RPC fallisce, la regola è comunque salvata e il cron genererà le occorrenze.
+	await supabase.rpc("generate_recurring_transactions");
+
+	revalidatePath("/", "layout");
+	return { success: true };
+}
+
+export async function getRecurringRules() {
+	const supabase = await createClient();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+
+	if (!user) return { error: "Non autenticato" };
+
+	const { data, error } = await supabase
+		.from("recurring_rules")
+		.select("*, categories(name, icon, color)")
+		.eq("user_id", user.id)
+		.order("created_at", { ascending: false });
+
+	return error ? { error: error.message } : { data };
+}
+
+export async function deleteRecurringRule(id: string) {
+	const supabase = await createClient();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+
+	if (!user) return { error: "Non autenticato" };
+
+	// Elimina solo la regola: le transazioni già generate restano (recurring_rule_id -> null)
+	const { error } = await supabase
+		.from("recurring_rules")
+		.delete()
+		.eq("id", id)
+		.eq("user_id", user.id);
+
+	if (error) return { error: error.message };
+	revalidatePath("/", "layout");
+	return { success: true };
+}
+
+export async function updateRecurringRule(
+	id: string,
+	importo: number,
+	categoria_id: string | null,
+	nota: string | null,
+	frequency: string,
+	next_run: string, // YYYY-MM-DD
+) {
+	const supabase = await createClient();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+
+	if (!user) return { error: "Non autenticato" };
+
+	const { error } = await supabase
+		.from("recurring_rules")
+		.update({
+			amount: importo,
+			category_id: categoria_id,
+			notes: nota,
+			frequency,
+			// "Prossima data" mai nel passato: evita back-fill al prossimo cron.
+			next_run: firstRunFrom(next_run),
+		})
+		.eq("id", id)
+		.eq("user_id", user.id);
+
+	if (error) return { error: error.message };
+	revalidatePath("/", "layout");
+	return { success: true };
+}
+
+export async function setRecurringActive(id: string, active: boolean) {
+	const supabase = await createClient();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+
+	if (!user) return { error: "Non autenticato" };
+
+	// Al "riprendi": porta next_run al primo periodo futuro, così non genera
+	// una raffica di movimenti retroattivi per i periodi trascorsi in pausa.
+	let patch: { active: boolean; next_run?: string } = { active };
+	if (active) {
+		const { data: rule } = await supabase
+			.from("recurring_rules")
+			.select("frequency, next_run")
+			.eq("id", id)
+			.eq("user_id", user.id)
+			.single();
+		if (rule) {
+			patch = {
+				active,
+				next_run: rollForwardPastToday(rule.next_run, rule.frequency as Frequency),
+			};
+		}
+	}
+
+	const { error } = await supabase
+		.from("recurring_rules")
+		.update(patch)
 		.eq("id", id)
 		.eq("user_id", user.id);
 

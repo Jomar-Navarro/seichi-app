@@ -41,9 +41,30 @@ export interface Transaction {
 	investment_type: string | null;
 	date: string;
 	notes: string | null;
-	is_ricurrent: boolean;
-	frequency: string | null;
+	recurring_rule_id: string | null;
 	categories: {
+		name: string;
+		icon: string;
+		color: string;
+	} | null;
+}
+
+export type Frequency = "settimanale" | "mensile" | "annuale";
+
+export interface RecurringRule {
+	id: string;
+	user_id: string;
+	amount: number;
+	type: TransactionTypeId;
+	category_id: string | null;
+	notes: string | null;
+	frequency: Frequency;
+	start_date: string;
+	next_run: string;
+	end_date: string | null;
+	active: boolean;
+	created_at: string;
+	categories?: {
 		name: string;
 		icon: string;
 		color: string;
