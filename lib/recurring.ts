@@ -20,12 +20,26 @@ function toISODate(d: Date): string {
 	return d.toLocaleDateString("sv-SE"); // YYYY-MM-DD, ora locale
 }
 
+/**
+ * Aggiunge mesi "clampando" al fine mese, come fa Postgres con `+ interval`.
+ * Es. 31 gen + 1 mese = 28 feb (JS con setMonth darebbe 3 mar). Mantiene
+ * l'allineamento con la funzione SQL generate_recurring_transactions().
+ */
+function addClampedMonths(d: Date, months: number): Date {
+	const day = d.getDate();
+	const r = new Date(d.getFullYear(), d.getMonth() + months, 1);
+	const lastDay = new Date(r.getFullYear(), r.getMonth() + 1, 0).getDate();
+	r.setDate(Math.min(day, lastDay));
+	return r;
+}
+
 export function advanceDate(d: Date, frequency: Frequency): Date {
-	const n = new Date(d);
-	if (frequency === "settimanale") n.setDate(n.getDate() + 7);
-	else if (frequency === "mensile") n.setMonth(n.getMonth() + 1);
-	else n.setFullYear(n.getFullYear() + 1);
-	return n;
+	if (frequency === "settimanale") {
+		const n = new Date(d);
+		n.setDate(n.getDate() + 7);
+		return n;
+	}
+	return addClampedMonths(d, frequency === "mensile" ? 1 : 12);
 }
 
 /**
@@ -46,6 +60,8 @@ export function rollForwardPastToday(nextRun: string, frequency: Frequency): str
 	const today = new Date();
 	today.setHours(0, 0, 0, 0);
 	let d = parseISODate(nextRun);
-	while (d <= today) d = advanceDate(d, frequency);
+	// "< today": se next_run cade oggi lo teniamo, così l'occorrenza di oggi
+	// viene generata (coerente con firstRunFrom, che ammette oggi).
+	while (d < today) d = advanceDate(d, frequency);
 	return toISODate(d);
 }

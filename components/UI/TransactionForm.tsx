@@ -64,9 +64,10 @@ export default function TransactionForm({
 	);
 	const [isDeleteConfirm, setIsDeleteConfirm] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
-	const [isRecurring, setIsRecurring] = useState(false);
+	const { closeTransactionModal, notifyTransactionSaved, recurringDefault } =
+		useUIStore();
+	const [isRecurring, setIsRecurring] = useState(recurringDefault);
 	const [frequency, setFrequency] = useState<Frequency>("mensile");
-	const { closeTransactionModal, notifyTransactionSaved } = useUIStore();
 
 	useEffect(() => {
 		async function loadCategories() {
@@ -167,7 +168,16 @@ export default function TransactionForm({
 		categoryList.length > 0
 			? categoryList
 			: isEditing && transaction.categories && transaction.category_id
-				? [{ id: transaction.category_id, user_id: "", name: transaction.categories.name, icon: transaction.categories.icon, color: transaction.categories.color, type: selectedType.id }]
+				? [
+						{
+							id: transaction.category_id,
+							user_id: "",
+							name: transaction.categories.name,
+							icon: transaction.categories.icon,
+							color: transaction.categories.color,
+							type: selectedType.id,
+						},
+					]
 				: [];
 
 	const categoryOptions = buildCategoryOptions(effectiveCategoryList);
@@ -312,6 +322,7 @@ export default function TransactionForm({
 			{/* Ripeti (solo nuovi movimenti) */}
 			{!isEditing && (
 				<div className="mb-3">
+					<p className="text-xs text-muted mb-1.5">Ricorrenti</p>
 					<button
 						type="button"
 						onClick={() => setIsRecurring((v) => !v)}
@@ -321,7 +332,11 @@ export default function TransactionForm({
 						<span className="text-sm flex-1 text-left">Ripeti</span>
 						<span
 							className="w-10 h-6 rounded-full relative transition-colors shrink-0"
-							style={{ background: isRecurring ? selectedType.color : "var(--color-input)" }}
+							style={{
+								background: isRecurring
+									? selectedType.color
+									: "var(--color-input)",
+							}}
 						>
 							<span
 								className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all"
@@ -351,7 +366,7 @@ export default function TransactionForm({
 							e.preventDefault();
 							handleKey(key);
 						}}
-						className={`flex items-center justify-center rounded-2xl bg-card border border-subtle text-lg font-medium ${isEditing ? "h-14" : "h-16"}`}
+						className={`flex items-center justify-center rounded-2xl bg-card border border-subtle text-lg font-medium ${isRecurring ? "h-12" : "h-14"}`}
 					>
 						{key === "⌫" ? <Delete size={18} /> : key}
 					</button>
@@ -364,7 +379,11 @@ export default function TransactionForm({
 				className="w-full mt-3 py-4 rounded-2xl btn-primary font-semibold flex items-center justify-center gap-2 disabled:opacity-40"
 			>
 				<Check size={18} />
-				{isEditing ? "Salva modifiche" : isRecurring ? "Crea ricorrenza" : "Salva movimento"}
+				{isEditing
+					? "Salva modifiche"
+					: isRecurring
+						? "Crea ricorrenza"
+						: "Salva movimento"}
 			</button>
 
 			{isEditing && (

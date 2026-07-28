@@ -63,7 +63,7 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 					title="Nessun pagamento ricorrente"
 					description="I tuoi abbonamenti e pagamenti pianificati appariranno qui non appena ne aggiungerai uno."
 					actionLabel="Aggiungi ricorrente"
-					onAction={openTransactionModal}
+					onAction={() => openTransactionModal(true)}
 				/>
 			</div>
 		);
@@ -148,7 +148,7 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 			<div className="flex-1" />
 
 			<button
-				onClick={openTransactionModal}
+				onClick={() => openTransactionModal(true)}
 				className="w-full py-4 mt-4 rounded-2xl btn-primary font-semibold flex items-center justify-center gap-2"
 			>
 				<Plus size={16} strokeWidth={2} />
