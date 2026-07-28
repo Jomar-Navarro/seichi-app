@@ -193,9 +193,9 @@ Seguire questo ordine, non saltare fasi:
 12. ✅ Investimenti + breakdown portafoglio
 13. ✅ Impostazioni + categorie custom
 14. ✅ Transazioni ricorrenti (pg_cron + funzione SQL `generate_recurring_transactions`)
-15. Notifiche — pannello + generazione eventi (stipendio registrato, obiettivo a %, portafoglio, rinnovo abbonamento) — vedi design "Stati Supporto"  ← prossima
-16. Gestione account e sicurezza — email, cambio password, reset password dimenticata, avatar, eliminazione account (issue #12 + #7)
-17. Budget per categoria — impostazione limite mensile + tracking/avvisi (issue #10)
+15. ⏸️ Notifiche — RIMANDATA: si fa insieme alla Fase 17. Motivo: escluse le notifiche ridondanti con la banca (movimento/stipendio registrato), quelle utili sono solo forward-looking/goal-based (obiettivo a %, rinnovo abbonamento IN ANTICIPO, conferma generazione ricorrenti) — le stesse che servono agli avvisi budget. L'infra di notifica si costruisce una volta sola nella Fase 17. Vedi design "Stati Supporto"
+16. Gestione account e sicurezza — email, cambio password, reset password dimenticata, avatar, eliminazione account (issue #12 + #7)  ← prossima
+17. Budget per categoria + Notifiche — limite mensile per categoria + tracking/avvisi di sforamento, e in più il sistema di notifiche completo (obiettivo a %, rinnovo abbonamento in anticipo, budget sforato). Tabella `notifications` + RLS, generazione via pg_cron/trigger, stato letto/non-letto (issue #10 + #29)
 18. Tema chiaro/scuro — switch nelle impostazioni (infra `.dark` già presente; ora il root layout forza dark)
 19. Lingua i18n (it/en) — collegare la preferenza `profiles.language` già salvata ma inattiva
 20. Conti/wallet multipli — tabella `accounts` + `account_id` su transactions + trasferimenti (feature STRUTTURALE: decide lo schema presto)
