@@ -57,7 +57,7 @@ export default function RecurringSheet({ isOpen, rule, onClose }: RecurringSheet
 	const todayISO = new Date().toLocaleDateString("sv-SE");
 	const importoValido = amount !== "" && parseFloat(amount.replace(",", ".")) > 0;
 
-	const categoryOptions = buildCategoryOptions(categoryList);
+	const categoryOptions = buildCategoryOptions(categoryList, true);
 
 	async function handleSubmit() {
 		if (!importoValido || loading || !rule) return;
@@ -125,7 +125,7 @@ export default function RecurringSheet({ isOpen, rule, onClose }: RecurringSheet
 						variant="compact"
 						options={categoryOptions}
 						selected={categoryId ?? ""}
-						onChange={(val) => setCategoryId(val)}
+						onChange={(val) => setCategoryId(val || null)}
 					/>
 
 					{/* Frequenza */}
