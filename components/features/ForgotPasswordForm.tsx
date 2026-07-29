@@ -26,7 +26,13 @@ export default function ForgotPasswordForm() {
 	if (sent) {
 		return (
 			<StatusScreen
-				icon={<Mail size={32} style={{ color: "var(--color-midori)" }} strokeWidth={1.5} />}
+				icon={
+					<Mail
+						size={32}
+						style={{ color: "var(--color-midori)" }}
+						strokeWidth={1.5}
+					/>
+				}
 				title="Controlla la tua email"
 				description="Se l'indirizzo è registrato, ti abbiamo inviato un link per reimpostare la password."
 			>
@@ -42,7 +48,7 @@ export default function ForgotPasswordForm() {
 					<Lock size={34} className="text-foreground" strokeWidth={1.5} />
 				</span>
 				<h1 className="text-[21px] font-semibold mb-2">Recupera la password</h1>
-				<p className="text-[13px] text-muted leading-relaxed max-w-[280px]">
+				<p className="text-[13px] text-muted leading-relaxed max-w-70">
 					Inserisci la tua email e ti invieremo un link per reimpostarla
 				</p>
 			</div>
@@ -62,7 +68,10 @@ export default function ForgotPasswordForm() {
 			</div>
 
 			{error && (
-				<p className="text-xs text-center mb-3" style={{ color: "var(--color-aka)" }}>
+				<p
+					className="text-xs text-center mb-3"
+					style={{ color: "var(--color-aka)" }}
+				>
 					{error}
 				</p>
 			)}
@@ -74,7 +83,10 @@ export default function ForgotPasswordForm() {
 				type="submit"
 			/>
 
-			<Link href="/sign" className="text-center text-[13px] text-muted mt-4.5 py-2">
+			<Link
+				href="/sign"
+				className="text-center text-[13px] text-muted mt-4.5 py-2"
+			>
 				Torna al login
 			</Link>
 		</form>
