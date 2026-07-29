@@ -138,10 +138,18 @@ recurring_rules: id, user_id, amount (DECIMAL 10,2), type (TEXT), category_id,
 - `savePreferences()` fa upsert su `profiles` (currency, language)
 - `saveCategories()` cancella le categorie onboarding esistenti e reinserisce quelle selezionate
 - **Recupero password**: `/recupera-password` → `resetPasswordForEmail` con
-  `redirectTo=/auth/confirm?next=/reimposta-password` → `/reimposta-password`.
+  `redirectTo=/callback?next=/reimposta-password` → `/reimposta-password`.
+  Deve puntare a `/callback`, non a `/auth/confirm`: `@supabase/ssr` usa **PKCE**,
+  quindi il link torna con `?code=` e va scambiato con `exchangeCodeForSession`.
+  `/auth/confirm` gestisce solo `token_hash`+`type` e finirebbe su `/error`.
   Entrambe le route sono in `PUBLIC_PATHS` (`lib/supabase/proxy.ts`), altrimenti il
   proxy rimanderebbe a `/welcome` chi è sloggato. Il form risponde sempre "inviato",
   anche per indirizzi inesistenti, per non esporre chi ha un account.
+- **Marcatore di recupero** (`lib/recovery.ts`): la sessione creata dal link è una
+  normale sessione Supabase, indistinguibile da un login. `/callback` emette un
+  cookie httpOnly di 15 minuti quando `next=/reimposta-password`; la pagina e
+  `resetPassword()` lo esigono, e viene bruciato dopo il cambio. Senza, chi trova un
+  dispositivo già loggato reimposta la password saltando la verifica di quella attuale.
 - **Operazioni sensibili** (cambio email, cambio password, eliminazione account):
   richiedono sempre la riautenticazione con `signInWithPassword`. Supabase non la
   impone, ma senza di essa un dispositivo sbloccato basterebbe a prendere l'account.

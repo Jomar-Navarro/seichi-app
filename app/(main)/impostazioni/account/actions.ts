@@ -74,16 +74,22 @@ export async function updateFullName(fullName: string): Promise<ActionResult> {
 /* Profilo — avatar                                                    */
 /* ------------------------------------------------------------------ */
 
-/** Rimuove tutti i file avatar dell'utente (la cartella ne contiene al massimo uno). */
+/**
+ * Rimuove i file avatar dell'utente, saltando `keep` (il file appena caricato).
+ * La cartella ne contiene normalmente uno solo.
+ */
 async function purgeAvatarFiles(
 	supabase: Awaited<ReturnType<typeof createClient>>,
 	userId: string,
+	keep?: string,
 ) {
 	const { data: files } = await supabase.storage.from(AVATAR_BUCKET).list(userId);
-	if (files?.length) {
-		await supabase.storage
-			.from(AVATAR_BUCKET)
-			.remove(files.map((f) => `${userId}/${f.name}`));
+	const stale = (files ?? [])
+		.map((f) => `${userId}/${f.name}`)
+		.filter((path) => path !== keep);
+
+	if (stale.length) {
+		await supabase.storage.from(AVATAR_BUCKET).remove(stale);
 	}
 }
 
@@ -105,8 +111,10 @@ export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
 	// essere ricostruibile conoscendo solo lo user_id.
 	const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
 
-	await purgeAvatarFiles(supabase, user.id);
-
+	// Ordine deliberato: carica → aggiorna il puntatore → solo allora cancella il
+	// vecchio file. Cancellare per primo significherebbe che un upload fallito
+	// lascia `avatar_url` puntato a un oggetto che non esiste più, cioè un avatar
+	// rotto senza possibilità di tornare indietro.
 	const { error: uploadError } = await supabase.storage
 		.from(AVATAR_BUCKET)
 		.upload(path, file, { contentType: file.type, upsert: false });
@@ -123,10 +131,13 @@ export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
 		.eq("id", user.id);
 
 	if (error) {
-		// Il puntatore non è stato salvato: non lasciamo il file orfano.
+		// Il puntatore non è stato salvato: rimuoviamo il file appena caricato e
+		// lasciamo intatto quello vecchio, che è ancora quello referenziato.
 		await supabase.storage.from(AVATAR_BUCKET).remove([path]);
 		return { error: error.message };
 	}
+
+	await purgeAvatarFiles(supabase, user.id, path);
 
 	revalidatePath("/", "layout");
 	return { success: true };

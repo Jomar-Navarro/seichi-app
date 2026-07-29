@@ -3,6 +3,9 @@ import { NextResponse } from "next/server";
 // The client you created from the Server-Side Auth instructions
 import { createClient } from "@/lib/supabase/server";
 import { safeNext } from "@/lib/safe-redirect";
+import { markRecoverySession } from "@/lib/recovery";
+
+const RESET_PATH = "/reimposta-password";
 
 export async function GET(request: Request) {
 	const { searchParams, origin } = new URL(request.url);
@@ -14,6 +17,13 @@ export async function GET(request: Request) {
 		const supabase = await createClient();
 		const { error } = await supabase.auth.exchangeCodeForSession(code);
 		if (!error) {
+			// Il link di recupero password è l'unica cosa che punta qui con questo
+			// `next`: solo in quel caso emettiamo il marcatore che sblocca il
+			// cambio password senza conoscere quella attuale.
+			if (next === RESET_PATH) {
+				await markRecoverySession();
+			}
+
 			// Redirect new users (no onboarding completed) to /start
 			if (next === "/") {
 				const { data: { user } } = await supabase.auth.getUser();

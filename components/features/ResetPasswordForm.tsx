@@ -1,21 +1,17 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { Check, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
 import PasswordInput from "@/components/UI/PasswordInput";
 import PasswordStrength from "@/components/UI/PasswordStrength";
-import StatusScreen from "@/components/UI/StatusScreen";
 import SubmitButton from "@/components/UI/SubmitButton";
 import { resetPassword } from "@/app/(auth)/recupera-password/actions";
 import { PASSWORD_MIN_LENGTH } from "@/lib/password";
 
 export default function ResetPasswordForm() {
-	const router = useRouter();
 	const [password, setPassword] = useState("");
 	const [confirm, setConfirm] = useState("");
 	const [error, setError] = useState<string | null>(null);
-	const [done, setDone] = useState(false);
 	const [pending, startTransition] = useTransition();
 
 	const ready = password.length >= PASSWORD_MIN_LENGTH && confirm.length > 0;
@@ -24,22 +20,11 @@ export default function ResetPasswordForm() {
 		event.preventDefault();
 		setError(null);
 		startTransition(async () => {
+			// In caso di successo l'action fa redirect su /sign?reset=1 e non
+			// torna qui: la conferma viene mostrata dalla pagina di login.
 			const result = await resetPassword(password, confirm);
-			if ("error" in result) setError(result.error);
-			else setDone(true);
+			if (result && "error" in result) setError(result.error);
 		});
-	}
-
-	if (done) {
-		return (
-			<StatusScreen
-				icon={<Check size={30} style={{ color: "var(--color-midori)" }} strokeWidth={2.2} />}
-				title="Password aggiornata"
-				shape="circle"
-			>
-				<SubmitButton label="Vai alla dashboard" onClick={() => router.push("/")} />
-			</StatusScreen>
-		);
 	}
 
 	return (

@@ -30,12 +30,7 @@ export default function ForgotPasswordForm() {
 				title="Controlla la tua email"
 				description="Se l'indirizzo è registrato, ti abbiamo inviato un link per reimpostare la password."
 			>
-				<Link
-					href="/sign"
-					className="block text-center text-[13px] text-muted py-2"
-				>
-					Torna al login
-				</Link>
+				<SubmitButton label="Torna al login" href="/sign" />
 			</StatusScreen>
 		);
 	}

@@ -69,7 +69,9 @@ export default function DeleteAccountFlow({ email, hasPasswordIdentity }: Delete
 				type="text"
 				value={typedEmail}
 				autoFocus
-				placeholder={email}
+				// Il placeholder NON contiene l'email: scriverci dentro la risposta
+				// ridurrebbe la conferma a un copia-e-incolla di ciò che è a schermo.
+				placeholder="il tuo indirizzo email"
 				autoComplete="off"
 				autoCapitalize="none"
 				spellCheck={false}

@@ -8,13 +8,18 @@ import BrandHeader from "@/components/UI/BrandHeader";
 export default function Sign() {
 	const router = useRouter();
 	const [tab, setTab] = useState<"signin" | "signup">("signin");
+	const [notice, setNotice] = useState<string | null>(null);
 
 	useEffect(() => {
-		if (new URLSearchParams(window.location.search).get("tab") === "signup") {
-			// eslint-disable-next-line react-hooks/set-state-in-effect
-			setTab("signup");
-			router.replace("/sign");
-		}
+		const params = new URLSearchParams(window.location.search);
+		const wantsSignup = params.get("tab") === "signup";
+		// Impostato da resetPassword() dopo un recupero andato a buon fine
+		const passwordReset = params.get("reset") === "1";
+
+		// eslint-disable-next-line react-hooks/set-state-in-effect
+		if (wantsSignup) setTab("signup");
+		if (passwordReset) setNotice("Password aggiornata — accedi con quella nuova");
+		if (wantsSignup || passwordReset) router.replace("/sign");
 	}, [router]);
 
 	return (
@@ -38,7 +43,7 @@ export default function Sign() {
 				{tab === "signup" ? (
 					<SignUpForm onTabChange={setTab} />
 				) : (
-					<LoginForm onTabChange={setTab} />
+					<LoginForm onTabChange={setTab} notice={notice} />
 				)}
 			</div>
 		</div>
