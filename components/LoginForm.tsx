@@ -1,5 +1,6 @@
 "use client";
 import { useActionState } from "react";
+import Link from "next/link";
 import { login, signInWithFacebook } from "@/app/(auth)/sign/action";
 import { Mail } from "lucide-react";
 import PasswordField from "@/components/PasswordField";
@@ -59,9 +60,12 @@ export default function LoginForm({ onTabChange }: LoginFormProps) {
 							<div className="text-xs text-aka text-center">{state.error}</div>
 						)}
 						<div className="text-right mb-2">
-							<span className="text-xs cursor-pointer text-ao tracking-widest">
+							<Link
+								href="/recupera-password"
+								className="text-xs cursor-pointer text-ao tracking-widest"
+							>
 								Password dimenticata?
-							</span>
+							</Link>
 						</div>
 						<Button title="Accedi" />
 					</form>

@@ -18,7 +18,8 @@ npm run lint         # eslint
 
 ```
 app/
-├── (auth)/               # welcome, sign (login + signup) + callback OAuth
+├── (auth)/               # welcome, sign (login + signup), callback OAuth,
+│   │                     # recupera-password + reimposta-password (+ actions.ts)
 ├── (onboarding)/         # start, preference, category + actions.ts
 ├── (main)/               # app autenticata:
 │   ├── page.tsx          #   home dashboard + action.ts (server actions transazioni/totali)
@@ -26,27 +27,45 @@ app/
 │   ├── risparmi/         #   obiettivi + actions.ts (getGoals, getInvestments, CRUD goal)
 │   ├── investimenti/     #   breakdown portafoglio
 │   ├── analisi/          #   statistiche + grafici
-│   └── impostazioni/     #   stub (Fase 13)
+│   └── impostazioni/     #   lista + actions.ts (categorie, preferenze, signOut)
+│       ├── account/      #     actions.ts — nome, avatar, email, password, eliminazione
+│       ├── profilo/      #     foto profilo + nome
+│       ├── email/        #     cambio email in 2 passi
+│       ├── password/     #     cambio password
+│       ├── elimina/      #     eliminazione account in 2 passi
+│       ├── categorie/    #     gestione categorie custom
+│       └── ricorrenti/   #     regole ricorrenti
+├── auth/confirm/         # verifyOtp per link email (?next= per il recupero password)
 └── layout.tsx            # root layout (forza tema .dark su <html>)
 
 components/
 ├── UI/                   # Button, Input, Select, card, BrandHeader, OnboardingProgress,
 │   │                     # SignTab, TransactionForm, TransactionModal, BottomNav,
-│   │                     # SummaryCard, Sparkline, EmptyState
+│   │                     # SummaryCard, Sparkline, EmptyState, Avatar, PageHeader,
+│   │                     # SettingsRow (+ SettingsGroup), PasswordInput,
+│   │                     # PasswordStrength, SubmitButton, StatusScreen, AuthShell
 ├── features/             # BalanceCard, TransactionList, RecentTransaction, Filterbar,
 │   │                     # GoalCard, GoalSheet, GoalsPageClient, InvestimentiTab,
 │   │                     # HomeSkeleton, DashboardRefresher, AnalyticsTabs,
-│   │                     # SpendingPieChart, MonthlyLineChart
+│   │                     # SpendingPieChart, MonthlyLineChart, ProfileEditor,
+│   │                     # EmailChangeForm, PasswordChangeForm, DeleteAccountFlow,
+│   │                     # ForgotPasswordForm, ResetPasswordForm
 ├── LoginForm.tsx, SignUpForm.tsx, PasswordField.tsx
 └── icons.tsx             # GoogleIcon, FacebookIcon
 
 lib/
-├── supabase/             # client.ts, server.ts, proxy.ts
+├── supabase/             # client.ts, server.ts, proxy.ts (PUBLIC_PATHS)
 ├── seichi-icons.tsx      # set icone SVG custom (SeichiIcon)
 ├── icon-map.ts           # nome categoria → icona (Lucide)
 ├── goal-icons.ts         # GOAL_ICON_MAP + GOAL_ICONS
 ├── investment-types.ts   # INVESTMENT_TYPE_META (label + colore per tipo)
-└── transaction-utils.ts  # TIPO_COLOR/LABEL, formatDate, formatAmount, numberFormatter
+├── transaction-utils.ts  # TIPO_COLOR/LABEL, formatDate, formatAmount, numberFormatter
+├── account.ts            # getAccountContext() — user + profilo per le impostazioni
+├── profile.ts            # getInitials, getDisplayName
+├── password.ts           # PASSWORD_MIN_LENGTH, scorePassword, validateNewPassword
+└── safe-redirect.ts      # safeNext() — blocca gli open redirect sul parametro next
+
+supabase/migrations/      # SQL da eseguire a mano nel SQL Editor di Supabase
 
 store/  useUIStore.ts      # Zustand: modal transazioni, edit, refresh trigger
 types/  index.ts           # Transaction, Category, GoalWithProgress, Investment*, TRANSACTION_TYPES
@@ -71,7 +90,11 @@ types/  index.ts           # Transaction, Category, GoalWithProgress, Investment
 -- Ogni tabella ha RLS abilitato
 -- NB: i nomi colonna sono in INGLESE (amount/type/date...), non italiano
 
-profiles: id (= auth.users.id), currency (TEXT), language (TEXT)
+profiles: id (= auth.users.id), currency (TEXT), language (TEXT),
+          full_name (TEXT, nullable), avatar_url (TEXT, nullable)
+-- La riga nasce da un trigger on_auth_user_created (non più solo in onboarding);
+--   full_name viene fatto backfill da auth.users.raw_user_meta_data.
+-- Il nome NON si legge da user_metadata: quel campo è scrivibile dal client.
 
 categories: id, user_id, name (TEXT), icon (TEXT), color (TEXT),
             type (TEXT), created_at,
@@ -95,6 +118,16 @@ recurring_rules: id, user_id, amount (DECIMAL 10,2), type (TEXT), category_id,
 --   attiva con next_run <= oggi inserisce transazioni e avanza next_run (idempotente)
 ```
 
+### Storage & funzioni (Fase 16)
+
+- Bucket `avatars` — pubblico in LETTURA, path `{user_id}/{uuid}.{ext}`. Il segmento
+  casuale rende l'URL non ricostruibile dal solo user_id; le policy di
+  insert/update/delete su `storage.objects` limitano ogni utente alla propria cartella.
+- `delete_current_user()` — funzione `SECURITY DEFINER` con `SET search_path = ''`,
+  eseguibile solo da `authenticated`. Cancella esclusivamente `auth.uid()`, così non
+  serve tenere la `service_role` key nel backend. Le FK verso `auth.users` sono
+  `ON DELETE CASCADE`.
+
 ## Auth Flow
 
 - `/welcome` → landing page pre-auth
@@ -104,6 +137,18 @@ recurring_rules: id, user_id, amount (DECIMAL 10,2), type (TEXT), category_id,
 - Onboarding: `/start` → `/preference` → `/category` → `/`
 - `savePreferences()` fa upsert su `profiles` (currency, language)
 - `saveCategories()` cancella le categorie onboarding esistenti e reinserisce quelle selezionate
+- **Recupero password**: `/recupera-password` → `resetPasswordForEmail` con
+  `redirectTo=/auth/confirm?next=/reimposta-password` → `/reimposta-password`.
+  Entrambe le route sono in `PUBLIC_PATHS` (`lib/supabase/proxy.ts`), altrimenti il
+  proxy rimanderebbe a `/welcome` chi è sloggato. Il form risponde sempre "inviato",
+  anche per indirizzi inesistenti, per non esporre chi ha un account.
+- **Operazioni sensibili** (cambio email, cambio password, eliminazione account):
+  richiedono sempre la riautenticazione con `signInWithPassword`. Supabase non la
+  impone, ma senza di essa un dispositivo sbloccato basterebbe a prendere l'account.
+  Il controllo va rifatto a ogni server action: lo stato del passo precedente vive sul
+  client e non è affidabile.
+- Gli account solo-OAuth non hanno `identities` con provider `email`:
+  per loro cambio email e cambio password sono disabilitati (`hasPasswordIdentity`).
 
 ## Design System — Zen Glass
 
@@ -194,7 +239,9 @@ Seguire questo ordine, non saltare fasi:
 13. ✅ Impostazioni + categorie custom
 14. ✅ Transazioni ricorrenti (pg_cron + funzione SQL `generate_recurring_transactions`)
 15. ⏸️ Notifiche — RIMANDATA: si fa insieme alla Fase 17. Motivo: escluse le notifiche ridondanti con la banca (movimento/stipendio registrato), quelle utili sono solo forward-looking/goal-based (obiettivo a %, rinnovo abbonamento IN ANTICIPO, conferma generazione ricorrenti) — le stesse che servono agli avvisi budget. L'infra di notifica si costruisce una volta sola nella Fase 17. Vedi design "Stati Supporto"
-16. Gestione account e sicurezza — email, cambio password, reset password dimenticata, avatar, eliminazione account (issue #12 + #7)  ← prossima
+16. 🔧 Gestione account e sicurezza — email, cambio password, reset password dimenticata, avatar, eliminazione account (issue #12 + #7).
+    Codice completo; resta da eseguire `supabase/migrations/20260729_account_security.sql`
+    nel SQL Editor e da verificare i flussi email end-to-end.
 17. Budget per categoria + Notifiche — limite mensile per categoria + tracking/avvisi di sforamento, e in più il sistema di notifiche completo (obiettivo a %, rinnovo abbonamento in anticipo, budget sforato). Tabella `notifications` + RLS, generazione via pg_cron/trigger, stato letto/non-letto (issue #10 + #29)
 18. Tema chiaro/scuro — switch nelle impostazioni (infra `.dark` già presente; ora il root layout forza dark)
 19. Lingua i18n (it/en) — collegare la preferenza `profiles.language` già salvata ma inattiva
