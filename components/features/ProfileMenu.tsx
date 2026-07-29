@@ -3,9 +3,16 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Settings, LogOut } from "lucide-react";
+import Avatar from "@/components/UI/Avatar";
 import { signOut } from "@/app/(main)/impostazioni/actions";
 
-export default function ProfileMenu({ initials }: { initials: string }) {
+interface ProfileMenuProps {
+	initials: string;
+	/** Foto profilo, se caricata — altrimenti si mostrano le iniziali */
+	avatarUrl?: string | null;
+}
+
+export default function ProfileMenu({ initials, avatarUrl }: ProfileMenuProps) {
 	const [open, setOpen] = useState(false);
 	const ref = useRef<HTMLDivElement>(null);
 
@@ -22,10 +29,10 @@ export default function ProfileMenu({ initials }: { initials: string }) {
 		<div className="relative" ref={ref}>
 			<button
 				onClick={() => setOpen((o) => !o)}
-				className="w-10 h-10 rounded-full flex items-center justify-center bg-surface border border-subtle card-shadow active:opacity-80"
+				className="rounded-full flex card-shadow active:opacity-80 cursor-pointer"
 				aria-label="Profilo"
 			>
-				<span className="text-[13px] font-semibold text-secondary tracking-wide">{initials}</span>
+				<Avatar src={avatarUrl} initials={initials} size={40} />
 			</button>
 
 			{open && (
