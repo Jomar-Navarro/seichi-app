@@ -12,10 +12,14 @@ type ActionResult = { error: string } | { success: true };
 /**
  * Invia il link di recupero.
  *
- * `redirectTo` punta a /callback e NON a /auth/confirm: @supabase/ssr usa il
- * flusso PKCE, quindi il link torna con `?code=` e va scambiato con
- * `exchangeCodeForSession`. /auth/confirm gestisce solo `token_hash`+`type` e
- * scaricherebbe l'utente su /error.
+ * `redirectTo` punta a /callback perché il template email di default usa
+ * `{{ .ConfirmationURL }}`, che produce un link con `?code=` da scambiare con
+ * `exchangeCodeForSession`. Sul piano free di Supabase i template NON sono
+ * modificabili senza SMTP personalizzato, quindi la variante `token_hash` —
+ * preferibile perché dichiara `type=recovery` — non è utilizzabile.
+ *
+ * /auth/confirm resta pronta a gestirla: il giorno in cui si configura l'SMTP
+ * basta cambiare questo URL e il template. Vedi CLAUDE.md, sezione Auth Flow.
  */
 export async function requestPasswordReset(email: string): Promise<ActionResult> {
 	const supabase = await createClient();

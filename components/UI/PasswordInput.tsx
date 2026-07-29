@@ -57,7 +57,9 @@ export default function PasswordInput({
 					className="p-1 flex items-center shrink-0 cursor-pointer"
 					aria-label={visible ? "Nascondi password" : "Mostra password"}
 				>
-					{visible ? <Eye size={17} /> : <EyeOff size={17} />}
+					{/* L'icona mostra l'AZIONE, non lo stato: a password visibile si
+					    offre "nascondi". Deve concordare con l'aria-label qui sopra. */}
+					{visible ? <EyeOff size={17} /> : <Eye size={17} />}
 				</button>
 			</div>
 		</div>

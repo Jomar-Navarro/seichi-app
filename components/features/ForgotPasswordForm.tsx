@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
 import { Mail, Lock } from "lucide-react";
 import StatusScreen from "@/components/UI/StatusScreen";
 import SubmitButton from "@/components/UI/SubmitButton";
@@ -83,12 +82,12 @@ export default function ForgotPasswordForm() {
 				type="submit"
 			/>
 
-			<Link
+			<SubmitButton
+				label="Torna al login"
 				href="/sign"
-				className="text-center text-[13px] text-muted mt-4.5 py-2"
-			>
-				Torna al login
-			</Link>
+				variant="ghost"
+				className="mt-3"
+			/>
 		</form>
 	);
 }

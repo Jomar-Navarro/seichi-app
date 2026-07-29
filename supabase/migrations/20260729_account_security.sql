@@ -224,9 +224,11 @@ begin
 		raise exception 'not authenticated' using errcode = '28000';
 	end if;
 
-	delete from storage.objects
-	where bucket_id = 'avatars'
-		and (storage.foldername(name))[1] = uid::text;
+	-- I file dell'avatar NON si cancellano da qui: Supabase blocca il DELETE
+	-- diretto su storage.objects ("Direct deletion from storage tables is not
+	-- allowed. Use the Storage API instead") e l'intera funzione fallirebbe.
+	-- Ci pensa deleteAccount() lato app con l'API storage, prima di invocare
+	-- questa funzione. Vedi app/(main)/impostazioni/account/actions.ts
 
 	delete from public.transactions    where user_id = uid;
 	delete from public.recurring_rules where user_id = uid;

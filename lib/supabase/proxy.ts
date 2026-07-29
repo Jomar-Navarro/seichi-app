@@ -14,6 +14,9 @@ const PUBLIC_PATHS = [
 	"/error",
 	"/recupera-password",
 	"/reimposta-password",
+	// Il link di conferma cambio email può essere aperto da un browser dove non
+	// c'è sessione (client di posta, altro dispositivo)
+	"/email-confermata",
 ];
 
 export async function updateSession(request: NextRequest) {

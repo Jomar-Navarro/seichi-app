@@ -57,10 +57,15 @@ export async function signup(
 		return { error: "Le password non corrispondono", emailSent: false, email: "" };
 	}
 
-	const { error } = await supabase.auth.signUp({
+	const { data, error } = await supabase.auth.signUp({
 		email,
 		password,
 		options: {
+			// Senza questo il link di conferma atterra sul Site URL, cioè "/", che
+			// non scambia il `code`: l'utente finisce su /welcome senza sessione,
+			// come se la conferma non fosse servita a niente. /callback lo scambia
+			// e poi instrada a /start perché profiles.currency è ancora NULL.
+			emailRedirectTo: `${siteUrl}/callback`,
 			data: {
 				name: formData.get("name") as string,
 				surname: formData.get("surname") as string,
@@ -70,6 +75,14 @@ export async function signup(
 
 	if (error) {
 		return { error: error.message, emailSent: false, email: "" };
+	}
+
+	// Con la conferma email DISATTIVATA su Supabase, signUp restituisce già una
+	// sessione: l'utente è loggato. Mostrargli "controlla la tua email" lo
+	// lascerebbe fermo davanti a un messaggio per una mail che non arriverà mai.
+	// Con la conferma attiva `session` è null e si passa al ramo successivo.
+	if (data.session) {
+		redirect("/start");
 	}
 
 	return { error: "", emailSent: true, email };

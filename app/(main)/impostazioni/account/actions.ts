@@ -59,10 +59,13 @@ export async function updateFullName(fullName: string): Promise<ActionResult> {
 	const name = fullName.trim().replace(/\s+/g, " ");
 	if (name.length > 80) return { error: "Il nome è troppo lungo" };
 
+	// upsert e non update: chi si è registrato prima del trigger e ha
+	// abbandonato l'onboarding non ha una riga in profiles. Un UPDATE su zero
+	// righe non è un errore per Postgres, quindi l'app direbbe "salvato" senza
+	// aver salvato niente.
 	const { error } = await supabase
 		.from("profiles")
-		.update({ full_name: name || null })
-		.eq("id", user.id);
+		.upsert({ id: user.id, full_name: name || null });
 
 	if (error) return { error: error.message };
 
@@ -127,8 +130,7 @@ export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
 
 	const { error } = await supabase
 		.from("profiles")
-		.update({ avatar_url: publicUrl })
-		.eq("id", user.id);
+		.upsert({ id: user.id, avatar_url: publicUrl });
 
 	if (error) {
 		// Il puntatore non è stato salvato: rimuoviamo il file appena caricato e
@@ -147,14 +149,16 @@ export async function removeAvatar(): Promise<ActionResult> {
 	const { supabase, user } = await requireUser();
 	if (!user) return { error: "Non autenticato" };
 
-	await purgeAvatarFiles(supabase, user.id);
-
+	// Stesso principio di uploadAvatar, al contrario: prima si toglie il
+	// puntatore, poi si cancellano i file. Invertendo l'ordine, un update fallito
+	// lascerebbe `avatar_url` a puntare a un oggetto ormai inesistente.
 	const { error } = await supabase
 		.from("profiles")
-		.update({ avatar_url: null })
-		.eq("id", user.id);
+		.upsert({ id: user.id, avatar_url: null });
 
 	if (error) return { error: error.message };
+
+	await purgeAvatarFiles(supabase, user.id);
 
 	revalidatePath("/", "layout");
 	return { success: true };
@@ -192,9 +196,13 @@ export async function requestEmailChange(
 	const authError = await reauthenticate(user.email, password);
 	if (authError) return { error: authError };
 
+	// NON /callback: il cambio email non è un flusso PKCE (la sessione esiste
+	// già, quindi nessun code_verifier viene generato) e Supabase reindirizza
+	// senza `code`. /callback lo pretende e finirebbe su /auth/auth-code-error,
+	// dicendo "accesso non riuscito" a fronte di un cambio andato a buon fine.
 	const { error } = await supabase.auth.updateUser(
 		{ email },
-		{ emailRedirectTo: `${SITE_URL}/callback` },
+		{ emailRedirectTo: `${SITE_URL}/email-confermata` },
 	);
 
 	if (error) return { error: error.message };
@@ -248,6 +256,12 @@ export async function deleteAccount(confirmEmail: string, password: string) {
 		const authError = await reauthenticate(user.email, password);
 		if (authError) return { error: "Password non corretta" };
 	}
+
+	// I file dell'avatar vanno rimossi QUI, con l'API storage. La funzione SQL
+	// cancella le righe di storage.objects, che sono solo i metadati: i byte
+	// resterebbero nel bucket per sempre, che è esattamente ciò che
+	// l'eliminazione account deve evitare.
+	await purgeAvatarFiles(supabase, user.id);
 
 	// delete_current_user() è SECURITY DEFINER e cancella solo auth.uid():
 	// evita di dover tenere la service_role key nel backend.

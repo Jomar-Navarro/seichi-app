@@ -7,6 +7,17 @@ import { markRecoverySession } from "@/lib/recovery";
 
 const RESET_PATH = "/reimposta-password";
 
+// LIMITE NOTO: qui arriva un `code` opaco, e uno scambio riuscito non dice nulla
+// sul tipo di token. Emettere il marcatore di recupero in base al solo `next`
+// significa che un login OAuth costruito a mano con `next=/reimposta-password`
+// otterrebbe lo stesso marcatore, scavalcando la riautenticazione che protegge
+// il cambio password.
+//
+// La chiusura pulita è far passare il recupero da /auth/confirm, dove
+// `type=recovery` è esplicito — ma richiede un template email custom, che
+// Supabase concede solo con SMTP personalizzato. Finché non c'è, si accetta
+// questo residuo: l'attacco richiede accesso fisico a un dispositivo sbloccato
+// più la costruzione manuale dell'URL di authorize.
 export async function GET(request: Request) {
 	const { searchParams, origin } = new URL(request.url);
 	const code = searchParams.get("code");
@@ -17,9 +28,6 @@ export async function GET(request: Request) {
 		const supabase = await createClient();
 		const { error } = await supabase.auth.exchangeCodeForSession(code);
 		if (!error) {
-			// Il link di recupero password è l'unica cosa che punta qui con questo
-			// `next`: solo in quel caso emettiamo il marcatore che sblocca il
-			// cambio password senza conoscere quella attuale.
 			if (next === RESET_PATH) {
 				await markRecoverySession();
 			}
