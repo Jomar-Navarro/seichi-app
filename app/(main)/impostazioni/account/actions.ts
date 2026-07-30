@@ -80,20 +80,30 @@ export async function updateFullName(fullName: string): Promise<ActionResult> {
 /**
  * Rimuove i file avatar dell'utente, saltando `keep` (il file appena caricato).
  * La cartella ne contiene normalmente uno solo.
+ *
+ * Ritorna l'errore invece di ingoiarlo: per upload e rimozione un fallimento è
+ * innocuo (resta un file di troppo), ma nell'eliminazione account significa
+ * abbandonare dati personali nel bucket, ed è il chiamante a doverlo decidere.
  */
 async function purgeAvatarFiles(
 	supabase: Awaited<ReturnType<typeof createClient>>,
 	userId: string,
 	keep?: string,
-) {
-	const { data: files } = await supabase.storage.from(AVATAR_BUCKET).list(userId);
+): Promise<{ error: string | null }> {
+	const { data: files, error: listError } = await supabase.storage
+		.from(AVATAR_BUCKET)
+		.list(userId);
+
+	if (listError) return { error: listError.message };
+
 	const stale = (files ?? [])
 		.map((f) => `${userId}/${f.name}`)
 		.filter((path) => path !== keep);
 
-	if (stale.length) {
-		await supabase.storage.from(AVATAR_BUCKET).remove(stale);
-	}
+	if (!stale.length) return { error: null };
+
+	const { error } = await supabase.storage.from(AVATAR_BUCKET).remove(stale);
+	return { error: error?.message ?? null };
 }
 
 export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
@@ -257,17 +267,27 @@ export async function deleteAccount(confirmEmail: string, password: string) {
 		if (authError) return { error: "Password non corretta" };
 	}
 
-	// I file dell'avatar vanno rimossi QUI, con l'API storage. La funzione SQL
-	// cancella le righe di storage.objects, che sono solo i metadati: i byte
-	// resterebbero nel bucket per sempre, che è esattamente ciò che
-	// l'eliminazione account deve evitare.
-	await purgeAvatarFiles(supabase, user.id);
+	// I file dell'avatar vanno rimossi QUI, con l'API storage: Supabase vieta il
+	// DELETE diretto su storage.objects, e dopo la RPC la sessione non esiste più
+	// per autorizzare la cancellazione. Se fallisce ci fermiamo — distruggere
+	// l'account lasciando la foto nel bucket, irraggiungibile e non più
+	// cancellabile da nessuno, è il contrario di ciò che l'utente ha chiesto.
+	const purge = await purgeAvatarFiles(supabase, user.id);
+	if (purge.error) {
+		return { error: "Non è stato possibile rimuovere la foto profilo. Riprova." };
+	}
 
 	// delete_current_user() è SECURITY DEFINER e cancella solo auth.uid():
 	// evita di dover tenere la service_role key nel backend.
 	// Vedi supabase/migrations/20260729_account_security.sql
 	const { error } = await supabase.rpc("delete_current_user");
-	if (error) return { error: error.message };
+	if (error) {
+		// Compensazione: i file non ci sono più, quindi il puntatore non deve
+		// restare o l'account sopravvissuto mostrerebbe un avatar rotto ovunque.
+		await supabase.from("profiles").upsert({ id: user.id, avatar_url: null });
+		revalidatePath("/", "layout");
+		return { error: error.message };
+	}
 
 	await supabase.auth.signOut();
 	revalidatePath("/", "layout");

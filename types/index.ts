@@ -19,6 +19,7 @@ export interface TransactionType {
 
 /** Dati di account risolti lato server e passati alle pagine impostazioni. */
 export interface AccountContext {
+	userId: string;
 	email: string;
 	fullName: string | null;
 	avatarUrl: string | null;

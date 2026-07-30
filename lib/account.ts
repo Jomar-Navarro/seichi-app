@@ -26,6 +26,7 @@ export async function getAccountContext(): Promise<AccountContext> {
 	const fullName = profile?.full_name ?? null;
 
 	return {
+		userId: user.id,
 		email,
 		fullName,
 		avatarUrl: profile?.avatar_url ?? null,

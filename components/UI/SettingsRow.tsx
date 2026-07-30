@@ -86,7 +86,9 @@ export default function SettingsRow({
 				{subtitle && <span className="block text-xs text-muted truncate mt-0.5">{subtitle}</span>}
 			</span>
 
-			{value && <span className="text-[13px] text-muted shrink-0">{value}</span>}
+			{/* `value != null` e non `value &&`: con un conteggio a 0 quest'ultimo
+			    renderizzerebbe uno `0` nudo fuori dallo span, senza stile. */}
+			{value != null && <span className="text-[13px] text-muted shrink-0">{value}</span>}
 			{chevron && <ChevronRight size={15} className="text-muted shrink-0" />}
 		</>
 	);

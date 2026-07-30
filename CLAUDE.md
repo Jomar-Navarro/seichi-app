@@ -194,6 +194,20 @@ recurring_rules: id, user_id, amount (DECIMAL 10,2), type (TEXT), category_id,
 - Gli account solo-OAuth non hanno `identities` con provider `email`:
   per loro cambio email e cambio password sono disabilitati (`hasPasswordIdentity`).
 
+  ⚠️ **Eccezione nota**: per questi account l'**eliminazione** non ha riautenticazione
+  — non esiste una password da verificare, e resta solo la digitazione dell'indirizzo.
+  La chiusura corretta è `supabase.auth.reauthenticate()`, che invia un nonce a 6 cifre
+  e funziona anche senza password; non è stata implementata perché aggiunge un passo
+  al flusso e dipende dall'invio email (vedi debito SMTP). Da fare prima di aprire le
+  registrazioni OAuth al pubblico.
+- ⚠️ **Limite PKCE cross-browser**: i link di recupero password e di conferma
+  registrazione passano da `/callback`, che chiama `exchangeCodeForSession` e ha
+  bisogno del cookie `code_verifier` creato al momento della richiesta. Chi apre
+  l'email in un browser diverso da quello da cui ha chiesto il reset finisce su
+  `/auth/auth-code-error`. Si risolve con lo stesso intervento del debito SMTP: il
+  flusso `token_hash` su `/auth/confirm` non usa PKCE e funziona da qualsiasi
+  dispositivo.
+
 ## Design System — Zen Glass
 
 Stile ispirato al minimalismo giapponese. Superfici come vetro satinato, pietra, carta di riso. Mai effetti cyber o plastic glass.

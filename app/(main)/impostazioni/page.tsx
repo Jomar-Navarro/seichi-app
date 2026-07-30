@@ -26,9 +26,13 @@ export default async function ImpostazioniPage() {
 	const account = await getAccountContext();
 
 	const supabase = await createClient();
+	// Il filtro esplicito è ridondante con la policy RLS, ed è voluto: se un
+	// domani quella policy venisse allentata, il conteggio non deve diventare
+	// globale senza che nessuno se ne accorga.
 	const { count: categoriesCount } = await supabase
 		.from("categories")
-		.select("id", { count: "exact", head: true });
+		.select("id", { count: "exact", head: true })
+		.eq("user_id", account.userId);
 
 	return (
 		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34">
