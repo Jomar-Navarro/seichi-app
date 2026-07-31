@@ -1,5 +1,6 @@
 "use client";
 import { useActionState } from "react";
+import Link from "next/link";
 import { login, signInWithFacebook } from "@/app/(auth)/sign/action";
 import { Mail } from "lucide-react";
 import PasswordField from "@/components/PasswordField";
@@ -12,9 +13,11 @@ import { signInWithGoogle } from "@/app/(auth)/sign/action";
 
 interface LoginFormProps {
 	onTabChange?: (value: "signin" | "signup") => void;
+	/** Conferma mostrata sopra il form, es. dopo un recupero password */
+	notice?: string | null;
 }
 
-export default function LoginForm({ onTabChange }: LoginFormProps) {
+export default function LoginForm({ onTabChange, notice }: LoginFormProps) {
 	const [state, formAction] = useActionState(login, { error: "" });
 
 	return (
@@ -41,6 +44,19 @@ export default function LoginForm({ onTabChange }: LoginFormProps) {
 				/>
 
 				<div className="grow flex flex-col">
+					{notice && (
+						<p
+							className="text-xs text-center rounded-2xl px-4 py-3 mb-4 border"
+							style={{
+								color: "var(--color-midori)",
+								background: "color-mix(in srgb, var(--color-midori) 12%, transparent)",
+								borderColor: "color-mix(in srgb, var(--color-midori) 28%, transparent)",
+							}}
+						>
+							{notice}
+						</p>
+					)}
+
 					{/* Form */}
 					<form action={formAction} className="flex flex-col gap-3 mb-2">
 						<Input
@@ -59,9 +75,12 @@ export default function LoginForm({ onTabChange }: LoginFormProps) {
 							<div className="text-xs text-aka text-center">{state.error}</div>
 						)}
 						<div className="text-right mb-2">
-							<span className="text-xs cursor-pointer text-ao tracking-widest">
+							<Link
+								href="/recupera-password"
+								className="text-xs cursor-pointer text-ao tracking-widest"
+							>
 								Password dimenticata?
-							</span>
+							</Link>
 						</div>
 						<Button title="Accedi" />
 					</form>

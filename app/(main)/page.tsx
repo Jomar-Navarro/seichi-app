@@ -11,7 +11,7 @@ import DashboardRefresher from "@/components/features/DashboardRefresher";
 import HomeSkeleton from "@/components/features/HomeSkeleton";
 import ProfileMenu from "@/components/features/ProfileMenu";
 import Sparkline from "@/components/UI/Sparkline";
-import { createClient } from "@/lib/supabase/server";
+import { getAccountContext } from "@/lib/account";
 import { ChartNoAxesCombinedIcon } from "@/lib/seichi-icons";
 
 export default function MainPage() {
@@ -23,15 +23,12 @@ export default function MainPage() {
 }
 
 async function DashboardContent() {
-	const supabase = await createClient();
-	const [result, transaction, goalsResult, { data: { user } }] = await Promise.all([
+	const [result, transaction, goalsResult, account] = await Promise.all([
 		getDashboardTotals(),
 		getTransactions(undefined, undefined, 5),
 		getGoals(),
-		supabase.auth.getUser(),
+		getAccountContext(),
 	]);
-
-	const initials = (user?.email ?? "").slice(0, 2).toUpperCase() || "··";
 
 	const entrata = TRANSACTION_TYPES.find((t) => t.id === "entrata")!;
 	const uscita = TRANSACTION_TYPES.find((t) => t.id === "spesa")!;
@@ -54,7 +51,7 @@ async function DashboardContent() {
 					<p className="text-[13px] text-muted">Bentornato</p>
 					<p className="text-xl font-semibold leading-tight">Il tuo terreno</p>
 				</div>
-				<ProfileMenu initials={initials} />
+				<ProfileMenu initials={account.initials} avatarUrl={account.avatarUrl} />
 			</div>
 
 			<BalanceCard

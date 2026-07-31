@@ -1,6 +1,24 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+/**
+ * Percorsi raggiungibili senza sessione. Il recupero password ci deve stare:
+ * chi ha dimenticato la password è per definizione sloggato, e senza questa
+ * voce il link ricevuto via email finirebbe su /welcome.
+ */
+const PUBLIC_PATHS = [
+	"/auth",
+	"/sign",
+	"/callback",
+	"/welcome",
+	"/error",
+	"/recupera-password",
+	"/reimposta-password",
+	// Il link di conferma cambio email può essere aperto da un browser dove non
+	// c'è sessione (client di posta, altro dispositivo)
+	"/email-confermata",
+];
+
 export async function updateSession(request: NextRequest) {
 	let supabaseResponse = NextResponse.next({
 		request,
@@ -44,14 +62,9 @@ export async function updateSession(request: NextRequest) {
 
 	const user = data?.claims;
 
-	if (
-		!user &&
-		!request.nextUrl.pathname.startsWith("/auth") &&
-		!request.nextUrl.pathname.startsWith("/sign") &&
-		!request.nextUrl.pathname.startsWith("/callback") &&
-		!request.nextUrl.pathname.startsWith("/welcome") &&
-		!request.nextUrl.pathname.startsWith("/error")
-	) {
+	const isPublic = PUBLIC_PATHS.some((path) => request.nextUrl.pathname.startsWith(path));
+
+	if (!user && !isPublic) {
 		// no user, potentially respond by redirecting the user to the login page
 		const url = request.nextUrl.clone();
 		url.pathname = "/welcome";

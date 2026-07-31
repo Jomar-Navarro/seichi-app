@@ -17,6 +17,20 @@ export interface TransactionType {
 	icon: ElementType;
 }
 
+/** Dati di account risolti lato server e passati alle pagine impostazioni. */
+export interface AccountContext {
+	userId: string;
+	email: string;
+	fullName: string | null;
+	avatarUrl: string | null;
+	currency: string;
+	language: string;
+	displayName: string;
+	initials: string;
+	/** false per gli account creati solo via OAuth: non hanno una password */
+	hasPasswordIdentity: boolean;
+}
+
 export interface Category {
 	id: string;
 	user_id: string;

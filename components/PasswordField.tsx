@@ -36,11 +36,13 @@ export default function PasswordField({
 				type="button"
 				onClick={() => setIsView(!isView)}
 				className="bg-transparent cursor-pointer p-1 flex items-center"
+				aria-label={isView ? "Nascondi password" : "Mostra password"}
 			>
+				{/* L'icona mostra l'azione disponibile, non lo stato corrente */}
 				{isView ? (
-					<Eye size={18} className="shrink-0 text-shadow-foreground" />
-				) : (
 					<EyeOff size={18} className="shrink-0 text-shadow-foreground" />
+				) : (
+					<Eye size={18} className="shrink-0 text-shadow-foreground" />
 				)}
 			</button>
 		</div>
