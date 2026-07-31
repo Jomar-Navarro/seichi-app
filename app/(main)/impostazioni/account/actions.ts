@@ -4,8 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { validateNewPassword } from "@/lib/password";
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+import { SITE_URL } from "@/lib/site-url";
 
 const AVATAR_BUCKET = "avatars";
 const AVATAR_MAX_BYTES = 2 * 1024 * 1024; // deve restare allineato al file_size_limit del bucket

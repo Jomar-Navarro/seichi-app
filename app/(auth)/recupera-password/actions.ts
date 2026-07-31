@@ -4,8 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { validateNewPassword } from "@/lib/password";
 import { clearRecoverySession, hasRecoverySession } from "@/lib/recovery";
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+import { SITE_URL } from "@/lib/site-url";
 
 type ActionResult = { error: string } | { success: true };
 

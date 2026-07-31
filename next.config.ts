@@ -13,6 +13,18 @@ if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
   );
 }
 
+// Stessa logica per l'URL pubblico dell'app: è la base dei link spediti per
+// email (conferma registrazione, recupero password, cambio email). Il controllo
+// vive QUI e non solo in lib/site-url.ts perché le NEXT_PUBLIC_* vengono
+// sostituite come costanti in fase di compilazione: un throw dentro un modulo
+// applicativo scatterebbe alla prima esecuzione dell'action, cioè addosso a un
+// utente, mentre next.config.ts gira durante il build e fa fallire il deploy.
+if (!process.env.NEXT_PUBLIC_SITE_URL) {
+  throw new Error(
+    "NEXT_PUBLIC_SITE_URL non è definita: è la base dei link inviati per email (conferma registrazione, recupero password, cambio email). Senza, l'app spedirebbe link a localhost senza segnalare nulla. Controlla .env.local (o le env del deploy).",
+  );
+}
+
 const supabaseHost = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname;
 
 const nextConfig: NextConfig = {

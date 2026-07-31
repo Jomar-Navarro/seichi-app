@@ -282,6 +282,11 @@ mappati sui nomi Tailwind in `@theme inline` → usare le classi (`bg-card`,
 - Usare `DECIMAL(10,2)` per tutti i valori monetari, mai float
 - UUID per tutti gli ID, mai INT sequenziali
 - Variabili Supabase sempre in `.env.local`, mai hardcoded
+- `NEXT_PUBLIC_SITE_URL` è obbligatoria e non ha fallback: è la base di ogni link
+  spedito per email. Si usa solo tramite `lib/site-url.ts`, mai leggendo l'env a mano.
+  Il controllo che conta sta in `next.config.ts` — le `NEXT_PUBLIC_*` sono inlinizzate
+  in compilazione, quindi un throw in un modulo applicativo scatterebbe alla prima
+  esecuzione dell'action (cioè addosso a un utente) invece che al build
 - I colori delle categorie finanziarie seguono il design system:
   verde = entrate, rosso = uscite, blu = investimenti, oro = risparmi
 - Componenti UI generici in `components/UI/`, logica di business in `components/features/`

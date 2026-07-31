@@ -3,8 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
-
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+import { SITE_URL } from "@/lib/site-url";
 
 export async function login(_prevState: { error: string }, formData: FormData) {
 	const supabase = await createClient();
@@ -65,7 +64,7 @@ export async function signup(
 			// non scambia il `code`: l'utente finisce su /welcome senza sessione,
 			// come se la conferma non fosse servita a niente. /callback lo scambia
 			// e poi instrada a /start perché profiles.currency è ancora NULL.
-			emailRedirectTo: `${siteUrl}/callback`,
+			emailRedirectTo: `${SITE_URL}/callback`,
 			data: {
 				name: formData.get("name") as string,
 				surname: formData.get("surname") as string,
@@ -98,7 +97,7 @@ export async function signInWithGoogle() {
 				access_type: "offline",
 				prompt: "consent",
 			},
-			redirectTo: `${siteUrl}/callback`,
+			redirectTo: `${SITE_URL}/callback`,
 		},
 	});
 	if (data.url) {
@@ -112,7 +111,7 @@ export async function signInWithFacebook() {
 	const { data } = await supabase.auth.signInWithOAuth({
 		provider: "facebook",
 		options: {
-			redirectTo: `${siteUrl}/callback`,
+			redirectTo: `${SITE_URL}/callback`,
 		},
 	});
 	if (data.url) {
