@@ -267,6 +267,13 @@ export async function deleteAccount(confirmEmail: string, password: string) {
 		if (authError) return { error: "Password non corretta" };
 	}
 
+	// Prova a vuoto prima di distruggere qualsiasi cosa: dry_run non cancella
+	// niente ma percorre autenticazione, grant ed esistenza della funzione. È il
+	// modo per accorgersi che la migrazione non è mai stata eseguita PRIMA di
+	// cancellare l'avatar, che invece è irreversibile.
+	const { error: probeError } = await supabase.rpc("delete_current_user", { dry_run: true });
+	if (probeError) return { error: probeError.message };
+
 	// I file dell'avatar vanno rimossi QUI, con l'API storage: Supabase vieta il
 	// DELETE diretto su storage.objects, e dopo la RPC la sessione non esiste più
 	// per autorizzare la cancellazione. Se fallisce ci fermiamo — distruggere
@@ -280,7 +287,7 @@ export async function deleteAccount(confirmEmail: string, password: string) {
 	// delete_current_user() è SECURITY DEFINER e cancella solo auth.uid():
 	// evita di dover tenere la service_role key nel backend.
 	// Vedi supabase/migrations/20260729_account_security.sql
-	const { error } = await supabase.rpc("delete_current_user");
+	const { error } = await supabase.rpc("delete_current_user", { dry_run: false });
 	if (error) {
 		// Compensazione: i file non ci sono più, quindi il puntatore non deve
 		// restare o l'account sopravvissuto mostrerebbe un avatar rotto ovunque.

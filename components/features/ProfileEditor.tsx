@@ -10,6 +10,10 @@ import { removeAvatar, updateFullName, uploadAvatar } from "@/app/(main)/imposta
 
 const ACCEPTED = "image/jpeg,image/png,image/webp";
 const AKA = "var(--color-aka)";
+// Allineato ad AVATAR_MAX_BYTES nella server action e al file_size_limit del
+// bucket. Il controllo qui evita un upload inutile, ma quello che conta è
+// quello sul server: questo è aggirabile.
+const MAX_BYTES = 2 * 1024 * 1024;
 
 interface ProfileEditorProps {
 	fullName: string | null;
@@ -36,21 +40,39 @@ export default function ProfileEditor({ fullName, avatarUrl, initials, email }: 
 		if (!file) return;
 
 		setError(null);
+
+		if (file.size > MAX_BYTES) {
+			setError("L'immagine non può superare 2 MB");
+			return;
+		}
+
 		startUpload(async () => {
-			const formData = new FormData();
-			formData.append("avatar", file);
-			const result = await uploadAvatar(formData);
-			if ("error" in result) setError(result.error);
-			else router.refresh();
+			// try/catch e non solo il risultato: una server action può anche
+			// RIGETTARE (body oltre il limite, rete caduta, deploy in corso). Senza,
+			// la promise rifiutata resterebbe non gestita e l'utente vedrebbe solo
+			// lo spinner fermarsi, senza sapere che l'upload è fallito.
+			try {
+				const formData = new FormData();
+				formData.append("avatar", file);
+				const result = await uploadAvatar(formData);
+				if ("error" in result) setError(result.error);
+				else router.refresh();
+			} catch {
+				setError("Caricamento non riuscito. Riprova.");
+			}
 		});
 	}
 
 	function handleRemove() {
 		setError(null);
 		startUpload(async () => {
-			const result = await removeAvatar();
-			if ("error" in result) setError(result.error);
-			else router.refresh();
+			try {
+				const result = await removeAvatar();
+				if ("error" in result) setError(result.error);
+				else router.refresh();
+			} catch {
+				setError("Rimozione non riuscita. Riprova.");
+			}
 		});
 	}
 
@@ -58,11 +80,15 @@ export default function ProfileEditor({ fullName, avatarUrl, initials, email }: 
 		setError(null);
 		setSaved(false);
 		startSaveName(async () => {
-			const result = await updateFullName(name);
-			if ("error" in result) setError(result.error);
-			else {
-				setSaved(true);
-				router.refresh();
+			try {
+				const result = await updateFullName(name);
+				if ("error" in result) setError(result.error);
+				else {
+					setSaved(true);
+					router.refresh();
+				}
+			} catch {
+				setError("Salvataggio non riuscito. Riprova.");
 			}
 		});
 	}

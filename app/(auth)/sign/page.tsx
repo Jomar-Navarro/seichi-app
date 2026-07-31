@@ -16,6 +16,9 @@ export default function Sign() {
 		// Impostato da resetPassword() dopo un recupero andato a buon fine
 		const passwordReset = params.get("reset") === "1";
 
+		// Le setState in effect sono volute: i query param esistono solo a runtime
+		// sul client e vengono subito ripuliti dall'URL. Basta un disable: la regola
+		// segnala una volta per effetto, non per singola chiamata.
 		// eslint-disable-next-line react-hooks/set-state-in-effect
 		if (wantsSignup) setTab("signup");
 		if (passwordReset) setNotice("Password aggiornata — accedi con quella nuova");

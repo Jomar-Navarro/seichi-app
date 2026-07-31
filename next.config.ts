@@ -17,6 +17,17 @@ const supabaseHost = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname;
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["172.30.224.1", "192.168.1.224", "192.168.1.*"],
+  experimental: {
+    serverActions: {
+      // L'avatar viaggia in una server action, e il limite di default è 1 MB:
+      // senza questo, ogni immagine tra 1 e 2 MB verrebbe rifiutata dal
+      // framework PRIMA di entrare in uploadAvatar, che invece ne accetta 2 MB
+      // (come il bucket e come la scritta "massimo 2 MB" nella UI).
+      // 3 MB e non 2: il limite vale sul body HTTP grezzo, quindi comprende
+      // boundary e header del multipart che si aggiungono al file.
+      bodySizeLimit: "3mb",
+    },
+  },
   images: {
     remotePatterns: [
       {

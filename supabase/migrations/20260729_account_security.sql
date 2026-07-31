@@ -145,6 +145,16 @@ alter table public.recurring_rules add  constraint recurring_rules_user_id_fkey
 -- cacheable, senza dover firmare un URL a ogni render (l'avatar compare in ogni
 -- pagina dell'app, nel ProfileMenu).
 -- La SCRITTURA resta vincolata: ogni utente può toccare solo la propria cartella.
+--
+-- ⚠️ Nessuna policy di SELECT aperta a `public`. Il bucket è pubblico, quindi
+-- GET /storage/v1/object/public/avatars/... NON passa da RLS: le <img> e
+-- next/image funzionano comunque. Una policy `for select to public` servirebbe
+-- solo alle API autenticate — cioè a list(), che con essa permetterebbe a
+-- CHIUNQUE abbia la anon key di elencare le cartelle del bucket. Sono gli
+-- user_id di tutti gli iscritti, più il nome file di ogni avatar: l'URL
+-- "non ricostruibile" tornerebbe ricostruibile e la lista utenti sarebbe
+-- pubblica. Qui la SELECT è ristretta alla propria cartella, quel tanto che
+-- basta al list() di purgeAvatarFiles().
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
@@ -159,10 +169,18 @@ set public             = excluded.public,
 	file_size_limit    = excluded.file_size_limit,
 	allowed_mime_types = excluded.allowed_mime_types;
 
+-- Rimuove la vecchia policy aperta a `public` (vedi nota sopra): il drop deve
+-- restare anche dopo che la policy non viene più creata, perché su un progetto
+-- dove la migrazione era già stata eseguita è ancora attiva.
 drop policy if exists "avatars_public_read"   on storage.objects;
-create policy "avatars_public_read" on storage.objects
-	for select to public
-	using (bucket_id = 'avatars');
+
+drop policy if exists "avatars_select_own"    on storage.objects;
+create policy "avatars_select_own" on storage.objects
+	for select to authenticated
+	using (
+		bucket_id = 'avatars'
+		and (storage.foldername(name))[1] = (select auth.uid())::text
+	);
 
 drop policy if exists "avatars_insert_own"    on storage.objects;
 create policy "avatars_insert_own" on storage.objects
@@ -211,7 +229,13 @@ create policy "avatars_delete_own" on storage.objects
 --   - i DELETE espliciti sulle tabelle applicative rendono la funzione corretta
 --     anche se un domani una FK venisse ricreata senza cascade
 
-create or replace function public.delete_current_user()
+-- Il vecchio prototipo senza argomenti va rimosso esplicitamente: convivendo
+-- con la versione che ha un parametro con default, la chiamata a zero argomenti
+-- diventerebbe ambigua ("function is not unique") e l'eliminazione account
+-- smetterebbe di funzionare su chi ha già eseguito la migrazione.
+drop function if exists public.delete_current_user();
+
+create or replace function public.delete_current_user(dry_run boolean default false)
 returns void
 language plpgsql
 security definer
@@ -222,6 +246,17 @@ declare
 begin
 	if uid is null then
 		raise exception 'not authenticated' using errcode = '28000';
+	end if;
+
+	-- dry_run: prova a vuoto che deleteAccount() esegue PRIMA di cancellare i
+	-- file dell'avatar. Quella cancellazione è irreversibile e deve precedere la
+	-- RPC (vedi sotto), quindi senza una verifica preliminare una funzione mai
+	-- installata, un grant sbagliato o una sessione scaduta lascerebbero
+	-- l'account vivo e la foto distrutta. Qui non tocchiamo niente: se la
+	-- chiamata arriva fin qui, la vera esecuzione può solo fallire per un errore
+	-- transitorio.
+	if dry_run then
+		return;
 	end if;
 
 	-- I file dell'avatar NON si cancellano da qui: Supabase blocca il DELETE
@@ -239,5 +274,5 @@ begin
 end;
 $$;
 
-revoke all     on function public.delete_current_user() from public, anon;
-grant  execute on function public.delete_current_user() to authenticated;
+revoke all     on function public.delete_current_user(boolean) from public, anon;
+grant  execute on function public.delete_current_user(boolean) to authenticated;
