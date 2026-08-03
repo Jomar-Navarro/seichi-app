@@ -1,16 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Repeat } from "lucide-react";
-import { setBudget } from "@/app/(main)/budget-actions";
-
-interface GlobalBudgetSectionProps {
-	/** budget mensile attuale, null se mai impostato o rimosso */
-	current: number | null;
-	/** abbonamenti previsti questo mese — fuori dal budget, mostrati per onestà */
-	fixedOutflows: number;
-}
+import { getFixedOutflows, getGlobalBudget, setBudget } from "@/app/(main)/budget-actions";
+import { clientClock } from "@/lib/dates";
 
 const euro = new Intl.NumberFormat("it-IT", { maximumFractionDigits: 0 });
 
@@ -19,12 +12,54 @@ const euro = new Intl.NumberFormat("it-IT", { maximumFractionDigits: 0 });
  * righe alte `h-15.5`, pastiglia icona `w-9 h-9`, valore a destra in
  * `text-[13px] text-muted`. Non usa SettingsRow perché il valore qui è un
  * campo scrivibile, non un testo — ma tutto il resto resta allineato.
+ *
+ * ⚠️ Carica i dati da sé invece di riceverli dalla pagina, che è un server
+ * component. I periodi di budget si calcolano sul fuso dell'UTENTE, e un server
+ * component non lo conosce: su Vercel direbbe UTC. Solo qui, nel browser,
+ * `clientClock()` restituisce l'orologio giusto.
  */
-export default function GlobalBudgetSection({ current, fixedOutflows }: GlobalBudgetSectionProps) {
-	const router = useRouter();
-	const [amount, setAmount] = useState(current === null ? "" : String(current));
+export default function GlobalBudgetSection() {
+	const [amount, setAmount] = useState("");
+	/** valore confermato dal server: il confronto evita scritture inutili */
+	const [current, setCurrent] = useState<number | null>(null);
+	const [fixedOutflows, setFixedOutflows] = useState(0);
+	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	/** una lettura fallita NON è "nessun limite": senza distinguerle, il campo
+	 *  mostrerebbe vuoto a chi un limite ce l'ha, e basterebbe scriverci sopra
+	 *  per sostituirlo senza essersi accorti di nulla */
+	const [loadFailed, setLoadFailed] = useState(false);
+
+	useEffect(() => {
+		let cancelled = false;
+		const clock = clientClock();
+
+		Promise.all([getGlobalBudget(clock), getFixedOutflows(clock)]).then(
+			([budgetRes, fixedRes]) => {
+				if (cancelled) return;
+
+				if ("error" in budgetRes) {
+					setLoadFailed(true);
+					setError(budgetRes.error);
+				} else {
+					setCurrent(budgetRes.data);
+					setAmount(budgetRes.data === null ? "" : String(budgetRes.data));
+				}
+
+				if ("error" in fixedRes) {
+					setLoadFailed(true);
+					setError((prev) => prev ?? fixedRes.error);
+				} else {
+					setFixedOutflows(fixedRes.data);
+				}
+
+				setLoading(false);
+			},
+		);
+
+		return () => { cancelled = true; };
+	}, []);
 
 	/**
 	 * Salva all'uscita dal campo, come le preferenze salvano al cambio della
@@ -43,22 +78,29 @@ export default function GlobalBudgetSection({ current, fixedOutflows }: GlobalBu
 		setSaving(true);
 		setError(null);
 		try {
-			const res = await setBudget({ categoryId: null, period: "mensile", amount: parsed });
+			const res = await setBudget({
+				categoryId: null,
+				period: "mensile",
+				amount: parsed,
+				clock: clientClock(),
+			});
 			if ("error" in res) {
 				setError(res.error);
 				return;
 			}
-			router.refresh();
+			setCurrent(parsed);
 		} finally {
 			setSaving(false);
 		}
 	}
 
+	const disabled = loading || saving || loadFailed;
+
 	return (
 		<>
 			<div
 				className="rounded-[22px] bg-card border border-subtle card-shadow overflow-hidden"
-				aria-busy={saving}
+				aria-busy={loading || saving}
 			>
 				{/*
 					<label> e non <div>: così un tocco ovunque sulla riga porta il fuoco
@@ -89,8 +131,9 @@ export default function GlobalBudgetSection({ current, fixedOutflows }: GlobalBu
 						<input
 							type="text"
 							inputMode="decimal"
-							placeholder="nessuno"
+							placeholder={loading ? "…" : loadFailed ? "—" : "nessuno"}
 							value={amount}
+							disabled={disabled}
 							onChange={(e) => {
 								setAmount(e.target.value);
 								setError(null);
@@ -100,7 +143,7 @@ export default function GlobalBudgetSection({ current, fixedOutflows }: GlobalBu
 								if (e.key === "Enter") e.currentTarget.blur();
 							}}
 							aria-label="Limite di spesa mensile"
-							className="w-20 px-2.5 py-1.5 rounded-lg text-right bg-input border border-subtle text-[13px] outline-none focus:border-muted placeholder:text-muted/60"
+							className="w-20 px-2.5 py-1.5 rounded-lg text-right bg-input border border-subtle text-[13px] outline-none focus:border-muted placeholder:text-muted/60 disabled:opacity-50"
 						/>
 						<span className="text-[13px] text-muted">/ mese</span>
 					</span>
@@ -117,13 +160,15 @@ export default function GlobalBudgetSection({ current, fixedOutflows }: GlobalBu
 							Abbonamenti di questo mese, fuori dal limite
 						</span>
 					</span>
-					<span className="text-[13px] text-muted shrink-0">€ {euro.format(fixedOutflows)}</span>
+					<span className="text-[13px] text-muted shrink-0">
+						{loading ? "…" : loadFailed ? "—" : `€ ${euro.format(fixedOutflows)}`}
+					</span>
 				</div>
 			</div>
 
 			{error && (
 				<p className="text-[11.5px] mt-2 ml-1" style={{ color: "var(--color-aka)" }}>
-					{error}
+					{loadFailed ? `Impossibile leggere il budget: ${error}` : error}
 				</p>
 			)}
 		</>

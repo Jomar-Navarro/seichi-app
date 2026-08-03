@@ -18,7 +18,6 @@ import PageHeader from "@/components/UI/PageHeader";
 import SettingsRow, { SettingsGroup } from "@/components/UI/SettingsRow";
 import PreferencesSection from "@/components/features/PreferencesSection";
 import GlobalBudgetSection from "@/components/features/GlobalBudgetSection";
-import { getBudgetOverview, getGlobalBudget } from "@/app/(main)/budget-actions";
 import { signOut } from "./actions";
 import pkg from "@/package.json";
 
@@ -31,14 +30,10 @@ export default async function ImpostazioniPage() {
 	// Il filtro esplicito è ridondante con la policy RLS, ed è voluto: se un
 	// domani quella policy venisse allentata, il conteggio non deve diventare
 	// globale senza che nessuno se ne accorga.
-	const [{ count: categoriesCount }, globalBudget, overview] = await Promise.all([
-		supabase
-			.from("categories")
-			.select("id", { count: "exact", head: true })
-			.eq("user_id", account.userId),
-		getGlobalBudget(),
-		getBudgetOverview(),
-	]);
+	const { count: categoriesCount } = await supabase
+		.from("categories")
+		.select("id", { count: "exact", head: true })
+		.eq("user_id", account.userId);
 
 	return (
 		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34">
@@ -84,10 +79,9 @@ export default async function ImpostazioniPage() {
 				<p className="text-[11.5px] font-semibold tracking-[1.6px] uppercase text-disabled mb-2.5 ml-0.5">
 					Budget
 				</p>
-				<GlobalBudgetSection
-					current={"data" in globalBudget ? globalBudget.data : null}
-					fixedOutflows={"data" in overview ? overview.data.fixedOutflowsThisMonth : 0}
-				/>
+				{/* Carica da sé: i periodi di budget dipendono dal fuso dell'utente,
+				    che un server component non conosce. */}
+				<GlobalBudgetSection />
 			</div>
 
 			{/* Categorie */}

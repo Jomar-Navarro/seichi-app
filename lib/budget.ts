@@ -44,12 +44,19 @@ export function budgetStatus(spent: number, amount: number): BudgetStatus {
 }
 
 /**
- * Colore della barra e degli importi. Lo stato "ok" usa il colore della
- * categoria — così la card resta riconoscibile e il rosso conserva il suo
- * significato invece di diventare decorazione.
+ * Colore della barra e degli importi: neutro → ambra → rosso.
+ *
+ * ⚠️ Lo stato "ok" NON usa il colore della categoria, anche se il mockup lo
+ * faceva. Ogni categoria con un budget è di tipo `spesa`, e tutte le spese
+ * hanno colore `aka`: la scala sarebbe diventata rosso → ambra → rosso, cioè
+ * illeggibile sotto l'80%. In un mockup non si vede, perché c'è una sola card
+ * sforata e nessuna progressione da seguire.
+ *
+ * L'identità della categoria resta comunque sulla card: la porta la pastiglia
+ * dell'icona, che il colore ce l'ha.
  */
-export function budgetColor(status: BudgetStatus, categoryColor: string): string {
+export function budgetColor(status: BudgetStatus): string {
 	if (status === "sforato") return "var(--color-aka)";
 	if (status === "soglia") return "var(--color-kin)";
-	return categoryColor;
+	return "var(--color-kiri)";
 }

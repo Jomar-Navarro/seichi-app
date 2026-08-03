@@ -14,6 +14,7 @@ import {
 } from "@/app/(main)/impostazioni/actions";
 import { getBudgetForCategory, setBudget } from "@/app/(main)/budget-actions";
 import { BUDGET_PERIODS, periodSuffix } from "@/lib/budget";
+import { clientClock } from "@/lib/dates";
 import type { BudgetPeriod, Category } from "@/types";
 
 const TYPE_ORDER = [
@@ -92,7 +93,7 @@ export default function CategorySheet({
 	useEffect(() => {
 		if (!isOpen || !category) return;
 		let cancelled = false;
-		getBudgetForCategory(category.id).then((res) => {
+		getBudgetForCategory(category.id, clientClock()).then((res) => {
 			if (cancelled || !("data" in res) || !res.data) return;
 			setInitialBudget(res.data);
 			setBudgetPeriod(res.data.period);
@@ -165,7 +166,21 @@ export default function CategorySheet({
 	 * riga nello storico dei budget con lo stesso importo di prima.
 	 */
 	async function saveBudget(categoryId: string): Promise<string | null> {
-		if (!showBudget) return null;
+		// ⚠️ La categoria non è più di tipo spesa, ma un budget ce l'aveva: va
+		// rimosso, non semplicemente ignorato. Lasciandolo lì, la riga resta valida
+		// nel DB e la card continua a comparire a "€0 / €X" per sempre — e siccome
+		// il campo budget ora è nascosto, l'utente non ha più alcun modo di
+		// toglierla. Un vicolo cieco creato da un cambio di tipo.
+		if (!showBudget) {
+			if (!initialBudget) return null;
+			const res = await setBudget({
+				categoryId,
+				period: initialBudget.period,
+				amount: null,
+				clock: clientClock(),
+			});
+			return "error" in res ? res.error : null;
+		}
 
 		const parsed =
 			budgetAmount.trim() === ""
@@ -187,6 +202,7 @@ export default function CategorySheet({
 			categoryId,
 			period: budgetPeriod,
 			amount: parsed,
+			clock: clientClock(),
 		});
 		return "error" in res ? res.error : null;
 	}

@@ -168,9 +168,13 @@ budgets: id (UUID), user_id, category_id (UUID, NULLABLE), period (TEXT),
   (stesso `valid_from`); alzare il budget da un periodo futuro crea una riga nuova —
   **stessa operazione nel codice, intenzione dedotta dal periodo**, nessuna scelta
   concettuale davanti all'utente.
-- **`amount` NULL, mai 0, per cancellare.** Zero è un budget legittimo e
-  significativo ("non voglio spendere niente qui"): sovraccaricarlo distruggerebbe
-  un'informazione vera. `CHECK (amount IS NULL OR amount > 0)`.
+- **`amount` NULL, mai 0, per cancellare.** "Nessun budget" e "budget di zero" sono
+  affermazioni diverse: usare 0 come sentinella renderebbe impossibile distinguerle.
+  La lapide è NULL per non doverlo fare. **Se poi 0 vada anche ammesso è una domanda
+  separata, e la risposta è no** — `CHECK (amount IS NULL OR amount > 0)`: un limite
+  di zero è nei fatti indistinguibile dal non voler tracciare la categoria, e
+  costringerebbe a gestire `spent/0` in percentuale e stato per un caso che nessuno
+  imposta.
 - **Periodi ancorati al CALENDARIO** (settimana da lunedì, mese dal 1°, anno solare),
   non alla data di creazione. Un budget è una *finestra sul tempo condiviso*, non un
   evento che si ripete: l'utente pensa "questa settimana", non "i 7 giorni da quando
@@ -255,14 +259,34 @@ notifications: id, user_id, type, title, body, dedup_key (TEXT), destinazione,
   controlli non esprimibili come vincolo (categoria `spesa`, globale mensile) danno un
   messaggio leggibile invece di una violazione di CHECK. Riceve la data **locale** del
   client: il server è in UTC e fra mezzanotte e le 2 sbaglierebbe periodo.
-- ⚠️ **Cambiare periodo poteva sparire in silenzio.** Difetto reale del versionamento
-  a solo `valid_from`: venerdì 1 agosto con un budget mensile (`valid_from` = 1 ago),
-  passando a settimanale la riga nuova nascerebbe con `valid_from` = lunedì 27 luglio
-  — *prima* della mensile. `budgets_at()` prende il `valid_from` più recente, quindi
-  continuerebbe a restituire la mensile: budget cambiato, nessun effetto, nessun
-  errore. `set_budget()` lo risolve avanzando al confine successivo del periodo nuovo
-  (un confine alla volta, non con `greatest()`, così `valid_from` resta allineato e il
-  `CHECK` regge sempre): il cambio decorre dal prossimo periodo.
+- ⚠️ **Cambiare periodo poteva sparire in silenzio.** Difetto del versionamento a solo
+  `valid_from`: il nuovo inizio può non essere il più recente, in entrambe le
+  direzioni. Mensile → settimanale il 1° agosto (venerdì): la settimana è iniziata il
+  27 luglio, *prima* della riga mensile del 1 ago, che `budgets_at()` continuerebbe a
+  restituire. Settimanale → mensile il 15 agosto: l'inizio mensile è il 1 ago, prima
+  della settimana corrente. **Il primo tentativo di correzione avanzava al confine
+  successivo del periodo nuovo — sbagliato**: nel secondo caso il budget entrava in
+  vigore il 1° *settembre*, l'azione rispondeva "salvato" e per tre settimane non
+  cambiava nulla. Un no-op silenzioso è il difetto peggiore possibile qui.
+  Soluzione attuale: il nuovo budget vale **subito**, e `set_budget()` rimuove le
+  righe interne al periodo corrente scritte sotto il regime precedente
+  (`valid_from > v_from AND valid_from <= p_today`). Cambiare periodo *è* ridefinire
+  la finestra corrente; lo storico dei periodi precedenti e le righe future non si
+  toccano.
+- ⚠️ **La rimozione di un budget non applica il controllo "solo categorie spesa".**
+  Se l'utente cambia il tipo di una categoria che aveva un budget, quel budget va
+  ripulito **proprio quando** la categoria non è più `spesa`. Applicare il controllo
+  anche in rimozione lascerebbe una riga che nessuno può più togliere: la card
+  resterebbe a "€0 / €X" per sempre, e il campo budget è ormai nascosto.
+  `CategorySheet` scrive la lapide quando il tipo cambia via da `spesa`.
+- ⚠️ **Il fuso orario non si chiede al server.** Le server action girano in UTC su
+  Vercel: `new Date()` lì dà il giorno del *server*, e fra mezzanotte e le 2 ora
+  italiana è ancora ieri. L'orologio arriva dal client come `ClientClock`
+  (`lib/dates.ts`), che porta la data locale **e lo scostamento di fuso** — serve
+  entrambi, perché `transactions.date` è un istante assoluto e senza offset i confini
+  di periodo sarebbero comunque quelli della mezzanotte del server. Per lo stesso
+  motivo `GlobalBudgetSection` carica i propri dati da sé: la pagina impostazioni è un
+  server component e non può conoscere il fuso dell'utente.
 - **Il budget si imposta nel form categoria** (`CategorySheet`), non in una pagina
   dedicata — è una proprietà della categoria, si modifica dove si modifica lei. La
   *memorizzazione* resta la tabella versionata: `getBudgetForCategory()` la carica

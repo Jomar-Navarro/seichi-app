@@ -6,6 +6,7 @@ import FilterBar from "@/components/features/Filterbar";
 import TransactionList from "@/components/features/TransactionList";
 import BudgetCards from "@/components/features/BudgetCards";
 import { useUIStore } from "@/store/useUIStore";
+import { clientClock } from "@/lib/dates";
 import type { BudgetOverview, Transaction } from "@/types";
 
 export default function MovimentiPage() {
@@ -17,31 +18,32 @@ export default function MovimentiPage() {
 	const [loading, setLoading] = useState(true);
 	const transactionSavedAt = useUIStore((s) => s.transactionSavedAt);
 
-	const load = useCallback(async () => {
+	const loadTransactions = useCallback(async () => {
 		setLoading(true);
 		try {
-			// Le due letture sono indipendenti: i filtri cambiano solo la lista,
-			// mentre i budget guardano sempre il periodo corrente. Si caricano
-			// insieme perché il rientro dopo un salvataggio deve aggiornare
-			// entrambi — è quello che fa diventare rossa la barra subito.
-			const [result, budgetResult] = await Promise.all([
-				getTransactions(tipo || undefined, periodo),
-				getBudgetOverview(),
-			]);
-
-			if ("data" in result) {
-				setTransactions((result.data as Transaction[]) ?? []);
-			} else {
-				setTransactions([]);
-			}
-			setBudgets("data" in budgetResult ? budgetResult.data : null);
+			const result = await getTransactions(tipo || undefined, periodo);
+			setTransactions("data" in result ? ((result.data as Transaction[]) ?? []) : []);
 		} finally {
 			setLoading(false);
 		}
 	}, [tipo, periodo]);
 
 	// eslint-disable-next-line react-hooks/set-state-in-effect
-	useEffect(() => { load(); }, [load, transactionSavedAt]);
+	useEffect(() => { loadTransactions(); }, [loadTransactions, transactionSavedAt]);
+
+	// I budget guardano sempre il periodo corrente e NON dipendono dai filtri:
+	// tenerli nello stesso effetto li faceva rileggere — con le transazioni del
+	// periodo, per giunta — a ogni tocco su "30 giorni" o "Tutte". Si aggiornano
+	// solo all'ingresso e dopo il salvataggio di un movimento, che è ciò che fa
+	// diventare rossa la barra subito.
+	useEffect(() => {
+		let cancelled = false;
+		getBudgetOverview(clientClock()).then((res) => {
+			if (cancelled) return;
+			setBudgets("data" in res ? res.data : null);
+		});
+		return () => { cancelled = true; };
+	}, [transactionSavedAt]);
 
 	const filtered = search.trim()
 		? transactions.filter((t) =>

@@ -13,7 +13,7 @@ function BudgetCard({ budget }: { budget: BudgetWithSpending }) {
 	const baseColor = isGlobal
 		? "var(--color-aka)"
 		: `var(--color-${budget.category?.color ?? "kiri"})`;
-	const color = budgetColor(budget.status, baseColor);
+	const color = budgetColor(budget.status);
 	const sforato = budget.status === "sforato";
 
 	const Icon = isGlobal ? null : ICON_MAP[budget.category?.icon ?? ""];

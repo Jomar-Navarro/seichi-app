@@ -2,9 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { parseLocalDate, todayLocalISO } from "@/lib/dates";
+import { localMidnightInstant, monthBoundsOf, parseLocalDate } from "@/lib/dates";
 import { advanceDate } from "@/lib/recurring";
 import { budgetStatus } from "@/lib/budget";
+import type { ClientClock } from "@/lib/dates";
 import type {
 	BudgetAt,
 	BudgetOverview,
@@ -15,15 +16,13 @@ import type {
 } from "@/types";
 
 /**
- * Le date di periodo arrivano dal DB come `YYYY-MM-DD` e vanno confrontate con
- * `transactions.date`, che è un istante UTC. Interpretarle come mezzanotte
- * LOCALE (e non come UTC) è ciò che tiene una spesa del primo del mese dentro
- * il mese giusto — stessa ragione per cui getDashboardTotals costruisce i
- * confini con `new Date(anno, mese, 1)` prima di chiamare toISOString().
+ * ⚠️ Tutte le funzioni qui girano SUL SERVER, che su Vercel è in UTC. Nessuna
+ * può chiedersi "che giorno è oggi": otterrebbe il giorno del server, e fra
+ * mezzanotte e le 2 ora italiana è ancora ieri — periodo sbagliato, budget
+ * sbagliato. L'orologio arriva dal client come parametro (`ClientClock`), che
+ * porta con sé anche lo scostamento di fuso: senza quello i confini di periodo
+ * sarebbero comunque calcolati sulla mezzanotte del server.
  */
-function boundaryToInstant(isoDate: string): string {
-	return parseLocalDate(isoDate).toISOString();
-}
 
 /**
  * Imposta, modifica o rimuove un budget.
@@ -40,6 +39,7 @@ export async function setBudget(input: {
 	categoryId: string | null;
 	period: BudgetPeriod;
 	amount: number | null;
+	clock: ClientClock;
 }): Promise<{ success: true } | { error: string }> {
 	const supabase = await createClient();
 	const { data: { user } } = await supabase.auth.getUser();
@@ -53,12 +53,22 @@ export async function setBudget(input: {
 		p_category_id: input.categoryId,
 		p_period: input.period,
 		p_amount: input.amount,
-		p_today: todayLocalISO(),
+		p_today: input.clock.today,
 	});
 
 	if (error) return { error: error.message };
 	revalidatePath("/", "layout");
 	return { success: true };
+}
+
+/** Le righe di `budgets_at()` per l'utente corrente. */
+async function readBudgetsAt(
+	supabase: SupabaseServerClient,
+	clock: ClientClock,
+): Promise<{ data: BudgetAt[] } | { error: string }> {
+	const { data, error } = await supabase.rpc("budgets_at", { ref_date: clock.today });
+	if (error) return { error: error.message };
+	return { data: (data ?? []) as BudgetAt[] };
 }
 
 /**
@@ -68,15 +78,16 @@ export async function setBudget(input: {
  */
 export async function getBudgetForCategory(
 	categoryId: string,
+	clock: ClientClock,
 ): Promise<{ data: { period: BudgetPeriod; amount: number } | null } | { error: string }> {
 	const supabase = await createClient();
 	const { data: { user } } = await supabase.auth.getUser();
 	if (!user) return { error: "Non autenticato" };
 
-	const { data, error } = await supabase.rpc("budgets_at", { ref_date: todayLocalISO() });
-	if (error) return { error: error.message };
+	const rows = await readBudgetsAt(supabase, clock);
+	if ("error" in rows) return rows;
 
-	const row = ((data ?? []) as BudgetAt[]).find((b) => b.category_id === categoryId);
+	const row = rows.data.find((b) => b.category_id === categoryId);
 	if (!row || row.amount === null) return { data: null };
 
 	return { data: { period: row.period, amount: row.amount } };
@@ -86,17 +97,17 @@ export async function getBudgetForCategory(
  * Il budget globale in vigore, o `null` se non impostato.
  * È sempre mensile: il globale è ancorato allo stipendio (vincolo sulla tabella).
  */
-export async function getGlobalBudget(): Promise<
-	{ data: number | null } | { error: string }
-> {
+export async function getGlobalBudget(
+	clock: ClientClock,
+): Promise<{ data: number | null } | { error: string }> {
 	const supabase = await createClient();
 	const { data: { user } } = await supabase.auth.getUser();
 	if (!user) return { error: "Non autenticato" };
 
-	const { data, error } = await supabase.rpc("budgets_at", { ref_date: todayLocalISO() });
-	if (error) return { error: error.message };
+	const rows = await readBudgetsAt(supabase, clock);
+	if ("error" in rows) return rows;
 
-	const row = ((data ?? []) as BudgetAt[]).find((b) => b.category_id === null);
+	const row = rows.data.find((b) => b.category_id === null);
 	return { data: row?.amount ?? null };
 }
 
@@ -104,33 +115,27 @@ export async function getGlobalBudget(): Promise<
  * Il quadro budget del periodo corrente: globale, per categoria, e le uscite
  * fisse previste nel mese.
  */
-export async function getBudgetOverview(): Promise<
-	{ data: BudgetOverview } | { error: string }
-> {
+export async function getBudgetOverview(
+	clock: ClientClock,
+): Promise<{ data: BudgetOverview } | { error: string }> {
 	const supabase = await createClient();
 	const { data: { user } } = await supabase.auth.getUser();
 	if (!user) return { error: "Non autenticato" };
 
-	const today = todayLocalISO();
-
-	const { data: rows, error: rowsError } = await supabase.rpc("budgets_at", {
-		ref_date: today,
-	});
-	if (rowsError) return { error: rowsError.message };
+	const [rows, fixed] = await Promise.all([
+		readBudgetsAt(supabase, clock),
+		getFixedOutflows(clock),
+	]);
+	if ("error" in rows) return rows;
+	if ("error" in fixed) return fixed;
 
 	// Le righe con amount NULL sono lapidi: budget rimosso a partire da quel
 	// periodo. Vengono restituite dal DB di proposito (distinguono "rimosso" da
 	// "mai impostato"), ma da qui in poi non ci servono più.
-	const budgets = ((rows ?? []) as BudgetAt[]).filter((b) => b.amount !== null);
+	const budgets = rows.data.filter((b) => b.amount !== null);
 
 	if (budgets.length === 0) {
-		return {
-			data: {
-				global: null,
-				perCategory: [],
-				fixedOutflowsThisMonth: await sumFixedOutflows(supabase, user.id, today),
-			},
-		};
+		return { data: { global: null, perCategory: [], fixedOutflowsThisMonth: fixed.data } };
 	}
 
 	// Una sola query per tutte le spese: i periodi possono essere diversi fra
@@ -146,8 +151,8 @@ export async function getBudgetOverview(): Promise<
 				.select("category_id, amount, date")
 				.eq("user_id", user.id)
 				.eq("type", "spesa")
-				.gte("date", boundaryToInstant(from))
-				.lt("date", boundaryToInstant(to)),
+				.gte("date", localMidnightInstant(from, clock.tzOffsetMinutes))
+				.lt("date", localMidnightInstant(to, clock.tzOffsetMinutes)),
 			supabase
 				.from("categories")
 				.select("id, name, icon, color")
@@ -162,8 +167,8 @@ export async function getBudgetOverview(): Promise<
 	);
 
 	const withSpending = budgets.map((b) => {
-		const start = boundaryToInstant(b.period_start);
-		const end = boundaryToInstant(b.period_end);
+		const start = localMidnightInstant(b.period_start, clock.tzOffsetMinutes);
+		const end = localMidnightInstant(b.period_end, clock.tzOffsetMinutes);
 
 		// Il globale somma TUTTE le spese del periodo, non una categoria sola.
 		const spent = (txns ?? [])
@@ -200,13 +205,7 @@ export async function getBudgetOverview(): Promise<
 	const perCategory = withSpending.filter((b) => b.categoryId !== null && b.category !== null);
 	const global = withSpending.find((b) => b.categoryId === null) ?? null;
 
-	return {
-		data: {
-			global,
-			perCategory,
-			fixedOutflowsThisMonth: await sumFixedOutflows(supabase, user.id, today),
-		},
-	};
+	return { data: { global, perCategory, fixedOutflowsThisMonth: fixed.data } };
 }
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
@@ -223,44 +222,67 @@ type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
  *   - le occorrenze ancora da generare, contate avanzando `next_run` con la
  *     cadenza della regola fino a fine mese (una regola settimanale può
  *     scattare più volte: fermarsi alla prima sottostimerebbe il totale)
+ *
+ * Gli errori delle query vengono propagati, non ingoiati: restituire 0 su
+ * fallimento mostrerebbe "uscite fisse € 0" come se fosse un dato vero, che è
+ * esattamente il numero sbagliato dall'aria giusta che questa riga esiste per
+ * evitare.
  */
-async function sumFixedOutflows(
-	supabase: SupabaseServerClient,
-	userId: string,
-	today: string,
-): Promise<number> {
-	const now = parseLocalDate(today);
-	const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-	const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+export async function getFixedOutflows(
+	clock: ClientClock,
+): Promise<{ data: number } | { error: string }> {
+	const supabase = await createClient();
+	const { data: { user } } = await supabase.auth.getUser();
+	if (!user) return { error: "Non autenticato" };
 
-	const [{ data: txns }, { data: rules }] = await Promise.all([
-		supabase
-			.from("transactions")
-			.select("amount")
-			.eq("user_id", userId)
-			.eq("type", "abbonamento")
-			.gte("date", monthStart.toISOString())
-			.lt("date", monthEnd.toISOString()),
-		supabase
-			.from("recurring_rules")
-			.select("amount, frequency, next_run, end_date")
-			.eq("user_id", userId)
-			.eq("type", "abbonamento")
-			.eq("active", true),
-	]);
+	const { start, end } = monthBoundsOf(clock.today);
+
+	const [{ data: txns, error: txnsError }, { data: rules, error: rulesError }] =
+		await Promise.all([
+			supabase
+				.from("transactions")
+				.select("amount")
+				.eq("user_id", user.id)
+				.eq("type", "abbonamento")
+				.gte("date", localMidnightInstant(start, clock.tzOffsetMinutes))
+				.lt("date", localMidnightInstant(end, clock.tzOffsetMinutes)),
+			supabase
+				.from("recurring_rules")
+				.select("amount, frequency, next_run, end_date")
+				.eq("user_id", user.id)
+				.eq("type", "abbonamento")
+				.eq("active", true),
+		]);
+
+	if (txnsError) return { error: txnsError.message };
+	if (rulesError) return { error: rulesError.message };
 
 	const alreadyCharged = (txns ?? []).reduce((acc, t) => acc + t.amount, 0);
 
+	// Qui si confrontano solo date fra loro, tutte costruite allo stesso modo:
+	// è aritmetica di calendario, indipendente dal fuso.
+	const monthStart = parseLocalDate(start);
+	const monthEnd = parseLocalDate(end);
+
 	const upcoming = (rules ?? []).reduce((acc, r) => {
-		const end = r.end_date ? parseLocalDate(r.end_date) : null;
+		const ruleEnd = r.end_date ? parseLocalDate(r.end_date) : null;
 		let occurrence = parseLocalDate(r.next_run);
 		let total = 0;
-		while (occurrence < monthEnd && (!end || occurrence <= end)) {
-			total += r.amount;
+		// Il limite di iterazioni protegge da un next_run rimasto molto indietro
+		// (cron fermo a lungo): senza, una regola settimanale di due anni fa
+		// farebbe un centinaio di giri inutili.
+		for (let i = 0; i < 400 && occurrence < monthEnd; i++) {
+			// ⚠️ Il limite INFERIORE conta quanto quello superiore. Un next_run
+			// arretrato — cron saltato, regola riattivata — porterebbe dentro anche
+			// le occorrenze dei mesi passati, gonfiando il totale (un abbonamento da
+			// 60€/mese comparirebbe a 120€).
+			if (occurrence >= monthStart && (!ruleEnd || occurrence <= ruleEnd)) {
+				total += r.amount;
+			}
 			occurrence = advanceDate(occurrence, r.frequency as Frequency);
 		}
 		return acc + total;
 	}, 0);
 
-	return alreadyCharged + upcoming;
+	return { data: alreadyCharged + upcoming };
 }

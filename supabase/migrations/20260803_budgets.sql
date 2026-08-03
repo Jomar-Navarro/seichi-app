@@ -121,9 +121,14 @@ alter table public.budgets add  constraint budgets_period_check
 -- amount NULL = "da questo periodo, nessun budget" (la lapide che sostituisce
 -- il valid_to per la cancellazione).
 --
--- ⚠️ NON si usa 0 per cancellare: zero è un budget LEGITTIMO e significativo
--- ("in questa categoria non voglio spendere niente"). Sovraccaricarlo
--- distruggerebbe un'informazione vera che l'utente ha il diritto di esprimere.
+-- ⚠️ NON si usa 0 per cancellare: 0 e "nessun budget" sono affermazioni diverse,
+-- e sovraccaricare un numero come sentinella rende impossibile distinguerle.
+-- La lapide è NULL proprio per non doverlo fare.
+--
+-- Detto questo, 0 non è nemmeno AMMESSO. Sono due decisioni distinte e la
+-- seconda è di comodo: un limite di zero è nei fatti indistinguibile dal non
+-- voler tracciare la categoria, e costringerebbe a gestire spent/0 nella
+-- percentuale e nello stato per un caso che nessuno imposta davvero.
 alter table public.budgets drop constraint if exists budgets_amount_check;
 alter table public.budgets add  constraint budgets_amount_check
 	check (amount is null or amount > 0);
@@ -294,7 +299,6 @@ as $$
 declare
 	uid    uuid := (select auth.uid());
 	v_from date;
-	v_last date;
 begin
 	if uid is null then
 		raise exception 'not authenticated' using errcode = '28000';
@@ -308,36 +312,54 @@ begin
 		raise exception 'il budget globale è sempre mensile' using errcode = '22023';
 	end if;
 
-	if p_category_id is not null and not exists (
+	-- Il vincolo "solo categorie spesa" serve a impedire di CREARE un budget dove
+	-- non ha senso. Rimuoverlo (p_amount NULL) deve restare sempre possibile: se
+	-- l'utente cambia il tipo di una categoria che aveva un budget, quel budget
+	-- va ripulito proprio quando la categoria non è più di tipo spesa. Applicare
+	-- il controllo anche qui lascerebbe una riga che nessuno può più togliere.
+	if p_amount is not null and p_category_id is not null and not exists (
 		select 1 from public.categories c
 		where c.id = p_category_id and c.user_id = uid and c.type = 'spesa'
 	) then
 		raise exception 'categoria inesistente o non di tipo spesa' using errcode = '22023';
 	end if;
 
+	-- La categoria deve comunque esistere ed essere dell'utente, anche in rimozione.
+	if p_category_id is not null and not exists (
+		select 1 from public.categories c
+		where c.id = p_category_id and c.user_id = uid
+	) then
+		raise exception 'categoria inesistente' using errcode = '22023';
+	end if;
+
 	v_from := public.budget_period_start(p_period, p_today);
 
-	-- ⚠️ Caso limite del versionamento a solo valid_from: CAMBIARE PERIODO può
-	-- produrre un inizio ANTERIORE all'ultima riga esistente, e la modifica
-	-- sparirebbe in silenzio.
-	--   Esempio: venerdì 1 agosto c'è un budget mensile (valid_from = 1 ago).
-	--   L'utente passa a settimanale: la settimana corrente è iniziata lunedì
-	--   27 luglio, quindi la riga nuova avrebbe valid_from = 27 lug — PRIMA
-	--   della mensile. budgets_at() prende il valid_from più recente, cioè
-	--   continuerebbe a restituire la mensile, e l'utente vedrebbe il vecchio
-	--   budget dopo averlo cambiato.
-	-- Soluzione: se l'inizio calcolato precede l'ultima riga, si avanza al
-	-- confine successivo del periodo NUOVO — il cambio decorre dal prossimo
-	-- periodo. Avanzare di un confine alla volta (invece di usare greatest())
-	-- garantisce che valid_from resti allineato, quindi il CHECK regge sempre.
-	select max(b.valid_from) into v_last
-	from public.budgets b
+	-- ⚠️ Caso limite del versionamento a solo valid_from: CAMBIARE PERIODO produce
+	-- un inizio che può NON essere il più recente, e senza correttivo la modifica
+	-- sparirebbe in silenzio in una direzione o nell'altra.
+	--   mensile → settimanale, venerdì 1 agosto: la settimana corrente è iniziata
+	--   lunedì 27 luglio, quindi la riga nuova avrebbe valid_from = 27 lug, PRIMA
+	--   della mensile del 1 ago. budgets_at() prende il valid_from più recente e
+	--   continuerebbe a restituire la mensile.
+	--   settimanale → mensile, 15 agosto: l'inizio mensile è il 1 ago, prima
+	--   della settimana corrente (11 ago), stesso problema.
+	--
+	-- Un tentativo precedente avanzava al confine successivo del periodo nuovo.
+	-- Sbagliato: nel secondo caso il budget entrava in vigore il 1 SETTEMBRE,
+	-- l'azione rispondeva "salvato" e per tre settimane non cambiava niente —
+	-- rifare la modifica non serviva a nulla. Un no-op silenzioso è il peggiore
+	-- dei difetti possibili qui.
+	--
+	-- Soluzione: il nuovo budget vale SUBITO, e le righe che descrivevano il
+	-- periodo corrente sotto il regime precedente vengono rimosse. Cambiare
+	-- periodo è ridefinire la finestra corrente, quindi le righe interne a essa
+	-- non hanno più senso. Lo storico dei periodi PRECEDENTI resta intatto
+	-- (valid_from <= v_from non viene toccato), e le righe FUTURE nemmeno.
+	delete from public.budgets b
 	where b.user_id = uid
-	  and b.category_id is not distinct from p_category_id;
-
-	while v_last is not null and v_from < v_last loop
-		v_from := public.budget_period_end(p_period, v_from);
-	end loop;
+	  and b.category_id is not distinct from p_category_id
+	  and b.valid_from > v_from
+	  and b.valid_from <= p_today;
 
 	insert into public.budgets (user_id, category_id, period, amount, valid_from)
 	values (uid, p_category_id, p_period, p_amount, v_from)
