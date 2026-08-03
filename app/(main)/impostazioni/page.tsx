@@ -17,6 +17,8 @@ import Avatar from "@/components/UI/Avatar";
 import PageHeader from "@/components/UI/PageHeader";
 import SettingsRow, { SettingsGroup } from "@/components/UI/SettingsRow";
 import PreferencesSection from "@/components/features/PreferencesSection";
+import GlobalBudgetSection from "@/components/features/GlobalBudgetSection";
+import { getBudgetOverview, getGlobalBudget } from "@/app/(main)/budget-actions";
 import { signOut } from "./actions";
 import pkg from "@/package.json";
 
@@ -29,10 +31,14 @@ export default async function ImpostazioniPage() {
 	// Il filtro esplicito è ridondante con la policy RLS, ed è voluto: se un
 	// domani quella policy venisse allentata, il conteggio non deve diventare
 	// globale senza che nessuno se ne accorga.
-	const { count: categoriesCount } = await supabase
-		.from("categories")
-		.select("id", { count: "exact", head: true })
-		.eq("user_id", account.userId);
+	const [{ count: categoriesCount }, globalBudget, overview] = await Promise.all([
+		supabase
+			.from("categories")
+			.select("id", { count: "exact", head: true })
+			.eq("user_id", account.userId),
+		getGlobalBudget(),
+		getBudgetOverview(),
+	]);
 
 	return (
 		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34">
@@ -71,6 +77,17 @@ export default async function ImpostazioniPage() {
 					Preferenze
 				</p>
 				<PreferencesSection currency={account.currency} language={account.language} />
+			</div>
+
+			{/* Budget */}
+			<div className="mb-6">
+				<p className="text-[11.5px] font-semibold tracking-[1.6px] uppercase text-disabled mb-2.5 ml-0.5">
+					Budget
+				</p>
+				<GlobalBudgetSection
+					current={"data" in globalBudget ? globalBudget.data : null}
+					fixedOutflows={"data" in overview ? overview.data.fixedOutflowsThisMonth : 0}
+				/>
 			</div>
 
 			{/* Categorie */}

@@ -39,17 +39,24 @@ export async function createCategory(input: { name: string; icon: string; type: 
 	if (!name) return { error: "Il nome è obbligatorio" };
 	if (!VALID_TYPES.includes(input.type)) return { error: "Tipo non valido" };
 
-	const { error } = await supabase.from("categories").insert({
-		user_id: user.id,
-		name,
-		icon: input.icon,
-		color: TYPE_COLOR[input.type],
-		type: input.type,
-	});
+	// L'id torna al chiamante perché il budget si imposta subito dopo, sulla
+	// categoria appena creata (vedi CategorySheet): senza, servirebbe una
+	// seconda query per ritrovarla per nome, che non è nemmeno univoco.
+	const { data, error } = await supabase
+		.from("categories")
+		.insert({
+			user_id: user.id,
+			name,
+			icon: input.icon,
+			color: TYPE_COLOR[input.type],
+			type: input.type,
+		})
+		.select("id")
+		.single();
 
 	if (error) return { error: error.message };
 	revalidatePath("/", "layout");
-	return { success: true };
+	return { success: true as const, id: data.id as string };
 }
 
 export async function updateCategory(

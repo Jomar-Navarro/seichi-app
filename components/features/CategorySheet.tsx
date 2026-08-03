@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useLayoutEffect } from "react";
+import { useState, useEffect, useLayoutEffect } from "react";
 import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ICON_MAP } from "@/lib/icon-map";
@@ -9,7 +9,9 @@ import { CATEGORY_LIBRARY } from "@/lib/category-icons";
 import { TIPO_COLOR } from "@/lib/transaction-utils";
 import { TRANSACTION_TYPES } from "@/types";
 import { createCategory, updateCategory } from "@/app/(main)/impostazioni/actions";
-import type { Category } from "@/types";
+import { getBudgetForCategory, setBudget } from "@/app/(main)/budget-actions";
+import { BUDGET_PERIODS, periodSuffix } from "@/lib/budget";
+import type { BudgetPeriod, Category } from "@/types";
 
 const TYPE_ORDER = [
 	{ id: "entrata", label: "entrata" },
@@ -51,6 +53,10 @@ export default function CategorySheet({ isOpen, category, presetType, onClose }:
 	const [submitted, setSubmitted] = useState(false);
 	const [loading, setLoading] = useState(false);
 	const [serverError, setServerError] = useState<string | null>(null);
+	const [budgetPeriod, setBudgetPeriod] = useState<BudgetPeriod>("mensile");
+	const [budgetAmount, setBudgetAmount] = useState("");
+	/** budget già presente all'apertura: serve a capire se l'utente l'ha cambiato */
+	const [initialBudget, setInitialBudget] = useState<{ period: BudgetPeriod; amount: number } | null>(null);
 
 	useLayoutEffect(() => {
 		if (isOpen) {
@@ -63,12 +69,36 @@ export default function CategorySheet({ isOpen, category, presetType, onClose }:
 			setType(t);
 			const lib = CATEGORY_LIBRARY[t] ?? [];
 			setIcon(category?.icon ?? lib[0]?.id ?? "");
+			setBudgetPeriod("mensile");
+			setBudgetAmount("");
+			setInitialBudget(null);
 		}
 	}, [isOpen, category, presetType]);
+
+	// Il budget vive in una tabella a parte (storico versionato), non è una
+	// colonna di `categories`: va caricato separatamente quando si apre il form
+	// su una categoria esistente.
+	useEffect(() => {
+		if (!isOpen || !category) return;
+		let cancelled = false;
+		getBudgetForCategory(category.id).then((res) => {
+			if (cancelled || !("data" in res) || !res.data) return;
+			setInitialBudget(res.data);
+			setBudgetPeriod(res.data.period);
+			setBudgetAmount(String(res.data.amount));
+		});
+		return () => { cancelled = true; };
+	}, [isOpen, category]);
 
 	const nameError = submitted && !name.trim();
 	const color = TIPO_COLOR[type] ?? "var(--color-kiri)";
 	const iconList = iconListFor(type, icon);
+	/**
+	 * Solo le categorie di spesa hanno un budget. Gli abbonamenti no: sono
+	 * transazioni ricorrenti di cui l'importo è già noto in anticipo da
+	 * `recurring_rules`, e un limite su una cifra che conosci non aggiunge nulla.
+	 */
+	const showBudget = type === "spesa";
 
 	function selectType(t: string) {
 		setType(t);
@@ -91,11 +121,54 @@ export default function CategorySheet({ isOpen, category, presetType, onClose }:
 				setServerError(result.error);
 				return;
 			}
+
+			// La categoria è salvata: il budget è un secondo passo su una tabella
+			// diversa. Se fallisce, la categoria resta (giustamente) e l'utente
+			// legge perché il budget non è stato applicato.
+			// Su creazione l'id arriva dalla server action; su modifica ce l'abbiamo
+			// già. Il controllo sul tipo restringe l'unione di ritorno, che include
+			// anche il ramo d'errore.
+			const createdId =
+				"id" in result && typeof result.id === "string" ? result.id : null;
+			const categoryId = category?.id ?? createdId;
+			if (categoryId) {
+				const budgetError = await saveBudget(categoryId);
+				if (budgetError) {
+					setServerError(budgetError);
+					return;
+				}
+			}
+
 			router.refresh();
 			onClose();
 		} finally {
 			setLoading(false);
 		}
+	}
+
+	/**
+	 * Scrive il budget solo se è cambiato davvero. Senza questo confronto, ogni
+	 * salvataggio della categoria — anche solo per rinominarla — creerebbe una
+	 * riga nello storico dei budget con lo stesso importo di prima.
+	 */
+	async function saveBudget(categoryId: string): Promise<string | null> {
+		if (!showBudget) return null;
+
+		const parsed = budgetAmount.trim() === "" ? null : Number(budgetAmount.replace(",", "."));
+		if (parsed !== null && (!Number.isFinite(parsed) || parsed <= 0)) {
+			return "Il limite di budget deve essere un importo maggiore di zero";
+		}
+
+		const unchanged =
+			(parsed === null && initialBudget === null) ||
+			(parsed !== null &&
+				initialBudget !== null &&
+				parsed === initialBudget.amount &&
+				budgetPeriod === initialBudget.period);
+		if (unchanged) return null;
+
+		const res = await setBudget({ categoryId, period: budgetPeriod, amount: parsed });
+		return "error" in res ? res.error : null;
 	}
 
 	if (!isOpen) return null;
@@ -180,6 +253,61 @@ export default function CategorySheet({ isOpen, category, presetType, onClose }:
 							})}
 						</div>
 					</div>
+
+					{/* Limite di budget — solo per le categorie di spesa */}
+					{showBudget && (
+						<div>
+							<label className="text-xs text-muted mb-2 block tracking-wide">
+								Limite di budget{" "}
+								<span className="text-muted/70 font-normal">(opzionale)</span>
+							</label>
+
+							<div className="grid grid-cols-3 gap-2 mb-2.5">
+								{BUDGET_PERIODS.map((p) => {
+									const selected = budgetPeriod === p.id;
+									return (
+										<button
+											key={p.id}
+											type="button"
+											onClick={() => setBudgetPeriod(p.id)}
+											className="text-center py-2 rounded-xl text-xs font-medium transition-all border"
+											style={{
+												background: selected
+													? `color-mix(in srgb, ${color} 14%, transparent)`
+													: "var(--color-input)",
+												borderColor: selected ? color : "transparent",
+												color: selected ? color : "var(--text-muted)",
+												fontWeight: selected ? 600 : 500,
+											}}
+										>
+											{p.label}
+										</button>
+									);
+								})}
+							</div>
+
+							<div className="flex items-center rounded-[16px] px-4 py-3.5 bg-input border border-subtle">
+								<span className="text-[14.5px] text-muted mr-1.5">€</span>
+								<input
+									type="text"
+									inputMode="decimal"
+									placeholder="es. 250"
+									value={budgetAmount}
+									onChange={(e) => setBudgetAmount(e.target.value)}
+									className="flex-1 min-w-0 bg-transparent text-base outline-none placeholder:text-muted/60"
+								/>
+								<span className="text-[11px] text-muted ml-2 shrink-0">
+									{periodSuffix(budgetPeriod)}
+								</span>
+							</div>
+
+							<p className="text-[11px] text-muted/80 mt-2 ml-1 leading-relaxed">
+								{initialBudget
+									? "Svuota il campo per togliere il limite: i periodi passati restano com'erano."
+									: "Lascia vuoto per non impostare nessun limite."}
+							</p>
+						</div>
+					)}
 
 					{/* Icona */}
 					<div>
