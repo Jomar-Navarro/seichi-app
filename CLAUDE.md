@@ -146,6 +146,104 @@ recurring_rules: id, user_id, amount (DECIMAL 10,2), type (TEXT), category_id,
   dei file avviene lato app in `deleteAccount()` con `storage.from(...).remove()`,
   **prima** della RPC. Vale per qualsiasi cleanup futuro (es. ricevute, Fase 22).
 
+### Fase 17 — budget e notifiche (⚠️ PROGETTATO, non ancora in DB)
+
+Decisioni prese il 2026-08-03, prima di scrivere codice. Le tabelle **non esistono
+ancora**: questa sezione è il progetto approvato, non lo stato del database.
+
+```sql
+budgets: id (UUID), user_id, category_id (UUID, NULLABLE), period (TEXT),
+         amount (DECIMAL 10,2, NULLABLE), valid_from (DATE), created_at
+-- period: 'settimanale' | 'mensile' | 'annuale'
+-- category_id NULL = budget GLOBALE (non una tabella separata)
+-- amount NULL = "lapide": da questo periodo, nessun budget
+```
+
+- **Niente `valid_to`: è ridondante.** La riga successiva chiude la precedente. Il
+  budget di un periodo = la riga più recente con `valid_from <= inizio_periodo`.
+  Sovrapposizioni impossibili per costruzione, storico gratis, zero righe generate
+  e zero job. Correggere un errore nel periodo corrente sovrascrive la riga esistente
+  (stesso `valid_from`); alzare il budget da un periodo futuro crea una riga nuova —
+  **stessa operazione nel codice, intenzione dedotta dal periodo**, nessuna scelta
+  concettuale davanti all'utente.
+- **`amount` NULL, mai 0, per cancellare.** Zero è un budget legittimo e
+  significativo ("non voglio spendere niente qui"): sovraccaricarlo distruggerebbe
+  un'informazione vera. `CHECK (amount IS NULL OR amount > 0)`.
+- **Periodi ancorati al CALENDARIO** (settimana da lunedì, mese dal 1°, anno solare),
+  non alla data di creazione. Un budget è una *finestra sul tempo condiviso*, non un
+  evento che si ripete: l'utente pensa "questa settimana", non "i 7 giorni da quando
+  l'ho creato". **Diverso da `recurring_rules`, ed è corretto così** — lì l'ancoraggio
+  è `start_date` perché l'affitto esce il 5. Nessun conflitto con `addClampedMonths`:
+  i confini non si calcolano avanzando, si ottengono troncando.
+- **`valid_from` è sempre un confine di periodo, e lo impone il DB** con un `CHECK`
+  su `date_trunc(<periodo>, valid_from)`. Non è una convenzione applicativa: una riga
+  scritta a mano dal SQL Editor viene rifiutata. È anche ciò che regala alla Fase 17b
+  la sua chiave di idempotenza già deterministica.
+- ⚠️ **`UNIQUE (user_id, category_id, valid_from)` richiede `NULLS NOT DISTINCT`**
+  (Postgres 15+). Di default in un vincolo di unicità i NULL sono tutti distinti tra
+  loro → due budget **globali** per lo stesso periodo passerebbero senza errore.
+- `CHECK (category_id IS NOT NULL OR period = 'mensile')` — il globale è ancorato allo
+  stipendio, che è mensile. Periodi misti sì tra categorie (la spesa alimentare *ha*
+  un ritmo settimanale, i viaggi annuale), ma il globale non è configurabile.
+- Indice su `(user_id, category_id, valid_from DESC)`. La lettura "budget corrente per
+  categoria" è un `DISTINCT ON` e va incapsulata in una **vista**.
+  ⚠️ **La vista va creata con `security_invoker = true`**: una vista normale gira con i
+  privilegi del proprietario e **scavalca la RLS** della tabella sottostante — ogni
+  utente vedrebbe i budget di tutti.
+- **Nessuna colonna `spent`.** Lo speso si somma dalle transazioni alla lettura, come
+  `saved_amount` in `getGoals`. Un totale memorizzato avrebbe quattro punti di
+  scrittura da tenere allineati (insert/update/delete + gli insert di pg_cron).
+- **Budget solo su categorie `spesa`, e NON è imposto dal DB.** Non è esprimibile con
+  una FK; servirebbe una colonna `type` ridondante o un trigger. Lo stato illegale che
+  preverrebbe è innocuo (un budget su una categoria risparmio mostrerebbe 0), quindi
+  il controllo sta nella server action. Denormalizzare per un difetto cosmetico costa
+  più di quanto rende.
+- ⚠️ **Affitto e utenze sono categorie `abbonamento`, non `spesa`** (vedi
+  `app/(onboarding)/actions.ts`), e tipo transazione e tipo categoria sono accoppiati
+  1:1 (`TransactionForm` filtra con `.eq("type", selectedType.id)`). Quindi restano
+  fuori da ogni budget. Per il per-categoria è voluto; per il **globale** significa che
+  la cifra va chiamata **"spese variabili"**, mai "spese totali", con accanto una riga
+  di sola lettura "uscite fisse previste" sommata da `recurring_rules`. Un numero
+  sbagliato che sembra giusto è peggio di un numero assente: se il globale ignora in
+  silenzio l'affitto, l'utente smette di fidarsene. Il calcolo *stipendio − fisse =
+  disponibile* e il suggerimento dell'importo restano alla Fase 24 (AI).
+
+```sql
+notifications: id, user_id, type, title, body, dedup_key (TEXT), destinazione,
+               read (BOOL), created_at
+-- UNIQUE (user_id, dedup_key)
+```
+
+- **Generazione SOLO da pg_cron, mai da trigger o server action**, e **dopo**
+  `generate_recurring_transactions()` nella stessa esecuzione — invertito valuterebbe
+  lo stato di ieri e mancherebbe proprio lo sforamento causato dalla ricorrente appena
+  inserita, che è il caso per cui esiste.
+- **Perché non sincrono**: quando l'utente inserisce la spesa a mano sta guardando lo
+  schermo e la barra diventa rossa da sola — una notifica tre secondi dopo è rumore, e
+  il rumore fa smettere di aprire il campanello, seppellendo l'unica notifica che vale
+  ("tra 3 giorni escono 12€"). Le notifiche servono per ciò che accade **mentre non
+  guardi**: l'affitto generato dal cron alle 3 di notte, che nessuna server action
+  vedrebbe mai. Conseguenza accettata: sfori martedì alle 18, la notifica arriva
+  mercoledì. Va bene — **la notifica è il registro, non l'allarme**.
+- **`dedup_key` TEXT + UNIQUE, non un vincolo composito tipizzato.** Gli eventi hanno
+  chiavi naturali diverse: budget = categoria + inizio periodo, rinnovo abbonamento =
+  `recurring_rule_id` + data. Una colonna `category_id` che contiene un id di regola è
+  un campo che mente sul proprio nome. Ogni generatore compone una stringa
+  deterministica (`budget_sforato:{category_id}:{2026-08-01}`) e usa
+  `INSERT ... ON CONFLICT DO NOTHING` → **idempotente per costruzione, non per
+  attenzione di chi scrive**. Il cron può girare due volte o fallire a metà senza
+  duplicare niente.
+- Ogni notifica porta una **destinazione** (una notifica non toccabile è un vicolo
+  cieco) — colonna da mettere subito, aggiungerla dopo richiede backfill delle righe
+  già spedite. E vanno **scadute**: pulizia delle lette più vecchie di 90 giorni nello
+  stesso job.
+- **`delete_current_user()` va aggiornata** con `budgets` e `notifications`: fa i
+  `DELETE` espliciti tabella per tabella, deliberatamente, e la cascade da sola non
+  basta per come è scritta.
+- **Consegna in due PR**: 17a budget (schema, vista, RLS, CRUD, barre, uscite fisse),
+  17b notifiche. Dipendenza a senso unico — il budget con la barra che diventa ambra
+  all'80% e rossa al 100% è già un prodotto finito senza una sola notifica.
+
 ## Auth Flow
 
 - `/welcome` → landing page pre-auth
