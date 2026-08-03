@@ -146,10 +146,12 @@ recurring_rules: id, user_id, amount (DECIMAL 10,2), type (TEXT), category_id,
   dei file avviene lato app in `deleteAccount()` con `storage.from(...).remove()`,
   **prima** della RPC. Vale per qualsiasi cleanup futuro (es. ricevute, Fase 22).
 
-### Fase 17 — budget e notifiche (⚠️ PROGETTATO, non ancora in DB)
+### Fase 17 — budget e notifiche
 
-Decisioni prese il 2026-08-03, prima di scrivere codice. Le tabelle **non esistono
-ancora**: questa sezione è il progetto approvato, non lo stato del database.
+Progettata per intero il 2026-08-03 prima di scrivere codice.
+**17a (budget) è IMPLEMENTATA e verificata end-to-end** — migration
+`20260803_budgets.sql`. **17b (notifiche) è ancora solo progetto**: la tabella
+`notifications` non esiste.
 
 ```sql
 budgets: id (UUID), user_id, category_id (UUID, NULLABLE), period (TEXT),
@@ -243,6 +245,33 @@ notifications: id, user_id, type, title, body, dedup_key (TEXT), destinazione,
 - **Consegna in due PR**: 17a budget (schema, vista, RLS, CRUD, barre, uscite fisse),
   17b notifiche. Dipendenza a senso unico — il budget con la barra che diventa ambra
   all'80% e rossa al 100% è già un prodotto finito senza una sola notifica.
+
+#### Emerso implementando la 17a
+
+- **La scrittura passa da `set_budget()`, non da un insert del client.** Così
+  `valid_from` lo calcola il DB con `budget_period_start()`, la stessa funzione usata
+  dal `CHECK`: se lo calcolasse l'app, la stessa aritmetica esisterebbe in due
+  linguaggi. In più l'upsert è atomico (niente leggi-poi-scrivi fra due tab) e i
+  controlli non esprimibili come vincolo (categoria `spesa`, globale mensile) danno un
+  messaggio leggibile invece di una violazione di CHECK. Riceve la data **locale** del
+  client: il server è in UTC e fra mezzanotte e le 2 sbaglierebbe periodo.
+- ⚠️ **Cambiare periodo poteva sparire in silenzio.** Difetto reale del versionamento
+  a solo `valid_from`: venerdì 1 agosto con un budget mensile (`valid_from` = 1 ago),
+  passando a settimanale la riga nuova nascerebbe con `valid_from` = lunedì 27 luglio
+  — *prima* della mensile. `budgets_at()` prende il `valid_from` più recente, quindi
+  continuerebbe a restituire la mensile: budget cambiato, nessun effetto, nessun
+  errore. `set_budget()` lo risolve avanzando al confine successivo del periodo nuovo
+  (un confine alla volta, non con `greatest()`, così `valid_from` resta allineato e il
+  `CHECK` regge sempre): il cambio decorre dal prossimo periodo.
+- **Il budget si imposta nel form categoria** (`CategorySheet`), non in una pagina
+  dedicata — è una proprietà della categoria, si modifica dove si modifica lei. La
+  *memorizzazione* resta la tabella versionata: `getBudgetForCategory()` la carica
+  all'apertura, e si riscrive solo se è cambiata davvero, altrimenti ogni rinomina
+  della categoria creerebbe una riga di storico identica alla precedente.
+- **Il globale sta nelle impostazioni**: non appartiene a nessuna categoria, quindi il
+  form categoria non poteva ospitarlo.
+- `createCategory()` ora restituisce l'`id`: serve a impostare il budget subito dopo,
+  sulla categoria appena creata.
 
 ## Auth Flow
 
@@ -353,6 +382,22 @@ I token semantici (`--surface`, `--card`, `--border`, `--text-*`, ecc.) sono
 mappati sui nomi Tailwind in `@theme inline` → usare le classi (`bg-card`,
 `bg-surface`, `border-subtle`, `text-muted`…), non gli hex.
 
+⚠️ **Il nome del token e il nome della classe NON coincidono**, e sbagliarli
+fallisce in silenzio:
+
+| serve | token in `:root` | in `@theme inline` | classe |
+|---|---|---|---|
+| bordo | `--border` | `--color-subtle` | `border-subtle` |
+| testo primario | `--text-primary` | `--color-foreground` | `text-foreground` |
+
+**`--color-border` e `--color-primary` non esistono.** Scrivere
+`style={{ borderColor: "var(--color-border)" }}` fa ripiegare il browser su
+`currentColor` — cioè il colore del testo: in tema scuro un bordo quasi bianco.
+La classe `text-primary` invece non applica nulla e il testo eredita, quindi
+sembra giusto per caso (succede in `components/UI/Select.tsx`). Nel dubbio,
+usare le classi Tailwind e non `var(--color-*)` inline: una classe inesistente
+si nota, una variabile CSS inesistente no.
+
 ### Utility classi custom (globals.css)
 
 `onboarding-blur`, `card-shadow`, `box-shadow`, `modal-shadow`, `deep-shadow`,
@@ -418,12 +463,14 @@ Seguire questo ordine, non saltare fasi:
     personalizzato (vedi Auth Flow) e riattivare *Confirm email* su Supabase.
     Tracciati con checklist nella issue #40 — quella è la lista operativa, qui
     restano i motivi tecnici.
-17. Budget per categoria + Notifiche — **progettazione chiusa il 2026-08-03, schema e
-    motivazioni in "Fase 17 — budget e notifiche" sopra**. Si consegna in due PR:
-    **17a** budget (tabella `budgets`, vista `security_invoker`, RLS, CRUD, barre di
-    progresso, riga "uscite fisse previste") e **17b** notifiche (tabella
-    `notifications` con `dedup_key`, funzione pg_cron dopo le ricorrenti, pannello
-    campanella con letto/non-letto). Issue #31 (accorpa #10 e #29)
+17. Budget per categoria + Notifiche — schema e motivazioni in "Fase 17 — budget e
+    notifiche" sopra. Due PR, issue #31 (accorpa #10 e #29):
+    - **17a ✅ budget** — tabella `budgets`, `budgets_at()`/`set_budget()`, RLS, campo
+      nel form categoria, limite globale nelle impostazioni, card con barre
+      (ambra 80%, rossa 100%), riga "uscite fisse previste". Verificata end-to-end
+      il 2026-08-03.
+    - **17b** notifiche — tabella `notifications` con `dedup_key`, funzione pg_cron
+      dopo le ricorrenti, pannello campanella con letto/non-letto.
 18. Tema chiaro/scuro — switch nelle impostazioni (infra `.dark` già presente; ora il root layout forza dark)
 19. Lingua i18n (it/en) — collegare la preferenza `profiles.language` già salvata ma inattiva
 20. Conti/wallet multipli — tabella `accounts` + `account_id` su transactions + trasferimenti (feature STRUTTURALE: decide lo schema presto)
