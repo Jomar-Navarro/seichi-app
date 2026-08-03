@@ -519,13 +519,14 @@ Seguire questo ordine, non saltare fasi:
     Tracciati con checklist nella issue #40 — quella è la lista operativa, qui
     restano i motivi tecnici.
 17. Budget per categoria + Notifiche — schema e motivazioni in "Fase 17 — budget e
-    notifiche" sopra. Due PR, issue #31 (accorpa #10 e #29):
-    - **17a ✅ budget** — tabella `budgets`, `budgets_at()`/`set_budget()`, RLS, campo
-      nel form categoria, limite globale nelle impostazioni, card con barre
-      (ambra 80%, rossa 100%), riga "uscite fisse previste". Verificata end-to-end
-      il 2026-08-03.
-    - **17b** notifiche — tabella `notifications` con `dedup_key`, funzione pg_cron
-      dopo le ricorrenti, pannello campanella con letto/non-letto.
+    notifiche" sopra. Due PR, una issue ciascuna:
+    - **17a ✅ budget (issue #31**, consolida #10) — tabella `budgets`,
+      `budgets_at()`/`set_budget()`, RLS, campo nel form categoria, limite globale
+      nelle impostazioni, card con barre (ambra 80%, rossa 100%), riga "uscite fisse
+      previste". Verificata end-to-end il 2026-08-03.
+    - **17b notifiche (issue #41**, accorpa #29) — tabella `notifications` con
+      `dedup_key`, funzione pg_cron dopo le ricorrenti, pannello campanella con
+      letto/non-letto. Dipende da 17a per l'evento "budget sforato".
 18. Tema chiaro/scuro — switch nelle impostazioni (infra `.dark` già presente; ora il root layout forza dark)
 19. Lingua i18n (it/en) — collegare la preferenza `profiles.language` già salvata ma inattiva
 20. Conti/wallet multipli — tabella `accounts` + `account_id` su transactions + trasferimenti (feature STRUTTURALE: decide lo schema presto)
