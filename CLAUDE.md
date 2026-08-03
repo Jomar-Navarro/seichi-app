@@ -418,7 +418,12 @@ Seguire questo ordine, non saltare fasi:
     personalizzato (vedi Auth Flow) e riattivare *Confirm email* su Supabase.
     Tracciati con checklist nella issue #40 — quella è la lista operativa, qui
     restano i motivi tecnici.
-17. Budget per categoria + Notifiche — limite mensile per categoria + tracking/avvisi di sforamento, e in più il sistema di notifiche completo (obiettivo a %, rinnovo abbonamento in anticipo, budget sforato). Tabella `notifications` + RLS, generazione via pg_cron/trigger, stato letto/non-letto (issue #10 + #29)
+17. Budget per categoria + Notifiche — **progettazione chiusa il 2026-08-03, schema e
+    motivazioni in "Fase 17 — budget e notifiche" sopra**. Si consegna in due PR:
+    **17a** budget (tabella `budgets`, vista `security_invoker`, RLS, CRUD, barre di
+    progresso, riga "uscite fisse previste") e **17b** notifiche (tabella
+    `notifications` con `dedup_key`, funzione pg_cron dopo le ricorrenti, pannello
+    campanella con letto/non-letto). Issue #31 (accorpa #10 e #29)
 18. Tema chiaro/scuro — switch nelle impostazioni (infra `.dark` già presente; ora il root layout forza dark)
 19. Lingua i18n (it/en) — collegare la preferenza `profiles.language` già salvata ma inattiva
 20. Conti/wallet multipli — tabella `accounts` + `account_id` su transactions + trasferimenti (feature STRUTTURALE: decide lo schema presto)
