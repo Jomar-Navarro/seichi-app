@@ -85,6 +85,78 @@ export interface RecurringRule {
 	} | null;
 }
 
+/**
+ * Periodo di un budget. Valori identici a `Frequency`, ma è un tipo a sé
+ * DELIBERATAMENTE: una frequenza è la cadenza di un evento che si ripete a
+ * partire da una data (l'affitto esce il 5), un periodo di budget è una finestra
+ * ancorata al calendario (settimana da lunedì, mese dal 1°, anno solare).
+ * Stessi valori, significato diverso — tenerli separati impedisce di passare
+ * l'uno dove serve l'altro senza accorgersene.
+ */
+export type BudgetPeriod = "settimanale" | "mensile" | "annuale";
+
+/** Riga della tabella `budgets`. */
+export interface Budget {
+	id: string;
+	user_id: string;
+	/** NULL = budget globale (non una categoria specifica) */
+	category_id: string | null;
+	period: BudgetPeriod;
+	/** NULL = "lapide": da questo periodo la categoria non ha budget */
+	amount: number | null;
+	valid_from: string;
+	created_at: string;
+}
+
+/** Riga restituita dalla funzione SQL `budgets_at()`. */
+export interface BudgetAt {
+	budget_id: string;
+	category_id: string | null;
+	period: BudgetPeriod;
+	amount: number | null;
+	valid_from: string;
+	period_start: string;
+	/** Fine ESCLUSIVA: primo giorno del periodo successivo */
+	period_end: string;
+}
+
+/** ok < soglia < sforato. La soglia è `BUDGET_WARNING_THRESHOLD`. */
+export type BudgetStatus = "ok" | "soglia" | "sforato";
+
+/** Budget con lo speso calcolato, pronto per la UI. */
+export interface BudgetWithSpending {
+	budgetId: string;
+	/** null = budget globale */
+	categoryId: string | null;
+	/** null per il globale, che non ha una categoria da mostrare */
+	category: { name: string; icon: string; color: string } | null;
+	period: BudgetPeriod;
+	amount: number;
+	spent: number;
+	/** Può essere negativo: è di quanto si è sforato */
+	remaining: number;
+	/** 0–100, troncato a 100 per la barra; usare `spent`/`amount` per il resto */
+	pct: number;
+	status: BudgetStatus;
+	periodStart: string;
+	periodEnd: string;
+}
+
+/** Quadro budget del periodo corrente, come lo consuma la UI. */
+export interface BudgetOverview {
+	/** null se l'utente non ha impostato un budget globale */
+	global: BudgetWithSpending | null;
+	perCategory: BudgetWithSpending[];
+	/**
+	 * Uscite fisse previste nel mese corrente, da `recurring_rules`.
+	 * NON entra in nessun budget: affitto e utenze sono categorie `abbonamento`,
+	 * e il globale limita solo le spese VARIABILI. Si mostra accanto al globale
+	 * perché un limite di spesa che ignora in silenzio l'affitto è un numero
+	 * sbagliato che sembra giusto.
+	 */
+	fixedOutflowsThisMonth: number;
+}
+
 export interface InvestmentByType {
 	type: string;
 	label: string;

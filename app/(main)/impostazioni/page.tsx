@@ -17,6 +17,7 @@ import Avatar from "@/components/UI/Avatar";
 import PageHeader from "@/components/UI/PageHeader";
 import SettingsRow, { SettingsGroup } from "@/components/UI/SettingsRow";
 import PreferencesSection from "@/components/features/PreferencesSection";
+import GlobalBudgetSection from "@/components/features/GlobalBudgetSection";
 import { signOut } from "./actions";
 import pkg from "@/package.json";
 
@@ -71,6 +72,16 @@ export default async function ImpostazioniPage() {
 					Preferenze
 				</p>
 				<PreferencesSection currency={account.currency} language={account.language} />
+			</div>
+
+			{/* Budget */}
+			<div className="mb-6">
+				<p className="text-[11.5px] font-semibold tracking-[1.6px] uppercase text-disabled mb-2.5 ml-0.5">
+					Budget
+				</p>
+				{/* Carica da sé: i periodi di budget dipendono dal fuso dell'utente,
+				    che un server component non conosce. */}
+				<GlobalBudgetSection />
 			</div>
 
 			{/* Categorie */}

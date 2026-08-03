@@ -146,10 +146,12 @@ recurring_rules: id, user_id, amount (DECIMAL 10,2), type (TEXT), category_id,
   dei file avviene lato app in `deleteAccount()` con `storage.from(...).remove()`,
   **prima** della RPC. Vale per qualsiasi cleanup futuro (es. ricevute, Fase 22).
 
-### Fase 17 — budget e notifiche (⚠️ PROGETTATO, non ancora in DB)
+### Fase 17 — budget e notifiche
 
-Decisioni prese il 2026-08-03, prima di scrivere codice. Le tabelle **non esistono
-ancora**: questa sezione è il progetto approvato, non lo stato del database.
+Progettata per intero il 2026-08-03 prima di scrivere codice.
+**17a (budget) è IMPLEMENTATA e verificata end-to-end** — migration
+`20260803_budgets.sql`. **17b (notifiche) è ancora solo progetto**: la tabella
+`notifications` non esiste.
 
 ```sql
 budgets: id (UUID), user_id, category_id (UUID, NULLABLE), period (TEXT),
@@ -166,9 +168,13 @@ budgets: id (UUID), user_id, category_id (UUID, NULLABLE), period (TEXT),
   (stesso `valid_from`); alzare il budget da un periodo futuro crea una riga nuova —
   **stessa operazione nel codice, intenzione dedotta dal periodo**, nessuna scelta
   concettuale davanti all'utente.
-- **`amount` NULL, mai 0, per cancellare.** Zero è un budget legittimo e
-  significativo ("non voglio spendere niente qui"): sovraccaricarlo distruggerebbe
-  un'informazione vera. `CHECK (amount IS NULL OR amount > 0)`.
+- **`amount` NULL, mai 0, per cancellare.** "Nessun budget" e "budget di zero" sono
+  affermazioni diverse: usare 0 come sentinella renderebbe impossibile distinguerle.
+  La lapide è NULL per non doverlo fare. **Se poi 0 vada anche ammesso è una domanda
+  separata, e la risposta è no** — `CHECK (amount IS NULL OR amount > 0)`: un limite
+  di zero è nei fatti indistinguibile dal non voler tracciare la categoria, e
+  costringerebbe a gestire `spent/0` in percentuale e stato per un caso che nessuno
+  imposta.
 - **Periodi ancorati al CALENDARIO** (settimana da lunedì, mese dal 1°, anno solare),
   non alla data di creazione. Un budget è una *finestra sul tempo condiviso*, non un
   evento che si ripete: l'utente pensa "questa settimana", non "i 7 giorni da quando
@@ -237,12 +243,90 @@ notifications: id, user_id, type, title, body, dedup_key (TEXT), destinazione,
   cieco) — colonna da mettere subito, aggiungerla dopo richiede backfill delle righe
   già spedite. E vanno **scadute**: pulizia delle lette più vecchie di 90 giorni nello
   stesso job.
+
+#### Deciso il 2026-08-03 leggendo `Seichi Stati Supporto.dc.html`
+
+- **Soglie obiettivo: 50% e 100%.** Un obiettivo dura mesi, quindi sono ~2 notifiche
+  in tutto. Il mockup mostrava "al 58%", cioè un avanzamento arbitrario: sarebbe
+  rumore, e il rumore fa smettere di aprire il campanello.
+- **Anticipo rinnovo abbonamento: 3 giorni** (confermato dal mockup).
+- **Il tap segna come letta E naviga**, più un comando "segna tutte come lette". È ciò
+  che rende utile la colonna `destinazione`. Scartato "aprire il pannello segna tutto":
+  azzererebbe il valore del non-letto, che è l'unica cosa che distingue ciò che hai
+  già visto.
+- **Badge con il numero** sulla campanella (9+ oltre la nona). Il mockup mostra la
+  campanella nuda, ma senza segnale non c'è motivo di aprirla.
+- **Due notifiche del mockup NON si fanno.** "Il tuo stipendio è stato registrato" è
+  la categoria scartata nella decisione di Fase 15 (ridondante con la banca). "Il
+  valore del tuo portafoglio è aumentato del 4,1%" non è **calcolabile**: Seichi non ha
+  quotazioni, gli investimenti sono transazioni manuali e il totale è la somma dei
+  versamenti — non varia da solo. Servirebbe un feed prezzi, che non è in roadmap.
+- **Stati visivi dal mockup**: non letta = riga piena + pallino `kin`; letta =
+  `opacity: 0.55` + pallino spento. Pastiglia icona 36px colorata per tipo, testo 13px,
+  timestamp **relativo** ("2 ore fa", "Ieri", "3 giorni fa"). Pannello come card sotto
+  l'header, con overlay sfocato dietro.
+- ⚠️ Nel mockup la campanella è in alto a destra, ma **nell'app reale quel posto è di
+  `ProfileMenu`** (l'avatar): saranno due pastiglie affiancate.
 - **`delete_current_user()` va aggiornata** con `budgets` e `notifications`: fa i
   `DELETE` espliciti tabella per tabella, deliberatamente, e la cascade da sola non
   basta per come è scritta.
 - **Consegna in due PR**: 17a budget (schema, vista, RLS, CRUD, barre, uscite fisse),
   17b notifiche. Dipendenza a senso unico — il budget con la barra che diventa ambra
   all'80% e rossa al 100% è già un prodotto finito senza una sola notifica.
+
+#### Emerso implementando la 17a
+
+- **La scrittura passa da `set_budget()`, non da un insert del client.** Così
+  `valid_from` lo calcola il DB con `budget_period_start()`, la stessa funzione usata
+  dal `CHECK`: se lo calcolasse l'app, la stessa aritmetica esisterebbe in due
+  linguaggi. In più l'upsert è atomico (niente leggi-poi-scrivi fra due tab) e i
+  controlli non esprimibili come vincolo (categoria `spesa`, globale mensile) danno un
+  messaggio leggibile invece di una violazione di CHECK. Riceve la data **locale** del
+  client: il server è in UTC e fra mezzanotte e le 2 sbaglierebbe periodo.
+- ⚠️ **Cambiare periodo poteva sparire in silenzio.** Difetto del versionamento a solo
+  `valid_from`: il nuovo inizio può non essere il più recente, in entrambe le
+  direzioni. Mensile → settimanale il 1° agosto (venerdì): la settimana è iniziata il
+  27 luglio, *prima* della riga mensile del 1 ago, che `budgets_at()` continuerebbe a
+  restituire. Settimanale → mensile il 15 agosto: l'inizio mensile è il 1 ago, prima
+  della settimana corrente. **Il primo tentativo di correzione avanzava al confine
+  successivo del periodo nuovo — sbagliato**: nel secondo caso il budget entrava in
+  vigore il 1° *settembre*, l'azione rispondeva "salvato" e per tre settimane non
+  cambiava nulla. Un no-op silenzioso è il difetto peggiore possibile qui.
+  Soluzione attuale: il nuovo budget vale **subito**, e `set_budget()` rimuove le
+  righe interne al periodo corrente scritte sotto il regime precedente
+  (`valid_from > v_from AND valid_from <= p_today`). Cambiare periodo *è* ridefinire
+  la finestra corrente; lo storico dei periodi precedenti e le righe future non si
+  toccano.
+- ⚠️ **La rimozione di un budget non applica il controllo "solo categorie spesa".**
+  Se l'utente cambia il tipo di una categoria che aveva un budget, quel budget va
+  ripulito **proprio quando** la categoria non è più `spesa`. Applicare il controllo
+  anche in rimozione lascerebbe una riga che nessuno può più togliere: la card
+  resterebbe a "€0 / €X" per sempre, e il campo budget è ormai nascosto.
+  `CategorySheet` scrive la lapide quando il tipo cambia via da `spesa`.
+- ⚠️ **Il fuso orario non si chiede al server.** Le server action girano in UTC su
+  Vercel: `new Date()` lì dà il giorno del *server*, e fra mezzanotte e le 2 ora
+  italiana è ancora ieri. L'orologio arriva dal client come `ClientClock`
+  (`lib/dates.ts`), che porta la data locale **e lo scostamento di fuso** — serve
+  entrambi, perché `transactions.date` è un istante assoluto e senza offset i confini
+  di periodo sarebbero comunque quelli della mezzanotte del server. Per lo stesso
+  motivo `GlobalBudgetSection` carica i propri dati da sé: la pagina impostazioni è un
+  server component e non può conoscere il fuso dell'utente.
+- **Il budget si imposta nel form categoria** (`CategorySheet`), non in una pagina
+  dedicata — è una proprietà della categoria, si modifica dove si modifica lei. La
+  *memorizzazione* resta la tabella versionata: `getBudgetForCategory()` la carica
+  all'apertura, e si riscrive solo se è cambiata davvero, altrimenti ogni rinomina
+  della categoria creerebbe una riga di storico identica alla precedente.
+- **Il globale sta nelle impostazioni**: non appartiene a nessuna categoria, quindi il
+  form categoria non poteva ospitarlo.
+- **La finestra temporale sta su ogni card, non nell'intestazione di sezione.** Era il
+  rischio previsto dei periodi misti: l'intestazione diceva "Budget del mese" seguendo
+  il periodo del globale, cioè una dichiarazione falsa sulle card settimanali accanto.
+  E le card si scorrono orizzontalmente, quindi guardandone una a metà scroll
+  "€ 10 / € 100" non dice su quale arco di tempo. Intestazione neutra ("Budget"),
+  finestra sulla card ("questo mese"). Per lo stesso motivo la cifra delle uscite
+  fisse dice esplicitamente "del mese".
+- `createCategory()` ora restituisce l'`id`: serve a impostare il budget subito dopo,
+  sulla categoria appena creata.
 
 ## Auth Flow
 
@@ -353,6 +437,22 @@ I token semantici (`--surface`, `--card`, `--border`, `--text-*`, ecc.) sono
 mappati sui nomi Tailwind in `@theme inline` → usare le classi (`bg-card`,
 `bg-surface`, `border-subtle`, `text-muted`…), non gli hex.
 
+⚠️ **Il nome del token e il nome della classe NON coincidono**, e sbagliarli
+fallisce in silenzio:
+
+| serve | token in `:root` | in `@theme inline` | classe |
+|---|---|---|---|
+| bordo | `--border` | `--color-subtle` | `border-subtle` |
+| testo primario | `--text-primary` | `--color-foreground` | `text-foreground` |
+
+**`--color-border` e `--color-primary` non esistono.** Scrivere
+`style={{ borderColor: "var(--color-border)" }}` fa ripiegare il browser su
+`currentColor` — cioè il colore del testo: in tema scuro un bordo quasi bianco.
+La classe `text-primary` invece non applica nulla e il testo eredita, quindi
+sembra giusto per caso (succede in `components/UI/Select.tsx`). Nel dubbio,
+usare le classi Tailwind e non `var(--color-*)` inline: una classe inesistente
+si nota, una variabile CSS inesistente no.
+
 ### Utility classi custom (globals.css)
 
 `onboarding-blur`, `card-shadow`, `box-shadow`, `modal-shadow`, `deep-shadow`,
@@ -418,12 +518,15 @@ Seguire questo ordine, non saltare fasi:
     personalizzato (vedi Auth Flow) e riattivare *Confirm email* su Supabase.
     Tracciati con checklist nella issue #40 — quella è la lista operativa, qui
     restano i motivi tecnici.
-17. Budget per categoria + Notifiche — **progettazione chiusa il 2026-08-03, schema e
-    motivazioni in "Fase 17 — budget e notifiche" sopra**. Si consegna in due PR:
-    **17a** budget (tabella `budgets`, vista `security_invoker`, RLS, CRUD, barre di
-    progresso, riga "uscite fisse previste") e **17b** notifiche (tabella
-    `notifications` con `dedup_key`, funzione pg_cron dopo le ricorrenti, pannello
-    campanella con letto/non-letto). Issue #31 (accorpa #10 e #29)
+17. Budget per categoria + Notifiche — schema e motivazioni in "Fase 17 — budget e
+    notifiche" sopra. Due PR, una issue ciascuna:
+    - **17a ✅ budget (issue #31**, consolida #10) — tabella `budgets`,
+      `budgets_at()`/`set_budget()`, RLS, campo nel form categoria, limite globale
+      nelle impostazioni, card con barre (ambra 80%, rossa 100%), riga "uscite fisse
+      previste". Verificata end-to-end il 2026-08-03.
+    - **17b notifiche (issue #41**, accorpa #29) — tabella `notifications` con
+      `dedup_key`, funzione pg_cron dopo le ricorrenti, pannello campanella con
+      letto/non-letto. Dipende da 17a per l'evento "budget sforato".
 18. Tema chiaro/scuro — switch nelle impostazioni (infra `.dark` già presente; ora il root layout forza dark)
 19. Lingua i18n (it/en) — collegare la preferenza `profiles.language` già salvata ma inattiva
 20. Conti/wallet multipli — tabella `accounts` + `account_id` su transactions + trasferimenti (feature STRUTTURALE: decide lo schema presto)
