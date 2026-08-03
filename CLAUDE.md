@@ -318,6 +318,8 @@ Seguire questo ordine, non saltare fasi:
 16. ✅ Gestione account e sicurezza — email, cambio password, reset password dimenticata, avatar, eliminazione account (issue #12 + #7).
     Tutti i flussi verificati end-to-end. Debiti aperti prima del deploy: SMTP
     personalizzato (vedi Auth Flow) e riattivare *Confirm email* su Supabase.
+    Tracciati con checklist nella issue #40 — quella è la lista operativa, qui
+    restano i motivi tecnici.
 17. Budget per categoria + Notifiche — limite mensile per categoria + tracking/avvisi di sforamento, e in più il sistema di notifiche completo (obiettivo a %, rinnovo abbonamento in anticipo, budget sforato). Tabella `notifications` + RLS, generazione via pg_cron/trigger, stato letto/non-letto (issue #10 + #29)
 18. Tema chiaro/scuro — switch nelle impostazioni (infra `.dark` già presente; ora il root layout forza dark)
 19. Lingua i18n (it/en) — collegare la preferenza `profiles.language` già salvata ma inattiva
