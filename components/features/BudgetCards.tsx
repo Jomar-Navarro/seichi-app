@@ -2,7 +2,7 @@
 
 import { AlertTriangle } from "lucide-react";
 import { ICON_MAP } from "@/lib/icon-map";
-import { budgetColor, periodHeading } from "@/lib/budget";
+import { budgetColor, periodWindow } from "@/lib/budget";
 import type { BudgetOverview, BudgetWithSpending } from "@/types";
 
 /** Importi arrotondati all'euro: nelle card i centesimi sono rumore. */
@@ -53,8 +53,12 @@ function BudgetCard({ budget }: { budget: BudgetWithSpending }) {
 				)}
 			</span>
 
-			<div className="text-sm font-semibold mb-1.5 truncate pr-4">
+			<div className="text-sm font-semibold truncate pr-4">
 				{isGlobal ? "Spese variabili" : budget.category?.name}
+			</div>
+
+			<div className="text-[11px] text-muted/80 mb-1.5 mt-0.5">
+				{periodWindow(budget.period)}
 			</div>
 
 			<div className="text-[12.5px] text-muted mb-3">
@@ -85,17 +89,18 @@ export default function BudgetCards({ overview }: { overview: BudgetOverview }) 
 	// invito a configurare qualcosa in una pagina che serve a leggere i movimenti.
 	if (cards.length === 0) return null;
 
-	// L'intestazione segue il periodo del globale, o del primo budget: con
-	// periodi misti è comunque il riferimento più probabile per l'utente.
-	const heading = periodHeading((global ?? perCategory[0]).period);
-
+	// Intestazione neutra: prima seguiva il periodo del globale ("Budget del
+	// mese"), che con periodi misti era una dichiarazione falsa sulle card
+	// accanto. La finestra ora la porta ogni card, che è dove serve.
 	return (
 		<div className="mb-5">
 			<div className="flex items-baseline justify-between mb-3">
-				<h2 className="text-[13px] font-semibold text-muted tracking-wide">{heading}</h2>
+				<h2 className="text-[13px] font-semibold text-muted tracking-wide">Budget</h2>
+				{/* "del mese" va detto qui: senza più quella parola nell'intestazione,
+				    questa cifra resterebbe senza arco temporale. */}
 				{global && fixedOutflowsThisMonth > 0 && (
 					<span className="text-[11px] text-muted/80">
-						uscite fisse € {euro.format(fixedOutflowsThisMonth)}
+						fisse del mese € {euro.format(fixedOutflowsThisMonth)}
 					</span>
 				)}
 			</div>

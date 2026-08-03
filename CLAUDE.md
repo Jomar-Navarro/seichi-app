@@ -243,6 +243,30 @@ notifications: id, user_id, type, title, body, dedup_key (TEXT), destinazione,
   cieco) — colonna da mettere subito, aggiungerla dopo richiede backfill delle righe
   già spedite. E vanno **scadute**: pulizia delle lette più vecchie di 90 giorni nello
   stesso job.
+
+#### Deciso il 2026-08-03 leggendo `Seichi Stati Supporto.dc.html`
+
+- **Soglie obiettivo: 50% e 100%.** Un obiettivo dura mesi, quindi sono ~2 notifiche
+  in tutto. Il mockup mostrava "al 58%", cioè un avanzamento arbitrario: sarebbe
+  rumore, e il rumore fa smettere di aprire il campanello.
+- **Anticipo rinnovo abbonamento: 3 giorni** (confermato dal mockup).
+- **Il tap segna come letta E naviga**, più un comando "segna tutte come lette". È ciò
+  che rende utile la colonna `destinazione`. Scartato "aprire il pannello segna tutto":
+  azzererebbe il valore del non-letto, che è l'unica cosa che distingue ciò che hai
+  già visto.
+- **Badge con il numero** sulla campanella (9+ oltre la nona). Il mockup mostra la
+  campanella nuda, ma senza segnale non c'è motivo di aprirla.
+- **Due notifiche del mockup NON si fanno.** "Il tuo stipendio è stato registrato" è
+  la categoria scartata nella decisione di Fase 15 (ridondante con la banca). "Il
+  valore del tuo portafoglio è aumentato del 4,1%" non è **calcolabile**: Seichi non ha
+  quotazioni, gli investimenti sono transazioni manuali e il totale è la somma dei
+  versamenti — non varia da solo. Servirebbe un feed prezzi, che non è in roadmap.
+- **Stati visivi dal mockup**: non letta = riga piena + pallino `kin`; letta =
+  `opacity: 0.55` + pallino spento. Pastiglia icona 36px colorata per tipo, testo 13px,
+  timestamp **relativo** ("2 ore fa", "Ieri", "3 giorni fa"). Pannello come card sotto
+  l'header, con overlay sfocato dietro.
+- ⚠️ Nel mockup la campanella è in alto a destra, ma **nell'app reale quel posto è di
+  `ProfileMenu`** (l'avatar): saranno due pastiglie affiancate.
 - **`delete_current_user()` va aggiornata** con `budgets` e `notifications`: fa i
   `DELETE` espliciti tabella per tabella, deliberatamente, e la cascade da sola non
   basta per come è scritta.
@@ -294,6 +318,13 @@ notifications: id, user_id, type, title, body, dedup_key (TEXT), destinazione,
   della categoria creerebbe una riga di storico identica alla precedente.
 - **Il globale sta nelle impostazioni**: non appartiene a nessuna categoria, quindi il
   form categoria non poteva ospitarlo.
+- **La finestra temporale sta su ogni card, non nell'intestazione di sezione.** Era il
+  rischio previsto dei periodi misti: l'intestazione diceva "Budget del mese" seguendo
+  il periodo del globale, cioè una dichiarazione falsa sulle card settimanali accanto.
+  E le card si scorrono orizzontalmente, quindi guardandone una a metà scroll
+  "€ 10 / € 100" non dice su quale arco di tempo. Intestazione neutra ("Budget"),
+  finestra sulla card ("questo mese"). Per lo stesso motivo la cifra delle uscite
+  fisse dice esplicitamente "del mese".
 - `createCategory()` ora restituisce l'`id`: serve a impostare il budget subito dopo,
   sulla categoria appena creata.
 

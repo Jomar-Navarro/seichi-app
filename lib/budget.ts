@@ -12,12 +12,12 @@ export const BUDGET_PERIODS: {
 	label: string;
 	/** suffisso dell'input importo: "€ 250 / mese" */
 	suffix: string;
-	/** intestazione della sezione nella pagina Movimenti */
-	heading: string;
+	/** finestra temporale, mostrata sulla card: "€ 10 / € 100" su quanto? */
+	window: string;
 }[] = [
-	{ id: "settimanale", label: "settimanale", suffix: "/ settimana", heading: "Budget della settimana" },
-	{ id: "mensile",     label: "mensile",     suffix: "/ mese",      heading: "Budget del mese" },
-	{ id: "annuale",     label: "annuale",     suffix: "/ anno",      heading: "Budget dell'anno" },
+	{ id: "settimanale", label: "settimanale", suffix: "/ settimana", window: "questa settimana" },
+	{ id: "mensile",     label: "mensile",     suffix: "/ mese",      window: "questo mese" },
+	{ id: "annuale",     label: "annuale",     suffix: "/ anno",      window: "quest'anno" },
 ];
 
 const BY_ID = new Map(BUDGET_PERIODS.map((p) => [p.id, p]));
@@ -26,8 +26,15 @@ export function periodSuffix(period: BudgetPeriod): string {
 	return BY_ID.get(period)?.suffix ?? "";
 }
 
-export function periodHeading(period: BudgetPeriod): string {
-	return BY_ID.get(period)?.heading ?? "Budget";
+/**
+ * La finestra di una card. Va sulla CARD e non nell'intestazione di sezione,
+ * perché i periodi possono essere misti (spesa alimentare settimanale, viaggi
+ * annuale) e le card si scorrono orizzontalmente: guardandone una a metà scroll,
+ * "€ 10 / € 100" non dice su quale arco di tempo, e l'intestazione è già uscita
+ * dal campo visivo.
+ */
+export function periodWindow(period: BudgetPeriod): string {
+	return BY_ID.get(period)?.window ?? "";
 }
 
 /**
