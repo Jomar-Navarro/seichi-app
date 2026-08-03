@@ -8,7 +8,10 @@ import { GOAL_ICON_MAP } from "@/lib/goal-icons";
 import { CATEGORY_LIBRARY } from "@/lib/category-icons";
 import { TIPO_COLOR } from "@/lib/transaction-utils";
 import { TRANSACTION_TYPES } from "@/types";
-import { createCategory, updateCategory } from "@/app/(main)/impostazioni/actions";
+import {
+	createCategory,
+	updateCategory,
+} from "@/app/(main)/impostazioni/actions";
 import { getBudgetForCategory, setBudget } from "@/app/(main)/budget-actions";
 import { BUDGET_PERIODS, periodSuffix } from "@/lib/budget";
 import type { BudgetPeriod, Category } from "@/types";
@@ -45,7 +48,12 @@ interface CategorySheetProps {
 	onClose: () => void;
 }
 
-export default function CategorySheet({ isOpen, category, presetType, onClose }: CategorySheetProps) {
+export default function CategorySheet({
+	isOpen,
+	category,
+	presetType,
+	onClose,
+}: CategorySheetProps) {
 	const router = useRouter();
 	const [name, setName] = useState("");
 	const [icon, setIcon] = useState("");
@@ -56,7 +64,10 @@ export default function CategorySheet({ isOpen, category, presetType, onClose }:
 	const [budgetPeriod, setBudgetPeriod] = useState<BudgetPeriod>("mensile");
 	const [budgetAmount, setBudgetAmount] = useState("");
 	/** budget già presente all'apertura: serve a capire se l'utente l'ha cambiato */
-	const [initialBudget, setInitialBudget] = useState<{ period: BudgetPeriod; amount: number } | null>(null);
+	const [initialBudget, setInitialBudget] = useState<{
+		period: BudgetPeriod;
+		amount: number;
+	} | null>(null);
 
 	useLayoutEffect(() => {
 		if (isOpen) {
@@ -87,7 +98,9 @@ export default function CategorySheet({ isOpen, category, presetType, onClose }:
 			setBudgetPeriod(res.data.period);
 			setBudgetAmount(String(res.data.amount));
 		});
-		return () => { cancelled = true; };
+		return () => {
+			cancelled = true;
+		};
 	}, [isOpen, category]);
 
 	const nameError = submitted && !name.trim();
@@ -154,7 +167,10 @@ export default function CategorySheet({ isOpen, category, presetType, onClose }:
 	async function saveBudget(categoryId: string): Promise<string | null> {
 		if (!showBudget) return null;
 
-		const parsed = budgetAmount.trim() === "" ? null : Number(budgetAmount.replace(",", "."));
+		const parsed =
+			budgetAmount.trim() === ""
+				? null
+				: Number(budgetAmount.replace(",", "."));
 		if (parsed !== null && (!Number.isFinite(parsed) || parsed <= 0)) {
 			return "Il limite di budget deve essere un importo maggiore di zero";
 		}
@@ -167,7 +183,11 @@ export default function CategorySheet({ isOpen, category, presetType, onClose }:
 				budgetPeriod === initialBudget.period);
 		if (unchanged) return null;
 
-		const res = await setBudget({ categoryId, period: budgetPeriod, amount: parsed });
+		const res = await setBudget({
+			categoryId,
+			period: budgetPeriod,
+			amount: parsed,
+		});
 		return "error" in res ? res.error : null;
 	}
 
@@ -175,7 +195,10 @@ export default function CategorySheet({ isOpen, category, presetType, onClose }:
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-end">
-			<div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={onClose} />
+			<div
+				className="absolute inset-0 bg-black/30 backdrop-blur-[2px]"
+				onClick={onClose}
+			/>
 
 			<div
 				className="relative w-full flex flex-col rounded-t-4xl pt-3.5 px-6 pb-8 modal-shadow border-t border-l border-r border-subtle bg-modal backdrop-blur-2xl"
@@ -198,17 +221,24 @@ export default function CategorySheet({ isOpen, category, presetType, onClose }:
 				<div className="flex flex-col gap-5">
 					{/* Nome */}
 					<div>
-						<label className="text-xs text-muted mb-2 block tracking-wide">Nome</label>
+						<label className="text-xs text-muted mb-2 block tracking-wide">
+							Nome
+						</label>
 						<input
 							type="text"
 							placeholder="es. Palestra"
 							value={name}
 							onChange={(e) => setName(e.target.value)}
 							className="w-full rounded-[18px] px-4 py-3.5 text-base bg-input border border-subtle outline-none placeholder:text-muted/60"
-							style={{ borderColor: nameError ? "var(--color-aka)" : undefined }}
+							style={{
+								borderColor: nameError ? "var(--color-aka)" : undefined,
+							}}
 						/>
 						{nameError && (
-							<p className="text-xs mt-1.5 ml-1" style={{ color: "var(--color-aka)" }}>
+							<p
+								className="text-xs mt-1.5 ml-1"
+								style={{ color: "var(--color-aka)" }}
+							>
 								Inserisci un nome
 							</p>
 						)}
@@ -216,7 +246,9 @@ export default function CategorySheet({ isOpen, category, presetType, onClose }:
 
 					{/* Tipo */}
 					<div>
-						<label className="text-xs text-muted mb-2 block tracking-wide">Tipo</label>
+						<label className="text-xs text-muted mb-2 block tracking-wide">
+							Tipo
+						</label>
 						<div className="grid grid-cols-5 gap-2">
 							{TYPE_ORDER.map((t) => {
 								const selected = type === t.id;
@@ -239,7 +271,9 @@ export default function CategorySheet({ isOpen, category, presetType, onClose }:
 											<TIcon
 												size={18}
 												strokeWidth={1.5}
-												style={{ color: selected ? tColor : "var(--text-muted)" }}
+												style={{
+													color: selected ? tColor : "var(--text-muted)",
+												}}
 											/>
 										)}
 										<span
@@ -286,7 +320,7 @@ export default function CategorySheet({ isOpen, category, presetType, onClose }:
 								})}
 							</div>
 
-							<div className="flex items-center rounded-[16px] px-4 py-3.5 bg-input border border-subtle">
+							<div className="flex items-center rounded-2xl px-4 py-3.5 bg-input border border-subtle">
 								<span className="text-[14.5px] text-muted mr-1.5">€</span>
 								<input
 									type="text"
@@ -313,7 +347,9 @@ export default function CategorySheet({ isOpen, category, presetType, onClose }:
 					<div>
 						<div className="flex items-center justify-between mb-3">
 							<label className="text-xs text-muted tracking-wide">Icona</label>
-							<span className="text-[11px] text-muted capitalize">set — {type}</span>
+							<span className="text-[11px] text-muted capitalize">
+								set — {type}
+							</span>
 						</div>
 						<div className="grid grid-cols-5 gap-x-2 gap-y-3.5">
 							{iconList.map((entry) => {
@@ -339,7 +375,9 @@ export default function CategorySheet({ isOpen, category, presetType, onClose }:
 											<Icon
 												size={18}
 												strokeWidth={1.5}
-												style={{ color: selected ? color : "var(--text-muted)" }}
+												style={{
+													color: selected ? color : "var(--text-muted)",
+												}}
 											/>
 										</span>
 										<span
@@ -356,7 +394,10 @@ export default function CategorySheet({ isOpen, category, presetType, onClose }:
 				</div>
 
 				{serverError && (
-					<p className="mt-5 text-xs text-center" style={{ color: "var(--color-aka)" }}>
+					<p
+						className="mt-5 text-xs text-center"
+						style={{ color: "var(--color-aka)" }}
+					>
 						{serverError}
 					</p>
 				)}
@@ -366,7 +407,11 @@ export default function CategorySheet({ isOpen, category, presetType, onClose }:
 					disabled={loading}
 					className="mt-6 w-full py-4 rounded-2xl text-[14.5px] font-semibold btn-primary disabled:opacity-50"
 				>
-					{loading ? "Salvataggio…" : category ? "Salva modifiche" : "Crea categoria"}
+					{loading
+						? "Salvataggio…"
+						: category
+							? "Salva modifiche"
+							: "Crea categoria"}
 				</button>
 			</div>
 		</div>
