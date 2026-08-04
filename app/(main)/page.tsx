@@ -10,6 +10,8 @@ import RecentTransaction from "@/components/features/RecentTransaction";
 import DashboardRefresher from "@/components/features/DashboardRefresher";
 import HomeSkeleton from "@/components/features/HomeSkeleton";
 import ProfileMenu from "@/components/features/ProfileMenu";
+import NotificationBell from "@/components/features/NotificationBell";
+import { getUnreadCount } from "@/app/(main)/notification-actions";
 import Sparkline from "@/components/UI/Sparkline";
 import { getAccountContext } from "@/lib/account";
 import { ChartNoAxesCombinedIcon } from "@/lib/seichi-icons";
@@ -23,12 +25,18 @@ export default function MainPage() {
 }
 
 async function DashboardContent() {
-	const [result, transaction, goalsResult, account] = await Promise.all([
+	const [result, transaction, goalsResult, account, unreadResult] = await Promise.all([
 		getDashboardTotals(),
 		getTransactions(undefined, undefined, 5),
 		getGoals(),
 		getAccountContext(),
+		getUnreadCount(),
 	]);
+
+	// Il conteggio arriva già risolto dal server così il badge non lampeggia da
+	// zero al numero vero. Su errore si mostra 0: un badge sbagliato in eccesso
+	// manderebbe l'utente ad aprire un pannello che non ha niente di nuovo.
+	const unreadCount = "data" in unreadResult ? unreadResult.data : 0;
 
 	const entrata = TRANSACTION_TYPES.find((t) => t.id === "entrata")!;
 	const uscita = TRANSACTION_TYPES.find((t) => t.id === "spesa")!;
@@ -51,7 +59,12 @@ async function DashboardContent() {
 					<p className="text-[13px] text-muted">Bentornato</p>
 					<p className="text-xl font-semibold leading-tight">Il tuo terreno</p>
 				</div>
-				<ProfileMenu initials={account.initials} avatarUrl={account.avatarUrl} />
+				{/* Nel mockup la campanella occupa l'angolo in alto a destra, che
+				    nell'app reale è dell'avatar: stanno affiancate. */}
+				<div className="flex items-center gap-2.5">
+					<NotificationBell initialUnread={unreadCount} />
+					<ProfileMenu initials={account.initials} avatarUrl={account.avatarUrl} />
+				</div>
 			</div>
 
 			<BalanceCard

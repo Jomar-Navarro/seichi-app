@@ -149,9 +149,8 @@ recurring_rules: id, user_id, amount (DECIMAL 10,2), type (TEXT), category_id,
 ### Fase 17 — budget e notifiche
 
 Progettata per intero il 2026-08-03 prima di scrivere codice.
-**17a (budget) è IMPLEMENTATA e verificata end-to-end** — migration
-`20260803_budgets.sql`. **17b (notifiche) è ancora solo progetto**: la tabella
-`notifications` non esiste.
+**Entrambe IMPLEMENTATE e verificate end-to-end** — migration
+`20260803_budgets.sql` (17a) e `20260804_notifications.sql` (17b).
 
 ```sql
 budgets: id (UUID), user_id, category_id (UUID, NULLABLE), period (TEXT),
@@ -215,10 +214,19 @@ budgets: id (UUID), user_id, category_id (UUID, NULLABLE), period (TEXT),
   disponibile* e il suggerimento dell'importo restano alla Fase 24 (AI).
 
 ```sql
-notifications: id, user_id, type, title, body, dedup_key (TEXT), destinazione,
-               read (BOOL), created_at
+notifications: id, user_id, type, payload (JSONB), dedup_key (TEXT),
+               destination (TEXT), read (BOOL), created_at
 -- UNIQUE (user_id, dedup_key)
 ```
+
+- **`payload` JSONB, non testo già composto.** Il DB registra i FATTI, la frase la
+  compone `lib/notifications.ts` alla lettura. Salvare `'€ ' || round(x)` avrebbe
+  cablato la valuta ignorando `profiles.currency`, saltato il separatore delle
+  migliaia (le card accanto scrivono "€ 1.234" via `Intl.NumberFormat`) e reso
+  **intraducibile alla Fase 19 tutto lo storico già scritto**.
+- ⚠️ Il campo si chiama `destination`, **in inglese** come ogni altra colonna. Il
+  primo progetto lo chiamava `destinazione`, contraddicendo la regola di questo
+  stesso documento.
 
 - **Generazione SOLO da pg_cron, mai da trigger o server action**, e **dopo**
   `generate_recurring_transactions()` nella stessa esecuzione — invertito valuterebbe
@@ -241,8 +249,15 @@ notifications: id, user_id, type, title, body, dedup_key (TEXT), destinazione,
   duplicare niente.
 - Ogni notifica porta una **destinazione** (una notifica non toccabile è un vicolo
   cieco) — colonna da mettere subito, aggiungerla dopo richiede backfill delle righe
-  già spedite. E vanno **scadute**: pulizia delle lette più vecchie di 90 giorni nello
-  stesso job.
+  già spedite.
+- ⚠️ **Le notifiche NON si cancellano mai**, e la pulizia a 90 giorni prevista in
+  progetto **era un bug**: la riga non è solo un messaggio, è anche la prova che
+  quell'evento è già stato emesso. Cancellandola si libera la `dedup_key` e il
+  generatore rifà la notifica — un obiettivo al 100% verrebbe rinotificato ogni 90
+  giorni per sempre, e i budget annuali hanno chiavi valide 365 giorni contro una
+  finestra di 90. Scartato anche un registro eventi separato: sarebbe la separazione
+  concettualmente giusta, ma aggiunge una tabella per poter cancellare poche migliaia
+  di righe in dieci anni.
 
 #### Deciso il 2026-08-03 leggendo `Seichi Stati Supporto.dc.html`
 
@@ -327,6 +342,77 @@ notifications: id, user_id, type, title, body, dedup_key (TEXT), destinazione,
   fisse dice esplicitamente "del mese".
 - `createCategory()` ora restituisce l'`id`: serve a impostare il budget subito dopo,
   sulla categoria appena creata.
+
+#### Emerso implementando la 17b
+
+- **Un solo job, non due.** Il cron della Fase 14 (`generate-recurring`) è stato
+  smontato e sostituito da `seichi-daily`, che invoca `run_daily_jobs()`: quella
+  chiama in sequenza ricorrenti → notifiche → pulizia. Un secondo cron a un orario
+  più tardi sarebbe stato *sperare* che il primo avesse finito, e qui l'ordine è
+  **correttezza**, non ottimizzazione.
+- ⚠️ **Il wrapper è sicuro solo perché `generate_recurring_transactions()` distingue
+  cron da RPC con `auth.uid()`** (NULL dal cron → tutti gli utenti). Invocandola da
+  `run_daily_jobs()`, anch'essa lanciata dal cron, `auth.uid()` resta NULL e il
+  comportamento non cambia. Verificato sul codice della funzione prima di agganciarla:
+  cambiarlo in silenzio avrebbe fermato le ricorrenti senza alcun errore.
+- **`generate_notifications()` non può riusare `budgets_at()`**: quella filtra su
+  `auth.uid()`, che dal cron è NULL. La stessa logica è riscritta in forma
+  insiemistica su tutti gli utenti — con lo stesso `DISTINCT ON`, che raggruppa i NULL
+  e quindi tratta il budget globale come una categoria a sé.
+- **Nessuna policy di INSERT su `notifications`.** Sono un registro generato dal
+  server, non contenuto dell'utente: se il client potesse scriverle, "non letto"
+  smetterebbe di significare qualcosa e la `dedup_key` sarebbe aggirabile.
+- ⚠️ **Una policy RLS non sa limitare le COLONNE**, e col solo `for update` l'utente
+  poteva riscriversi `dedup_key` e `destination` sulle proprie righe. Non è estetica:
+  forgiando una chiave futura si **zittisce per sempre** la notifica vera di quel
+  periodo — l'idempotenza per costruzione è proprio ciò che rende una chiave falsa un
+  silenziatore permanente. Serve anche un **grant a livello di colonna**
+  (`grant update (read)`): la RLS decide quali RIGHE, il grant quali COLONNE.
+- ⚠️ **pg_cron esegue il comando come UNA transazione.** Con i passi in sequenza nuda,
+  un'eccezione nelle notifiche faceva rollback anche degli **insert finanziari** delle
+  ricorrenti appena eseguiti. Ogni passo di `run_daily_jobs()` ha il proprio blocco
+  `exception`: le ricorrenti restano scritte e il motivo finisce nei log.
+- **Il seed dei traguardi già superati** viene scritto dalla migration come *già
+  letto*: senza, la prima esecuzione dopo il deploy scoprirebbe insieme tutti i
+  traguardi storici e riempirebbe il pannello di notifiche "adesso" per fatti di mesi
+  fa — il rumore che questa fase esiste per evitare.
+- **La soglia dell'80% è duplicata fra SQL e TypeScript** e non è eliminabile senza
+  generazione di codice: serve alla barra a ogni render e al job notturno. È isolata
+  in `budget_warning_threshold()` e in `BUDGET_WARNING_THRESHOLD`, così i due punti da
+  tenere allineati hanno un nome.
+- **Il rinnovo abbonamento usa `next_run between today and today + 3`**, non
+  `= today + 3`: se il job salta un giorno l'avviso arriva comunque invece di perdersi
+  per sempre, e la dedup lo tiene singolo.
+- **"Ricorrenti generate" filtra su `created_at`, non su `date`.** Il ciclo interno di
+  `generate_recurring_transactions()` recupera più occorrenze arretrate in una sola
+  esecuzione: quelle hanno `date` nel passato ma sono state create oggi.
+- **`coalesce` sui nomi nei titoli.** Un `name` NULL produrrebbe per concatenazione un
+  `title` NULL, e il `NOT NULL` farebbe fallire l'INTERO job notturno per tutti gli
+  utenti. La FK in cascade lo rende impossibile oggi, ma un job non sorvegliato non è
+  il posto dove appoggiarsi a un'invariante altrui.
+- ⚠️ **Il cron usa l'orologio del DATABASE (UTC), non quello del client.** È
+  inevitabile: un job gira una volta per tutti e non ha un client. È schedulato alle
+  03:00 UTC apposta, così per l'Europa continentale `current_date` coincide con la data
+  locale. Per un fuso molto a ovest le soglie verrebbero valutate con un giorno di
+  anticipo; la chiusura pulita è una colonna `profiles.timezone`.
+- **Il pannello non usa `bg-modal`** (0.85 in scuro, tarato per i bottom sheet che
+  coprono uno sfondo già oscurato) ma `--color-deep` al 94%: galleggia sulla dashboard
+  piena di numeri, e il design lo vuole a 0.92.
+- ⚠️ **La SQL della Fase 14 non era nel repo** — è esistita solo dentro Supabase fino
+  al 2026-08-04, quando è stata ricostruita in `20260728_recurring.sql`
+  interrogando il catalogo (`information_schema.columns`, `pg_constraint`,
+  `pg_policies`, `pg_get_functiondef`), non a memoria: una migration che indovina è
+  peggio di una che manca.
+- ⚠️ **`recurring_rules` non aveva alcun `CHECK` su `type`.** Emerso proprio
+  ricostruendo il file: nel database era testo libero, mentre `categories` ha il suo
+  `categories_type_check`. Il difetto contava perché la notifica di rinnovo
+  abbonamento filtra su `type = 'abbonamento'` e quindi si appoggiava alla sola
+  disciplina applicativa. Vincolo aggiunto il 2026-08-04.
+- ⚠️ **IL REPO NON RICOSTRUISCE ANCORA IL DATABASE DA ZERO.** Le tabelle di base —
+  `profiles`, `categories`, `transactions` — sono nate nella Fase 3 e non sono mai
+  state versionate: nessun file le crea. Anche `transactions.recurring_rule_id` vive
+  solo nel database. Recuperare `recurring_rules` ha chiuso un buco, non tutti.
+  Tracciato nella **issue #43**, con la tecnica di ricostruzione e le query pronte.
 
 ## Auth Flow
 
@@ -524,9 +610,10 @@ Seguire questo ordine, non saltare fasi:
       `budgets_at()`/`set_budget()`, RLS, campo nel form categoria, limite globale
       nelle impostazioni, card con barre (ambra 80%, rossa 100%), riga "uscite fisse
       previste". Verificata end-to-end il 2026-08-03.
-    - **17b notifiche (issue #41**, accorpa #29) — tabella `notifications` con
-      `dedup_key`, funzione pg_cron dopo le ricorrenti, pannello campanella con
-      letto/non-letto. Dipende da 17a per l'evento "budget sforato".
+    - **17b ✅ notifiche (issue #41**, accorpa #29) — tabella `notifications` con
+      `dedup_key`, `run_daily_jobs()` che invoca ricorrenti → notifiche → pulizia,
+      campanella con badge e pannello letto/non-letto. Verificata end-to-end il
+      2026-08-04, idempotenza inclusa.
 18. Tema chiaro/scuro — switch nelle impostazioni (infra `.dark` già presente; ora il root layout forza dark)
 19. Lingua i18n (it/en) — collegare la preferenza `profiles.language` già salvata ma inattiva
 20. Conti/wallet multipli — tabella `accounts` + `account_id` su transactions + trasferimenti (feature STRUTTURALE: decide lo schema presto)
