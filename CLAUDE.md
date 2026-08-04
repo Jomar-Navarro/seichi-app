@@ -365,10 +365,19 @@ notifications: id, user_id, type, title, body, dedup_key (TEXT), destinazione,
   coprono uno sfondo già oscurato) ma `--color-deep` al 94%: galleggia sulla dashboard
   piena di numeri, e il design lo vuole a 0.92.
 - ⚠️ **La SQL della Fase 14 non era nel repo** — è esistita solo dentro Supabase fino
-  al 2026-08-04, quando è stata recuperata con `pg_get_functiondef` in
-  `20260728_recurring.sql`. **Quel file è ancora incompleto**: contiene la sola
-  funzione. Mancano il DDL di `recurring_rules`, le sue policy RLS e la colonna
-  `transactions.recurring_rule_id`, che vanno recuperati con la stessa tecnica.
+  al 2026-08-04, quando è stata ricostruita in `20260728_recurring.sql`
+  interrogando il catalogo (`information_schema.columns`, `pg_constraint`,
+  `pg_policies`, `pg_get_functiondef`), non a memoria: una migration che indovina è
+  peggio di una che manca.
+- ⚠️ **`recurring_rules` non aveva alcun `CHECK` su `type`.** Emerso proprio
+  ricostruendo il file: nel database era testo libero, mentre `categories` ha il suo
+  `categories_type_check`. Il difetto contava perché la notifica di rinnovo
+  abbonamento filtra su `type = 'abbonamento'` e quindi si appoggiava alla sola
+  disciplina applicativa. Vincolo aggiunto il 2026-08-04.
+- ⚠️ **IL REPO NON RICOSTRUISCE ANCORA IL DATABASE DA ZERO.** Le tabelle di base —
+  `profiles`, `categories`, `transactions` — sono nate nella Fase 3 e non sono mai
+  state versionate: nessun file le crea. Anche `transactions.recurring_rule_id` vive
+  solo nel database. Recuperare `recurring_rules` ha chiuso un buco, non tutti.
 
 ## Auth Flow
 
