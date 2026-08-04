@@ -165,6 +165,19 @@ export type NotificationType =
 	| "ricorrenti_generate";
 
 /**
+ * I fatti di una notifica, senza presentazione.
+ *
+ * Il database registra COSA è successo; la frase la compone `lib/notifications.ts`
+ * alla lettura. Salvare il testo già fatto avrebbe cablato la valuta ignorando
+ * `profiles.currency`, e reso intraducibili alla Fase 19 le notifiche già scritte.
+ */
+export type NotificationPayload =
+	| { category: string | null; spent: number; amount: number }
+	| { goal: string; saved: number; target: number; pct: number }
+	| { name: string | null; amount: number; days: number }
+	| { count: number };
+
+/**
  * Riga della tabella `notifications`.
  *
  * Si chiama `AppNotification` e non `Notification` perché quest'ultimo è un tipo
@@ -175,13 +188,17 @@ export type NotificationType =
 export interface AppNotification {
 	id: string;
 	type: NotificationType;
-	title: string;
-	/** riga di dettaglio opzionale, es. "Hai speso € 612 su € 550" */
-	body: string | null;
+	payload: NotificationPayload;
 	/** rotta dell'app: una notifica che non porta da nessuna parte è un vicolo cieco */
-	destinazione: string;
+	destination: string;
 	read: boolean;
 	created_at: string;
+}
+
+/** Notifica con il testo già composto, pronta per la UI. */
+export interface RenderedNotification extends AppNotification {
+	title: string;
+	body: string | null;
 }
 
 export interface InvestmentByType {

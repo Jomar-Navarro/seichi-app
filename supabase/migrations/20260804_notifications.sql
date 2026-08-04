@@ -1,59 +1,65 @@
 -- ============================================================================
 -- Fase 17b — Notifiche
 -- ============================================================================
--- Esegui questo file nel SQL Editor di Supabase (una volta sola).
--- È idempotente: puoi rieseguirlo senza rompere nulla.
+-- Esegui questo file nel SQL Editor di Supabase. È idempotente.
+--
+-- ⚠️ RICREA LA TABELLA `notifications`. La prima versione, di poche ore prima,
+-- salvava il testo già composto (`title`/`body`) invece di un payload, e usava
+-- `destinazione` invece di `destination`. Migrare a colpi di ALTER avrebbe
+-- comunque perso i testi, perché da una frase non si ricava il payload che
+-- l'avrebbe generata. Contenendo solo notifiche di prova, si ricrea.
+-- Su un database con notifiche vere questa parte va sostituita da ALTER espliciti.
 --
 -- Cosa fa:
 --   1. tabella notifications + vincoli
---   2. RLS (nessuna policy di INSERT: le notifiche non le scrive l'utente)
+--   2. RLS + grant di UPDATE ristretto alla sola colonna `read`
 --   3. generate_notifications() — i quattro eventi, idempotenti per costruzione
---   4. purge_old_notifications() — pulizia delle lette oltre i 90 giorni
---   5. run_daily_jobs() + riaggancio del job pg_cron esistente
---   6. delete_current_user() — aggiornata con la tabella nuova
+--   4. seed dei traguardi già superati (evita il diluvio alla prima esecuzione)
+--   5. run_daily_jobs() — passi ISOLATI — e riaggancio del job pg_cron
+--   6. delete_current_user() aggiornata
 --
 -- Progetto e motivazioni: CLAUDE.md → "Fase 17 — budget e notifiche", issue #41.
 -- ============================================================================
+
+drop table if exists public.notifications cascade;
 
 
 -- ----------------------------------------------------------------------------
 -- 1. TABELLA notifications
 -- ----------------------------------------------------------------------------
--- `dedup_key` è ciò che rende le notifiche idempotenti PER COSTRUZIONE invece
--- che per attenzione di chi scrive il generatore: ogni evento compone una
--- stringa deterministica e l'insert usa ON CONFLICT DO NOTHING. Il job può
--- girare due volte, fallire a metà, essere rilanciato a mano — il risultato non
--- cambia. È l'equivalente di ciò che `next_run` fa per le ricorrenti, ottenuto
--- con un vincolo invece che con un puntatore.
+-- `dedup_key` rende le notifiche idempotenti PER COSTRUZIONE invece che per
+-- attenzione di chi scrive il generatore: ogni evento compone una stringa
+-- deterministica e l'insert usa ON CONFLICT DO NOTHING. Il job può girare due
+-- volte o fallire a metà — il risultato non cambia.
 --
--- ⚠️ Perché una colonna TEXT e non un vincolo composito tipizzato: gli eventi
--- hanno chiavi naturali DIVERSE. Budget = categoria + inizio periodo; rinnovo
--- abbonamento = recurring_rule_id + data. Una colonna `category_id` che
--- contiene l'id di una regola è un campo che mente sul proprio nome, e prima o
--- poi qualcuno ci fa una join sbagliata.
+-- ⚠️ Colonna TEXT e non vincolo composito tipizzato: gli eventi hanno chiavi
+-- naturali DIVERSE (budget = categoria + inizio periodo; rinnovo abbonamento =
+-- recurring_rule_id + data). Una colonna `category_id` che contiene l'id di una
+-- regola è un campo che mente sul proprio nome.
 --
--- `destinazione` è una rotta dell'app: una notifica che non porta da nessuna
--- parte è un vicolo cieco. Va messa SUBITO — aggiungerla dopo richiederebbe il
--- backfill delle righe già spedite.
+-- ⚠️ `payload` e NON testo già composto. La prima versione salvava frasi
+-- costruite in SQL con `'€ ' || round(x)`, il che significava: valuta cablata
+-- ignorando `profiles.currency`, nessun separatore delle migliaia (mentre le
+-- card accanto scrivono "€ 1.234" via Intl.NumberFormat), e soprattutto testo
+-- COTTO nella riga — la Fase 19 non avrebbe mai potuto tradurre le notifiche
+-- già salvate. Il DB registra i FATTI, la presentazione è di chi legge:
+-- `lib/notifications.ts` compone la frase alla lettura, con la valuta corrente.
 
-create table if not exists public.notifications (
-	id           uuid primary key default gen_random_uuid(),
-	user_id      uuid not null,
-	type         text not null,
-	title        text not null,
-	body         text,          -- riga di dettaglio opzionale ("€ 612 su € 550")
-	dedup_key    text not null,
-	destinazione text not null,
-	read         boolean not null default false,
-	created_at   timestamptz not null default now()
+create table public.notifications (
+	id          uuid primary key default gen_random_uuid(),
+	user_id     uuid not null,
+	type        text not null,
+	payload     jsonb not null default '{}'::jsonb,
+	dedup_key   text not null,
+	destination text not null,   -- rotta dell'app: una notifica intoccabile è un vicolo cieco
+	read        boolean not null default false,
+	created_at  timestamptz not null default now()
 );
 
-alter table public.notifications drop constraint if exists notifications_user_id_fkey;
-alter table public.notifications add  constraint notifications_user_id_fkey
+alter table public.notifications add constraint notifications_user_id_fkey
 	foreign key (user_id) references auth.users (id) on delete cascade;
 
-alter table public.notifications drop constraint if exists notifications_type_check;
-alter table public.notifications add  constraint notifications_type_check
+alter table public.notifications add constraint notifications_type_check
 	check (type in (
 		'budget_soglia',
 		'budget_sforato',
@@ -62,20 +68,13 @@ alter table public.notifications add  constraint notifications_type_check
 		'ricorrenti_generate'
 	));
 
--- Qui NULLS NOT DISTINCT non serve: dedup_key è NOT NULL. Il vincolo è
--- l'intero meccanismo di idempotenza, non un'ottimizzazione.
-alter table public.notifications drop constraint if exists notifications_dedup_key;
-alter table public.notifications add  constraint notifications_dedup_key
+alter table public.notifications add constraint notifications_dedup_key
 	unique (user_id, dedup_key);
 
--- Il pannello legge "le mie notifiche, più recenti prima".
-drop index if exists public.notifications_user_created_idx;
 create index notifications_user_created_idx
 	on public.notifications (user_id, created_at desc);
 
--- Il badge conta solo le non lette: indice parziale, molto più piccolo di uno
--- completo perché le lette (la maggioranza, col tempo) non ci entrano.
-drop index if exists public.notifications_unread_idx;
+-- Indice parziale: il badge conta solo le non lette, e col tempo sono la minoranza.
 create index notifications_unread_idx
 	on public.notifications (user_id) where not read;
 
@@ -90,38 +89,59 @@ create policy "notifications_select_own" on public.notifications
 	for select to authenticated
 	using ((select auth.uid()) = user_id);
 
--- L'UPDATE serve solo a marcare come letta. Postgres non sa limitare una policy
--- a una singola COLONNA, quindi in teoria l'utente potrebbe riscriversi il
--- titolo di una propria notifica. È innocuo — sono dati suoi, che vede solo lui
--- — e l'alternativa (una funzione dedicata) aggiungerebbe un giro per niente.
+-- ⚠️ La policy da sola NON basta, e la prima versione si fermava qui.
+-- Una policy RLS non sa limitare le COLONNE: con il solo `for update` l'utente
+-- poteva riscriversi `dedup_key` e `destination` sulle proprie righe. Non è un
+-- danno estetico:
+--   - forgiando una dedup_key futura (`budget_sforato:{cat}:2026-09-01`) si
+--     ZITTISCE PER SEMPRE la notifica vera di settembre, perché il generatore
+--     la troverebbe in conflitto e la salterebbe. L'idempotenza per costruzione
+--     è proprio ciò che rende una chiave falsa un silenziatore permanente;
+--   - `destination` finisce dritta in `router.push()`.
+-- La chiusura è un GRANT a livello di colonna: la RLS decide QUALI righe, il
+-- grant decide QUALI colonne. Servono entrambi.
 drop policy if exists "notifications_update_own" on public.notifications;
 create policy "notifications_update_own" on public.notifications
 	for update to authenticated
 	using ((select auth.uid()) = user_id)
 	with check ((select auth.uid()) = user_id);
 
--- ⚠️ NESSUNA policy di INSERT, deliberatamente. Le notifiche sono un registro
--- generato dal server, non contenuto dell'utente: se il client potesse
--- scriverle, "non letto" smetterebbe di significare qualcosa e la dedup_key
--- sarebbe aggirabile. Le crea solo generate_notifications(), che è
--- SECURITY DEFINER e quindi scavalca la RLS.
---
--- Nemmeno una policy di DELETE: la pulizia la fa il job, e l'eliminazione
--- account passa da delete_current_user(), anch'essa SECURITY DEFINER.
+revoke update on public.notifications from authenticated;
+grant  update (read) on public.notifications to authenticated;
+
+-- Nessuna policy di INSERT né di DELETE, deliberatamente: le notifiche sono un
+-- registro generato dal server, non contenuto dell'utente. Le crea solo
+-- generate_notifications(), che è SECURITY DEFINER e scavalca la RLS.
 
 
 -- ----------------------------------------------------------------------------
--- 3. GENERAZIONE
+-- 3. SOGLIA CONDIVISA
 -- ----------------------------------------------------------------------------
--- ⚠️ NOTA SUL FUSO. L'app calcola i periodi sul fuso del CLIENT (vedi
--- ClientClock in lib/dates.ts), ma un job non ha un client: gira una volta per
--- tutti, e deve usare un orologio solo. Usa quello del database (UTC).
--- Il job è schedulato alle 03:00 UTC apposta: per l'Europa continentale sono le
--- 04:00 o 05:00 dello STESSO giorno solare, quindi `current_date` coincide con
--- la data locale dell'utente. Per un fuso molto a ovest (UTC-8) le 03:00 UTC
--- sono le 19:00 del giorno prima, e le soglie verrebbero valutate su un giorno
--- di anticipo. Accettabile finché l'utenza è europea; la chiusura pulita è una
--- colonna `profiles.timezone` e un job che raggruppa per fuso.
+-- ⚠️ Duplicazione cross-linguaggio nota e NON eliminabile senza generazione di
+-- codice: la stessa soglia serve alla barra (TypeScript, a ogni render) e al
+-- job notturno (SQL). Qui è isolata in una funzione invece di essere un `0.8`
+-- sparso nella query, così i due punti da tenere allineati sono NOMINATI:
+-- questa funzione e `BUDGET_WARNING_THRESHOLD` in `lib/budget.ts`.
+-- Cambiarne uno solo farebbe diventare ambra la barra al 75% mentre la notifica
+-- continua ad arrivare all'80%, senza alcun errore da nessuna parte.
+
+create or replace function public.budget_warning_threshold()
+returns numeric
+language sql
+immutable
+set search_path = ''
+as $$ select 0.8::numeric $$;
+
+
+-- ----------------------------------------------------------------------------
+-- 4. GENERAZIONE
+-- ----------------------------------------------------------------------------
+-- ⚠️ NOTA SUL FUSO. L'app calcola i periodi sul fuso del CLIENT (ClientClock in
+-- lib/dates.ts), ma un job non ha un client: gira una volta per tutti e usa
+-- l'orologio del database (UTC). È schedulato alle 03:00 UTC apposta, così per
+-- l'Europa continentale `current_date` coincide con la data locale dell'utente.
+-- Per un fuso molto a ovest le soglie verrebbero valutate con un giorno di
+-- anticipo; la chiusura pulita è una colonna `profiles.timezone`.
 
 create or replace function public.generate_notifications()
 returns void
@@ -133,13 +153,12 @@ declare
 	today date := current_date;
 begin
 	------------------------------------------------------------------
-	-- 3a. BUDGET — soglia (80%) e sforamento (100%)
+	-- 4a. BUDGET — soglia e sforamento
 	------------------------------------------------------------------
-	-- Non si può riusare budgets_at(): quella filtra su auth.uid(), che dal cron
-	-- è NULL. Qui la stessa logica è espressa in forma insiemistica su tutti gli
-	-- utenti. DISTINCT ON raggruppa i NULL insieme, quindi il budget globale
-	-- (category_id NULL) viene trattato come una categoria a sé — che è ciò che
-	-- serve.
+	-- Non si può riusare budgets_at(): filtra su auth.uid(), che dal cron è
+	-- NULL. Stessa logica in forma insiemistica su tutti gli utenti. DISTINCT ON
+	-- raggruppa i NULL, quindi il budget globale è trattato come una categoria
+	-- a sé — che è ciò che serve.
 	with current_budgets as (
 		select distinct on (b.user_id, b.category_id)
 			b.user_id,
@@ -153,10 +172,7 @@ begin
 	),
 	spending as (
 		select
-			cb.user_id,
-			cb.category_id,
-			cb.amount,
-			cb.p_start,
+			cb.user_id, cb.category_id, cb.amount, cb.p_start,
 			coalesce(sum(t.amount), 0) as spent
 		from current_budgets cb
 		left join public.transactions t
@@ -165,79 +181,59 @@ begin
 			and t.date >= cb.p_start
 			and t.date <  cb.p_end
 			and (cb.category_id is null or t.category_id = cb.category_id)
-		-- Le "lapidi" (amount NULL) sono budget rimossi: niente da sorvegliare.
-		where cb.amount is not null
+		where cb.amount is not null   -- le "lapidi" sono budget rimossi
 		group by cb.user_id, cb.category_id, cb.amount, cb.p_start
 	)
-	insert into public.notifications (user_id, type, title, body, dedup_key, destinazione)
+	insert into public.notifications (user_id, type, payload, dedup_key, destination)
 	select
 		s.user_id,
 		case when s.spent >= s.amount then 'budget_sforato' else 'budget_soglia' end,
-		case
-			when s.category_id is null and s.spent >= s.amount
-				then 'Limite di spesa superato'
-			when s.category_id is null
-				then 'Limite di spesa quasi raggiunto'
-			-- coalesce difensivo: con un name NULL la concatenazione darebbe un
-			-- title NULL, il NOT NULL solleverebbe eccezione e farebbe fallire
-			-- l'INTERO job notturno per tutti gli utenti. La FK in cascade rende
-			-- il caso impossibile oggi, ma un job non sorvegliato non è il posto
-			-- dove appoggiarsi a un'invariante altrui.
-			when s.spent >= s.amount
-				then 'Budget "' || coalesce(c.name, 'categoria') || '" superato'
-			else 'Budget "' || coalesce(c.name, 'categoria') || '" quasi esaurito'
-		end,
-		'Hai speso € ' || round(s.spent)::text || ' su € ' || round(s.amount)::text,
-		-- L'inizio periodo è già normalizzato a un confine dal CHECK sulla
-		-- tabella budgets: due esecuzioni calcolano la stessa chiave, sempre.
+		jsonb_build_object(
+			'category', c.name,      -- NULL per il budget globale: lo interpreta il client
+			'spent',    s.spent,
+			'amount',   s.amount
+		),
 		case when s.spent >= s.amount then 'budget_sforato:' else 'budget_soglia:' end
 			|| coalesce(s.category_id::text, 'globale') || ':' || s.p_start::text,
 		'/transazioni'
 	from spending s
 	left join public.categories c on c.id = s.category_id
-	where s.spent >= s.amount * 0.8
+	where s.spent >= s.amount * public.budget_warning_threshold()
 	on conflict (user_id, dedup_key) do nothing;
 
 	------------------------------------------------------------------
-	-- 3b. OBIETTIVI — 50% e 100%
+	-- 4b. OBIETTIVI — 50% e 100%
 	------------------------------------------------------------------
 	-- Gli obiettivi non hanno tabella propria: sono categorie type='risparmio'
 	-- con target_amount, e il risparmiato si somma dalle transazioni (stessa
-	-- logica di getGoals in app/(main)/risparmi/actions.ts).
-	--
-	-- Soglie 50 e 100 e non un avanzamento continuo: un obiettivo dura mesi,
-	-- quindi sono due notifiche in tutto. Il mockup mostrava "al 58%", cioè un
-	-- numero arbitrario — sarebbe rumore, e il rumore fa smettere di aprire il
-	-- campanello.
+	-- logica di getGoals). Soglie 50 e 100 e non un avanzamento continuo: un
+	-- obiettivo dura mesi, quindi sono due notifiche in tutto.
 	with goals as (
 		select
-			c.user_id,
-			c.id as category_id,
-			c.name,
-			c.target_amount,
+			c.user_id, c.id as category_id, c.name, c.target_amount,
 			coalesce(sum(t.amount), 0) as saved
 		from public.categories c
 		left join public.transactions t
-			on  t.user_id = c.user_id
-			and t.category_id = c.id
-			and t.type = 'risparmio'
+			on t.user_id = c.user_id and t.category_id = c.id and t.type = 'risparmio'
 		where c.type = 'risparmio'
 		  and c.target_amount is not null
 		  and c.target_amount > 0
 		group by c.user_id, c.id, c.name, c.target_amount
 	)
-	insert into public.notifications (user_id, type, title, body, dedup_key, destinazione)
+	insert into public.notifications (user_id, type, payload, dedup_key, destination)
 	select
 		g.user_id,
 		'obiettivo_soglia',
-		case
-			when th.pct = 100 then 'Obiettivo "' || coalesce(g.name, 'senza nome') || '" raggiunto'
-			else 'Obiettivo "' || coalesce(g.name, 'senza nome') || '" a metà strada'
-		end,
-		'Hai messo da parte € ' || round(g.saved)::text
-			|| ' su € ' || round(g.target_amount)::text,
+		jsonb_build_object(
+			'goal',   g.name,
+			'saved',  g.saved,
+			'target', g.target_amount,
+			'pct',    th.pct
+		),
 		-- Nessun periodo nella chiave: una soglia si attraversa una volta sola
-		-- nella vita dell'obiettivo.
+		-- nella vita dell'obiettivo. ⚠️ Ed è proprio per questo che le
+		-- notifiche NON si cancellano mai (vedi sezione 5): senza la riga, la
+		-- chiave tornerebbe libera e il traguardo verrebbe rinotificato.
 		'obiettivo_soglia:' || g.category_id::text || ':' || th.pct::text,
 		'/risparmi'
 	from goals g
@@ -246,23 +242,25 @@ begin
 	on conflict (user_id, dedup_key) do nothing;
 
 	------------------------------------------------------------------
-	-- 3c. RINNOVO ABBONAMENTO — 3 giorni di anticipo
+	-- 4c. RINNOVO ABBONAMENTO — fino a 3 giorni di anticipo
 	------------------------------------------------------------------
-	-- La finestra è `between today and today + 3` e non `= today + 3`: se il job
-	-- salta un giorno, l'avviso arriva comunque il giorno dopo invece di andare
-	-- perso per sempre. La dedup_key contiene la data di rinnovo, quindi nei
-	-- giorni successivi l'insert trova il conflitto e non duplica.
-	insert into public.notifications (user_id, type, title, body, dedup_key, destinazione)
+	-- Finestra `between today and today + 3` e non `= today + 3`: se il job
+	-- salta un giorno l'avviso arriva comunque invece di perdersi, e la dedup lo
+	-- tiene singolo.
+	--
+	-- NB: dal cron il caso `next_run = today` non si presenta, perché
+	-- generate_recurring_transactions() ha appena avanzato ogni next_run scaduto.
+	-- La finestra resta comunque inclusiva: così la funzione è corretta anche
+	-- invocata da sola, senza dipendere in silenzio da chi l'ha preceduta.
+	insert into public.notifications (user_id, type, payload, dedup_key, destination)
 	select
 		r.user_id,
 		'abbonamento_rinnovo',
-		'Rinnovo "' || coalesce(c.name, 'abbonamento') || '" '
-			|| case (r.next_run - today)
-				when 0 then 'oggi'
-				when 1 then 'domani'
-				else 'fra ' || (r.next_run - today)::text || ' giorni'
-			end,
-		'Sono previsti € ' || round(r.amount)::text,
+		jsonb_build_object(
+			'name',   c.name,
+			'amount', r.amount,
+			'days',   (r.next_run - today)
+		),
 		'abbonamento_rinnovo:' || r.id::text || ':' || r.next_run::text,
 		'/impostazioni/ricorrenti'
 	from public.recurring_rules r
@@ -274,21 +272,23 @@ begin
 	on conflict (user_id, dedup_key) do nothing;
 
 	------------------------------------------------------------------
-	-- 3d. CONFERMA GENERAZIONE RICORRENTI
+	-- 4d. CONFERMA GENERAZIONE RICORRENTI
 	------------------------------------------------------------------
-	-- L'app rende conto della propria automazione: sono movimenti comparsi
-	-- mentre l'utente non guardava. Gira DOPO generate_recurring_transactions()
-	-- nella stessa esecuzione (vedi run_daily_jobs), quindi le righe con
-	-- created_at di oggi sono esattamente quelle appena inserite.
-	insert into public.notifications (user_id, type, title, body, dedup_key, destinazione)
+	-- Gira DOPO generate_recurring_transactions() nella stessa esecuzione,
+	-- quindi le righe con created_at di oggi sono quelle appena inserite.
+	-- Si filtra su `created_at` e NON su `date`: il ciclo di recupero può
+	-- inserire occorrenze arretrate, che hanno data nel passato ma sono state
+	-- create adesso.
+	--
+	-- ⚠️ Solo il CONTEGGIO, nessun totale. Gli importi sono senza segno e la
+	-- direzione la porta `type`: sommare uno stipendio da 2000 e un affitto da
+	-- 800 darebbe "€ 2800", un numero che non corrisponde a niente di trovabile
+	-- nell'app.
+	insert into public.notifications (user_id, type, payload, dedup_key, destination)
 	select
 		t.user_id,
 		'ricorrenti_generate',
-		case count(*)
-			when 1 then 'Registrato 1 movimento ricorrente'
-			else 'Registrati ' || count(*)::text || ' movimenti ricorrenti'
-		end,
-		'Totale € ' || round(sum(t.amount))::text,
+		jsonb_build_object('count', count(*)),
 		'ricorrenti_generate:' || today::text,
 		'/transazioni'
 	from public.transactions t
@@ -304,37 +304,80 @@ revoke all on function public.generate_notifications() from public, anon, authen
 
 
 -- ----------------------------------------------------------------------------
--- 4. PULIZIA
+-- 5. NIENTE PULIZIA — e il motivo
 -- ----------------------------------------------------------------------------
--- Solo le LETTE: una non letta di quattro mesi fa è comunque una cosa che
--- l'utente non ha mai visto, e cancellarla sarebbe perdere l'unica informazione
--- che il pannello porta. Senza questa pulizia la tabella cresce per sempre, e
--- nessuno la svuota a mano.
-
-create or replace function public.purge_old_notifications()
-returns void
-language sql
-security definer
-set search_path = ''
-as $$
-	delete from public.notifications
-	where read and created_at < now() - interval '90 days';
-$$;
-
-revoke all on function public.purge_old_notifications() from public, anon, authenticated;
-
-
--- ----------------------------------------------------------------------------
--- 5. JOB GIORNALIERO
--- ----------------------------------------------------------------------------
--- ⚠️ L'ORDINE È LA CORRETTEZZA, non un'ottimizzazione. Le notifiche vanno
--- generate DOPO le ricorrenti: al contrario valuterebbero lo stato di ieri e
--- mancherebbero proprio lo sforamento causato dalla ricorrente appena inserita
--- — l'affitto delle 3 di notte, che è il caso per cui esistono.
+-- ⚠️ La prima versione cancellava le notifiche lette più vecchie di 90 giorni.
+-- ERA UN BUG, non un'ottimizzazione: la riga NON è solo un messaggio, è anche
+-- la prova che quell'evento è già stato emesso. Cancellandola si libera la
+-- dedup_key, e al giro successivo il generatore rifà la notifica.
+--   Obiettivo al 100% il 10 gennaio → letto → cancellato il 10 aprile →
+--   l'11 aprile l'obiettivo è ancora al 100%, la chiave è libera, la notifica
+--   RINASCE. Ogni 90 giorni, per sempre. Idem per i budget annuali, la cui
+--   chiave resta valida 365 giorni contro una finestra di pulizia di 90.
 --
--- Per questo il job non diventa un secondo cron a un orario più tardi (sperare
--- che il primo abbia finito non è una garanzia): è una funzione sola che le
--- chiama in sequenza, e il job esistente viene riagganciato a lei.
+-- Scartata l'alternativa di un registro eventi separato, mai cancellato, con le
+-- notifiche cancellabili: sarebbe la separazione concettualmente corretta
+-- ("evento emesso" e "messaggio in casella" sono fatti diversi), ma aggiunge
+-- una tabella per rendere possibile la cancellazione di poche migliaia di righe
+-- in dieci anni. Il costo che la pulizia evitava è ipotetico; il difetto che ha
+-- introdotto era certo.
+--
+-- Se un domani il volume lo giustificasse, il registro separato è la strada.
+drop function if exists public.purge_old_notifications();
+
+
+-- ----------------------------------------------------------------------------
+-- 6. SEED DEI TRAGUARDI GIÀ SUPERATI
+-- ----------------------------------------------------------------------------
+-- Senza questo, la PRIMA esecuzione dopo il deploy scoprirebbe tutti i traguardi
+-- storici insieme: un utente con sei obiettivi, quattro già al 100%, si
+-- ritroverebbe dieci notifiche non lette "adesso" per fatti di mesi fa. È
+-- esattamente il rumore che questa fase esiste per evitare.
+--
+-- Le stesse righe vengono quindi scritte ora, GIÀ LETTE: occupano la dedup_key
+-- e spengono il passato senza accendere il badge. I budget non ne hanno bisogno
+-- — le loro chiavi sono legate al periodo corrente, quindi la prima esecuzione
+-- notifica solo ciò che è vero adesso, che è corretto.
+with goals as (
+	select
+		c.user_id, c.id as category_id, c.name, c.target_amount,
+		coalesce(sum(t.amount), 0) as saved
+	from public.categories c
+	left join public.transactions t
+		on t.user_id = c.user_id and t.category_id = c.id and t.type = 'risparmio'
+	where c.type = 'risparmio' and c.target_amount is not null and c.target_amount > 0
+	group by c.user_id, c.id, c.name, c.target_amount
+)
+insert into public.notifications (user_id, type, payload, dedup_key, destination, read)
+select
+	g.user_id,
+	'obiettivo_soglia',
+	jsonb_build_object('goal', g.name, 'saved', g.saved, 'target', g.target_amount, 'pct', th.pct),
+	'obiettivo_soglia:' || g.category_id::text || ':' || th.pct::text,
+	'/risparmi',
+	true
+from goals g
+cross join (values (50), (100)) as th(pct)
+where g.saved >= g.target_amount * th.pct / 100.0
+on conflict (user_id, dedup_key) do nothing;
+
+
+-- ----------------------------------------------------------------------------
+-- 7. JOB GIORNALIERO — passi ISOLATI
+-- ----------------------------------------------------------------------------
+-- ⚠️ pg_cron esegue il comando come UNA transazione. Nella prima versione i tre
+-- passi erano `perform` nudi in sequenza: un'eccezione qualsiasi nella
+-- generazione notifiche — un timeout, un lock, un vincolo — avrebbe fatto
+-- rollback anche degli INSERT FINANZIARI appena eseguiti dalle ricorrenti.
+-- Nel caso benigno si autoripara (torna indietro anche `next_run`, la notte
+-- dopo si rigenera), ma un errore PERSISTENTE significa affitto e abbonamenti
+-- mai registrati, in silenzio, per settimane.
+--
+-- Ogni passo ha ora il proprio blocco `exception`: le ricorrenti restano
+-- scritte anche se le notifiche falliscono, e il motivo finisce nei log invece
+-- di sparire. L'ORDINE resta quello e non è negoziabile — le notifiche devono
+-- vedere le transazioni appena generate, altrimenti mancherebbero proprio lo
+-- sforamento causato dall'affitto delle 3 di notte.
 
 create or replace function public.run_daily_jobs()
 returns void
@@ -343,19 +386,26 @@ security definer
 set search_path = ''
 as $$
 begin
-	perform public.generate_recurring_transactions();
-	perform public.generate_notifications();
-	perform public.purge_old_notifications();
+	begin
+		perform public.generate_recurring_transactions();
+	exception when others then
+		raise warning 'generate_recurring_transactions fallita: % (%)', sqlerrm, sqlstate;
+	end;
+
+	begin
+		perform public.generate_notifications();
+	exception when others then
+		raise warning 'generate_notifications fallita: % (%)', sqlerrm, sqlstate;
+	end;
 end;
 $$;
 
 revoke all on function public.run_daily_jobs() from public, anon, authenticated;
 
 -- Il job della Fase 14 si chiamava 'generate-recurring' e invocava direttamente
--- generate_recurring_transactions(). Ora il nome mentirebbe sul contenuto,
--- quindi si smonta e si ricrea con un nome onesto. Il blocco è condizionale
--- perché cron.unschedule() solleva un errore se il job non esiste, e questo
--- file deve restare rieseguibile.
+-- generate_recurring_transactions(). Ora il nome mentirebbe sul contenuto.
+-- Il blocco è condizionale perché cron.unschedule() solleva un errore se il job
+-- non esiste, e questo file deve restare rieseguibile.
 do $$
 begin
 	if exists (select 1 from cron.job where jobname = 'generate-recurring') then
@@ -364,20 +414,18 @@ begin
 end;
 $$;
 
--- cron.schedule() con un nome già esistente lo sostituisce: rieseguire non
--- crea job duplicati. Stesso orario di prima (03:00 UTC) — vedi la nota sul
--- fuso in cima alla sezione 3.
+-- cron.schedule() con un nome già esistente lo sostituisce: rieseguire non crea
+-- job duplicati. 03:00 UTC — vedi la nota sul fuso nella sezione 4.
 select cron.schedule('seichi-daily', '0 3 * * *', $job$select public.run_daily_jobs();$job$);
 
 
 -- ----------------------------------------------------------------------------
--- 6. ELIMINAZIONE ACCOUNT — aggiornata
+-- 8. ELIMINAZIONE ACCOUNT — aggiornata
 -- ----------------------------------------------------------------------------
 -- notifications ha già la FK ON DELETE CASCADE, ma delete_current_user() fa i
 -- DELETE ESPLICITI tabella per tabella, deliberatamente: resta corretta anche se
 -- un domani una FK venisse ricreata senza cascade. Dimenticare una tabella qui
--- non produce alcun errore — lascia solo dati personali di un utente
--- cancellato, che è il problema GDPR che quel blocco previene.
+-- non produce errori — lascia dati personali di un utente cancellato.
 
 create or replace function public.delete_current_user(dry_run boolean default false)
 returns void

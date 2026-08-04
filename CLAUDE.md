@@ -214,10 +214,19 @@ budgets: id (UUID), user_id, category_id (UUID, NULLABLE), period (TEXT),
   disponibile* e il suggerimento dell'importo restano alla Fase 24 (AI).
 
 ```sql
-notifications: id, user_id, type, title, body, dedup_key (TEXT), destinazione,
-               read (BOOL), created_at
+notifications: id, user_id, type, payload (JSONB), dedup_key (TEXT),
+               destination (TEXT), read (BOOL), created_at
 -- UNIQUE (user_id, dedup_key)
 ```
+
+- **`payload` JSONB, non testo già composto.** Il DB registra i FATTI, la frase la
+  compone `lib/notifications.ts` alla lettura. Salvare `'€ ' || round(x)` avrebbe
+  cablato la valuta ignorando `profiles.currency`, saltato il separatore delle
+  migliaia (le card accanto scrivono "€ 1.234" via `Intl.NumberFormat`) e reso
+  **intraducibile alla Fase 19 tutto lo storico già scritto**.
+- ⚠️ Il campo si chiama `destination`, **in inglese** come ogni altra colonna. Il
+  primo progetto lo chiamava `destinazione`, contraddicendo la regola di questo
+  stesso documento.
 
 - **Generazione SOLO da pg_cron, mai da trigger o server action**, e **dopo**
   `generate_recurring_transactions()` nella stessa esecuzione — invertito valuterebbe
@@ -240,8 +249,15 @@ notifications: id, user_id, type, title, body, dedup_key (TEXT), destinazione,
   duplicare niente.
 - Ogni notifica porta una **destinazione** (una notifica non toccabile è un vicolo
   cieco) — colonna da mettere subito, aggiungerla dopo richiede backfill delle righe
-  già spedite. E vanno **scadute**: pulizia delle lette più vecchie di 90 giorni nello
-  stesso job.
+  già spedite.
+- ⚠️ **Le notifiche NON si cancellano mai**, e la pulizia a 90 giorni prevista in
+  progetto **era un bug**: la riga non è solo un messaggio, è anche la prova che
+  quell'evento è già stato emesso. Cancellandola si libera la `dedup_key` e il
+  generatore rifà la notifica — un obiettivo al 100% verrebbe rinotificato ogni 90
+  giorni per sempre, e i budget annuali hanno chiavi valide 365 giorni contro una
+  finestra di 90. Scartato anche un registro eventi separato: sarebbe la separazione
+  concettualmente giusta, ma aggiunge una tabella per poter cancellare poche migliaia
+  di righe in dieci anni.
 
 #### Deciso il 2026-08-03 leggendo `Seichi Stati Supporto.dc.html`
 
@@ -346,6 +362,24 @@ notifications: id, user_id, type, title, body, dedup_key (TEXT), destinazione,
 - **Nessuna policy di INSERT su `notifications`.** Sono un registro generato dal
   server, non contenuto dell'utente: se il client potesse scriverle, "non letto"
   smetterebbe di significare qualcosa e la `dedup_key` sarebbe aggirabile.
+- ⚠️ **Una policy RLS non sa limitare le COLONNE**, e col solo `for update` l'utente
+  poteva riscriversi `dedup_key` e `destination` sulle proprie righe. Non è estetica:
+  forgiando una chiave futura si **zittisce per sempre** la notifica vera di quel
+  periodo — l'idempotenza per costruzione è proprio ciò che rende una chiave falsa un
+  silenziatore permanente. Serve anche un **grant a livello di colonna**
+  (`grant update (read)`): la RLS decide quali RIGHE, il grant quali COLONNE.
+- ⚠️ **pg_cron esegue il comando come UNA transazione.** Con i passi in sequenza nuda,
+  un'eccezione nelle notifiche faceva rollback anche degli **insert finanziari** delle
+  ricorrenti appena eseguiti. Ogni passo di `run_daily_jobs()` ha il proprio blocco
+  `exception`: le ricorrenti restano scritte e il motivo finisce nei log.
+- **Il seed dei traguardi già superati** viene scritto dalla migration come *già
+  letto*: senza, la prima esecuzione dopo il deploy scoprirebbe insieme tutti i
+  traguardi storici e riempirebbe il pannello di notifiche "adesso" per fatti di mesi
+  fa — il rumore che questa fase esiste per evitare.
+- **La soglia dell'80% è duplicata fra SQL e TypeScript** e non è eliminabile senza
+  generazione di codice: serve alla barra a ogni render e al job notturno. È isolata
+  in `budget_warning_threshold()` e in `BUDGET_WARNING_THRESHOLD`, così i due punti da
+  tenere allineati hanno un nome.
 - **Il rinnovo abbonamento usa `next_run between today and today + 3`**, non
   `= today + 3`: se il job salta un giorno l'avviso arriva comunque invece di perdersi
   per sempre, e la dedup lo tiene singolo.

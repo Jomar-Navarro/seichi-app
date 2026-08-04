@@ -8,8 +8,8 @@ import {
 	markAllNotificationsRead,
 	markNotificationRead,
 } from "@/app/(main)/notification-actions";
-import { BADGE_MAX, NOTIFICATION_META, relativeTime } from "@/lib/notifications";
-import type { AppNotification } from "@/types";
+import { BADGE_MAX, notificationMeta, relativeTime } from "@/lib/notifications";
+import type { RenderedNotification } from "@/types";
 
 interface NotificationBellProps {
 	/** conteggio risolto lato server: evita che il badge lampeggi all'apertura */
@@ -19,8 +19,9 @@ interface NotificationBellProps {
 export default function NotificationBell({ initialUnread }: NotificationBellProps) {
 	const router = useRouter();
 	const [open, setOpen] = useState(false);
-	const [items, setItems] = useState<AppNotification[] | null>(null);
+	const [items, setItems] = useState<RenderedNotification[] | null>(null);
 	const [unread, setUnread] = useState(initialUnread);
+	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
 	async function toggle() {
@@ -29,54 +30,79 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 			return;
 		}
 		setOpen(true);
-		// La lista si carica alla PRIMA apertura, non al montaggio della pagina:
-		// il badge basta a decidere se aprire, e chi non apre non paga la query.
-		if (items === null) await load();
+		// Si ricarica a ogni apertura, non solo la prima. La versione precedente
+		// caricava una volta sola: dopo un errore restava bloccata sul messaggio
+		// per tutta la vita della pagina, e non vedeva mai le notifiche generate
+		// o lette altrove nel frattempo.
+		await load();
 	}
 
 	async function load() {
+		setLoading(true);
 		const res = await getNotifications();
+		setLoading(false);
+
 		if ("error" in res) {
+			// ⚠️ `items` NON viene azzerato: se c'era già una lista buona resta
+			// visibile sotto il messaggio d'errore, invece di sparire e lasciare
+			// il pannello vuoto per un problema di rete passeggero.
 			setError(res.error);
-			setItems([]);
 			return;
 		}
 		setError(null);
 		setItems(res.data);
-		// Riallinea il badge a ciò che è appena arrivato: se il job ha generato
-		// qualcosa dopo il render della pagina, il conteggio del server è vecchio.
-		setUnread(res.data.filter((n) => !n.read).length);
+		// Il conteggio arriva dal server insieme alla pagina: dedurlo dalle righe
+		// caricate lo sottostimerebbe oltre il limite del pannello.
+		setUnread(res.unread);
 	}
 
 	/**
-	 * Il tap segna come letta E naviga. È ciò che rende utile la colonna
-	 * `destinazione`: una notifica che non porta da nessuna parte è un vicolo
-	 * cieco. Lo stato si aggiorna subito, senza aspettare il server — se la
-	 * scrittura fallisce la notifica ricompare non letta al prossimo caricamento,
-	 * che è il modo giusto di sbagliare.
+	 * Il tap segna come letta E naviga.
+	 *
+	 * La scrittura parte senza essere attesa: `markNotificationRead` invalida la
+	 * cache della home, e aspettarla bloccherebbe la navigazione su un
+	 * round-trip il cui risultato viene buttato via un istante dopo. Lo stato
+	 * ottimistico è già applicato; se la scrittura fallisce la riga torna non
+	 * letta alla prossima apertura del pannello, che ora ricarica sempre.
 	 */
-	async function openItem(n: AppNotification) {
+	function openItem(n: RenderedNotification) {
 		setOpen(false);
 		if (!n.read) {
 			setItems((prev) => prev?.map((i) => (i.id === n.id ? { ...i, read: true } : i)) ?? prev);
 			setUnread((u) => Math.max(0, u - 1));
-			await markNotificationRead(n.id);
+			void markNotificationRead(n.id);
 		}
-		router.push(n.destinazione);
+		router.push(n.destination);
 	}
 
 	async function markAll() {
+		const snapshot = items;
+		const previousUnread = unread;
+
 		setItems((prev) => prev?.map((i) => ({ ...i, read: true })) ?? prev);
 		setUnread(0);
-		await markAllNotificationsRead();
+
+		const res = await markAllNotificationsRead();
+		if ("error" in res) {
+			// Qui l'utente resta sulla pagina a guardare il risultato, quindi
+			// l'ottimismo va annullato: lasciare il badge a zero mentre nel
+			// database è tutto non letto è una bugia che dura fino al reload.
+			setItems(snapshot);
+			setUnread(previousUnread);
+			setError(res.error);
+		}
 	}
 
 	return (
 		<div className="relative">
 			<button
 				onClick={toggle}
-				className="relative w-10 h-10 rounded-full flex items-center justify-center bg-control border border-subtle card-shadow active:opacity-80 cursor-pointer"
+				// `z-50` quando aperto: senza, l'overlay (z-40) coprirebbe il bottone
+				// e il secondo tocco finirebbe sull'overlay. Funzionava per caso —
+				// chiudeva lo stesso — ma la campanella non era davvero un interruttore.
+				className={`relative w-10 h-10 rounded-full flex items-center justify-center bg-control border border-subtle card-shadow active:opacity-80 cursor-pointer ${open ? "z-50" : ""}`}
 				aria-label={unread > 0 ? `Notifiche, ${unread} non lette` : "Notifiche"}
+				aria-expanded={open}
 			>
 				<Bell size={18} strokeWidth={1.6} className="text-secondary" />
 				{/*
@@ -105,14 +131,10 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 						Posizionato `fixed` sui margini della pagina invece che ancorato al
 						bottone: il pannello è largo quanto il contenuto, e un dropdown
 						agganciato alla campanella uscirebbe dallo schermo a destra.
-					*/}
-					{/*
-						`--color-deep` (la "superficie solida") e non `bg-modal`: quello
-						sta a 0.85 in tema scuro, pensato per i bottom sheet che coprono
-						uno sfondo già oscurato. Qui il pannello galleggia sulla
-						dashboard piena di numeri, e a 0.85 il testo delle card sotto si
-						legge attraverso. Il 94% lascia il velo di vetro del design
-						(che è a 0.92) senza sacrificare la leggibilità.
+
+						`--color-deep` (superficie solida) al 94% e non `bg-modal`: quello
+						sta a 0.85, tarato per i bottom sheet che coprono uno sfondo già
+						oscurato. Qui il pannello galleggia sulla dashboard piena di numeri.
 					*/}
 					<div
 						className="fixed left-5 right-5 top-23 z-50 flex flex-col max-h-[70dvh] rounded-[28px] border border-subtle modal-shadow backdrop-blur-2xl overflow-hidden"
@@ -131,17 +153,25 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 						</div>
 
 						<div className="overflow-y-auto">
-							{items === null && (
+							{error && (
+								<div className="px-5 py-4 border-b border-subtle">
+									<p className="text-[12.5px]" style={{ color: "var(--color-aka)" }}>
+										{error}
+									</p>
+									<button
+										onClick={load}
+										className="text-[12px] text-muted underline mt-1.5 cursor-pointer"
+									>
+										riprova
+									</button>
+								</div>
+							)}
+
+							{loading && items === null && (
 								<p className="px-5 py-8 text-center text-[13px] text-muted">Caricamento…</p>
 							)}
 
-							{error && (
-								<p className="px-5 py-8 text-center text-[13px]" style={{ color: "var(--color-aka)" }}>
-									{error}
-								</p>
-							)}
-
-							{items !== null && !error && items.length === 0 && (
+							{items !== null && items.length === 0 && !error && (
 								<div className="px-8 py-10 text-center">
 									<p className="text-[14px] font-medium mb-1.5">Nessuna notifica</p>
 									<p className="text-[12.5px] text-muted leading-relaxed">
@@ -151,7 +181,7 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 							)}
 
 							{items?.map((n) => {
-								const meta = NOTIFICATION_META[n.type];
+								const meta = notificationMeta(n.type);
 								const Icon = meta.icon;
 								return (
 									<button
