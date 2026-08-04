@@ -378,6 +378,7 @@ notifications: id, user_id, type, title, body, dedup_key (TEXT), destinazione,
   `profiles`, `categories`, `transactions` — sono nate nella Fase 3 e non sono mai
   state versionate: nessun file le crea. Anche `transactions.recurring_rule_id` vive
   solo nel database. Recuperare `recurring_rules` ha chiuso un buco, non tutti.
+  Tracciato nella **issue #43**, con la tecnica di ricostruzione e le query pronte.
 
 ## Auth Flow
 
