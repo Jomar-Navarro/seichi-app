@@ -157,6 +157,33 @@ export interface BudgetOverview {
 	fixedOutflowsThisMonth: number;
 }
 
+export type NotificationType =
+	| "budget_soglia"
+	| "budget_sforato"
+	| "obiettivo_soglia"
+	| "abbonamento_rinnovo"
+	| "ricorrenti_generate";
+
+/**
+ * Riga della tabella `notifications`.
+ *
+ * Si chiama `AppNotification` e non `Notification` perché quest'ultimo è un tipo
+ * GLOBALE del DOM (le notifiche del browser): ridichiararlo non darebbe errore,
+ * si limiterebbe a metterlo in ombra, e un import dimenticato passerebbe il
+ * type-check riferendosi alla cosa sbagliata.
+ */
+export interface AppNotification {
+	id: string;
+	type: NotificationType;
+	title: string;
+	/** riga di dettaglio opzionale, es. "Hai speso € 612 su € 550" */
+	body: string | null;
+	/** rotta dell'app: una notifica che non porta da nessuna parte è un vicolo cieco */
+	destinazione: string;
+	read: boolean;
+	created_at: string;
+}
+
 export interface InvestmentByType {
 	type: string;
 	label: string;
