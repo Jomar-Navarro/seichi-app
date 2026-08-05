@@ -22,9 +22,9 @@ import GlobalBudgetSection from "@/components/features/GlobalBudgetSection";
 import { signOut } from "./actions";
 import pkg from "@/package.json";
 
-/** Icone e bordi: l'accento pieno. */
+/** Icone, bordi e pastiglie: l'accento pieno (`accent` di SettingsRow). */
 const AKA = "var(--color-aka)";
-/** Etichette: l'inchiostro — `tone` di SettingsRow colora del testo. */
+/** Etichette: l'inchiostro (`tone` di SettingsRow). */
 const AKA_INK = "var(--ink-aka)";
 
 export default async function ImpostazioniPage() {
@@ -158,6 +158,7 @@ export default async function ImpostazioniPage() {
 							icon={<LogOut size={16} style={{ color: AKA }} />}
 							label="Esci"
 							tone={AKA_INK}
+							accent={AKA}
 						/>
 					</button>
 				</form>
@@ -168,7 +169,8 @@ export default async function ImpostazioniPage() {
 				<SettingsRow
 					icon={<Trash2 size={17} style={{ color: AKA }} />}
 					label="Elimina il tuo account"
-					tone={AKA}
+					tone={AKA_INK}
+					accent={AKA}
 					href="/impostazioni/elimina"
 				/>
 			</SettingsGroup>

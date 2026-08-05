@@ -49,7 +49,11 @@ export default function Card({ options, onChange, selected }: CardProps) {
 							<span
 								className={`absolute top-3.5 right-3.5 w-5.5 h-5.5 rounded-full flex items-center justify-center ${option.color.badge}`}
 							>
-								<Check size={14} className="text-yoru" />
+								{/* `text-yoru` era un colore FISSO: i neutri brand non sono
+								    ridefiniti in `.dark`. La spunta sta sopra una pastiglia
+								    d'accento, quindi il colore giusto è quello che si inverte
+								    insieme all'accento. */}
+								<Check size={14} className="text-on-accent" />
 							</span>
 						)}
 					</button>

@@ -47,8 +47,11 @@ export default function LoginForm({ onTabChange, notice }: LoginFormProps) {
 					{notice && (
 						<p
 							className="text-xs text-center rounded-2xl px-4 py-3 mb-4 border"
+							// Testo sull'inchiostro, fondo e bordo sull'accento: è la
+							// conferma di un'operazione di sicurezza appena riuscita, e
+							// sul proprio stesso fondo l'accento la lasciava a ~3,1:1.
 							style={{
-								color: "var(--color-midori)",
+								color: "var(--ink-midori)",
 								background: "color-mix(in srgb, var(--color-midori) 12%, transparent)",
 								borderColor: "color-mix(in srgb, var(--color-midori) 28%, transparent)",
 							}}

@@ -47,8 +47,19 @@ interface SettingsRowProps {
 	value?: ReactNode;
 	/** Mostra il chevron di navigazione */
 	chevron?: boolean;
-	/** Colore di label e sfondo icona — per le azioni distruttive */
+	/**
+	 * Colore della sola LABEL — per le azioni distruttive. Va passato un
+	 * inchiostro (`--ink-*`): è testo.
+	 */
 	tone?: string;
+	/**
+	 * Tinta della pastiglia icona. Separato da `tone` di proposito: la pastiglia
+	 * è un riempimento e vuole l'accento pieno, la label vuole l'inchiostro.
+	 * Con un'unica prop l'accento scelto per la pastiglia finiva anche sul testo
+	 * (o viceversa), e due righe adiacenti passate a due valori diversi si
+	 * ritrovavano pastiglie di tinta diversa con la stessa icona sopra.
+	 */
+	accent?: string;
 	href?: string;
 	onClick?: () => void;
 	disabled?: boolean;
@@ -61,6 +72,7 @@ export default function SettingsRow({
 	value,
 	chevron,
 	tone,
+	accent,
 	href,
 	onClick,
 	disabled,
@@ -71,7 +83,7 @@ export default function SettingsRow({
 		<>
 			<span
 				className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-control"
-				style={tone ? { background: `color-mix(in srgb, ${tone} 13%, transparent)` } : undefined}
+				style={accent ? { background: `color-mix(in srgb, ${accent} 13%, transparent)` } : undefined}
 			>
 				{icon}
 			</span>

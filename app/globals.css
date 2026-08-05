@@ -40,6 +40,14 @@
 	   rotazione dei grafici): serve anche lui un inchiostro, o resta scoperto. */
 	--ink-kiri: #6b6558;
 
+	/* ---------- Sopra un riempimento d'accento ----------
+	   Gli accenti invertono la luminosità fra i due temi (scuri su carta,
+	   pastello su notte), quindi ciò che ci sta SOPRA deve invertirsi con loro.
+	   Un #fff cablato è il tema scuro dato per scontato: su un pastello chiaro
+	   sta a 2,8:1. Serve al pomello dell'interruttore "Ripeti", alla spunta
+	   delle card onboarding e al badge della campanella. */
+	--on-accent: #ffffff;
+
 	/* ---------- Semantic ---------- */
 
 	--background: radial-gradient(
@@ -130,7 +138,13 @@
 	--ink-ao: var(--color-ao);
 	--ink-kin: var(--color-kin);
 	--ink-murasaki: var(--color-murasaki);
-	--ink-kiri: var(--color-kiri);
+	/* Unico che NON eredita: `--color-kiri` non è ridefinito in `.dark`, quindi
+	   ereditarlo lascerebbe il sesto inchiostro identico nei due temi — l'unico
+	   a non spostarsi — e a ~4,5:1 sulle superfici scure invece del 6:1 che vale
+	   per gli altri cinque. */
+	--ink-kiri: #9aa1b0;
+
+	--on-accent: #131a28;
 
 	--background: radial-gradient(
 		120% 90% at 50% 0%,
@@ -211,6 +225,10 @@
 	--color-ao-ink: var(--ink-ao);
 	--color-kin-ink: var(--ink-kin);
 	--color-murasaki-ink: var(--ink-murasaki);
+	--color-kiri-ink: var(--ink-kiri);
+
+	/* Contenuto sopra un riempimento d'accento — classe text-on-accent. */
+	--color-on-accent: var(--on-accent);
 
 	/* Text */
 	--color-foreground: var(--text-primary);

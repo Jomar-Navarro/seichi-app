@@ -11,11 +11,8 @@ interface ProfileMenuProps {
 	initials: string;
 	/** Foto profilo, se caricata — altrimenti si mostrano le iniziali */
 	avatarUrl?: string | null;
-	/**
-	 * Nome accanto all'avatar. Se manca, il trigger resta il solo avatar e il
-	 * menu si ancora a destra: la forma usata fuori dalla Home.
-	 */
-	name?: string;
+	/** Nome accanto all'avatar. */
+	name: string;
 	/** Riga sopra il nome. */
 	greeting?: string;
 }
@@ -33,49 +30,37 @@ export default function ProfileMenu({ initials, avatarUrl, name, greeting }: Pro
 		return () => document.removeEventListener("mousedown", onClick);
 	}, [open]);
 
-	// Nel mockup è l'intero gruppo avatar+nome ad aprire il menu, non il solo
-	// avatar: il chevron accanto al nome è ciò che lo annuncia.
-	const expanded = Boolean(name);
-
 	return (
 		<div className="relative" ref={ref}>
+			{/* Nel mockup è l'intero gruppo avatar+nome ad aprire il menu, non il
+			    solo avatar: il chevron accanto al nome è ciò che lo annuncia. */}
 			<button
 				onClick={() => setOpen((o) => !o)}
-				className={`flex items-center cursor-pointer active:opacity-80 rounded-2xl ${
-					expanded ? "gap-3 p-1 -m-1" : ""
-				}`}
-				// Con nome e saluto dentro il bottone NON serve un aria-label: lo
-				// sovrascriverebbe, e uno screen reader leggerebbe "Profilo" al
-				// posto di "Bentornato, <nome>". Serve solo nella forma compatta,
-				// dove il bottone contiene il solo avatar e quindi non ha testo.
-				aria-label={expanded ? undefined : "Profilo"}
+				className="flex items-center gap-3 p-1 -m-1 cursor-pointer active:opacity-80 rounded-2xl"
+				// NIENTE aria-label: il bottone contiene già nome e saluto, e un
+				// label lo sovrascriverebbe — uno screen reader leggerebbe "Profilo"
+				// al posto di "Bentornato, <nome>".
 				aria-haspopup="menu"
 				aria-expanded={open}
 			>
 				<Avatar src={avatarUrl} initials={initials} size={42} className="card-shadow" />
-				{expanded && (
-					<span className="text-left min-w-0">
-						{greeting && (
-							<span className="block text-xs text-muted leading-none">{greeting}</span>
-						)}
-						<span className="flex items-center gap-1.5 mt-1">
-							<span className="text-base font-semibold leading-none truncate max-w-36">
-								{name}
-							</span>
-							<ChevronDown size={11} className="text-muted shrink-0" />
+				<span className="text-left min-w-0">
+					{greeting && (
+						<span className="block text-xs text-muted leading-none">{greeting}</span>
+					)}
+					<span className="flex items-center gap-1.5 mt-1">
+						<span className="text-base font-semibold leading-none truncate max-w-36">
+							{name}
 						</span>
+						<ChevronDown size={11} className="text-muted shrink-0" />
 					</span>
-				)}
+				</span>
 			</button>
 
 			{open && (
-				// Ancorato al lato da cui parte il trigger, altrimenti sulla Home il
-				// pannello uscirebbe dallo schermo a sinistra.
-				<div
-					className={`absolute top-13 z-50 w-56 rounded-2xl bg-modal border border-subtle modal-shadow backdrop-blur-2xl overflow-hidden ${
-						expanded ? "left-0" : "right-0"
-					}`}
-				>
+				// Ancorato a sinistra, il lato da cui parte il trigger: altrimenti
+				// sulla Home il pannello uscirebbe dallo schermo.
+				<div className="absolute left-0 top-13 z-50 w-56 rounded-2xl bg-modal border border-subtle modal-shadow backdrop-blur-2xl overflow-hidden">
 					<ThemeToggle />
 					<Link
 						href="/impostazioni"

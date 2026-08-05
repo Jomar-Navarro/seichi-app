@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Pencil, Trash2, Plus } from "lucide-react";
 import { ICON_MAP } from "@/lib/icon-map";
 import { GOAL_ICON_MAP } from "@/lib/goal-icons";
-import { TIPO_COLOR } from "@/lib/transaction-utils";
+import { TIPO_COLOR, TIPO_INK } from "@/lib/transaction-utils";
 import CategorySheet from "./CategorySheet";
 import { deleteCategory } from "@/app/(main)/impostazioni/actions";
 import type { Category } from "@/types";
@@ -65,6 +65,7 @@ export default function CategoryManager({ categories }: { categories: Category[]
 				{TYPES.map((type) => {
 					const items = categories.filter((c) => c.type === type);
 					const color = TIPO_COLOR[type];
+					const ink = TIPO_INK[type];
 
 					return (
 						<div key={type}>
@@ -126,7 +127,9 @@ export default function CategoryManager({ categories }: { categories: Category[]
 									className="flex items-center gap-2.5 h-13 px-4 w-full text-left active:opacity-70"
 								>
 									<Plus size={15} strokeWidth={1.8} style={{ color }} />
-									<span className="text-[13px] font-medium capitalize" style={{ color }}>
+									{/* L'icona resta sull'accento (per i grafici basta 3:1),
+									    l'etichetta no: è testo e vuole l'inchiostro. */}
+									<span className="text-[13px] font-medium capitalize" style={{ color: ink }}>
 										nuova {type}
 									</span>
 								</button>

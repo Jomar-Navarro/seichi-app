@@ -12,14 +12,17 @@ export type PasswordScore = 0 | 1 | 2 | 3;
 export interface PasswordStrength {
 	score: PasswordScore;
 	label: string;
+	/** Riempimento delle barre: l'accento pieno. */
 	color: string;
+	/** L'etichetta sotto le barre: l'inchiostro, o in chiaro resta a ~3,4:1. */
+	ink: string;
 }
 
 const STRENGTH: Record<PasswordScore, Omit<PasswordStrength, "score">> = {
-	0: { label: "troppo corta", color: "var(--text-muted)" },
-	1: { label: "sicurezza bassa", color: "var(--color-aka)" },
-	2: { label: "sicurezza media", color: "var(--color-kin)" },
-	3: { label: "sicurezza alta", color: "var(--color-midori)" },
+	0: { label: "troppo corta", color: "var(--text-muted)", ink: "var(--text-muted)" },
+	1: { label: "sicurezza bassa", color: "var(--color-aka)", ink: "var(--ink-aka)" },
+	2: { label: "sicurezza media", color: "var(--color-kin)", ink: "var(--ink-kin)" },
+	3: { label: "sicurezza alta", color: "var(--color-midori)", ink: "var(--ink-midori)" },
 };
 
 /** Punteggio 0–3: lunghezza + varietà di caratteri. */

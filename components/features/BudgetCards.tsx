@@ -2,7 +2,7 @@
 
 import { AlertTriangle } from "lucide-react";
 import { ICON_MAP } from "@/lib/icon-map";
-import { budgetColor, periodWindow } from "@/lib/budget";
+import { budgetColor, budgetInk, periodWindow } from "@/lib/budget";
 import type { BudgetOverview, BudgetWithSpending } from "@/types";
 
 /** Importi arrotondati all'euro: nelle card i centesimi sono rumore. */
@@ -62,7 +62,13 @@ function BudgetCard({ budget }: { budget: BudgetWithSpending }) {
 			</div>
 
 			<div className="text-[12.5px] text-muted mb-3">
-				<span className="font-medium" style={{ color: sforato ? color : "var(--text-primary)" }}>
+				{/* L'inchiostro e non `color`: quello colora la barra, che è un
+				    riempimento. Qui è la cifra che il rosso esiste per far notare, e
+				    sull'accento in chiaro stava sotto il neutro che le sta accanto. */}
+				<span
+					className="font-medium"
+					style={{ color: sforato ? budgetInk(budget.status) : "var(--text-primary)" }}
+				>
 					€ {euro.format(budget.spent)}
 				</span>{" "}
 				/ € {euro.format(budget.amount)}

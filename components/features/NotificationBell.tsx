@@ -111,11 +111,18 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 					Il mockup mostra la campanella nuda, ma senza segnale non c'è motivo
 					di aprirla e il pannello muore. Oltre il nono il numero esatto
 					smette di dire qualcosa di utile.
+
+					È l'unico posto dove l'inchiostro fa da FONDO, ed è voluto: il badge
+					porta del testo sopra un riempimento pieno, e in chiaro l'accento è
+					troppo chiaro perché il bianco ci stia sopra (3,4:1 a 10px). Il
+					`#fff` cablato di prima dava per scontato il tema scuro — dove però
+					l'accento è un pastello e il bianco stava a 2,8:1: il difetto c'era
+					da entrambe le parti.
 				*/}
 				{unread > 0 && (
 					<span
 						className="absolute -top-0.5 -right-0.5 min-w-4.5 h-4.5 px-1 rounded-full flex items-center justify-center text-[10px] font-semibold leading-none"
-						style={{ background: "var(--color-aka)", color: "#fff" }}
+						style={{ background: "var(--ink-aka)", color: "var(--on-accent)" }}
 					>
 						{unread > BADGE_MAX ? `${BADGE_MAX}+` : unread}
 					</span>

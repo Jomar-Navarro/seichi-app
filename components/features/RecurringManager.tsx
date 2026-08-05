@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Pause, Play, Plus, Pencil } from "lucide-react";
 import { ICON_MAP } from "@/lib/icon-map";
 import { GOAL_ICON_MAP } from "@/lib/goal-icons";
-import { TIPO_COLOR, TIPO_LABEL, formatDate, numberFormatter } from "@/lib/transaction-utils";
+import { TIPO_COLOR, TIPO_INK, TIPO_LABEL, formatDate, numberFormatter } from "@/lib/transaction-utils";
 import { RepeatIcon } from "@/lib/seichi-icons";
 import EmptyState from "@/components/UI/EmptyState";
 import RecurringSheet from "./RecurringSheet";
@@ -77,7 +77,10 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 
 			<div className="flex flex-col gap-2.5">
 				{rules.map((r) => {
+					// `color` per pastiglia e icona, `ink` per l'importo: è l'unico
+					// numero della riga e in chiaro l'accento lo lascerebbe a ~3,4:1.
 					const color = TIPO_COLOR[r.type];
+					const ink = TIPO_INK[r.type];
 					const Icon = r.categories
 						? (ICON_MAP[r.categories.icon] ?? GOAL_ICON_MAP[r.categories.icon] ?? RepeatIcon)
 						: RepeatIcon;
@@ -99,7 +102,7 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 										<span className="text-[13.5px] font-semibold truncate">
 											{r.categories?.name ?? TIPO_LABEL[r.type]}
 										</span>
-										<span className="text-[13.5px] font-semibold whitespace-nowrap" style={{ color }}>
+										<span className="text-[13.5px] font-semibold whitespace-nowrap" style={{ color: ink }}>
 											{formatRuleAmount(r)}
 										</span>
 									</div>
@@ -135,7 +138,7 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 								<button
 									onClick={() => setPending(r)}
 									className="text-[11.5px] active:opacity-70"
-									style={{ color: "var(--color-aka)" }}
+									style={{ color: "var(--ink-aka)" }}
 								>
 									elimina
 								</button>

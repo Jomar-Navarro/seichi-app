@@ -10,7 +10,7 @@ import { scorePassword } from "@/lib/password";
 export default function PasswordStrength({ password }: { password: string }) {
 	if (!password) return null;
 
-	const { score, label, color } = scorePassword(password);
+	const { score, label, color, ink } = scorePassword(password);
 
 	return (
 		<div className="mb-5">
@@ -23,7 +23,9 @@ export default function PasswordStrength({ password }: { password: string }) {
 					/>
 				))}
 			</div>
-			<p className="text-[11.5px] mx-0.5" style={{ color }}>
+			{/* L'inchiostro, non l'accento delle barre: a 11,5px è il caso peggiore
+			    per il contrasto, e il livello è già portato dalle barre sopra. */}
+			<p className="text-[11.5px] mx-0.5" style={{ color: ink }}>
 				{label}
 			</p>
 		</div>

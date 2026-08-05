@@ -67,3 +67,17 @@ export function budgetColor(status: BudgetStatus): string {
 	if (status === "soglia") return "var(--color-kin)";
 	return "var(--color-kiri)";
 }
+
+/**
+ * Gli stessi stati, per il TESTO — l'importo speso.
+ *
+ * `budgetColor` colora la barra, che è un riempimento e sull'accento ci sta
+ * bene. La cifra no: in tema chiaro l'accento la porterebbe a ~3,4:1, cioè
+ * meno leggibile del denominatore neutro che le sta accanto. Sarebbe il numero
+ * che il rosso esiste apposta per far notare.
+ */
+export function budgetInk(status: BudgetStatus): string {
+	if (status === "sforato") return "var(--ink-aka)";
+	if (status === "soglia") return "var(--ink-kin)";
+	return "var(--ink-kiri)";
+}
