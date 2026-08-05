@@ -108,16 +108,18 @@ export default function RecentTransaction({
 							})}
 						</div>
 
-						{/* Fade bottom — solo gradiente, nessun blur sul contenuto */}
-						<div
-							className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none"
-							style={{
-								background:
-									// Il token si chiama --color-deep, non --deep: la dichiarazione era
-									// invalida, quindi questa sfumatura non è mai stata disegnata.
-									"linear-gradient(to top, var(--background-secondary) 0%, transparent 100%)",
-							}}
-						/>
+						{/*
+							Qui c'era una sfumatura in fondo, scritta con `var(--deep)` —
+							token inesistente, quindi non è mai stata disegnata. Correggendo
+							il nome è comparsa, e sbiadiva l'ultima transazione come se fosse
+							disattivata.
+
+							Non l'ho riparata: non aveva più senso. La lista NON scorre (la
+							Home chiede 5 movimenti e li mostra tutti), quindi non c'è niente
+							sotto da lasciar intuire — ed è ciò a cui serve una sfumatura.
+							In più puntava a --background-secondary, il fondo della pagina,
+							mentre la card è su --card. Anche visibile, sarebbe stata sbagliata.
+						*/}
 					</div>
 				)}
 			</div>

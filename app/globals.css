@@ -55,7 +55,10 @@
 	   l'opposto, ed è per questo che il token esiste. */
 	--bg-tab: rgba(255, 255, 255, 0.85);
 	--icon-btn-bg: rgba(70, 62, 48, 0.07);
-	--modal-bg: rgba(240, 236, 228, 0.96);
+	/* Più coprente che in scuro, non per gusto: là il sheet copre uno sfondo già
+	   oscurato dall'overlay, qui sotto c'è carta chiara con testo scuro, e il
+	   contrasto residuo lasciava trasparire le scritte della pagina. */
+	--modal-bg: rgba(242, 238, 231, 0.985);
 	--modal-border: rgba(70, 62, 48, 0.1);
 	--modal-handle: rgba(70, 62, 48, 0.18);
 
@@ -68,8 +71,12 @@
 	--halo-b: rgba(190, 170, 120, 0.2);
 
 	/* ---------- Shadows ---------- */
-	--shadow-drop: rgba(70, 62, 48, 0.1);
-	--shadow-inset: rgba(255, 255, 255, 0.8);
+	/* 0.14, non 0.10: nei mockup chiari le ombre portate stanno fra 0.13 e 0.20
+	   (card 0.13, pulsante crystal 0.20). A 0.10 ogni superficie sembrava
+	   incollata al fondo — è il "manca la profondità" visto sugli investimenti,
+	   e non era un difetto di quella card ma del token. */
+	--shadow-drop: rgba(70, 62, 48, 0.14);
+	--shadow-inset: rgba(255, 255, 255, 0.9);
 
 	/* ---------- CTA / FAB ---------- */
 	--cta-bg: #33373d;
