@@ -166,7 +166,7 @@ export default function ProfileEditor({ fullName, avatarUrl, initials, email }: 
 				</p>
 			)}
 			{saved && !error && (
-				<p className="text-xs text-center mb-3" style={{ color: "var(--color-midori)" }}>
+				<p className="text-xs text-center mb-3" style={{ color: "var(--ink-midori)" }}>
 					Nome aggiornato
 				</p>
 			)}

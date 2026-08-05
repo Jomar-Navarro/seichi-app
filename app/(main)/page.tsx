@@ -55,9 +55,18 @@ async function DashboardContent() {
 	return (
 		// Aloni ambientali come nel mockup: gli stessi di welcome/onboarding,
 		// ora con i colori presi dai token e quindi corretti in entrambi i temi.
-		<div className="relative overflow-hidden">
-			<div className="circle-1 z-0" />
-			<div className="circle-3 z-0" />
+		<div className="relative">
+			{/*
+				Gli aloni stanno in un riquadro FISSO grande quanto il viewport.
+				`.circle-3` è ancorato al `bottom`, e in un contenitore alto quanto
+				la pagina che scorre finirebbe centinaia di px sotto la piega: si
+				animerebbe per sempre senza che nessuno lo veda. Nelle pagine auth
+				il contenitore è già alto quanto lo schermo, qui no.
+			*/}
+			<div className="fixed inset-0 overflow-hidden pointer-events-none">
+				<div className="circle-1" />
+				<div className="circle-3" />
+			</div>
 			{/*
 				`relative` SENZA z-index, di proposito. Un z-index esplicito qui
 				creerebbe uno stacking context e schiaccerebbe a quel livello tutto

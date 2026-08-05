@@ -22,7 +22,10 @@ import GlobalBudgetSection from "@/components/features/GlobalBudgetSection";
 import { signOut } from "./actions";
 import pkg from "@/package.json";
 
+/** Icone e bordi: l'accento pieno. */
 const AKA = "var(--color-aka)";
+/** Etichette: l'inchiostro — `tone` di SettingsRow colora del testo. */
+const AKA_INK = "var(--ink-aka)";
 
 export default async function ImpostazioniPage() {
 	const account = await getAccountContext();
@@ -68,12 +71,9 @@ export default async function ImpostazioniPage() {
 			</SettingsGroup>
 
 			{/* Aspetto */}
-			<div className="mb-6">
-				<p className="text-[11.5px] font-semibold tracking-[1.6px] uppercase text-disabled mb-2.5 ml-0.5">
-					Aspetto
-				</p>
+			<SettingsGroup label="Aspetto">
 				<ThemeSection />
-			</div>
+			</SettingsGroup>
 
 			{/* Preferenze */}
 			<div className="mb-6">
@@ -157,7 +157,7 @@ export default async function ImpostazioniPage() {
 						<SettingsRow
 							icon={<LogOut size={16} style={{ color: AKA }} />}
 							label="Esci"
-							tone={AKA}
+							tone={AKA_INK}
 						/>
 					</button>
 				</form>

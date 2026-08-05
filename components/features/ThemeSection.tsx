@@ -21,7 +21,9 @@ export default function ThemeSection() {
 			: `sempre ${THEME_LABELS[choice]}`;
 
 	return (
-		<div className="rounded-[22px] bg-card border border-subtle card-shadow p-4">
+		// La card e l'etichetta di sezione le mette SettingsGroup: rifarle qui
+		// significava tenere allineati a mano quattro punti a ogni ritocco.
+		<div className="p-4">
 			<div className="flex items-center gap-3 mb-3.5">
 				<span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-control">
 					{resolved === "dark" ? (

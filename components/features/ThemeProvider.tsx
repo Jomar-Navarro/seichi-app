@@ -49,9 +49,14 @@ export default function ThemeProvider({
 		const mq = window.matchMedia("(prefers-color-scheme: dark)");
 		const sync = () => {
 			const next: ResolvedTheme = mq.matches ? "dark" : "light";
+			// Il cookie si riscrive comunque: costa un'assegnazione e alla
+			// primissima visita è l'unico momento in cui viene creato.
+			writeThemeCookies("system", next);
+			// Il render invece no. Se il server ha già messo la classe giusta —
+			// il caso normale — non c'è niente da rifare.
+			if (next === resolved) return;
 			setResolved(next);
 			applyThemeClass(next);
-			writeThemeCookies("system", next);
 		};
 
 		// Anche subito, non solo al cambio: il cookie risolto può essere vecchio
@@ -59,7 +64,10 @@ export default function ThemeProvider({
 		sync();
 		mq.addEventListener("change", sync);
 		return () => mq.removeEventListener("change", sync);
-	}, [choice]);
+		// `resolved` fra le dipendenze di proposito: senza, l'ascoltatore
+		// resterebbe con il valore catturato al primo giro e il confronto qui
+		// sopra userebbe un dato vecchio, ignorando il ritorno al tema iniziale.
+	}, [choice, resolved]);
 
 	const setChoice = useCallback((next: ThemeChoice) => {
 		const nextResolved = resolveTheme(next);

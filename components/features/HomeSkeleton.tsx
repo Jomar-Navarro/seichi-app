@@ -1,14 +1,24 @@
 /** Skeleton di caricamento della Home — respiro zen, rispecchia il layout reale della dashboard */
 export default function HomeSkeleton() {
 	return (
-		<div className="flex flex-col gap-4 px-5 pt-7 pb-32">
-			{/* Header */}
-			<div className="flex items-center justify-between">
-				<div className="flex flex-col gap-2">
-					<div className="h-2.5 w-16 rounded-full zg-pulse" style={{ background: "var(--surface-elevated)" }} />
-					<div className="h-3.5 w-28 rounded-full zg-pulse" style={{ background: "var(--surface-elevated)", animationDelay: "0.1s" }} />
+		<div className="relative flex flex-col gap-4 px-5 pt-7 pb-32">
+			{/* Anche qui, o gli aloni compaiono di colpo quando la dashboard risolve */}
+			<div className="fixed inset-0 overflow-hidden pointer-events-none">
+				<div className="circle-1" />
+				<div className="circle-3" />
+			</div>
+			{/* Header — rispecchia il layout reale: avatar tondo col saluto e il
+			    nome a SINISTRA, pastiglia della campanella a destra. Se diverge,
+			    la pagina salta a ogni caricamento freddo. */}
+			<div className="flex items-center justify-between mb-1">
+				<div className="flex items-center gap-3">
+					<div className="w-10.5 h-10.5 rounded-full zg-pulse shrink-0" style={{ background: "var(--surface-elevated)" }} />
+					<div className="flex flex-col gap-2">
+						<div className="h-2.5 w-16 rounded-full zg-pulse" style={{ background: "var(--surface-elevated)", animationDelay: "0.1s" }} />
+						<div className="h-3.5 w-24 rounded-full zg-pulse" style={{ background: "var(--surface-elevated)", animationDelay: "0.15s" }} />
+					</div>
 				</div>
-				<div className="w-10 h-10 rounded-full zg-pulse" style={{ background: "var(--surface-elevated)" }} />
+				<div className="w-10.5 h-10.5 rounded-[14px] zg-pulse shrink-0" style={{ background: "var(--surface-elevated)" }} />
 			</div>
 
 			{/* Balance card */}

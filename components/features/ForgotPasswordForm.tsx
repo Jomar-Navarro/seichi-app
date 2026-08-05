@@ -69,7 +69,7 @@ export default function ForgotPasswordForm() {
 			{error && (
 				<p
 					className="text-xs text-center mb-3"
-					style={{ color: "var(--color-aka)" }}
+					style={{ color: "var(--ink-aka)" }}
 				>
 					{error}
 				</p>

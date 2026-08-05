@@ -53,15 +53,19 @@ export default function RecentTransaction({
 				</Link>
 			</div>
 
+			{/*
+				Niente sfumatura in fondo: la lista NON scorre (la Home chiede 5
+				movimenti e li mostra tutti), quindi non c'è nulla da lasciar
+				intuire — ed è a questo che serve una sfumatura.
+			*/}
 			<div className="bg-card border border-subtle rounded-3xl overflow-hidden card-shadow">
 				{transactions.length === 0 ? (
 					<div className="px-4 py-4">
 						<EmptyState />
 					</div>
 				) : (
-					<div className="relative">
-						<div className="flex flex-col gap-0">
-							{transactions.map((t, i) => {
+					<div className="flex flex-col">
+						{transactions.map((t, i) => {
 								const cat = t.categories;
 								const Icon = cat ? (ICON_MAP[cat.icon] ?? GOAL_ICON_MAP[cat.icon]) : null;
 								const color = `var(--color-${cat?.color ?? "kiri"})`;
@@ -106,20 +110,6 @@ export default function RecentTransaction({
 									</button>
 								);
 							})}
-						</div>
-
-						{/*
-							Qui c'era una sfumatura in fondo, scritta con `var(--deep)` —
-							token inesistente, quindi non è mai stata disegnata. Correggendo
-							il nome è comparsa, e sbiadiva l'ultima transazione come se fosse
-							disattivata.
-
-							Non l'ho riparata: non aveva più senso. La lista NON scorre (la
-							Home chiede 5 movimenti e li mostra tutti), quindi non c'è niente
-							sotto da lasciar intuire — ed è ciò a cui serve una sfumatura.
-							In più puntava a --background-secondary, il fondo della pagina,
-							mentre la card è su --card. Anche visibile, sarebbe stata sbagliata.
-						*/}
 					</div>
 				)}
 			</div>

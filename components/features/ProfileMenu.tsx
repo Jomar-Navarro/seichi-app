@@ -44,7 +44,12 @@ export default function ProfileMenu({ initials, avatarUrl, name, greeting }: Pro
 				className={`flex items-center cursor-pointer active:opacity-80 rounded-2xl ${
 					expanded ? "gap-3 p-1 -m-1" : ""
 				}`}
-				aria-label="Profilo"
+				// Con nome e saluto dentro il bottone NON serve un aria-label: lo
+				// sovrascriverebbe, e uno screen reader leggerebbe "Profilo" al
+				// posto di "Bentornato, <nome>". Serve solo nella forma compatta,
+				// dove il bottone contiene il solo avatar e quindi non ha testo.
+				aria-label={expanded ? undefined : "Profilo"}
+				aria-haspopup="menu"
 				aria-expanded={open}
 			>
 				<Avatar src={avatarUrl} initials={initials} size={42} className="card-shadow" />

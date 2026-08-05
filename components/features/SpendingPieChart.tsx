@@ -22,7 +22,11 @@ interface SpendingPieChartProps {
 const CHART_RAMP = [
 	"color-mix(in srgb, var(--color-aka) 80%, black)",
 	"var(--color-aka)",
-	"var(--color-kiri)",
+	// La pausa neutra della scala. NON `--color-kiri`: quello non è ridefinito
+	// in `.dark`, quindi sarebbe stata l'unica fetta a non seguire il tema —
+	// un cuneo grigio identico in chiaro e in scuro dentro un grafico rosso.
+	// `--text-muted` invece cambia, e mescolato con aka resta nella famiglia.
+	"color-mix(in srgb, var(--color-aka) 30%, var(--text-muted))",
 	"color-mix(in srgb, var(--color-aka) 78%, white)",
 	"color-mix(in srgb, var(--color-aka) 55%, white)",
 	"color-mix(in srgb, var(--color-aka) 60%, black)",

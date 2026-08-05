@@ -330,8 +330,15 @@ export default function TransactionForm({
 					>
 						<Repeat size={14} className="text-muted shrink-0" />
 						<span className="text-sm flex-1 text-left">Ripeti</span>
-						{/* Stessi token dello Switch: il pomello bianco su --color-input
-						    (5% di tinta) spariva sul fondo chiaro. */}
+						{/*
+							Ricalca <Switch> ma NON lo usa: la riga "Ripeti" è già un
+							<button>, e annidarci dentro il bottone role="switch" del
+							componente sarebbe markup interattivo dentro markup
+							interattivo. Qui l'interruttore è quindi solo il disegno
+							dello stato, e il comando è la riga.
+							Usa gli stessi token apposta — pomello acceso var(--cta-text),
+							non un #fff cablato — così i due non divergono.
+						*/}
 						<span
 							className="w-10 h-6 rounded-full relative transition-colors shrink-0 border"
 							style={{
@@ -343,7 +350,7 @@ export default function TransactionForm({
 								className="absolute top-0.5 w-5 h-5 rounded-full transition-all"
 								style={{
 									left: isRecurring ? "17px" : "1px",
-									background: isRecurring ? "#fff" : "var(--switch-knob-off)",
+									background: isRecurring ? "var(--cta-text)" : "var(--switch-knob-off)",
 									boxShadow: isRecurring ? "none" : "0 1px 3px rgba(0, 0, 0, 0.15)",
 								}}
 							/>
@@ -416,7 +423,7 @@ export default function TransactionForm({
 							style={{
 								borderColor:
 									"color-mix(in srgb, var(--color-aka) 40%, transparent)",
-								color: "var(--color-aka)",
+								color: "var(--ink-aka)",
 							}}
 						>
 							<Trash2 size={15} />
