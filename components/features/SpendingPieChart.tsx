@@ -7,14 +7,32 @@ interface SpendingPieChartProps {
 	periodo?: string;
 }
 
-const CHART_COLORS = ["aka", "ao", "kin", "murasaki", "midori", "kiri"];
+/**
+ * Scala monocromatica dell'accento uscite, come nel design.
+ *
+ * Prima le fette erano rosso/blu/oro/viola, cioè i colori che altrove
+ * significano uscite, investimenti, risparmi e ricorrenti: qui sono TUTTE
+ * uscite, e usare quei colori faceva leggere il grafico come se mostrasse
+ * categorie di natura diversa. Una sola tinta declinata dice la cosa giusta —
+ * un'unica quantità divisa in parti.
+ *
+ * Le sfumature nascono da `--color-aka`, che cambia col tema, quindi la scala
+ * resta corretta in chiaro e in scuro senza una seconda tabella di valori.
+ */
+const CHART_RAMP = [
+	"color-mix(in srgb, var(--color-aka) 80%, black)",
+	"var(--color-aka)",
+	"var(--color-kiri)",
+	"color-mix(in srgb, var(--color-aka) 78%, white)",
+	"color-mix(in srgb, var(--color-aka) 55%, white)",
+	"color-mix(in srgb, var(--color-aka) 60%, black)",
+];
 
 export default function SpendingPieChart({ spese, periodo = "mese" }: SpendingPieChartProps) {
 	const totale = spese.reduce((acc, s) => acc + s.total, 0);
 	const data = spese.map((s, i) => ({
 		...s,
-		chartColor: CHART_COLORS[i % CHART_COLORS.length],
-		fill: `var(--color-${CHART_COLORS[i % CHART_COLORS.length]})`,
+		fill: CHART_RAMP[i % CHART_RAMP.length],
 	}));
 
 	if (spese.length === 0) {
@@ -38,17 +56,20 @@ export default function SpendingPieChart({ spese, periodo = "mese" }: SpendingPi
 			</p>
 			<div className="flex items-center gap-5">
 				{/* Donut */}
-				<div className="relative w-40 h-40 shrink-0">
+				<div className="relative w-32 h-32 shrink-0">
 					<ResponsiveContainer width="100%" height="100%">
 						<PieChart>
 							<Pie
 								data={data}
 								dataKey="total"
 								nameKey="name"
-								innerRadius="60%"
-								outerRadius="85%"
+								innerRadius="62%"
+								outerRadius="90%"
 								strokeWidth={2}
-								stroke="var(--color-yoru)"
+								// Separatore = colore del fondo. Con --color-yoru disegnava un
+								// anello di inchiostro attorno al donut in tema chiaro, e serve
+								// davvero solo ora che le fette sono sfumature della stessa tinta.
+								stroke="var(--background-secondary)"
 							/>
 							<Tooltip
 								contentStyle={{

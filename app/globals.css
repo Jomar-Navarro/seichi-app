@@ -50,7 +50,10 @@
 	/* ---------- Components ---------- */
 	--seg-bg: rgba(70, 62, 48, 0.05);
 	--card-bd: rgba(70, 62, 48, 0.1);
-	--bg-tab: rgba(70, 62, 48, 0.08);
+	/* In chiaro il tab attivo è bianco IN RILIEVO, non una tinta più scura:
+	   scavare il selezionato lo fa leggere come disabilitato. In scuro vale
+	   l'opposto, ed è per questo che il token esiste. */
+	--bg-tab: rgba(255, 255, 255, 0.85);
 	--icon-btn-bg: rgba(70, 62, 48, 0.07);
 	--modal-bg: rgba(240, 236, 228, 0.96);
 	--modal-border: rgba(70, 62, 48, 0.1);
