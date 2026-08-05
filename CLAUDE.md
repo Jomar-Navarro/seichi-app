@@ -484,6 +484,48 @@ Implementata il 2026-08-05 (issue #32). Tre stati: chiaro, scuro, sistema.
   `zg-breathe`, che ora stanno anche sulla Home. **I valori scuri degli aloni sono
   identici a prima**: welcome e onboarding non cambiano di un pixel.
 
+#### Emerso dal code-review, dopo il merge della PR #45 (2026-08-05)
+
+La migrazione accento→inchiostro era stata applicata **a campione**: quasi sempre a
+un elemento e non al suo vicino identico — l'importo di una ricorrente sì e il
+pulsante "elimina" cinque righe sotto no, "Esci" sì e "Elimina il tuo account"
+accanto no. Quattordici difetti, tredici dei quali lì dentro. Le correzioni che
+non sono semplici sostituzioni di colore:
+
+- **`tone` di `SettingsRow` faceva due lavori.** Colorava la label *e* la pastiglia
+  dell'icona, quindi passargli l'inchiostro ri-tingeva anche la pastiglia e due
+  righe adiacenti finivano con pastiglie di tinta diversa sotto la stessa icona.
+  Ora sono due prop separate: `tone` (solo testo, vuole un inchiostro) e `accent`
+  (solo pastiglia, vuole l'accento pieno).
+- **Il colore lo distribuisce la libreria, in coppia.** Dove il colore arriva da un
+  modulo condiviso si aggiunge il gemello invece di cambiare quello esistente:
+  `TIPO_INK` accanto a `TIPO_COLOR`, `budgetInk()` accanto a `budgetColor()`,
+  `PasswordStrength.ink` accanto a `.color`. Riempimenti e barre restano
+  sull'accento, il testo prende l'inchiostro, e la scelta non è del chiamante.
+- **`SwitchVisual` estratto da `Switch`.** La riga "Ripeti" di `TransactionForm` non
+  può usare `<Switch>` — è già un `<button>`, e annidare il `role="switch"` sarebbe
+  markup interattivo dentro markup interattivo — quindi ne ricopiava il disegno. Le
+  due geometrie erano **già** divergenti (38×22 con pomello 18 contro 40×24 con
+  pomello 20): un commento che dice "usa gli stessi token così non divergono" non
+  impedisce niente, il disegno condiviso sì.
+- **Un ramo morto in `ProfileMenu`**: la forma compatta (solo avatar, menu ancorato
+  a destra) non era raggiungibile, perché l'unico chiamante passa sempre `name`.
+  Rimossa insieme alle prop opzionali che la descrivevano.
+- ⚠️ **Una frase può essere sbagliata dove un colore era solo un lampo.** Con la
+  scelta su "sistema", alla primissima visita `resolved` è l'ipotesi del server, e
+  `/impostazioni` scriveva "segue il sistema · ora scuro" su una pagina chiara. Il
+  lampo di colore era messo in conto (vedi sopra); una *dichiarazione* falsa no.
+  Fino all'idratazione si dice solo la parte vera comunque ("segue il sistema",
+  icona monitor). Il rilevamento usa `useSyncExternalStore`, **non**
+  `useEffect`+`setState`: il lint di React vieta il secondo come render a cascata,
+  e qui la differenza fra render del server e render del client è esattamente ciò
+  che il primo esiste per esprimere.
+- ⚠️ **L'audit dei token non vede tutto.** Rieseguito, passa: 72 token definiti,
+  zero `var(--…)` usate senza definizione. Ma `--ink-kiri` *era* definito e non
+  mappato in `@theme inline`, quindi `text-kiri-ink` non esisteva e sarebbe
+  fallito in silenzio come qualsiasi classe inventata. Va confrontata anche la
+  lista dei `--color-*-ink` di `@theme inline` con quella dei `--ink-*` di `:root`.
+
 #### Rimandato
 
 - Saluto orario al posto di "Bentornato": il server è in UTC su Vercel, quindi un
@@ -603,6 +645,10 @@ legge i cookie e decide lì. Vedi "Fase 18" sotto.
 --ink-ao:     #4c6588
 --ink-kin:    #7f6229
 --ink-murasaki: #6b4fa8
+--ink-kiri:   #6b6558  /* neutro di ripiego: categoria senza tipo, 6° dei grafici */
+
+/* Contenuto SOPRA un riempimento d'accento — mai un #fff cablato */
+--on-accent:  #ffffff  /* in .dark: #131a28 */
 ```
 
 ⚠️ **Accento ≠ inchiostro.** Gli accenti qui sopra sono tarati per RISALTARE:
@@ -612,8 +658,19 @@ Per il testo si usano `--ink-*` (classi `text-aka-ink`, `text-midori-ink`…) o
 `TIPO_INK` in `lib/transaction-utils.ts`, il gemello di `TIPO_COLOR`.
 In `.dark` gli inchiostri **sono** gli accenti (là il contrasto è già sopra 6:1):
 il token esiste comunque, così i componenti non devono sapere in che tema stanno.
+⚠️ **Unica eccezione `--ink-kiri`**, che ha un valore proprio anche in `.dark`
+(`#9aa1b0`): `--color-kiri` non è ridefinito là, quindi ereditarlo lo lasciava
+identico nei due temi — l'unico a non spostarsi — e a ~4,5:1 invece del 6:1.
 Le **icone restano sull'accento pieno** — per gli elementi grafici lo standard
 chiede 3:1, che già rispettano.
+
+⚠️ **Sopra un riempimento d'accento va `--on-accent`, mai `#fff`.** Gli accenti
+invertono la luminosità fra i temi (scuri su carta, pastello su notte), quindi
+ciò che ci sta sopra deve invertirsi con loro: un bianco cablato è il tema scuro
+dato per scontato e là sta a 2,8:1. Vale per il pomello dell'interruttore
+"Ripeti", la spunta delle card onboarding e il badge della campanella — che per
+lo stesso motivo è **l'unico posto dove un inchiostro fa da FONDO**, perché in
+chiaro l'accento è troppo chiaro perché il bianco ci stia sopra a 4,5:1.
 
 I token semantici (`--surface`, `--card`, `--border`, `--text-*`, ecc.) sono
 mappati sui nomi Tailwind in `@theme inline` → usare le classi (`bg-card`,
