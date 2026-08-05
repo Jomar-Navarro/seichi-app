@@ -35,7 +35,7 @@ export default function WelcomePage() {
 					Hai già un account?{" "}
 					<button
 						onClick={() => router.push("/sign")}
-						className="text-midori cursor-pointer font-medium"
+						className="text-midori-ink cursor-pointer font-medium"
 					>
 						Accedi
 					</button>

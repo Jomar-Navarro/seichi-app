@@ -43,7 +43,7 @@ function CircularRing({ percent, completed }: { percent: number; completed: bool
 				{completed ? (
 					<Check size={14} className="text-muted" />
 				) : (
-					<span className="text-[11px] font-semibold" style={{ color: "var(--color-kin)" }}>
+					<span className="text-[11px] font-semibold" style={{ color: "var(--ink-kin)" }}>
 						{clamped}%
 					</span>
 				)}

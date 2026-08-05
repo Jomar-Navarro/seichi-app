@@ -183,7 +183,7 @@ export default function CategoryPage() {
 					</div>
 					<CategoryGroups selected={selected} onChange={toggle} />
 					<div className="grow" />
-					{error && <p className="text-aka text-sm text-center mb-3">{error}</p>}
+					{error && <p className="text-aka-ink text-sm text-center mb-3">{error}</p>}
 					<div className="pb-10 pt-6">
 						<Button onClick={handleComplete} disabled={isLoading} title={isLoading ? "Salvataggio…" : "Completa la configurazione"} variant="welcome" />
 					</div>
@@ -196,7 +196,7 @@ export default function CategoryPage() {
 							<CategoryGroups selected={selected} onChange={toggle} />
 						</div>
 					</div>
-					{error && <p className="text-aka text-sm text-center w-full max-w-lg mx-auto mb-3">{error}</p>}
+					{error && <p className="text-aka-ink text-sm text-center w-full max-w-lg mx-auto mb-3">{error}</p>}
 					<div className="w-full max-w-lg mx-auto pb-14">
 						<Button onClick={handleComplete} disabled={isLoading} title={isLoading ? "Salvataggio…" : "Completa la configurazione"} variant="welcome" />
 					</div>

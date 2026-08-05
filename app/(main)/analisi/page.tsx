@@ -51,7 +51,7 @@ export default async function AnalyticsPage({
 					{analytics.variazionePct !== null ? (
 						<span
 							className={`inline-flex items-center gap-1 text-[12px] font-medium ${
-								analytics.variazionePct >= 0 ? "text-midori" : "text-aka"
+								analytics.variazionePct >= 0 ? "text-midori-ink" : "text-aka-ink"
 							}`}
 						>
 							<svg

@@ -86,7 +86,7 @@ export default function ProfileMenu({ initials, avatarUrl, name, greeting }: Pro
 							className="flex items-center gap-3 px-4 h-12 w-full text-left active:opacity-80"
 						>
 							<LogOut size={16} style={{ color: "var(--color-aka)" }} />
-							<span className="text-sm font-medium" style={{ color: "var(--color-aka)" }}>
+							<span className="text-sm font-medium" style={{ color: "var(--ink-aka)" }}>
 								Esci
 							</span>
 						</button>

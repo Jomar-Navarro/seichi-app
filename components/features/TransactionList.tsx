@@ -4,7 +4,7 @@ import { GOAL_ICON_MAP } from "@/lib/goal-icons";
 import { useUIStore } from "@/store/useUIStore";
 import EmptyState from "@/components/UI/EmptyState";
 import type { Transaction } from "@/types";
-import { TIPO_COLOR, TIPO_LABEL, formatDate, formatAmount } from "@/lib/transaction-utils";
+import { TIPO_INK, TIPO_LABEL, formatDate, formatAmount } from "@/lib/transaction-utils";
 
 interface TransactionListProps {
 	transactions: Transaction[];
@@ -65,7 +65,7 @@ export default function TransactionList({ transactions, loading }: TransactionLi
 							const cat = t.categories;
 							const Icon = cat ? (ICON_MAP[cat.icon] ?? GOAL_ICON_MAP[cat.icon]) : null;
 							const color = `var(--color-${cat?.color ?? "kiri"})`;
-							const amountColor = TIPO_COLOR[t.type] ?? "var(--text-primary)";
+							const amountColor = TIPO_INK[t.type] ?? "var(--text-primary)";
 
 							return (
 								<button

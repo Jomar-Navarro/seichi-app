@@ -22,6 +22,21 @@
 	--color-kin: #ae8b49;
 	--color-murasaki: #8a6fc4;
 
+	/* ---------- Accenti come INCHIOSTRO ----------
+	   Gli accenti qui sopra sono tarati per RISALTARE su carta: come riempimento,
+	   bordo o icona vanno benissimo. Come TESTO no — su fondo chiaro danno circa
+	   3,2:1, sotto il 4,5:1 che lo standard WCAG AA chiede per la lettura.
+	   Queste sono le stesse tinte portate oltre quella soglia, ed è ciò che fa
+	   il design (#4C6588 per il blu, #5C7350 per il verde).
+	   Effetto collaterale voluto: aka e kin, quasi indistinguibili in chiaro
+	   (#b47358 vs #ae8b49), qui si separano nettamente — e sono i colori di
+	   "uscite" e "risparmi", cioè la distinzione che conta di più nell'app. */
+	--ink-midori: #5c7350;
+	--ink-aka: #96543d;
+	--ink-ao: #4c6588;
+	--ink-kin: #7f6229;
+	--ink-murasaki: #6b4fa8;
+
 	/* ---------- Semantic ---------- */
 
 	--background: radial-gradient(
@@ -104,6 +119,15 @@
 	--color-kin: #d4b26a;
 	--color-murasaki: #9b7fd4;
 
+	/* In scuro l'inchiostro È l'accento: su fondo notte questi stanno già sopra
+	   6:1. Il token esiste comunque, così i componenti non devono sapere in
+	   quale tema si trovano. */
+	--ink-midori: var(--color-midori);
+	--ink-aka: var(--color-aka);
+	--ink-ao: var(--color-ao);
+	--ink-kin: var(--color-kin);
+	--ink-murasaki: var(--color-murasaki);
+
 	--background: radial-gradient(
 		120% 90% at 50% 0%,
 		#1a2436 0%,
@@ -175,6 +199,14 @@
 	--color-ao: var(--color-ao);
 	--color-kin: var(--color-kin);
 	--color-murasaki: var(--color-murasaki);
+
+	/* Accenti come inchiostro — classi text-*-ink. Per il TESTO si usano questi,
+	   per riempimenti, bordi e icone restano quelli sopra. */
+	--color-midori-ink: var(--ink-midori);
+	--color-aka-ink: var(--ink-aka);
+	--color-ao-ink: var(--ink-ao);
+	--color-kin-ink: var(--ink-kin);
+	--color-murasaki-ink: var(--ink-murasaki);
 
 	/* Text */
 	--color-foreground: var(--text-primary);

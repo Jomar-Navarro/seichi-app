@@ -6,7 +6,7 @@ import { GOAL_ICON_MAP } from "@/lib/goal-icons";
 import { useUIStore } from "@/store/useUIStore";
 import type { Transaction } from "@/types";
 import {
-	TIPO_COLOR,
+	TIPO_INK,
 	TIPO_LABEL,
 	formatDate,
 	formatAmount,
@@ -47,7 +47,7 @@ export default function RecentTransaction({
 				<Link
 					href="/transazioni"
 					className="text-sm font-medium"
-					style={{ color: "var(--color-midori)" }}
+					style={{ color: "var(--ink-midori)" }}
 				>
 					Vedi tutte →
 				</Link>
@@ -65,7 +65,7 @@ export default function RecentTransaction({
 								const cat = t.categories;
 								const Icon = cat ? (ICON_MAP[cat.icon] ?? GOAL_ICON_MAP[cat.icon]) : null;
 								const color = `var(--color-${cat?.color ?? "kiri"})`;
-								const amountColor = TIPO_COLOR[t.type] ?? "var(--text-primary)";
+								const amountColor = TIPO_INK[t.type] ?? "var(--text-primary)";
 								const isLast = i === transactions.length - 1;
 
 								return (

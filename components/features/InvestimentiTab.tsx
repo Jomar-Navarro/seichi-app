@@ -81,7 +81,7 @@ export default function InvestimentiTab({
 				{variazionePct !== null && (
 					<p
 						className={`text-[12px] mt-1.5 flex items-center gap-1 ${
-							variazionePct >= 0 ? "text-midori" : "text-aka"
+							variazionePct >= 0 ? "text-midori-ink" : "text-aka-ink"
 						}`}
 					>
 						<span>{variazionePct >= 0 ? "↑" : "↓"}</span>
@@ -186,8 +186,10 @@ export default function InvestimentiTab({
 										<span
 											className="text-[10.5px] font-medium px-1.75 py-px rounded-full"
 											style={{
+												// Tinta dall'accento, testo dall'inchiostro: sulla pastiglia
+												// chiara l'accento pieno non arriva a 4,5:1.
 												background: `color-mix(in srgb, ${accent} 13%, transparent)`,
-												color: accent,
+												color: `var(--ink-${pos.accent})`,
 											}}
 										>
 											{pos.typeLabel}

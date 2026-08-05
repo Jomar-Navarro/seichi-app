@@ -104,7 +104,7 @@ export default function PreferencePage() {
 					<Select title="Valuta" options={currencies} selected={currency} onChange={setCurrency} />
 					<Select title="Lingua" options={languages} selected={language} onChange={setLanguage} />
 					<div className="grow" />
-					{error && <p className="text-aka text-sm text-center mb-3">{error}</p>}
+					{error && <p className="text-aka-ink text-sm text-center mb-3">{error}</p>}
 					<div className="pb-10">
 						<Button onClick={handleContinue} disabled={isLoading} title={isLoading ? "Salvataggio…" : "Continua"} variant="welcome" />
 					</div>
@@ -118,7 +118,7 @@ export default function PreferencePage() {
 							<Select title="Lingua" options={languages} selected={language} onChange={setLanguage} />
 						</div>
 					</div>
-					{error && <p className="text-aka text-sm text-center w-full max-w-lg mx-auto mb-3">{error}</p>}
+					{error && <p className="text-aka-ink text-sm text-center w-full max-w-lg mx-auto mb-3">{error}</p>}
 					<div className="w-full max-w-lg mx-auto pb-14">
 						<Button onClick={handleContinue} disabled={isLoading} title={isLoading ? "Salvataggio…" : "Continua"} variant="welcome" />
 					</div>
