@@ -303,7 +303,7 @@ export default function TransactionForm({
 											onClick={() => selectDay(day)}
 											className={`h-8 w-full rounded-xl text-xs flex items-center justify-center transition-colors ${
 												isSelected
-													? "bg-foreground text-yoru font-semibold"
+													? "btn-primary font-semibold"
 													: isToday
 														? "border border-subtle font-medium"
 														: "hover:bg-card"

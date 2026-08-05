@@ -17,6 +17,7 @@ import Avatar from "@/components/UI/Avatar";
 import PageHeader from "@/components/UI/PageHeader";
 import SettingsRow, { SettingsGroup } from "@/components/UI/SettingsRow";
 import PreferencesSection from "@/components/features/PreferencesSection";
+import ThemeSection from "@/components/features/ThemeSection";
 import GlobalBudgetSection from "@/components/features/GlobalBudgetSection";
 import { signOut } from "./actions";
 import pkg from "@/package.json";
@@ -65,6 +66,14 @@ export default async function ImpostazioniPage() {
 					chevron
 				/>
 			</SettingsGroup>
+
+			{/* Aspetto */}
+			<div className="mb-6">
+				<p className="text-[11.5px] font-semibold tracking-[1.6px] uppercase text-disabled mb-2.5 ml-0.5">
+					Aspetto
+				</p>
+				<ThemeSection />
+			</div>
 
 			{/* Preferenze */}
 			<div className="mb-6">

@@ -56,6 +56,14 @@
 	--modal-border: rgba(70, 62, 48, 0.1);
 	--modal-handle: rgba(70, 62, 48, 0.18);
 
+	/* Switch spento — acceso riusa --cta-bg / --cta-text */
+	--switch-track-off: rgba(70, 62, 48, 0.12);
+	--switch-knob-off: #ffffff;
+
+	/* Aloni ambientali di sfondo (.circle-1 / .circle-3) */
+	--halo-a: rgba(150, 165, 140, 0.28);
+	--halo-b: rgba(190, 170, 120, 0.2);
+
 	/* ---------- Shadows ---------- */
 	--shadow-drop: rgba(70, 62, 48, 0.1);
 	--shadow-inset: rgba(255, 255, 255, 0.8);
@@ -116,6 +124,14 @@
 	--modal-border: rgba(230, 233, 239, 0.12);
 	--modal-handle: rgba(230, 233, 239, 0.2);
 	--icon-btn-bg: rgba(230, 233, 239, 0.08);
+
+	/* Switch spento */
+	--switch-track-off: rgba(230, 233, 239, 0.07);
+	--switch-knob-off: rgba(230, 233, 239, 0.35);
+
+	/* Aloni — valori invariati rispetto a prima dei token: in scuro non cambia nulla */
+	--halo-a: rgba(103, 184, 154, 0.12);
+	--halo-b: rgba(212, 178, 106, 0.13);
 
 	/* Shadows */
 	--shadow-drop: rgba(0, 0, 0, 0.3);
@@ -259,11 +275,7 @@ body {
 	width: 300px;
 	height: 300px;
 	border-radius: 50%;
-	background: radial-gradient(
-		circle,
-		rgba(103, 184, 154, 0.12),
-		transparent 68%
-	);
+	background: radial-gradient(circle, var(--halo-a), transparent 68%);
 	filter: blur(46px);
 	opacity: 1;
 	animation: 15s ease-in-out infinite zg-breathe;
@@ -277,11 +289,7 @@ body {
 	width: 300px;
 	height: 300px;
 	border-radius: 50%;
-	background: radial-gradient(
-		circle,
-		rgba(212, 178, 106, 0.13),
-		transparent 53%
-	);
+	background: radial-gradient(circle, var(--halo-b), transparent 53%);
 	filter: blur(48px);
 	opacity: 1;
 	animation: 18s ease-in-out 4s infinite zg-breathe;

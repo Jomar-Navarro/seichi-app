@@ -53,7 +53,12 @@ async function DashboardContent() {
 	const risparmiProgress = totalTarget > 0 ? Math.min(100, Math.round((totalSaved / totalTarget) * 100)) : 0;
 
 	return (
-		<div className="flex flex-col gap-4 px-5 pt-7 pb-32">
+		// Aloni ambientali come nel mockup: gli stessi di welcome/onboarding,
+		// ora con i colori presi dai token e quindi corretti in entrambi i temi.
+		<div className="relative overflow-hidden">
+			<div className="circle-1 z-0" />
+			<div className="circle-3 z-0" />
+			<div className="relative z-10 flex flex-col gap-4 px-5 pt-7 pb-32">
 			<div className="flex items-center justify-between">
 				<div>
 					<p className="text-[13px] text-muted">Bentornato</p>
@@ -140,6 +145,7 @@ async function DashboardContent() {
 
 			<RecentTransaction transactions={transaction.data} />
 			<DashboardRefresher />
+			</div>
 		</div>
 	);
 }

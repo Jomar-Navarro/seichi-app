@@ -219,7 +219,7 @@ export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
 										style={{
 											background: selected
 												? "color-mix(in srgb, var(--color-kin) 16%, transparent)"
-												: "rgba(70,62,48,0.06)",
+												: "var(--icon-btn-bg)",
 											border: selected
 												? "1.5px solid var(--color-kin)"
 												: "1.5px solid transparent",

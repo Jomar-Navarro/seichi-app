@@ -24,15 +24,17 @@ export default function AnalyticsTabs() {
 	};
 
 	return (
-		<div className="flex p-1 rounded-2xl bg-[rgba(230,233,239,0.04)] border border-[rgba(230,233,239,0.09)]">
+		// Le utility segment-tab/active-tab esistono apposta e seguono i token:
+		// i valori cablati erano quelli del solo tema scuro.
+		<div className="flex p-1 rounded-2xl segment-tab">
 			{TABS.map((tab) => (
 				<button
 					key={tab}
 					onClick={() => handleClick(tab)}
 					className={`flex-1 text-center py-2.25 rounded-xl text-[13px] transition-all border-none cursor-pointer ${
 						active === tab
-							? "font-semibold text-tsuki bg-[rgba(230,233,239,0.10)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_6px_16px_rgba(0,0,0,0.30)]"
-							: "font-medium text-kiri bg-transparent"
+							? "font-semibold active-tab"
+							: "font-medium text-muted bg-transparent"
 					}`}
 				>
 					{tab}

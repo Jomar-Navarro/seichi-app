@@ -21,10 +21,10 @@ export default function SpendingPieChart({ spese, periodo = "mese" }: SpendingPi
 		const periodoLabel = periodo === "settimana" ? "questa settimana" : periodo === "anno" ? "quest'anno" : "questo mese";
 		return (
 			<>
-				<p className="text-[14.5px] font-semibold mt-5 mb-3.5 text-tsuki">
+				<p className="text-[14.5px] font-semibold mt-5 mb-3.5 text-foreground">
 					Spese per categoria
 				</p>
-				<p className="text-[13px] text-kiri text-center py-6">
+				<p className="text-[13px] text-muted text-center py-6">
 					Nessuna spesa {periodoLabel}
 				</p>
 			</>
@@ -33,7 +33,7 @@ export default function SpendingPieChart({ spese, periodo = "mese" }: SpendingPi
 
 	return (
 		<>
-			<p className="text-[14.5px] font-semibold mt-5 mb-3.5 text-tsuki">
+			<p className="text-[14.5px] font-semibold mt-5 mb-3.5 text-foreground">
 				Spese per categoria
 			</p>
 			<div className="flex items-center gap-5">
@@ -52,11 +52,11 @@ export default function SpendingPieChart({ spese, periodo = "mese" }: SpendingPi
 							/>
 							<Tooltip
 								contentStyle={{
-									background: "var(--color-hane)",
-									border: "1px solid rgba(255,255,255,0.10)",
+									background: "var(--modal-bg)",
+									border: "1px solid var(--border)",
 									borderRadius: 12,
 									fontSize: 12,
-									color: "var(--color-tsuki)",
+									color: "var(--text-primary)",
 								}}
 								formatter={(value) => [
 									`€ ${numberFormatter.format(Number(value))}`,
@@ -67,10 +67,10 @@ export default function SpendingPieChart({ spese, periodo = "mese" }: SpendingPi
 					</ResponsiveContainer>
 					{/* Centro */}
 					<div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-0.5">
-						<p className="text-[9.5px] text-kiri uppercase tracking-[0.08em] leading-none">
+						<p className="text-[9.5px] text-muted uppercase tracking-[0.08em] leading-none">
 							Uscite
 						</p>
-						<p className="text-[15px] font-semibold text-tsuki leading-none">
+						<p className="text-[15px] font-semibold text-foreground leading-none">
 							€ {numberFormatter.format(totale)}
 						</p>
 					</div>
@@ -87,9 +87,9 @@ export default function SpendingPieChart({ spese, periodo = "mese" }: SpendingPi
 										className="inline-block w-2 h-2 rounded-full shrink-0"
 										style={{ background: s.fill }}
 									/>
-									<span className="text-[12.5px] text-tsuki">{s.name}</span>
+									<span className="text-[12.5px] text-foreground">{s.name}</span>
 								</div>
-								<span className="text-[12.5px] text-kiri">{pct}%</span>
+								<span className="text-[12.5px] text-muted">{pct}%</span>
 							</div>
 						);
 					})}

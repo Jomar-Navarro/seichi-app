@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Settings, LogOut } from "lucide-react";
 import Avatar from "@/components/UI/Avatar";
+import ThemeToggle from "./ThemeToggle";
 import { signOut } from "@/app/(main)/impostazioni/actions";
 
 interface ProfileMenuProps {
@@ -37,6 +38,7 @@ export default function ProfileMenu({ initials, avatarUrl }: ProfileMenuProps) {
 
 			{open && (
 				<div className="absolute right-0 top-12 z-50 w-52 rounded-2xl bg-modal border border-subtle modal-shadow backdrop-blur-2xl overflow-hidden">
+					<ThemeToggle />
 					<Link
 						href="/impostazioni"
 						onClick={() => setOpen(false)}
