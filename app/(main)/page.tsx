@@ -59,17 +59,16 @@ async function DashboardContent() {
 			<div className="circle-1 z-0" />
 			<div className="circle-3 z-0" />
 			<div className="relative z-10 flex flex-col gap-4 px-5 pt-7 pb-32">
-			<div className="flex items-center justify-between">
-				<div>
-					<p className="text-[13px] text-muted">Bentornato</p>
-					<p className="text-xl font-semibold leading-tight">Il tuo terreno</p>
-				</div>
-				{/* Nel mockup la campanella occupa l'angolo in alto a destra, che
-				    nell'app reale è dell'avatar: stanno affiancate. */}
-				<div className="flex items-center gap-2.5">
-					<NotificationBell initialUnread={unreadCount} />
-					<ProfileMenu initials={account.initials} avatarUrl={account.avatarUrl} />
-				</div>
+			{/* Come nel mockup: a sinistra l'avatar col saluto e il nome (è il
+			    gruppo intero ad aprire il menu), a destra la sola campanella. */}
+			<div className="flex items-center justify-between mb-1">
+				<ProfileMenu
+					initials={account.initials}
+					avatarUrl={account.avatarUrl}
+					name={account.displayName}
+					greeting="Bentornato"
+				/>
+				<NotificationBell initialUnread={unreadCount} />
 			</div>
 
 			<BalanceCard
