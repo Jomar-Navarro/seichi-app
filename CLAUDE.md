@@ -43,13 +43,15 @@ components/
 │   │                     # SignTab, TransactionForm, TransactionModal, BottomNav,
 │   │                     # SummaryCard, Sparkline, EmptyState, Avatar, PageHeader,
 │   │                     # SettingsRow (+ SettingsGroup), PasswordInput,
-│   │                     # PasswordStrength, SubmitButton, StatusScreen, AuthShell
+│   │                     # PasswordStrength, SubmitButton, StatusScreen, AuthShell,
+│   │                     # Switch
 ├── features/             # BalanceCard, TransactionList, RecentTransaction, Filterbar,
 │   │                     # GoalCard, GoalSheet, GoalsPageClient, InvestimentiTab,
 │   │                     # HomeSkeleton, DashboardRefresher, AnalyticsTabs,
 │   │                     # SpendingPieChart, MonthlyLineChart, ProfileEditor,
 │   │                     # EmailChangeForm, PasswordChangeForm, DeleteAccountFlow,
-│   │                     # ForgotPasswordForm, ResetPasswordForm
+│   │                     # ForgotPasswordForm, ResetPasswordForm,
+│   │                     # ThemeProvider (+ useTheme), ThemeToggle, ThemeSection
 ├── LoginForm.tsx, SignUpForm.tsx, PasswordField.tsx
 └── icons.tsx             # GoogleIcon, FacebookIcon
 
@@ -63,7 +65,8 @@ lib/
 ├── account.ts            # getAccountContext() — user + profilo per le impostazioni
 ├── profile.ts            # getInitials, getDisplayName
 ├── password.ts           # PASSWORD_MIN_LENGTH, scorePassword, validateNewPassword
-└── safe-redirect.ts      # safeNext() — blocca gli open redirect sul parametro next
+├── safe-redirect.ts      # safeNext() — blocca gli open redirect sul parametro next
+└── theme.ts              # tipi, cookie e risoluzione del tema (Fase 18)
 
 supabase/migrations/      # SQL da eseguire a mano nel SQL Editor di Supabase
 
@@ -280,8 +283,11 @@ notifications: id, user_id, type, payload (JSONB), dedup_key (TEXT),
   `opacity: 0.55` + pallino spento. Pastiglia icona 36px colorata per tipo, testo 13px,
   timestamp **relativo** ("2 ore fa", "Ieri", "3 giorni fa"). Pannello come card sotto
   l'header, con overlay sfocato dietro.
-- ⚠️ Nel mockup la campanella è in alto a destra, ma **nell'app reale quel posto è di
-  `ProfileMenu`** (l'avatar): saranno due pastiglie affiancate.
+- ~~Nel mockup la campanella è in alto a destra, ma nell'app quel posto è di
+  `ProfileMenu`: saranno due pastiglie affiancate.~~ **Non più vero dalla Fase 18**:
+  l'header della Home è stato rifatto sul mockup `Seichi Dashboard.dc.html`, che
+  mette l'avatar col saluto e il nome **a sinistra** — ad aprire il menu è il
+  gruppo intero, non il solo avatar — e lascia alla campanella il suo angolo.
 - **`delete_current_user()` va aggiornata** con `budgets` e `notifications`: fa i
   `DELETE` espliciti tabella per tabella, deliberatamente, e la cascade da sola non
   basta per come è scritta.
@@ -414,6 +420,79 @@ notifications: id, user_id, type, payload (JSONB), dedup_key (TEXT),
   solo nel database. Recuperare `recurring_rules` ha chiuso un buco, non tutti.
   Tracciato nella **issue #43**, con la tecnica di ricostruzione e le query pronte.
 
+### Fase 18 — tema chiaro/scuro
+
+Implementata il 2026-08-05 (issue #32). Tre stati: chiaro, scuro, sistema.
+
+- **La preferenza sta in un COOKIE, non in `localStorage`.** La classe `.dark` va su
+  `<html>`, che è emesso dal root layout, cioè un server component: il cookie viaggia
+  con la richiesta, quindi il server sa già cosa rendere e **il primo byte è quello
+  giusto**. Niente flash, e soprattutto niente `suppressHydrationWarning` — che nella
+  soluzione classica (`next-themes`: script inline + localStorage) non risolve il
+  mismatch, lo **zittisce**. Quel cerotto serve solo perché la fonte del dato è
+  irraggiungibile dal server; cambiando fonte il problema non esiste. Il costo
+  abituale — leggere i cookie rinuncia allo static — qui era già pagato: proxy su
+  ogni richiesta e cookie di sessione Supabase ovunque.
+- **Due cookie, non uno.** `prefers-color-scheme` è una proprietà del browser e **non
+  viaggia negli header**: con la scelta su "sistema" il server sarebbe di nuovo cieco.
+  Il secondo cookie porta il valore **già risolto**, scritto dal client che lo conosce.
+  Così `globals.css` resta a due soli blocchi (`:root` chiaro, `.dark` scuro): la via
+  alternativa — far gestire "sistema" a un `@media` — avrebbe richiesto di duplicare
+  ~50 token dentro la media query.
+- Il cambio applica la classe **nel fotogramma corrente** e scrive il cookie per il
+  caricamento successivo: nessun round-trip, nessun `router.refresh()`.
+- **Primissima visita senza cookie: si rende scuro**, l'aspetto storico dell'app. Se
+  il sistema dice altro, `ThemeProvider` corregge al mount — un lampo, una volta sola.
+- **Doppio comando, voluto**: interruttore binario nel `ProfileMenu` (dal mockup) e
+  tre stati in `/impostazioni`. Il binario non sa esprimere "sistema", quindi riflette
+  ciò che si **vede** e, se toccato, fissa una scelta esplicita.
+- La persistenza è **solo cookie**: `profiles.theme` per la sincronizzazione fra
+  dispositivi è rimandata e si innesta senza toccare nulla, perché il cookie resta la
+  fonte per il rendering. Serve comunque per le pagine pre-auth, che non hanno utente.
+
+#### Il tema chiaro non era mai stato renderizzato — cosa è emerso
+
+- ⚠️ **Due token CSS inesistenti, vivi da mesi**: `--color-hane` (sfondo dei tooltip
+  dei tre grafici) e `--deep` (sfumatura in fondo alle transazioni recenti). Una
+  variabile CSS inesistente **non fa rumore**: la dichiarazione è invalida e la
+  proprietà semplicemente non si applica. C'è un audit ripetibile — confrontare ogni
+  `var(--…)` del codice con i token definiti in `globals.css` — ed è il modo per
+  trovarli. Vale la pena rieseguirlo a ogni fase.
+  Nota: correggendo `--deep` è **comparsa** una sfumatura concettualmente sbagliata
+  (suggeriva contenuto nascosto in una lista che non scorre, e sfumava verso il colore
+  della pagina invece che della card). È stata **rimossa**, non riparata.
+- ⚠️ **Un token può essere giusto in un tema e semanticamente sbagliato nell'altro.**
+  `--bg-tab` (pastiglia del tab attivo) valeva una tinta *più scura del fondo* in
+  entrambi. In scuro funziona — scurire fa emergere. In chiaro il selezionato leggeva
+  come **disabilitato**: il design lo vuole bianco in rilievo. È il difetto che il
+  grep non trova, perché la sintassi è corretta.
+- **`--shadow-drop` in chiaro era sottotono** (0.10 contro lo 0.13–0.20 dei mockup):
+  ogni superficie sembrava incollata al fondo. Portato a 0.14, l'inset a 0.9.
+- I neutri brand (`tsuki`, `kiri`, `yoru`…) **non sono ridefiniti in `.dark`**: usarli
+  come testo (`text-tsuki` era il testo primario di `/analisi` e `/investimenti`)
+  significa colore fisso, invisibile in chiaro. Usare sempre i semantici
+  (`text-foreground`, `text-muted`).
+- Il separatore fra le fette dei donut era `var(--color-yoru)`: somigliava allo sfondo
+  scuro **per caso**, e in chiaro disegnava un anello di inchiostro. Va usato il
+  colore del **fondo** (`--background-secondary`).
+- La palette del donut spese era policroma (rosso/blu/oro/viola = uscite, investimenti,
+  risparmi, ricorrenti): suggeriva una distinzione di natura che lì non esiste, visto
+  che sono **tutte uscite**. Ora è una scala monocromatica derivata da `--color-aka`
+  con `color-mix`, quindi si ricalcola da sé nei due temi.
+- Nuovi token: `--ink-*` (vedi Design System), `--switch-track-off`/`--switch-knob-off`
+  (componente `components/UI/Switch.tsx`), `--halo-a`/`--halo-b` per gli aloni
+  `zg-breathe`, che ora stanno anche sulla Home. **I valori scuri degli aloni sono
+  identici a prima**: welcome e onboarding non cambiano di un pixel.
+
+#### Rimandato
+
+- Saluto orario al posto di "Bentornato": il server è in UTC su Vercel, quindi un
+  "buongiorno" alle 23 è peggio di un saluto neutro. Si fa lato client, al costo di un
+  lampo del testo dopo l'idratazione.
+- ⚠️ **`<input type="date">` mostra `mm/dd/yyyy`**: il formato segue la lingua del
+  **browser**, non `lang="it"` della pagina. Si chiude solo con un picker custom —
+  naturale accostarlo alla Fase 19 (i18n).
+
 ## Auth Flow
 
 - `/welcome` → landing page pre-auth
@@ -497,8 +576,8 @@ Stile ispirato al minimalismo giapponese. Superfici come vetro satinato, pietra,
 
 Doppio tema **light (default) + dark**, gestito dalla classe `.dark` su `<html>`.
 `globals.css` è la fonte di verità: `:root` = light, `.dark` = override.
-Attualmente il root layout **forza `.dark`** su `<html>`, quindi l'app rende sempre
-dark; l'infrastruttura per lo switch esiste già.
+Dalla Fase 18 il tema è scelto dall'utente e il root layout **non forza più nulla**:
+legge i cookie e decide lì. Vedi "Fase 18" sotto.
 
 ### Token CSS (definiti in globals.css — valori light di default)
 
@@ -517,7 +596,24 @@ dark; l'infrastruttura per lo switch esiste già.
 --color-ao:       #6e86a8  /* investimenti */
 --color-kin:      #ae8b49  /* risparmi / goals */
 --color-murasaki: #8a6fc4  /* ricorrenti / abbonamenti */
+
+/* Accenti come INCHIOSTRO — solo per il TESTO (Fase 18) */
+--ink-midori: #5c7350
+--ink-aka:    #96543d
+--ink-ao:     #4c6588
+--ink-kin:    #7f6229
+--ink-murasaki: #6b4fa8
 ```
+
+⚠️ **Accento ≠ inchiostro.** Gli accenti qui sopra sono tarati per RISALTARE:
+come riempimento, pastiglia, bordo, icona o fetta di grafico vanno benissimo.
+Come **testo su fondo chiaro** danno circa 3,2:1, sotto il 4,5:1 di WCAG AA.
+Per il testo si usano `--ink-*` (classi `text-aka-ink`, `text-midori-ink`…) o
+`TIPO_INK` in `lib/transaction-utils.ts`, il gemello di `TIPO_COLOR`.
+In `.dark` gli inchiostri **sono** gli accenti (là il contrasto è già sopra 6:1):
+il token esiste comunque, così i componenti non devono sapere in che tema stanno.
+Le **icone restano sull'accento pieno** — per gli elementi grafici lo standard
+chiede 3:1, che già rispettano.
 
 I token semantici (`--surface`, `--card`, `--border`, `--text-*`, ecc.) sono
 mappati sui nomi Tailwind in `@theme inline` → usare le classi (`bg-card`,
@@ -614,7 +710,10 @@ Seguire questo ordine, non saltare fasi:
       `dedup_key`, `run_daily_jobs()` che invoca ricorrenti → notifiche → pulizia,
       campanella con badge e pannello letto/non-letto. Verificata end-to-end il
       2026-08-04, idempotenza inclusa.
-18. Tema chiaro/scuro — switch nelle impostazioni (infra `.dark` già presente; ora il root layout forza dark)
+18. ✅ Tema chiaro/scuro (issue #32) — cookie + tre stati, interruttore nel `ProfileMenu`
+    e selettore in `/impostazioni`. Motivazioni e trappole del tema chiaro nella
+    sezione "Fase 18" sopra. Include l'allineamento di Home, Investimenti e Analisi
+    ai mockup e i token `--ink-*`.
 19. Lingua i18n (it/en) — collegare la preferenza `profiles.language` già salvata ma inattiva
 20. Conti/wallet multipli — tabella `accounts` + `account_id` su transactions + trasferimenti (feature STRUTTURALE: decide lo schema presto)
 21. Import dati — CSV / estratto Trade Republic via file (nessuna API ufficiale TR: si importa un CSV, es. generato da `pytr`; l'app non gestisce credenziali)
