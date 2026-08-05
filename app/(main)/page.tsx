@@ -58,7 +58,16 @@ async function DashboardContent() {
 		<div className="relative overflow-hidden">
 			<div className="circle-1 z-0" />
 			<div className="circle-3 z-0" />
-			<div className="relative z-10 flex flex-col gap-4 px-5 pt-7 pb-32">
+			{/*
+				`relative` SENZA z-index, di proposito. Un z-index esplicito qui
+				creerebbe uno stacking context e schiaccerebbe a quel livello tutto
+				ciò che sta dentro: il pannello notifiche (`fixed z-50`) finirebbe
+				sotto la BottomNav (`z-40`), che è fratello di {children} nel layout
+				e quindi vive nel contesto radice.
+				Il contenuto sta comunque sopra gli aloni perché entrambi sono
+				posizionati con z-index auto e vince l'ordine nel DOM.
+			*/}
+			<div className="relative flex flex-col gap-4 px-5 pt-7 pb-32">
 			{/* Come nel mockup: a sinistra l'avatar col saluto e il nome (è il
 			    gruppo intero ad aprire il menu), a destra la sola campanella. */}
 			<div className="flex items-center justify-between mb-1">

@@ -6,6 +6,27 @@ import { numberFormatter } from "@/lib/transaction-utils";
 import type { InvestmentData } from "@/types";
 import { INVESTMENT_TYPE_META as TYPE_META } from "@/lib/investment-types";
 
+const CHART_COLORS = ["ao", "murasaki", "kin", "midori", "aka", "kiri"] as const;
+
+/**
+ * Accento → inchiostro, esplicito.
+ *
+ * Prima il colore del testo si costruiva con `var(--ink-${accent})`: con
+ * `accent = "kiri"` — che è nella rotazione ed è anche il colore di "altro" —
+ * usciva `var(--ink-kiri)`, che allora non esisteva. Una variabile CSS
+ * inesistente non fa rumore, e il badge perdeva il colore in silenzio.
+ * Con una mappa il compilatore vede tutti i nomi e il difetto non è più
+ * esprimibile.
+ */
+const ACCENT_INK: Record<(typeof CHART_COLORS)[number], string> = {
+	ao: "var(--ink-ao)",
+	murasaki: "var(--ink-murasaki)",
+	kin: "var(--ink-kin)",
+	midori: "var(--ink-midori)",
+	aka: "var(--ink-aka)",
+	kiri: "var(--ink-kiri)",
+};
+
 function EmptyState() {
 	return (
 		<div className="flex flex-col items-center justify-center text-center py-16 px-6">
@@ -39,22 +60,20 @@ export default function InvestimentiTab({
 
 	const { total, variazionePct, byType, positions } = data;
 
-	const CHART_COLORS = ["ao", "murasaki", "kin", "midori", "aka", "kiri"];
-
-	// Un solo colore per posizione, usato dalla fetta, dal pallino della legenda
-	// e dalla card: prima il donut andava per indice e le card per tipologia,
-	// quindi la stessa posizione era blu nella legenda e grigia poco sotto.
-	// Senza tipologia si prende dalla rotazione invece di finire tutto su "altro",
-	// che è grigio: tre posizioni non classificate rendevano la pagina monocroma.
 	const items = positions.map((pos, i) => {
 		const typeMeta = pos.investment_type ? TYPE_META[pos.investment_type] : undefined;
-		const accent = typeMeta?.color ?? CHART_COLORS[i % CHART_COLORS.length];
+		// Il colore viene dalla ROTAZIONE, non dalla tipologia: due posizioni ETF
+		// prenderebbero lo stesso accento e il donut mostrerebbe due fette
+		// identiche con due pallini identici in legenda, cioè illeggibile.
+		// La tipologia resta comunque scritta a parole sul badge.
+		const accent = CHART_COLORS[i % CHART_COLORS.length];
 		return {
 			...pos,
 			label: pos.name,
 			typeLabel: (typeMeta ?? TYPE_META.altro).label,
 			accent,
 			fill: `var(--color-${accent})`,
+			ink: ACCENT_INK[accent],
 		};
 	});
 
@@ -189,7 +208,7 @@ export default function InvestimentiTab({
 												// Tinta dall'accento, testo dall'inchiostro: sulla pastiglia
 												// chiara l'accento pieno non arriva a 4,5:1.
 												background: `color-mix(in srgb, ${accent} 13%, transparent)`,
-												color: `var(--ink-${pos.accent})`,
+												color: pos.ink,
 											}}
 										>
 											{pos.typeLabel}

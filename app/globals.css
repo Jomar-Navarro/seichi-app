@@ -36,6 +36,9 @@
 	--ink-ao: #4c6588;
 	--ink-kin: #7f6229;
 	--ink-murasaki: #6b4fa8;
+	/* kiri è il neutro di ripiego (categoria senza tipo, sesto posto della
+	   rotazione dei grafici): serve anche lui un inchiostro, o resta scoperto. */
+	--ink-kiri: #6b6558;
 
 	/* ---------- Semantic ---------- */
 
@@ -127,6 +130,7 @@
 	--ink-ao: var(--color-ao);
 	--ink-kin: var(--color-kin);
 	--ink-murasaki: var(--color-murasaki);
+	--ink-kiri: var(--color-kiri);
 
 	--background: radial-gradient(
 		120% 90% at 50% 0%,
