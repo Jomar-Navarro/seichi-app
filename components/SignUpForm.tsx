@@ -62,7 +62,7 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 							Già verificato?{" "}
 							<button
 								onClick={() => onTabChange?.("signin")}
-								className="text-midori font-medium cursor-pointer"
+								className="text-midori-ink font-medium cursor-pointer"
 							>
 								Accedi
 							</button>
@@ -152,7 +152,7 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 							onChange={setConfirmPassword}
 						/>
 						{confirmPassword !== password && passwordMismatch ? (
-							<div className="text-xs text-aka">
+							<div className="text-xs text-aka-ink">
 								Le password non corrispondono
 							</div>
 						) : null}
@@ -169,7 +169,7 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 						</div>
 
 						{state.error && (
-							<div className="text-xs text-aka mt-1 text-center">
+							<div className="text-xs text-aka-ink mt-1 text-center">
 								{state.error}
 							</div>
 						)}
@@ -183,8 +183,8 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 							className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 mt-px"
 						/>
 						<div className="text-xs text-muted tracking-wider">
-							Accetto i <span className="text-midori">Termini di servizio</span> e{" "}
-							l&apos;<span className="text-midori">informativa sulla privacy</span> di
+							Accetto i <span className="text-midori-ink">Termini di servizio</span> e{" "}
+							l&apos;<span className="text-midori-ink">informativa sulla privacy</span> di
 							Seichi.
 						</div>
 					</div>
@@ -217,7 +217,7 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 					<span className="me-1 text-muted">Hai già un account?</span>
 					<button
 						onClick={() => onTabChange?.("signin")}
-						className="text-midori cursor-pointer font-medium"
+						className="text-midori-ink cursor-pointer font-medium"
 					>
 						Accedi
 					</button>

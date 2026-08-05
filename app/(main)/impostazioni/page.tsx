@@ -17,11 +17,15 @@ import Avatar from "@/components/UI/Avatar";
 import PageHeader from "@/components/UI/PageHeader";
 import SettingsRow, { SettingsGroup } from "@/components/UI/SettingsRow";
 import PreferencesSection from "@/components/features/PreferencesSection";
+import ThemeSection from "@/components/features/ThemeSection";
 import GlobalBudgetSection from "@/components/features/GlobalBudgetSection";
 import { signOut } from "./actions";
 import pkg from "@/package.json";
 
+/** Icone e bordi: l'accento pieno. */
 const AKA = "var(--color-aka)";
+/** Etichette: l'inchiostro — `tone` di SettingsRow colora del testo. */
+const AKA_INK = "var(--ink-aka)";
 
 export default async function ImpostazioniPage() {
 	const account = await getAccountContext();
@@ -64,6 +68,11 @@ export default async function ImpostazioniPage() {
 					href="/impostazioni/email"
 					chevron
 				/>
+			</SettingsGroup>
+
+			{/* Aspetto */}
+			<SettingsGroup label="Aspetto">
+				<ThemeSection />
 			</SettingsGroup>
 
 			{/* Preferenze */}
@@ -148,7 +157,7 @@ export default async function ImpostazioniPage() {
 						<SettingsRow
 							icon={<LogOut size={16} style={{ color: AKA }} />}
 							label="Esci"
-							tone={AKA}
+							tone={AKA_INK}
 						/>
 					</button>
 				</form>

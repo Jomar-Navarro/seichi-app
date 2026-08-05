@@ -72,12 +72,12 @@ export default function LoginForm({ onTabChange, notice }: LoginFormProps) {
 							placeholder="Password"
 						/>
 						{state.error && (
-							<div className="text-xs text-aka text-center">{state.error}</div>
+							<div className="text-xs text-aka-ink text-center">{state.error}</div>
 						)}
 						<div className="text-right mb-2">
 							<Link
 								href="/recupera-password"
-								className="text-xs cursor-pointer text-ao tracking-widest"
+								className="text-xs cursor-pointer text-ao-ink tracking-widest"
 							>
 								Password dimenticata?
 							</Link>
@@ -90,7 +90,7 @@ export default function LoginForm({ onTabChange, notice }: LoginFormProps) {
 						<button
 							onClick={() => onTabChange?.("signup")}
 							type="button"
-							className="text-midori cursor-pointer font-medium"
+							className="text-midori-ink cursor-pointer font-medium"
 						>
 							Registrati
 						</button>

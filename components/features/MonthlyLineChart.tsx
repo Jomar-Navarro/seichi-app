@@ -19,15 +19,15 @@ export default function MonthlyLineChart({ trend }: MonthlyLineChartProps) {
 	const gradU = `gradientUscite-${id}`;
 
 	return (
-		<div className="rounded-[26px] pt-4.5 px-4 pb-3 bg-[rgba(230,233,239,0.05)] border border-[rgba(230,233,239,0.08)] backdrop-blur-[18px] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+		<div className="rounded-[26px] pt-4.5 px-4 pb-3 bg-surface border border-subtle backdrop-blur-[18px] shadow-[inset_0_1px_0_var(--shadow-inset)]">
 			<div className="flex items-center gap-4 mb-4">
 				<div className="flex items-center gap-1.75">
 					<span className="inline-block w-2.5 h-0.75 rounded-full bg-midori" />
-					<span className="text-xs text-kiri">Entrate</span>
+					<span className="text-xs text-muted">Entrate</span>
 				</div>
 				<div className="flex items-center gap-1.75">
 					<span className="inline-block w-2.5 h-0.75 rounded-full bg-aka" />
-					<span className="text-xs text-kiri">Uscite totali</span>
+					<span className="text-xs text-muted">Uscite totali</span>
 				</div>
 			</div>
 			<ResponsiveContainer width="100%" height={160}>
@@ -67,11 +67,14 @@ export default function MonthlyLineChart({ trend }: MonthlyLineChartProps) {
 					<YAxis hide />
 					<Tooltip
 						contentStyle={{
-							background: "var(--color-hane)",
-							border: "1px solid rgba(255,255,255,0.10)",
+							// --color-hane non è mai esistito: la dichiarazione era
+							// invalida e lo sfondo spariva. Vedi l'avvertenza in
+							// CLAUDE.md — una variabile CSS inesistente non fa rumore.
+							background: "var(--modal-bg)",
+							border: "1px solid var(--border)",
 							borderRadius: 12,
 							fontSize: 12,
-							color: "var(--color-tsuki)",
+							color: "var(--text-primary)",
 						}}
 						formatter={(value) => [`€ ${Number(value).toFixed(2)}`, ""]}
 					/>

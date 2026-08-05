@@ -56,7 +56,7 @@ export default function ResetPasswordForm() {
 			<PasswordStrength password={password} />
 
 			{error && (
-				<p className="text-xs text-center mb-3" style={{ color: "var(--color-aka)" }}>
+				<p className="text-xs text-center mb-3" style={{ color: "var(--ink-aka)" }}>
 					{error}
 				</p>
 			)}

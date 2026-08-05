@@ -53,18 +53,40 @@ async function DashboardContent() {
 	const risparmiProgress = totalTarget > 0 ? Math.min(100, Math.round((totalSaved / totalTarget) * 100)) : 0;
 
 	return (
-		<div className="flex flex-col gap-4 px-5 pt-7 pb-32">
-			<div className="flex items-center justify-between">
-				<div>
-					<p className="text-[13px] text-muted">Bentornato</p>
-					<p className="text-xl font-semibold leading-tight">Il tuo terreno</p>
-				</div>
-				{/* Nel mockup la campanella occupa l'angolo in alto a destra, che
-				    nell'app reale è dell'avatar: stanno affiancate. */}
-				<div className="flex items-center gap-2.5">
-					<NotificationBell initialUnread={unreadCount} />
-					<ProfileMenu initials={account.initials} avatarUrl={account.avatarUrl} />
-				</div>
+		// Aloni ambientali come nel mockup: gli stessi di welcome/onboarding,
+		// ora con i colori presi dai token e quindi corretti in entrambi i temi.
+		<div className="relative">
+			{/*
+				Gli aloni stanno in un riquadro FISSO grande quanto il viewport.
+				`.circle-3` è ancorato al `bottom`, e in un contenitore alto quanto
+				la pagina che scorre finirebbe centinaia di px sotto la piega: si
+				animerebbe per sempre senza che nessuno lo veda. Nelle pagine auth
+				il contenitore è già alto quanto lo schermo, qui no.
+			*/}
+			<div className="fixed inset-0 overflow-hidden pointer-events-none">
+				<div className="circle-1" />
+				<div className="circle-3" />
+			</div>
+			{/*
+				`relative` SENZA z-index, di proposito. Un z-index esplicito qui
+				creerebbe uno stacking context e schiaccerebbe a quel livello tutto
+				ciò che sta dentro: il pannello notifiche (`fixed z-50`) finirebbe
+				sotto la BottomNav (`z-40`), che è fratello di {children} nel layout
+				e quindi vive nel contesto radice.
+				Il contenuto sta comunque sopra gli aloni perché entrambi sono
+				posizionati con z-index auto e vince l'ordine nel DOM.
+			*/}
+			<div className="relative flex flex-col gap-4 px-5 pt-7 pb-32">
+			{/* Come nel mockup: a sinistra l'avatar col saluto e il nome (è il
+			    gruppo intero ad aprire il menu), a destra la sola campanella. */}
+			<div className="flex items-center justify-between mb-1">
+				<ProfileMenu
+					initials={account.initials}
+					avatarUrl={account.avatarUrl}
+					name={account.displayName}
+					greeting="Bentornato"
+				/>
+				<NotificationBell initialUnread={unreadCount} />
 			</div>
 
 			<BalanceCard
@@ -140,6 +162,7 @@ async function DashboardContent() {
 
 			<RecentTransaction transactions={transaction.data} />
 			<DashboardRefresher />
+			</div>
 		</div>
 	);
 }

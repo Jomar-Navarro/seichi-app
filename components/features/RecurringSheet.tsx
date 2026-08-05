@@ -163,7 +163,7 @@ export default function RecurringSheet({ isOpen, rule, onClose }: RecurringSheet
 				</div>
 
 				{serverError && (
-					<p className="mt-4 text-xs text-center" style={{ color: "var(--color-aka)" }}>
+					<p className="mt-4 text-xs text-center" style={{ color: "var(--ink-aka)" }}>
 						{serverError}
 					</p>
 				)}

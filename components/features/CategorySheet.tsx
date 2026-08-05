@@ -253,7 +253,7 @@ export default function CategorySheet({
 						{nameError && (
 							<p
 								className="text-xs mt-1.5 ml-1"
-								style={{ color: "var(--color-aka)" }}
+								style={{ color: "var(--ink-aka)" }}
 							>
 								Inserisci un nome
 							</p>
@@ -412,7 +412,7 @@ export default function CategorySheet({
 				{serverError && (
 					<p
 						className="mt-5 text-xs text-center"
-						style={{ color: "var(--color-aka)" }}
+						style={{ color: "var(--ink-aka)" }}
 					>
 						{serverError}
 					</p>

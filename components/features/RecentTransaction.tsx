@@ -6,7 +6,7 @@ import { GOAL_ICON_MAP } from "@/lib/goal-icons";
 import { useUIStore } from "@/store/useUIStore";
 import type { Transaction } from "@/types";
 import {
-	TIPO_COLOR,
+	TIPO_INK,
 	TIPO_LABEL,
 	formatDate,
 	formatAmount,
@@ -47,25 +47,29 @@ export default function RecentTransaction({
 				<Link
 					href="/transazioni"
 					className="text-sm font-medium"
-					style={{ color: "var(--color-midori)" }}
+					style={{ color: "var(--ink-midori)" }}
 				>
 					Vedi tutte →
 				</Link>
 			</div>
 
+			{/*
+				Niente sfumatura in fondo: la lista NON scorre (la Home chiede 5
+				movimenti e li mostra tutti), quindi non c'è nulla da lasciar
+				intuire — ed è a questo che serve una sfumatura.
+			*/}
 			<div className="bg-card border border-subtle rounded-3xl overflow-hidden card-shadow">
 				{transactions.length === 0 ? (
 					<div className="px-4 py-4">
 						<EmptyState />
 					</div>
 				) : (
-					<div className="relative">
-						<div className="flex flex-col gap-0">
-							{transactions.map((t, i) => {
+					<div className="flex flex-col">
+						{transactions.map((t, i) => {
 								const cat = t.categories;
 								const Icon = cat ? (ICON_MAP[cat.icon] ?? GOAL_ICON_MAP[cat.icon]) : null;
 								const color = `var(--color-${cat?.color ?? "kiri"})`;
-								const amountColor = TIPO_COLOR[t.type] ?? "var(--text-primary)";
+								const amountColor = TIPO_INK[t.type] ?? "var(--text-primary)";
 								const isLast = i === transactions.length - 1;
 
 								return (
@@ -106,16 +110,6 @@ export default function RecentTransaction({
 									</button>
 								);
 							})}
-						</div>
-
-						{/* Fade bottom — solo gradiente, nessun blur sul contenuto */}
-						<div
-							className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none"
-							style={{
-								background:
-									"linear-gradient(to top, var(--deep) 0%, transparent 100%)",
-							}}
-						/>
 					</div>
 				)}
 			</div>

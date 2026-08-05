@@ -154,7 +154,7 @@ export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
 							style={{ borderColor: nameError ? "var(--color-aka)" : undefined }}
 						/>
 						{nameError && (
-							<p className="text-xs mt-1.5 ml-1" style={{ color: "var(--color-aka)" }}>
+							<p className="text-xs mt-1.5 ml-1" style={{ color: "var(--ink-aka)" }}>
 								Inserisci un nome
 							</p>
 						)}
@@ -181,7 +181,7 @@ export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
 							/>
 						</div>
 						{amountError && (
-							<p className="text-xs mt-1.5 ml-1" style={{ color: "var(--color-aka)" }}>
+							<p className="text-xs mt-1.5 ml-1" style={{ color: "var(--ink-aka)" }}>
 								Inserisci un importo valido
 							</p>
 						)}
@@ -219,7 +219,7 @@ export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
 										style={{
 											background: selected
 												? "color-mix(in srgb, var(--color-kin) 16%, transparent)"
-												: "rgba(70,62,48,0.06)",
+												: "var(--icon-btn-bg)",
 											border: selected
 												? "1.5px solid var(--color-kin)"
 												: "1.5px solid transparent",
@@ -238,7 +238,7 @@ export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
 				</div>
 
 				{serverError && (
-					<p className="mt-5 text-xs text-center" style={{ color: "var(--color-aka)" }}>
+					<p className="mt-5 text-xs text-center" style={{ color: "var(--ink-aka)" }}>
 						{serverError}
 					</p>
 				)}
@@ -257,7 +257,7 @@ export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
 						disabled={loading}
 						className="mt-3 w-full py-3.5 rounded-2xl text-sm font-semibold border disabled:opacity-50 transition-colors hover:bg-[color-mix(in_srgb,var(--color-aka)_8%,transparent)]"
 						style={{
-							color: "var(--color-aka)",
+							color: "var(--ink-aka)",
 							borderColor: confirmDelete
 								? "var(--color-aka)"
 								: "color-mix(in srgb, var(--color-aka) 35%, transparent)",

@@ -104,7 +104,7 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 										</span>
 									</div>
 									<div className="flex items-center gap-1.5 mt-1">
-										<span className="text-[11px] font-semibold" style={{ color: "var(--color-murasaki)" }}>
+										<span className="text-[11px] font-semibold" style={{ color: "var(--ink-murasaki)" }}>
 											{FREQ_RECUR_LABEL[r.frequency] ?? r.frequency}
 										</span>
 										<span className="w-0.75 h-0.75 rounded-full bg-muted/50" />

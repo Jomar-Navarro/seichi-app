@@ -30,8 +30,10 @@ export default function BottomNav() {
 					WebkitMaskImage:
 						"linear-gradient(to top, black 35%, transparent 100%)",
 					maskImage: "linear-gradient(to top, black 35%, transparent 100%)",
+					// Sfuma verso il fondo pagina, che cambia col tema: cablato al
+					// blu notte era una macchia scura sulla carta chiara.
 					background:
-						"linear-gradient(to top, rgba(15, 22, 36, 0.96) 0%, rgba(15, 22, 36, 0.4) 50%, transparent 100%)",
+						"linear-gradient(to top, color-mix(in srgb, var(--background-secondary) 96%, transparent) 0%, color-mix(in srgb, var(--background-secondary) 40%, transparent) 50%, transparent 100%)",
 				}}
 			/>
 			<div className="fixed left-[50%] translate-[-50%] bottom-0 min-w-88 flex items-center justify-between py-2 px-4 rounded-3xl z-40 border border-subtle bg-surface backdrop-blur-[26px] box-shadow h-16">

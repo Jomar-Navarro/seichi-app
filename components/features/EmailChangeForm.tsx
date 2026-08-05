@@ -75,7 +75,7 @@ export default function EmailChangeForm({ currentEmail }: { currentEmail: string
 				/>
 
 				{error && (
-					<p className="text-xs text-center mb-3" style={{ color: "var(--color-aka)" }}>
+					<p className="text-xs text-center mb-3" style={{ color: "var(--ink-aka)" }}>
 						{error}
 					</p>
 				)}
@@ -110,7 +110,7 @@ export default function EmailChangeForm({ currentEmail }: { currentEmail: string
 			</div>
 
 			{error && (
-				<p className="text-xs text-center mb-3" style={{ color: "var(--color-aka)" }}>
+				<p className="text-xs text-center mb-3" style={{ color: "var(--ink-aka)" }}>
 					{error}
 				</p>
 			)}

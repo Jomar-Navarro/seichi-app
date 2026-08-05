@@ -17,12 +17,21 @@ import type { Option } from "@/components/UI/card";
 
 type ColorScheme = Option["color"];
 
+/**
+ * L'alone della card selezionata era cablato sui valori SCURI degli accenti
+ * (es. 103,165,154 = midori del tema scuro): in chiaro il bagliore aveva una
+ * tinta diversa dal bordo e dal testo della stessa card. Derivandolo dal token
+ * segue il tema da sé.
+ */
+const glow = (accent: string) =>
+	`0px 8px 28px color-mix(in srgb, var(--color-${accent}) 35%, transparent), var(--shadow-inset) 0px 1px 0px inset`;
+
 const COLORS: Record<string, ColorScheme> = {
-	midori:   { border: "border-midori",   bg: "bg-midori/10",   icon: "bg-midori/20",   iconText: "text-midori",   badge: "bg-midori",   shadow: "0px 8px 28px rgba(103,184,154,0.35), rgba(255,255,255,0.07) 0px 1px 0px inset" },
-	aka:      { border: "border-aka",      bg: "bg-aka/10",      icon: "bg-aka/20",      iconText: "text-aka",      badge: "bg-aka",      shadow: "0px 8px 28px rgba(204,140,116,0.35), rgba(255,255,255,0.07) 0px 1px 0px inset" },
-	kin:      { border: "border-kin",      bg: "bg-kin/10",      icon: "bg-kin/20",      iconText: "text-kin",      badge: "bg-kin",      shadow: "0px 8px 28px rgba(212,178,106,0.35), rgba(255,255,255,0.07) 0px 1px 0px inset" },
-	ao:       { border: "border-ao",       bg: "bg-ao/10",       icon: "bg-ao/20",       iconText: "text-ao",       badge: "bg-ao",       shadow: "0px 8px 28px rgba(123,159,224,0.35), rgba(255,255,255,0.07) 0px 1px 0px inset" },
-	murasaki: { border: "border-murasaki", bg: "bg-murasaki/10", icon: "bg-murasaki/20", iconText: "text-murasaki", badge: "bg-murasaki", shadow: "0px 8px 28px rgba(155,127,212,0.35), rgba(255,255,255,0.07) 0px 1px 0px inset" },
+	midori:   { border: "border-midori",   bg: "bg-midori/10",   icon: "bg-midori/20",   iconText: "text-midori",   badge: "bg-midori",   shadow: glow("midori") },
+	aka:      { border: "border-aka",      bg: "bg-aka/10",      icon: "bg-aka/20",      iconText: "text-aka",      badge: "bg-aka",      shadow: glow("aka") },
+	kin:      { border: "border-kin",      bg: "bg-kin/10",      icon: "bg-kin/20",      iconText: "text-kin",      badge: "bg-kin",      shadow: glow("kin") },
+	ao:       { border: "border-ao",       bg: "bg-ao/10",       icon: "bg-ao/20",       iconText: "text-ao",       badge: "bg-ao",       shadow: glow("ao") },
+	murasaki: { border: "border-murasaki", bg: "bg-murasaki/10", icon: "bg-murasaki/20", iconText: "text-murasaki", badge: "bg-murasaki", shadow: glow("murasaki") },
 };
 
 type Group = { label: string; colorKey: string; items: Omit<Option, "color">[] };
@@ -174,7 +183,7 @@ export default function CategoryPage() {
 					</div>
 					<CategoryGroups selected={selected} onChange={toggle} />
 					<div className="grow" />
-					{error && <p className="text-aka text-sm text-center mb-3">{error}</p>}
+					{error && <p className="text-aka-ink text-sm text-center mb-3">{error}</p>}
 					<div className="pb-10 pt-6">
 						<Button onClick={handleComplete} disabled={isLoading} title={isLoading ? "Salvataggio…" : "Completa la configurazione"} variant="welcome" />
 					</div>
@@ -187,7 +196,7 @@ export default function CategoryPage() {
 							<CategoryGroups selected={selected} onChange={toggle} />
 						</div>
 					</div>
-					{error && <p className="text-aka text-sm text-center w-full max-w-lg mx-auto mb-3">{error}</p>}
+					{error && <p className="text-aka-ink text-sm text-center w-full max-w-lg mx-auto mb-3">{error}</p>}
 					<div className="w-full max-w-lg mx-auto pb-14">
 						<Button onClick={handleComplete} disabled={isLoading} title={isLoading ? "Salvataggio…" : "Completa la configurazione"} variant="welcome" />
 					</div>

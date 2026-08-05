@@ -33,25 +33,25 @@ export default async function AnalyticsPage({
 			{/* Header */}
 			<div className="flex items-center justify-between mb-4">
 				<h1 className="text-2xl font-bold">Analisi</h1>
-				<p className="text-sm text-kiri">{periodoLabel(periodo)}</p>
+				<p className="text-sm text-muted">{periodoLabel(periodo)}</p>
 			</div>
 
 			{/* Tab selector — useSearchParams richiede Suspense */}
-			<Suspense fallback={<div className="h-10 rounded-2xl bg-[rgba(230,233,239,0.04)] border border-[rgba(230,233,239,0.09)]" />}>
+			<Suspense fallback={<div className="h-10 rounded-2xl segment-tab" />}>
 				<AnalyticsTabs />
 			</Suspense>
 
 			{/* KPI Flusso netto */}
 			<div className="mt-5 mb-4">
-				<p className="text-[13px] text-kiri mb-1.5">Flusso netto</p>
+				<p className="text-[13px] text-muted mb-1.5">Flusso netto</p>
 				<div className="flex items-center gap-2.5">
-					<p className="text-[34px] font-semibold tracking-[-0.5px] text-tsuki">
+					<p className="text-[34px] font-semibold tracking-[-0.5px] text-foreground">
 						{isPositive ? "+" : "−"} € {numberFormatter.format(Math.abs(analytics.saldoMese))}
 					</p>
 					{analytics.variazionePct !== null ? (
 						<span
 							className={`inline-flex items-center gap-1 text-[12px] font-medium ${
-								analytics.variazionePct >= 0 ? "text-midori" : "text-aka"
+								analytics.variazionePct >= 0 ? "text-midori-ink" : "text-aka-ink"
 							}`}
 						>
 							<svg
@@ -72,7 +72,7 @@ export default async function AnalyticsPage({
 							{Math.abs(analytics.variazionePct)}%
 						</span>
 					) : (
-						<span className="text-[12px] font-medium text-kiri">— primo mese</span>
+						<span className="text-[12px] font-medium text-muted">— primo mese</span>
 					)}
 				</div>
 			</div>

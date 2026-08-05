@@ -303,7 +303,7 @@ export default function TransactionForm({
 											onClick={() => selectDay(day)}
 											className={`h-8 w-full rounded-xl text-xs flex items-center justify-center transition-colors ${
 												isSelected
-													? "bg-foreground text-yoru font-semibold"
+													? "btn-primary font-semibold"
 													: isToday
 														? "border border-subtle font-medium"
 														: "hover:bg-card"
@@ -330,17 +330,29 @@ export default function TransactionForm({
 					>
 						<Repeat size={14} className="text-muted shrink-0" />
 						<span className="text-sm flex-1 text-left">Ripeti</span>
+						{/*
+							Ricalca <Switch> ma NON lo usa: la riga "Ripeti" è già un
+							<button>, e annidarci dentro il bottone role="switch" del
+							componente sarebbe markup interattivo dentro markup
+							interattivo. Qui l'interruttore è quindi solo il disegno
+							dello stato, e il comando è la riga.
+							Usa gli stessi token apposta — pomello acceso var(--cta-text),
+							non un #fff cablato — così i due non divergono.
+						*/}
 						<span
-							className="w-10 h-6 rounded-full relative transition-colors shrink-0"
+							className="w-10 h-6 rounded-full relative transition-colors shrink-0 border"
 							style={{
-								background: isRecurring
-									? selectedType.color
-									: "var(--color-input)",
+								background: isRecurring ? selectedType.color : "var(--switch-track-off)",
+								borderColor: isRecurring ? "transparent" : "var(--border)",
 							}}
 						>
 							<span
-								className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all"
-								style={{ left: isRecurring ? "18px" : "2px" }}
+								className="absolute top-0.5 w-5 h-5 rounded-full transition-all"
+								style={{
+									left: isRecurring ? "17px" : "1px",
+									background: isRecurring ? "var(--cta-text)" : "var(--switch-knob-off)",
+									boxShadow: isRecurring ? "none" : "0 1px 3px rgba(0, 0, 0, 0.15)",
+								}}
 							/>
 						</span>
 					</button>
@@ -411,7 +423,7 @@ export default function TransactionForm({
 							style={{
 								borderColor:
 									"color-mix(in srgb, var(--color-aka) 40%, transparent)",
-								color: "var(--color-aka)",
+								color: "var(--ink-aka)",
 							}}
 						>
 							<Trash2 size={15} />

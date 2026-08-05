@@ -22,6 +22,24 @@
 	--color-kin: #ae8b49;
 	--color-murasaki: #8a6fc4;
 
+	/* ---------- Accenti come INCHIOSTRO ----------
+	   Gli accenti qui sopra sono tarati per RISALTARE su carta: come riempimento,
+	   bordo o icona vanno benissimo. Come TESTO no — su fondo chiaro danno circa
+	   3,2:1, sotto il 4,5:1 che lo standard WCAG AA chiede per la lettura.
+	   Queste sono le stesse tinte portate oltre quella soglia, ed è ciò che fa
+	   il design (#4C6588 per il blu, #5C7350 per il verde).
+	   Effetto collaterale voluto: aka e kin, quasi indistinguibili in chiaro
+	   (#b47358 vs #ae8b49), qui si separano nettamente — e sono i colori di
+	   "uscite" e "risparmi", cioè la distinzione che conta di più nell'app. */
+	--ink-midori: #5c7350;
+	--ink-aka: #96543d;
+	--ink-ao: #4c6588;
+	--ink-kin: #7f6229;
+	--ink-murasaki: #6b4fa8;
+	/* kiri è il neutro di ripiego (categoria senza tipo, sesto posto della
+	   rotazione dei grafici): serve anche lui un inchiostro, o resta scoperto. */
+	--ink-kiri: #6b6558;
+
 	/* ---------- Semantic ---------- */
 
 	--background: radial-gradient(
@@ -50,15 +68,33 @@
 	/* ---------- Components ---------- */
 	--seg-bg: rgba(70, 62, 48, 0.05);
 	--card-bd: rgba(70, 62, 48, 0.1);
-	--bg-tab: rgba(70, 62, 48, 0.08);
+	/* In chiaro il tab attivo è bianco IN RILIEVO, non una tinta più scura:
+	   scavare il selezionato lo fa leggere come disabilitato. In scuro vale
+	   l'opposto, ed è per questo che il token esiste. */
+	--bg-tab: rgba(255, 255, 255, 0.85);
 	--icon-btn-bg: rgba(70, 62, 48, 0.07);
-	--modal-bg: rgba(240, 236, 228, 0.96);
+	/* Più coprente che in scuro, non per gusto: là il sheet copre uno sfondo già
+	   oscurato dall'overlay, qui sotto c'è carta chiara con testo scuro, e il
+	   contrasto residuo lasciava trasparire le scritte della pagina. */
+	--modal-bg: rgba(242, 238, 231, 0.985);
 	--modal-border: rgba(70, 62, 48, 0.1);
 	--modal-handle: rgba(70, 62, 48, 0.18);
 
+	/* Switch spento — acceso riusa --cta-bg / --cta-text */
+	--switch-track-off: rgba(70, 62, 48, 0.12);
+	--switch-knob-off: #ffffff;
+
+	/* Aloni ambientali di sfondo (.circle-1 / .circle-3) */
+	--halo-a: rgba(150, 165, 140, 0.28);
+	--halo-b: rgba(190, 170, 120, 0.2);
+
 	/* ---------- Shadows ---------- */
-	--shadow-drop: rgba(70, 62, 48, 0.1);
-	--shadow-inset: rgba(255, 255, 255, 0.8);
+	/* 0.14, non 0.10: nei mockup chiari le ombre portate stanno fra 0.13 e 0.20
+	   (card 0.13, pulsante crystal 0.20). A 0.10 ogni superficie sembrava
+	   incollata al fondo — è il "manca la profondità" visto sugli investimenti,
+	   e non era un difetto di quella card ma del token. */
+	--shadow-drop: rgba(70, 62, 48, 0.14);
+	--shadow-inset: rgba(255, 255, 255, 0.9);
 
 	/* ---------- CTA / FAB ---------- */
 	--cta-bg: #33373d;
@@ -85,6 +121,16 @@
 	--color-ao: #7b9fe0;
 	--color-kin: #d4b26a;
 	--color-murasaki: #9b7fd4;
+
+	/* In scuro l'inchiostro È l'accento: su fondo notte questi stanno già sopra
+	   6:1. Il token esiste comunque, così i componenti non devono sapere in
+	   quale tema si trovano. */
+	--ink-midori: var(--color-midori);
+	--ink-aka: var(--color-aka);
+	--ink-ao: var(--color-ao);
+	--ink-kin: var(--color-kin);
+	--ink-murasaki: var(--color-murasaki);
+	--ink-kiri: var(--color-kiri);
 
 	--background: radial-gradient(
 		120% 90% at 50% 0%,
@@ -116,6 +162,14 @@
 	--modal-border: rgba(230, 233, 239, 0.12);
 	--modal-handle: rgba(230, 233, 239, 0.2);
 	--icon-btn-bg: rgba(230, 233, 239, 0.08);
+
+	/* Switch spento */
+	--switch-track-off: rgba(230, 233, 239, 0.07);
+	--switch-knob-off: rgba(230, 233, 239, 0.35);
+
+	/* Aloni — valori invariati rispetto a prima dei token: in scuro non cambia nulla */
+	--halo-a: rgba(103, 184, 154, 0.12);
+	--halo-b: rgba(212, 178, 106, 0.13);
 
 	/* Shadows */
 	--shadow-drop: rgba(0, 0, 0, 0.3);
@@ -149,6 +203,14 @@
 	--color-ao: var(--color-ao);
 	--color-kin: var(--color-kin);
 	--color-murasaki: var(--color-murasaki);
+
+	/* Accenti come inchiostro — classi text-*-ink. Per il TESTO si usano questi,
+	   per riempimenti, bordi e icone restano quelli sopra. */
+	--color-midori-ink: var(--ink-midori);
+	--color-aka-ink: var(--ink-aka);
+	--color-ao-ink: var(--ink-ao);
+	--color-kin-ink: var(--ink-kin);
+	--color-murasaki-ink: var(--ink-murasaki);
 
 	/* Text */
 	--color-foreground: var(--text-primary);
@@ -259,11 +321,7 @@ body {
 	width: 300px;
 	height: 300px;
 	border-radius: 50%;
-	background: radial-gradient(
-		circle,
-		rgba(103, 184, 154, 0.12),
-		transparent 68%
-	);
+	background: radial-gradient(circle, var(--halo-a), transparent 68%);
 	filter: blur(46px);
 	opacity: 1;
 	animation: 15s ease-in-out infinite zg-breathe;
@@ -277,11 +335,7 @@ body {
 	width: 300px;
 	height: 300px;
 	border-radius: 50%;
-	background: radial-gradient(
-		circle,
-		rgba(212, 178, 106, 0.13),
-		transparent 53%
-	);
+	background: radial-gradient(circle, var(--halo-b), transparent 53%);
 	filter: blur(48px);
 	opacity: 1;
 	animation: 18s ease-in-out 4s infinite zg-breathe;

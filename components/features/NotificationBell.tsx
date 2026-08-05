@@ -100,7 +100,9 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 				// `z-50` quando aperto: senza, l'overlay (z-40) coprirebbe il bottone
 				// e il secondo tocco finirebbe sull'overlay. Funzionava per caso —
 				// chiudeva lo stesso — ma la campanella non era davvero un interruttore.
-				className={`relative w-10 h-10 rounded-full flex items-center justify-center bg-control border border-subtle card-shadow active:opacity-80 cursor-pointer ${open ? "z-50" : ""}`}
+				// Pastiglia 42px a raggio 14 come nel mockup: è un comando, quindi
+				// una tessera. Il tondo resta all'avatar, che è una persona.
+				className={`relative w-10.5 h-10.5 rounded-[14px] flex items-center justify-center bg-surface border border-subtle card-shadow active:opacity-80 cursor-pointer ${open ? "z-50" : ""}`}
 				aria-label={unread > 0 ? `Notifiche, ${unread} non lette` : "Notifiche"}
 				aria-expanded={open}
 			>
@@ -155,7 +157,7 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 						<div className="overflow-y-auto">
 							{error && (
 								<div className="px-5 py-4 border-b border-subtle">
-									<p className="text-[12.5px]" style={{ color: "var(--color-aka)" }}>
+									<p className="text-[12.5px]" style={{ color: "var(--ink-aka)" }}>
 										{error}
 									</p>
 									<button

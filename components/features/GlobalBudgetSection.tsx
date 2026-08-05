@@ -167,7 +167,7 @@ export default function GlobalBudgetSection() {
 			</div>
 
 			{error && (
-				<p className="text-[11.5px] mt-2 ml-1" style={{ color: "var(--color-aka)" }}>
+				<p className="text-[11.5px] mt-2 ml-1" style={{ color: "var(--ink-aka)" }}>
 					{loadFailed ? `Impossibile leggere il budget: ${error}` : error}
 				</p>
 			)}

@@ -6,6 +6,27 @@ import { numberFormatter } from "@/lib/transaction-utils";
 import type { InvestmentData } from "@/types";
 import { INVESTMENT_TYPE_META as TYPE_META } from "@/lib/investment-types";
 
+const CHART_COLORS = ["ao", "murasaki", "kin", "midori", "aka", "kiri"] as const;
+
+/**
+ * Accento → inchiostro, esplicito.
+ *
+ * Prima il colore del testo si costruiva con `var(--ink-${accent})`: con
+ * `accent = "kiri"` — che è nella rotazione ed è anche il colore di "altro" —
+ * usciva `var(--ink-kiri)`, che allora non esisteva. Una variabile CSS
+ * inesistente non fa rumore, e il badge perdeva il colore in silenzio.
+ * Con una mappa il compilatore vede tutti i nomi e il difetto non è più
+ * esprimibile.
+ */
+const ACCENT_INK: Record<(typeof CHART_COLORS)[number], string> = {
+	ao: "var(--ink-ao)",
+	murasaki: "var(--ink-murasaki)",
+	kin: "var(--ink-kin)",
+	midori: "var(--ink-midori)",
+	aka: "var(--ink-aka)",
+	kiri: "var(--ink-kiri)",
+};
+
 function EmptyState() {
 	return (
 		<div className="flex flex-col items-center justify-center text-center py-16 px-6">
@@ -39,13 +60,22 @@ export default function InvestimentiTab({
 
 	const { total, variazionePct, byType, positions } = data;
 
-	const CHART_COLORS = ["ao", "murasaki", "kin", "midori", "aka", "kiri"];
-	const donutData = positions.map((pos, i) => ({
-		...pos,
-		label: pos.name,
-		chartColor: CHART_COLORS[i % CHART_COLORS.length],
-		fill: `var(--color-${CHART_COLORS[i % CHART_COLORS.length]})`,
-	}));
+	const items = positions.map((pos, i) => {
+		const typeMeta = pos.investment_type ? TYPE_META[pos.investment_type] : undefined;
+		// Il colore viene dalla ROTAZIONE, non dalla tipologia: due posizioni ETF
+		// prenderebbero lo stesso accento e il donut mostrerebbe due fette
+		// identiche con due pallini identici in legenda, cioè illeggibile.
+		// La tipologia resta comunque scritta a parole sul badge.
+		const accent = CHART_COLORS[i % CHART_COLORS.length];
+		return {
+			...pos,
+			label: pos.name,
+			typeLabel: (typeMeta ?? TYPE_META.altro).label,
+			accent,
+			fill: `var(--color-${accent})`,
+			ink: ACCENT_INK[accent],
+		};
+	});
 
 	return (
 		<>
@@ -57,17 +87,20 @@ export default function InvestimentiTab({
 			</p>
 
 			{/* Portfolio value card */}
-			<div className="mt-5 rounded-[26px] pt-4.5 px-5 pb-5 bg-[rgba(230,233,239,0.05)] border border-[rgba(230,233,239,0.08)] backdrop-blur-[18px] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-				<p className="text-[11px] text-kiri uppercase tracking-widest">
+			{/* box-shadow (ombra portata + inset) e non il solo inset: senza la
+			    portata la card non stacca dal fondo ed è quella che nel design
+			    la fa galleggiare. */}
+			<div className="mt-5 rounded-[28px] pt-5 px-5.5 pb-5.5 bg-surface border border-subtle backdrop-blur-[22px] box-shadow">
+				<p className="text-[11px] text-muted uppercase tracking-widest">
 					Valore portafoglio
 				</p>
-				<p className="text-[36px] font-semibold tracking-[-0.5px] mt-2 text-tsuki">
+				<p className="text-[36px] font-semibold tracking-[-0.5px] mt-2 text-foreground">
 					€ {numberFormatter.format(total)}
 				</p>
 				{variazionePct !== null && (
 					<p
 						className={`text-[12px] mt-1.5 flex items-center gap-1 ${
-							variazionePct >= 0 ? "text-midori" : "text-aka"
+							variazionePct >= 0 ? "text-midori-ink" : "text-aka-ink"
 						}`}
 					>
 						<span>{variazionePct >= 0 ? "↑" : "↓"}</span>
@@ -82,7 +115,7 @@ export default function InvestimentiTab({
 			{/* Composizione — visibile solo con almeno 2 posizioni */}
 			{positions.length >= 2 && (
 				<>
-					<p className="text-[14.5px] font-semibold mt-5 mb-3.5 text-tsuki">
+					<p className="text-[14.5px] font-semibold mt-5 mb-3.5 text-foreground">
 						Composizione
 					</p>
 					<div className="flex items-center gap-5">
@@ -90,21 +123,24 @@ export default function InvestimentiTab({
 							<ResponsiveContainer width="100%" height="100%">
 								<PieChart>
 									<Pie
-										data={donutData}
+										data={items}
 										dataKey="total"
 										nameKey="label"
 										innerRadius="60%"
 										outerRadius="85%"
 										strokeWidth={2}
-										stroke="var(--color-yoru)"
+										// Il separatore è il colore del FONDO, non inchiostro: cablato
+										// su --color-yoru somigliava allo sfondo scuro per caso, e in
+										// chiaro disegnava un anello scuro fra le fette.
+										stroke="var(--background-secondary)"
 									/>
 									<Tooltip
 										contentStyle={{
-											background: "var(--color-hane)",
-											border: "1px solid rgba(255,255,255,0.10)",
+											background: "var(--modal-bg)",
+											border: "1px solid var(--border)",
 											borderRadius: 12,
 											fontSize: 12,
-											color: "var(--color-tsuki)",
+											color: "var(--text-primary)",
 										}}
 										formatter={(value) => [
 											`€ ${numberFormatter.format(Number(value))}`,
@@ -114,26 +150,26 @@ export default function InvestimentiTab({
 								</PieChart>
 							</ResponsiveContainer>
 							<div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-0.5">
-								<p className="text-[9.5px] text-kiri uppercase tracking-[0.08em] leading-none">
+								<p className="text-[9.5px] text-muted uppercase tracking-[0.08em] leading-none">
 									Totale
 								</p>
-								<p className="text-[15px] font-semibold text-tsuki leading-none">
+								<p className="text-[15px] font-semibold text-foreground leading-none">
 									€ {numberFormatter.format(total)}
 								</p>
 							</div>
 						</div>
 
 						<div className="flex-1 flex flex-col gap-2.5">
-							{donutData.map((pos) => (
+							{items.map((pos) => (
 								<div key={pos.category_id} className="flex items-center justify-between">
 									<div className="flex items-center gap-2.25">
 										<span
 											className="inline-block w-2 h-2 rounded-full shrink-0"
 											style={{ background: pos.fill }}
 										/>
-										<span className="text-[12.5px] text-tsuki truncate max-w-20">{pos.label}</span>
+										<span className="text-[12.5px] text-foreground truncate max-w-20">{pos.label}</span>
 									</div>
-									<span className="text-[12.5px] text-kiri shrink-0">{pos.pct}%</span>
+									<span className="text-[12.5px] text-muted shrink-0">{pos.pct}%</span>
 								</div>
 							))}
 						</div>
@@ -142,56 +178,53 @@ export default function InvestimentiTab({
 			)}
 
 			{/* Posizioni */}
-			<p className="text-[14.5px] font-semibold mt-5 mb-3 text-tsuki">
+			<p className="text-[14.5px] font-semibold mt-5 mb-3 text-foreground">
 				Posizioni
 			</p>
 			<div className="flex flex-col gap-2.5">
-				{positions.map((pos) => {
+				{items.map((pos) => {
 					const Icon = ICON_MAP[pos.icon] ?? TrendingUpIcon;
-					const typeKey = pos.investment_type ?? "altro";
-					const typeMeta = TYPE_META[typeKey] ?? TYPE_META.altro;
+					const accent = `var(--color-${pos.accent})`;
 
 					return (
 						<div
 							key={pos.category_id}
-							className="rounded-[22px] px-4 py-3.5 bg-card border border-subtle card-shadow"
+							className="rounded-[20px] px-3.5 py-3 bg-surface border border-subtle backdrop-blur-[18px] shadow-[inset_0_1px_0_var(--shadow-inset)]"
 						>
-							<div className="flex items-center gap-3">
+							<div className="flex items-center gap-2.5">
 								<div
-									className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-									style={{
-										background: `color-mix(in srgb, var(--color-${typeMeta.color}) 14%, transparent)`,
-									}}
+									className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+									style={{ background: `color-mix(in srgb, ${accent} 14%, transparent)` }}
 								>
-									<Icon
-										size={18}
-										strokeWidth={1.5}
-										style={{ color: `var(--color-${typeMeta.color})` }}
-									/>
+									<Icon size={17} strokeWidth={1.5} style={{ color: accent }} />
 								</div>
 
 								<div className="flex-1 min-w-0">
-									<p className="text-sm font-semibold truncate">{pos.name}</p>
-									<div className="flex items-center gap-2 mt-0.5">
+									<p className="text-[13.5px] font-semibold truncate">{pos.name}</p>
+									<div className="flex items-center gap-1.5 mt-0.5">
 										<span
-											className="text-[10.5px] font-semibold px-1.5 py-0.5 rounded-md"
+											className="text-[10.5px] font-medium px-1.75 py-px rounded-full"
 											style={{
-												background: `color-mix(in srgb, var(--color-${typeMeta.color}) 18%, transparent)`,
-												color: `var(--color-${typeMeta.color})`,
+												// Tinta dall'accento, testo dall'inchiostro: sulla pastiglia
+												// chiara l'accento pieno non arriva a 4,5:1.
+												background: `color-mix(in srgb, ${accent} 13%, transparent)`,
+												color: pos.ink,
 											}}
 										>
-											{typeMeta.label}
+											{pos.typeLabel}
 										</span>
 										<span className="text-[11px] text-muted">{pos.pct}%</span>
 									</div>
 								</div>
+							</div>
 
-								<div className="text-right shrink-0">
-									<p className="text-[11px] text-muted">Investito</p>
-									<p className="text-sm font-semibold mt-0.5">
-										€ {numberFormatter.format(pos.total)}
-									</p>
-								</div>
+							{/* Riga a sé, come nel design: l'importo non compete più con il
+							    nome per lo spazio orizzontale, che sui nomi lunghi troncava. */}
+							<div className="flex items-center justify-between mt-2.5 text-[12.5px]">
+								<span className="text-muted">Investito</span>
+								<span className="font-semibold">
+									€ {numberFormatter.format(pos.total)}
+								</span>
 							</div>
 						</div>
 					);

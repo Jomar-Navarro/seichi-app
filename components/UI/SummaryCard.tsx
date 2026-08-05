@@ -17,7 +17,15 @@ function CircularProgress({ progress, color }: { progress: number; color: string
 	const offset = circ * (1 - Math.min(Math.max(progress, 0), 100) / 100);
 	return (
 		<svg width={32} height={32} viewBox="0 0 32 32" fill="none">
-			<circle cx={16} cy={16} r={r} stroke="rgba(255,255,255,0.08)" strokeWidth="2.5" />
+			{/* Traccia = l'accento al 18%, come nel mockup: il bianco all'8%
+			    spariva del tutto sul fondo chiaro. */}
+			<circle
+				cx={16}
+				cy={16}
+				r={r}
+				stroke={`color-mix(in srgb, ${color} 18%, transparent)`}
+				strokeWidth="2.5"
+			/>
 			<circle
 				cx={16}
 				cy={16}

@@ -6,6 +6,23 @@ export const TIPO_COLOR: Record<string, string> = {
 	abbonamento:  "var(--color-murasaki)",
 };
 
+/**
+ * Gli stessi ruoli di TIPO_COLOR, ma per il TESTO.
+ *
+ * TIPO_COLOR resta per riempimenti, pastiglie e icone, dove l'accento pieno
+ * serve a risaltare. Per gli importi serve invece leggibilità: in tema chiaro
+ * gli accenti stanno sotto la soglia WCAG AA, e "spesa" e "risparmio"
+ * (#b47358 e #ae8b49) sono per giunta quasi lo stesso marrone — proprio i due
+ * numeri che non devono mai essere confusi.
+ */
+export const TIPO_INK: Record<string, string> = {
+	entrata:      "var(--ink-midori)",
+	spesa:        "var(--ink-aka)",
+	risparmio:    "var(--ink-kin)",
+	investimento: "var(--ink-ao)",
+	abbonamento:  "var(--ink-murasaki)",
+};
+
 export const TIPO_LABEL: Record<string, string> = {
 	entrata:      "Entrate",
 	spesa:        "Uscite",

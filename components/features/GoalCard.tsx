@@ -43,7 +43,7 @@ function CircularRing({ percent, completed }: { percent: number; completed: bool
 				{completed ? (
 					<Check size={14} className="text-muted" />
 				) : (
-					<span className="text-[11px] font-semibold" style={{ color: "var(--color-kin)" }}>
+					<span className="text-[11px] font-semibold" style={{ color: "var(--ink-kin)" }}>
 						{clamped}%
 					</span>
 				)}
@@ -72,13 +72,13 @@ export default function GoalCard({ goal, onEdit }: GoalCardProps) {
 			onClick={() => onEdit(goal)}
 			className="w-full text-left rounded-3xl p-4.5 border active:opacity-75 transition-opacity"
 			style={{
-				background: completed ? "rgba(70,62,48,0.04)" : "var(--surface)",
-				borderColor: completed ? "rgba(70,62,48,0.06)" : "var(--border)",
+				// Lo stato "completato" era cablato su valori chiari (marrone al 4%):
+				// giusto per caso in tema chiaro, invisibile in scuro.
+				background: completed ? "var(--seg-bg)" : "var(--surface)",
+				borderColor: "var(--border)",
 				backdropFilter: completed ? "none" : "blur(18px)",
 				WebkitBackdropFilter: completed ? "none" : "blur(18px)",
-				boxShadow: completed
-					? "inset 0 1px 0 rgba(255,255,255,0.4)"
-					: "inset 0 1px 0 rgba(255,255,255,0.6)",
+				boxShadow: `inset 0 1px 0 ${completed ? "transparent" : "var(--shadow-inset)"}`,
 			}}
 		>
 			<div className="flex items-center gap-3">
@@ -86,7 +86,7 @@ export default function GoalCard({ goal, onEdit }: GoalCardProps) {
 					className="w-10 h-10 shrink-0 rounded-2xl flex items-center justify-center"
 					style={{
 						background: completed
-							? "rgba(138,151,176,0.10)"
+							? "var(--icon-btn-bg)"
 							: "color-mix(in srgb, var(--color-kin) 14%, transparent)",
 					}}
 				>

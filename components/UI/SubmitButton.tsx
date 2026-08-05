@@ -9,7 +9,9 @@ const BASE =
 
 const DANGER_STYLE: CSSProperties = {
 	background: "color-mix(in srgb, var(--color-aka) 20%, transparent)",
-	color: "var(--color-aka)",
+	// Tinta dall'accento, etichetta dall'inchiostro: l'accento pieno su una
+	// campitura al 20% dava ~2,7:1, ed è il bottone che elimina l'account.
+	color: "var(--ink-aka)",
 	borderColor: "color-mix(in srgb, var(--color-aka) 32%, transparent)",
 };
 
