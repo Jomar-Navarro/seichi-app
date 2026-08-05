@@ -113,7 +113,9 @@ export default function RecentTransaction({
 							className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none"
 							style={{
 								background:
-									"linear-gradient(to top, var(--deep) 0%, transparent 100%)",
+									// Il token si chiama --color-deep, non --deep: la dichiarazione era
+									// invalida, quindi questa sfumatura non è mai stata disegnata.
+									"linear-gradient(to top, var(--background-secondary) 0%, transparent 100%)",
 							}}
 						/>
 					</div>
