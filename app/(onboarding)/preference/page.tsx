@@ -12,6 +12,7 @@ import {
 import Button from "@/components/UI/Button";
 import Select from "@/components/UI/Select";
 import OnboardingProgress from "@/components/UI/OnboardingProgress";
+import { DEFAULT_LOCALE, LOCALE_LABELS } from "@/lib/i18n/config";
 
 const currencies = [
 	{ value: "EUR", label: "Euro", icon: <Euro size={18} /> },
@@ -20,15 +21,20 @@ const currencies = [
 	{ value: "JPY", label: "Yen", icon: <JapaneseYen size={18} /> },
 ];
 
+// I `value` sono i tag canonici minuscoli, gli stessi che finiscono in
+// `profiles.language` e nel cookie. Erano "IT"/"EN" e le impostazioni leggevano
+// minuscolo: la scelta dell'inglese si perdeva per strada senza dirlo.
+// L'etichetta è l'endonimo e non si traduce — chi cerca l'inglese non riconosce
+// la parola "Inglese".
 const languages = [
 	{
-		value: "IT",
-		label: "Italiano",
+		value: "it",
+		label: LOCALE_LABELS.it,
 		icon: <span className="text-base">🇮🇹</span>,
 	},
 	{
-		value: "EN",
-		label: "English",
+		value: "en",
+		label: LOCALE_LABELS.en,
 		icon: <span className="text-base">🇬🇧</span>,
 	},
 ];
@@ -36,7 +42,7 @@ const languages = [
 export default function PreferencePage() {
 	const router = useRouter();
 	const [currency, setCurrency] = useState("EUR");
-	const [language, setLanguage] = useState("IT");
+	const [language, setLanguage] = useState<string>(DEFAULT_LOCALE);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 

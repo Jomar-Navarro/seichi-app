@@ -1,6 +1,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { normalizeLocale } from "@/lib/i18n/config";
+import { setLocaleCookie } from "@/lib/i18n/server";
 
 export async function savePreferences(currency: string, language: string) {
 	const supabase = await createClient();
@@ -8,11 +10,25 @@ export async function savePreferences(currency: string, language: string) {
 
 	if (!user) return { error: "Non autenticato" };
 
+	// ⚠️ Il tag si normalizza QUI, al confine. Questa action ha sempre scritto in
+	// `profiles.language` il valore grezzo della select — cioè "IT"/"EN"
+	// maiuscoli — mentre le impostazioni leggevano "it"/"en": chi sceglieva
+	// English alla registrazione si ritrovava la pagina impostazioni su
+	// "Italiano", in silenzio. Finché nessuno consumava quel campo il difetto era
+	// invisibile; da ora in poi sarebbe l'intera app nella lingua sbagliata.
+	const locale = normalizeLocale(language);
+	if (!locale) return { error: "Lingua non supportata" };
+
 	const { error } = await supabase
 		.from("profiles")
-		.upsert({ id: user.id, currency, language });
+		.upsert({ id: user.id, currency, language: locale });
 
-	return error ? { error: error.message } : { success: true };
+	if (error) return { error: error.message };
+
+	// Il cookie è ciò che il rendering legge: senza questa riga la scelta finirebbe
+	// nel database e la pagina successiva dell'onboarding resterebbe in italiano.
+	await setLocaleCookie(locale);
+	return { success: true };
 }
 
 const CATEGORY_MAP: Record<string, { name: string; icon: string; color: string; type: string }> = {

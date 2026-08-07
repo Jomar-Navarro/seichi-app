@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { syncLocaleFromProfile } from "@/lib/i18n/server";
 import { SITE_URL } from "@/lib/site-url";
 
 export async function login(_prevState: { error: string }, formData: FormData) {
@@ -22,9 +23,13 @@ export async function login(_prevState: { error: string }, formData: FormData) {
 	if (user) {
 		const { data: profile } = await supabase
 			.from("profiles")
-			.select("currency")
+			.select("currency, language")
 			.eq("id", user.id)
 			.single();
+		// `language` viaggia con la query che c'era già per il gate dell'onboarding:
+		// è il momento in cui la preferenza salvata sul profilo diventa la lingua di
+		// questa sessione, ed è ciò che la rende valida su un dispositivo nuovo.
+		await syncLocaleFromProfile(profile?.language);
 		if (!profile?.currency) {
 			redirect("/start");
 		}

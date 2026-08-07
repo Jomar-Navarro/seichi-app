@@ -3,6 +3,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { normalizeLocale } from "@/lib/i18n/config";
+import { setLocaleCookie } from "@/lib/i18n/server";
 import type { Category } from "@/types";
 
 // Il colore di una categoria deriva dal suo tipo (design Zen Glass)
@@ -123,11 +125,20 @@ export async function updatePreferences(currency: string, language: string) {
 	const { data: { user } } = await supabase.auth.getUser();
 	if (!user) return { error: "Non autenticato" };
 
+	// Stessa normalizzazione di `savePreferences`: il tag canonico è minuscolo.
+	const locale = normalizeLocale(language);
+	if (!locale) return { error: "Lingua non supportata" };
+
 	const { error } = await supabase
 		.from("profiles")
-		.upsert({ id: user.id, currency, language });
+		.upsert({ id: user.id, currency, language: locale });
 
 	if (error) return { error: error.message };
+
+	// Prima del `revalidatePath`: il layout riletto deve già vedere il cookie
+	// nuovo, altrimenti la pagina si ridisegna nella lingua vecchia e il cambio
+	// sembrerebbe non aver funzionato fino al caricamento successivo.
+	await setLocaleCookie(locale);
 	revalidatePath("/", "layout");
 	return { success: true };
 }

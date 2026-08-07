@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getInitials, getDisplayName } from "@/lib/profile";
+import { DEFAULT_LOCALE, normalizeLocale } from "@/lib/i18n/config";
 import type { AccountContext } from "@/types";
 
 /**
@@ -31,7 +32,10 @@ export async function getAccountContext(): Promise<AccountContext> {
 		fullName,
 		avatarUrl: profile?.avatar_url ?? null,
 		currency: profile?.currency ?? "EUR",
-		language: profile?.language ?? "it",
+		// Normalizzato in lettura, non solo in scrittura: le righe scritte prima
+		// della Fase 19 contengono "IT"/"EN" maiuscoli, e la migration che le
+		// ripulisce non copre chi non l'ha ancora eseguita in locale.
+		language: normalizeLocale(profile?.language) ?? DEFAULT_LOCALE,
 		displayName: getDisplayName(fullName, email),
 		initials: getInitials(fullName, email),
 		// Chi si è registrato solo con Google/Facebook non ha una password da
