@@ -36,7 +36,8 @@ app/
 │       ├── categorie/    #     gestione categorie custom
 │       └── ricorrenti/   #     regole ricorrenti
 ├── auth/confirm/         # verifyOtp per link email (?next= per il recupero password)
-└── layout.tsx            # root layout (forza tema .dark su <html>)
+└── layout.tsx            # root layout — legge i cookie e decide `.dark` e `lang`
+                          #   su <html> (Fasi 18-19). NON forza più nulla
 
 components/
 ├── UI/                   # Button, Input, Select, card, BrandHeader, OnboardingProgress,
@@ -44,27 +45,36 @@ components/
 │   │                     # SummaryCard, Sparkline, EmptyState, Avatar, PageHeader,
 │   │                     # SettingsRow (+ SettingsGroup), PasswordInput,
 │   │                     # PasswordStrength, SubmitButton, StatusScreen, AuthShell,
-│   │                     # Switch
+│   │                     # Switch, FrequencySelector, DatePicker
 ├── features/             # BalanceCard, TransactionList, RecentTransaction, Filterbar,
 │   │                     # GoalCard, GoalSheet, GoalsPageClient, InvestimentiTab,
 │   │                     # HomeSkeleton, DashboardRefresher, AnalyticsTabs,
 │   │                     # SpendingPieChart, MonthlyLineChart, ProfileEditor,
 │   │                     # EmailChangeForm, PasswordChangeForm, DeleteAccountFlow,
-│   │                     # ForgotPasswordForm, ResetPasswordForm,
-│   │                     # ThemeProvider (+ useTheme), ThemeToggle, ThemeSection
+│   │                     # ForgotPasswordForm, ResetPasswordForm, NotificationBell,
+│   │                     # ThemeProvider (+ useTheme), ThemeToggle, ThemeSection,
+│   │                     # I18nProvider (+ useI18n)
 ├── LoginForm.tsx, SignUpForm.tsx, PasswordField.tsx
 └── icons.tsx             # GoogleIcon, FacebookIcon
 
 lib/
 ├── supabase/             # client.ts, server.ts, proxy.ts (PUBLIC_PATHS)
+├── i18n/                 # config.ts (locale, cookie, negoziazione — client-safe),
+│   │                     # format.ts (Intl: numeri, denaro, date, plurali),
+│   │                     # server.ts (getI18n/getDictionary — importa next/headers),
+│   │                     # dictionaries/it.ts (fonte di verità) + en.ts (Fase 19)
 ├── seichi-icons.tsx      # set icone SVG custom (SeichiIcon)
 ├── icon-map.ts           # nome categoria → icona (Lucide)
 ├── goal-icons.ts         # GOAL_ICON_MAP + GOAL_ICONS
-├── investment-types.ts   # INVESTMENT_TYPE_META (label + colore per tipo)
-├── transaction-utils.ts  # TIPO_COLOR/LABEL, formatDate, formatAmount, numberFormatter
+├── category-icons.ts     # CATEGORY_LIBRARY — SOLO id icona per tipo (etichette nel dizionario)
+├── investment-types.ts   # INVESTMENT_TYPE_COLOR + FALLBACK (le etichette nel dizionario)
+├── transaction-utils.ts  # TIPO_COLOR/TIPO_INK, formatDate, formatAmount
+├── budget.ts             # BUDGET_PERIODS (id), soglia, budgetStatus/Color/Ink
+├── recurring.ts          # FREQUENCIES (id) + aritmetica delle date
 ├── account.ts            # getAccountContext() — user + profilo per le impostazioni
 ├── profile.ts            # getInitials, getDisplayName
 ├── password.ts           # PASSWORD_MIN_LENGTH, scorePassword, validateNewPassword
+├── notifications.ts      # icone/colori per tipo + renderNotification (frasi dal payload)
 ├── safe-redirect.ts      # safeNext() — blocca gli open redirect sul parametro next
 └── theme.ts              # tipi, cookie e risoluzione del tema (Fase 18)
 
@@ -93,11 +103,15 @@ types/  index.ts           # Transaction, Category, GoalWithProgress, Investment
 -- Ogni tabella ha RLS abilitato
 -- NB: i nomi colonna sono in INGLESE (amount/type/date...), non italiano
 
-profiles: id (= auth.users.id), currency (TEXT), language (TEXT),
+profiles: id (= auth.users.id), currency (TEXT), language (TEXT, nullable),
           full_name (TEXT, nullable), avatar_url (TEXT, nullable)
 -- La riga nasce da un trigger on_auth_user_created (non più solo in onboarding);
 --   full_name viene fatto backfill da auth.users.raw_user_meta_data.
 -- Il nome NON si legge da user_metadata: quel campo è scrivibile dal client.
+-- language: tag MINUSCOLO ('it' | 'en'), vincolato da profiles_language_check
+--   (Fase 19). NULL = non ancora scelto → l'app ripiega su Accept-Language, che
+--   è un'informazione migliore di un italiano d'ufficio. Vietare NULL romperebbe
+--   la registrazione, perché il trigger crea la riga prima dell'onboarding.
 
 categories: id, user_id, name (TEXT), icon (TEXT), color (TEXT),
             type (TEXT), created_at,
@@ -531,9 +545,182 @@ non sono semplici sostituzioni di colore:
 - Saluto orario al posto di "Bentornato": il server è in UTC su Vercel, quindi un
   "buongiorno" alle 23 è peggio di un saluto neutro. Si fa lato client, al costo di un
   lampo del testo dopo l'idratazione.
-- ⚠️ **`<input type="date">` mostra `mm/dd/yyyy`**: il formato segue la lingua del
-  **browser**, non `lang="it"` della pagina. Si chiude solo con un picker custom —
-  naturale accostarlo alla Fase 19 (i18n).
+- ~~⚠️ **`<input type="date">` mostra `mm/dd/yyyy`**~~ — **chiuso nella Fase 19**
+  con `components/UI/DatePicker.tsx`. Il formato seguiva la lingua del **browser**,
+  non `lang="it"` della pagina: era l'unico pezzo di interfaccia non traducibile,
+  perché il testo lo disegna il browser e non è nostro.
+
+### Fase 19 — lingua (it/en)
+
+Implementata il 2026-08-07 (issue #33). Migration `20260807_language.sql`, eseguita.
+Verificata end-to-end. **96 file toccati, 545 voci di dizionario per lingua.**
+
+#### Le tre decisioni di partenza
+
+- **Il locale NON sta nell'URL.** Le route restano in italiano (`/impostazioni`,
+  `/risparmi`): sono identificatori, non testo. Metterlo nel percorso avrebbe
+  imposto `app/[locale]/`, il riadattamento di `PUBLIC_PATHS` nel proxy e la
+  revisione di ogni `redirect()` e `emailRedirectTo`, in cambio di URL
+  condivisibili per lingua e SEO multilingua — che dietro un login non valgono
+  nulla. La preferenza vive in un **cookie**, come il tema della Fase 18.
+- ⚠️ **Un cookie solo, non due.** Il tema ne ha due perché `prefers-color-scheme`
+  è una proprietà del browser e **non viaggia negli header**, lasciando il server
+  cieco sulla scelta "sistema". `Accept-Language` invece viaggia: il server
+  risolve da sé anche alla primissima visita. È il caso **speculare**, e vale
+  sfruttarlo invece di ricopiare la struttura del tema per simmetria.
+- **`profiles.language` NON si legge a ogni render**: sarebbe una query a
+  Supabase su ogni pagina per un valore che cambia due volte nella vita di un
+  account. La riga del database è la persistenza fra dispositivi e viene
+  riversata nel cookie **al login**, dentro la query che già interroga il profilo
+  per il gate dell'onboarding (`profiles.currency`) — quindi a costo zero.
+  Il cookie è la fonte per il rendering.
+
+#### Struttura
+
+- **Dizionari tipizzati a mano, zero dipendenze.** `it.ts` è la fonte di verità,
+  `en.ts` è annotato `: Dictionary` e derivato da essa: una chiave dimenticata
+  **non compila**, invece di apparire in produzione come `settings.account.title`
+  in mezzo alla pagina. Plurali e numeri con `Intl.PluralRules` /
+  `Intl.NumberFormat`, che sono nativi.
+- ⚠️ **`it.ts` non usa `as const`.** Con le stringhe irrigidite a tipi letterali,
+  `Dictionary` pretenderebbe da `en.ts` esattamente le stesse parole italiane.
+- ⚠️ **I dizionari contengono SOLO stringhe e oggetti semplici, mai funzioni.**
+  Il dizionario attraversa il confine server→client come prop di
+  `<I18nProvider>`: una funzione lì dentro fa fallire la serializzazione RSC.
+  I valori variabili passano da segnaposto `{nome}` + `fill()`.
+- **`I18nProvider` non ha `setLocale`**, a differenza di `ThemeProvider`. Il tema
+  cambia nel fotogramma corrente perché al client basta una classe; le parole
+  stanno sul server. L'alternativa era impacchettare entrambe le lingue nel
+  browser per risparmiare un round-trip su un'azione biennale.
+- **`lib/i18n/config.ts` non importa `next/headers`** (serve ai client component);
+  `server.ts` sì, ed è quella la guardia che rende il modulo inutilizzabile dal
+  client — per questo non serve il pacchetto `server-only`.
+- **`en-GB` e non `en-US`** come tag `Intl`. Seichi è un'app europea in euro:
+  `en-US` scriverebbe `8/7/2026`. `en-GB` dà `07/08/2026`, identico all'italiano.
+- **Gli errori li traducono le server action**, che il cookie ce l'hanno:
+  `requireUser()` restituisce anche il dizionario. Restituire codici da mappare
+  sul client sarebbe più puro ma raddoppierebbe gli elenchi da tenere allineati.
+
+#### Il testo esce da `lib/`, e non è un dettaglio di stile
+
+Sette moduli distribuivano una parola accanto a un dato. È lo stesso schema di
+`TIPO_COLOR`/`TIPO_INK`, applicato ovunque: **il modulo tiene la meccanica, il
+dizionario le parole.**
+
+| Modulo | Cosa se n'è andato |
+|---|---|
+| `transaction-utils.ts` | `TIPO_LABEL`, `numberFormatter` |
+| `types/index.ts` | `TRANSACTION_TYPES[].label` e `.description` — in un file di TIPI |
+| `password.ts` | etichette di robustezza; `validateNewPassword` ora torna un **codice** |
+| `budget.ts` | `label`/`suffix`/`window` per periodo |
+| `recurring.ts` | `label`/`recurLabel` per cadenza |
+| `category-icons.ts` | 69 etichette icona |
+| `investment-types.ts` | `label` per tipologia |
+
+⚠️ **Le etichette icona sono annidate per TIPO, non una mappa piatta `id →
+etichetta`**: nove icone cambiano nome col contesto (`Landmark` è "Bonifico" fra
+le entrate e "Azioni" fra gli investimenti; `Home` è "Casa / Affitto" fra le
+spese e "Casa nuova" fra i risparmi). Appiattire avrebbe mostrato l'etichetta di
+un altro contesto **senza alcun errore**.
+
+#### Quello che fa `Intl`, e che quindi NON sta nei dizionari
+
+Sei array/rami italiani sono spariti perché `Intl` li produce per ogni lingua.
+Vale la pena cercarne altri prima di aggiungere una voce di dizionario:
+
+- `"Oggi"`/`"Ieri"` e `"oggi"/"domani"/"fra N giorni"` → `Intl.RelativeTimeFormat`
+  con `numeric: "auto"` (`relativeDayLabel`, `formatRelativeTime`)
+- `MESI`/`GIORNI` in `action.ts`, `MESI_LUNGHI` in `/analisi`, `DAYS` in
+  `TransactionForm` → `Intl.DateTimeFormat` (`formatDate`, `weekdayInitials`)
+- plurali scritti a mano (`n === 1 ? … : …`) in quattro punti → `Intl.PluralRules`
+  (`plural()`)
+
+#### I difetti che la traduzione ha fatto emergere
+
+- ⚠️ **`profiles.language` conteneva `"IT"`/`"EN"` maiuscoli.** L'onboarding
+  scriveva il valore grezzo della select, le impostazioni leggevano minuscolo:
+  chi sceglieva English si ritrovava "Italiano", in silenzio. Invisibile finché
+  nessuno consumava il campo; con l'i18n acceso sarebbe stata l'intera app nella
+  lingua sbagliata. Normalizzato al confine (`normalizeLocale`), in lettura, e
+  con un `CHECK` in migration — perché il codice applicativo lo scavalca un
+  insert dal SQL Editor.
+- ⚠️ **`nuova {type}` era grammaticalmente sbagliato in italiano per tre tipi su
+  cinque**: il pulsante diceva "Nuova investimento", "Nuova risparmio", "Nuova
+  abbonamento". Un aggettivo si accorda col genere del nome, e il genere non sta
+  nella chiave del database. **In inglese il problema non esiste — ed è
+  esattamente per questo che un template pensato in inglese lo nasconde.**
+  Ora `newByType` ha frasi intere. Stessa classe: `Seleziona ${title}` in
+  `Select` (che produceva "Seleziona category") e `Budget "X" ` + aggettivo nelle
+  notifiche.
+- ⚠️ **`splitAmount` in `BalanceCard` si sarebbe rotto in inglese.** Cercava la
+  virgola (`lastIndexOf(",")`) per staccare i decimali; in `en-GB` la virgola
+  separa le MIGLIAIA, quindi `1,234.50` sarebbe diventato `1` grande e `,234.50`
+  piccolo. Ora passa da `formatToParts`, che etichetta i pezzi.
+- **`GoalCard` era l'unico punto che usava `style: "currency"`**, cioè scriveva
+  "180 €" mentre tutto il resto scrive "€ 180".
+- Tre `color: "#fff"` sopra un riempimento d'accento (la stessa dialog di
+  conferma, ricopiata tre volte) — la trappola documentata nella Fase 18.
+
+#### Le categorie di default: tradotte alla SCRITTURA
+
+`CATEGORY_MAP` non ha più `name`. Il nome arriva da
+`t.presetCategories[chiave].title` **al momento dell'insert**, non al render.
+
+Motivo: una volta scritto in `categories.name` non è più una stringa dell'app ma
+un **dato dell'utente**, rinominabile, e già copiato nel payload delle notifiche
+(`'category', c.name` nella migration della 17b). Tradurlo alla lettura avrebbe
+richiesto una colonna `preset_key`, una regola "se è valorizzata ignora `name`",
+l'azzeramento al primo rename — e avrebbe fatto **disaccordare la lista dalle
+notifiche già emesse**, due nomi per la stessa categoria nella stessa schermata.
+Chi cambia lingua dopo rinomina le proprie categorie, come farebbe comunque.
+
+Lo **stesso catalogo** serve il picker dell'onboarding e la server action: se
+fossero due elenchi, la card potrebbe dire "Groceries" e la categoria creata
+chiamarsi "Alimentari".
+
+#### Le notifiche: la 17b aveva ragione
+
+`payload` JSONB con i **fatti** invece della frase già composta era stato deciso
+nella Fase 17b prevedendo esattamente questo momento. Il risultato: le frasi si
+compongono alla lettura, quindi **anche le notifiche di mesi fa cambiano lingua**
+insieme all'app. Salvando il testo, tutto lo storico sarebbe rimasto italiano.
+
+#### La valuta NON è stata toccata
+
+`profiles.currency` è scelta dall'utente e già letta da `getAccountContext()` e
+dalle notifiche, ma farla arrivare a ogni foglia è un lavoro **indipendente dalla
+lingua** — tocca gli stessi file per un'altra ragione. Il comportamento resta
+identico dietro `DISPLAY_CURRENCY` in `lib/i18n/format.ts`: quando si affronterà,
+basta seguirne i riferimenti invece di cercare "€" in tutto il codice. Per questo
+anche i cinque `€` decorativi nel markup passano da `currencySymbol()`.
+
+#### ⚠️ Come verificare, e cosa la verifica NON vede
+
+Quattro controlli, tutti ripetibili. I primi due sono **codice di verifica usa e
+getta**, non parte del repo: si riscrivono in dieci minuti quando servono.
+
+1. **Testo cablato** — cerca stringhe letterali in posizione di testo (nodi JSX,
+   prop testuali, qualsiasi stringa con uno spazio). ⚠️ **NON cercare "parole
+   italiane da un elenco"**: è stato provato e ha mancato "Altro", "Ago",
+   "Investito", "Seleziona" — e non avrebbe mai trovato
+   `"Sorry, something went wrong"`, che era cablato **in inglese**. In un'app
+   tradotta ogni letterale in posizione di testo è un residuo, in qualunque
+   lingua: quello è il controllo giusto.
+2. **Confine server→client** — per ogni server component, le prop
+   `icon`/`on*`/`render*` passate a un figlio `"use client"`.
+3. **Parità dizionari** — stesse foglie in it/en, voci mai usate, e **valori
+   identici fra le due lingue** (una traduzione dimenticata compila benissimo;
+   i 26 identici attuali sono tutti parole internazionali: Email, ETF, Budget…).
+4. **Audit dei token CSS** della Fase 18, incluse le costruzioni **dinamiche**
+   (`` var(--color-${accent}) ``): il suffisso non è visibile al grep, quindi
+   vanno enumerati i valori possibili.
+
+⚠️ **`tsc` e `next build` non vedono gli errori di serializzazione RSC.** Marcare
+`SummaryCard` come `"use client"` per usare `useI18n()` ha rotto la home: la
+pagina è un server component e gli passa `icon`, cioè una funzione. I tipi erano
+corretti e la build passava — l'errore compare solo **aprendo la pagina**.
+`SummaryCard` resta quindi un server component e legge la lingua con `getI18n()`.
+Build verde non significa app funzionante.
 
 ## Auth Flow
 
@@ -771,7 +958,12 @@ Seguire questo ordine, non saltare fasi:
     e selettore in `/impostazioni`. Motivazioni e trappole del tema chiaro nella
     sezione "Fase 18" sopra. Include l'allineamento di Home, Investimenti e Analisi
     ai mockup e i token `--ink-*`.
-19. Lingua i18n (it/en) — collegare la preferenza `profiles.language` già salvata ma inattiva
+19. ✅ Lingua i18n (it/en) (issue #33) — dizionari tipizzati a mano, locale da cookie
+    (niente `[locale]` nell'URL), `profiles.language` normalizzata e riversata nel
+    cookie al login. Il testo esce da sette moduli di `lib/`; sei array italiani
+    passano a `Intl`. Include il `DatePicker` custom che chiude il debito
+    `<input type="date">` della Fase 18. Motivazioni e trappole in "Fase 19" sopra.
+    Migration `20260807_language.sql` eseguita, verificata end-to-end il 2026-08-07
 20. Conti/wallet multipli — tabella `accounts` + `account_id` su transactions + trasferimenti (feature STRUTTURALE: decide lo schema presto)
 21. Import dati — CSV / estratto Trade Republic via file (nessuna API ufficiale TR: si importa un CSV, es. generato da `pytr`; l'app non gestisce credenziali)
 22. Allegati/ricevute — foto scontrino sulle transazioni via Supabase Storage
@@ -811,4 +1003,9 @@ Ordine per priorità (il viewport è il problema più sentito):
 - **Obiettivi = categorie**: nessuna tabella goal separata — categorie `type='risparmio'` con `target_amount`/`target_date`; `saved_amount` calcolato dalle transazioni. Scelta confermata (no tabella dedicata finché non servono prelievi tracciati o stato completato persistito). Il "prelievo" da un obiettivo si fa cancellando la transazione (non lascia storico). Categorie risparmio e obiettivi **convivono** di proposito. NB Fase 13: eliminare una categoria risparmio = eliminare l'obiettivo → deve usare la stessa logica/conferma di `deleteGoal`, non un delete secco.
 - **Colonne DB in inglese**: `amount`, `type`, `category_id`, `notes`, `date` (non italiano)
 - **Ricorrenti**: generazione automatica lato server con pg_cron (non al login)
-- **Monetario**: DECIMAL(10,2) in DB, `Intl.NumberFormat` per display
+- **Monetario**: DECIMAL(10,2) in DB, `Intl.NumberFormat` per display — dalla Fase 19
+  sempre tramite `lib/i18n/format.ts` (`formatMoney`/`formatNumber`), mai un
+  `new Intl.NumberFormat("it-IT")` cablato: quello non è spostabile su un altro locale
+- **Lingua**: dizionari tipizzati in `lib/i18n/dictionaries/`, locale dal cookie.
+  Nessuna stringa rivolta all'utente vive fuori dai dizionari — nemmeno dentro
+  `lib/`, che tiene solo la meccanica (vedi "Fase 19")
