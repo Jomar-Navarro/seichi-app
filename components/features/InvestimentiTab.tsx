@@ -2,10 +2,11 @@
 import { PieChart, Pie, Tooltip, ResponsiveContainer } from "recharts";
 import { TrendingUpIcon } from "@/lib/seichi-icons";
 import { ICON_MAP } from "@/lib/icon-map";
+import { INVESTMENT_TYPE_FALLBACK } from "@/lib/investment-types";
 import { useI18n } from "./I18nProvider";
 import { DISPLAY_CURRENCY, fill, formatMoney, plural } from "@/lib/i18n/format";
 import type { InvestmentData } from "@/types";
-import { INVESTMENT_TYPE_META as TYPE_META } from "@/lib/investment-types";
+
 
 const CHART_COLORS = ["ao", "murasaki", "kin", "midori", "aka", "kiri"] as const;
 
@@ -70,7 +71,8 @@ export default function InvestimentiTab({
 	const { total, variazionePct, byType, positions } = data;
 
 	const items = positions.map((pos, i) => {
-		const typeMeta = pos.investment_type ? TYPE_META[pos.investment_type] : undefined;
+		const typeKey = (pos.investment_type ??
+				INVESTMENT_TYPE_FALLBACK) as keyof typeof t.investments.types;
 		// Il colore viene dalla ROTAZIONE, non dalla tipologia: due posizioni ETF
 		// prenderebbero lo stesso accento e il donut mostrerebbe due fette
 		// identiche con due pallini identici in legenda, cioè illeggibile.
@@ -79,7 +81,8 @@ export default function InvestimentiTab({
 		return {
 			...pos,
 			label: pos.name,
-			typeLabel: (typeMeta ?? TYPE_META.altro).label,
+			typeLabel:
+				t.investments.types[typeKey] ?? t.investments.types[INVESTMENT_TYPE_FALLBACK],
 			accent,
 			fill: `var(--color-${accent})`,
 			ink: ACCENT_INK[accent],
@@ -229,7 +232,7 @@ export default function InvestimentiTab({
 							{/* Riga a sé, come nel design: l'importo non compete più con il
 							    nome per lo spazio orizzontale, che sui nomi lunghi troncava. */}
 							<div className="flex items-center justify-between mt-2.5 text-[12.5px]">
-								<span className="text-muted">Investito</span>
+								<span className="text-muted">{t.investments.invested}</span>
 								<span className="font-semibold">
 									{money(pos.total)}
 								</span>

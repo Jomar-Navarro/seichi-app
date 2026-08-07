@@ -79,7 +79,7 @@ export default function ProfileMenu({ initials, avatarUrl, name, greeting }: Pro
 						>
 							<LogOut size={16} style={{ color: "var(--color-aka)" }} />
 							<span className="text-sm font-medium" style={{ color: "var(--ink-aka)" }}>
-								Esci
+								{t.profileMenu.signOut}
 							</span>
 						</button>
 					</form>

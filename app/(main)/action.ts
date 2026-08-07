@@ -1,5 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { getI18n } from "@/lib/i18n/server";
+import { formatDate } from "@/lib/i18n/format";
 import { createClient } from "@/lib/supabase/server";
 import { firstRunFrom, rollForwardPastToday } from "@/lib/recurring";
 import type { Frequency } from "@/types";
@@ -15,8 +17,9 @@ export async function saveTransaction(
 	const {
 		data: { user },
 	} = await supabase.auth.getUser();
+	const t = await getI18n().then((i) => i.t);
 
-	if (!user) return { error: "Non autenticato" };
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const { error } = await supabase.from("transactions").insert({
 		user_id: user.id,
@@ -41,8 +44,9 @@ export async function getTransactions(
 	const {
 		data: { user },
 	} = await supabase.auth.getUser();
+	const t = await getI18n().then((i) => i.t);
 
-	if (!user) return { error: "Non autenticato" };
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	let query = supabase
 		.from("transactions")
@@ -79,8 +83,9 @@ export async function updateTransaction(
 	const {
 		data: { user },
 	} = await supabase.auth.getUser();
+	const t = await getI18n().then((i) => i.t);
 
-	if (!user) return { error: "Non autenticato" };
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const { error } = await supabase
 		.from("transactions")
@@ -104,8 +109,9 @@ export async function deleteTransaction(id: string) {
 	const {
 		data: { user },
 	} = await supabase.auth.getUser();
+	const t = await getI18n().then((i) => i.t);
 
-	if (!user) return { error: "Non autenticato" };
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const { error } = await supabase
 		.from("transactions")
@@ -132,8 +138,9 @@ export async function createRecurringRule(
 	const {
 		data: { user },
 	} = await supabase.auth.getUser();
+	const t = await getI18n().then((i) => i.t);
 
-	if (!user) return { error: "Non autenticato" };
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const { error } = await supabase.from("recurring_rules").insert({
 		user_id: user.id,
@@ -163,8 +170,9 @@ export async function getRecurringRules() {
 	const {
 		data: { user },
 	} = await supabase.auth.getUser();
+	const t = await getI18n().then((i) => i.t);
 
-	if (!user) return { error: "Non autenticato" };
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const { data, error } = await supabase
 		.from("recurring_rules")
@@ -180,8 +188,9 @@ export async function deleteRecurringRule(id: string) {
 	const {
 		data: { user },
 	} = await supabase.auth.getUser();
+	const t = await getI18n().then((i) => i.t);
 
-	if (!user) return { error: "Non autenticato" };
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	// Elimina solo la regola: le transazioni già generate restano (recurring_rule_id -> null)
 	const { error } = await supabase
@@ -207,8 +216,9 @@ export async function updateRecurringRule(
 	const {
 		data: { user },
 	} = await supabase.auth.getUser();
+	const t = await getI18n().then((i) => i.t);
 
-	if (!user) return { error: "Non autenticato" };
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const { error } = await supabase
 		.from("recurring_rules")
@@ -233,8 +243,9 @@ export async function setRecurringActive(id: string, active: boolean) {
 	const {
 		data: { user },
 	} = await supabase.auth.getUser();
+	const t = await getI18n().then((i) => i.t);
 
-	if (!user) return { error: "Non autenticato" };
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	// Al "riprendi": porta next_run al primo periodo futuro, così non genera
 	// una raffica di movimenti retroattivi per i periodi trascorsi in pausa.
@@ -270,8 +281,9 @@ export async function getDashboardTotals() {
 	const {
 		data: { user },
 	} = await supabase.auth.getUser();
+	const t = await getI18n().then((i) => i.t);
 
-	if (!user) return { error: "Non autenticato" };
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	let query = supabase
 		.from("transactions")
@@ -374,8 +386,16 @@ export async function getDashboardTotals() {
 	};
 }
 
-const MESI = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
-const GIORNI = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"];
+/*
+ * ⚠️ `MESI` e `GIORNI` erano due array italiani cablati — le etichette dell'asse
+ * X dei grafici. Sono l'unico testo di questo file, che per il resto fa solo
+ * query e aritmetica sulle date, ed erano invisibili al controllo sulle stringhe
+ * perché una sigla come "Ago" non ha spazi e non somiglia a una frase.
+ *
+ * Ora le produce `Intl` nella lingua dell'utente: il grafico è un server
+ * component e la lingua sta nel cookie, quindi la si legge qui e le etichette
+ * arrivano già giuste, senza cambiare la forma dei dati.
+ */
 
 export async function getAnalyticsData(periodo: string = "mese") {
 	const supabase = await createClient();
@@ -383,7 +403,11 @@ export async function getAnalyticsData(periodo: string = "mese") {
 		data: { user },
 	} = await supabase.auth.getUser();
 
-	if (!user) return { error: "Non autenticato" };
+	const { locale, t } = await getI18n();
+	const shortMonth = (d: Date) => formatDate(d, locale, { month: "short" });
+	const shortWeekday = (d: Date) => formatDate(d, locale, { weekday: "short" });
+
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const now = new Date();
 	const oggi = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -405,7 +429,7 @@ export async function getAnalyticsData(periodo: string = "mese") {
 		trendPoints = Array.from({ length: 7 }, (_, i) => {
 			const d = new Date(oggi.getFullYear(), oggi.getMonth(), oggi.getDate() - 6 + i);
 			return {
-				label: GIORNI[d.getDay()],
+				label: shortWeekday(d),
 				start: d,
 				end: new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1),
 			};
@@ -417,7 +441,7 @@ export async function getAnalyticsData(periodo: string = "mese") {
 		prevEnd = rangeStart;
 		fetchStart = prevStart;
 		trendPoints = Array.from({ length: 12 }, (_, i) => ({
-			label: MESI[i],
+			label: shortMonth(new Date(now.getFullYear(), i, 1)),
 			start: new Date(now.getFullYear(), i, 1),
 			end: new Date(now.getFullYear(), i + 1, 1),
 		}));
@@ -431,7 +455,7 @@ export async function getAnalyticsData(periodo: string = "mese") {
 		trendPoints = Array.from({ length: 6 }, (_, i) => {
 			const m = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
 			return {
-				label: MESI[m.getMonth()],
+				label: shortMonth(m),
 				start: m,
 				end: new Date(now.getFullYear(), now.getMonth() - 5 + i + 1, 1),
 			};

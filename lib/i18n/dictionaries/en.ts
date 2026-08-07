@@ -371,6 +371,14 @@ export const en: Dictionary = {
 		composition: "Composition",
 		total: "Total",
 		positions: "Positions",
+		invested: "Invested",
+		types: {
+			etf: "ETF",
+			azioni: "Stocks",
+			obbligazioni: "Bonds",
+			crypto: "Crypto",
+			altro: "Other",
+		},
 	},
 
 	analytics: {
@@ -632,6 +640,7 @@ export const en: Dictionary = {
 	profileMenu: {
 		settings: "Settings",
 		signOut: "Sign out",
+		darkMode: "Dark mode",
 	},
 
 	notifications: {

@@ -485,6 +485,15 @@ export const it = {
 		composition: "Composizione",
 		total: "Totale",
 		positions: "Posizioni",
+		invested: "Investito",
+		/** Tipologie: le chiavi sono i valori di transactions.investment_type. */
+		types: {
+			etf: "ETF",
+			azioni: "Azioni",
+			obbligazioni: "Obbligazioni",
+			crypto: "Crypto",
+			altro: "Altro",
+		},
 	},
 
 	analytics: {
@@ -792,6 +801,7 @@ export const it = {
 	/** Menu che si apre dal gruppo avatar+nome in home (Fase 18). */
 	profileMenu: {
 		settings: "Impostazioni",
+		darkMode: "Modalità scura",
 		signOut: "Esci",
 	},
 
