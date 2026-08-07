@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { GOAL_ICONS } from "@/lib/goal-icons";
 import { createGoal, updateGoal, deleteGoal } from "@/app/(main)/risparmi/actions";
 import { useI18n } from "./I18nProvider";
+import DatePicker from "@/components/UI/DatePicker";
 import type { GoalWithProgress } from "@/types";
 
 interface GoalSheetProps {
@@ -195,15 +196,14 @@ export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
 							{t.goals.dateLabel}{" "}
 							<span className="text-muted opacity-60">{t.goals.optional}</span>
 						</label>
-						<div className="flex items-center rounded-[18px] px-4 py-3.5 bg-input border border-subtle">
-							<input
-								type="date"
-								value={form.targetDate}
-								onChange={(e) => setForm((f) => ({ ...f, targetDate: e.target.value }))}
-								className="flex-1 bg-transparent outline-none text-[14.5px] text-muted appearance-none"
-								style={{ colorScheme: "inherit" }}
-							/>
-						</div>
+						{/* Picker custom e non `<input type="date">`: quello segue la
+						    lingua del BROWSER, non quella dell'app — vedi DatePicker. */}
+						<DatePicker
+							value={form.targetDate}
+							onChange={(iso) => setForm((f) => ({ ...f, targetDate: iso }))}
+							placeholder={t.goals.noDeadline}
+							className="rounded-[18px] px-4 py-3.5 bg-input border border-subtle"
+						/>
 					</div>
 
 					{/* Icona */}

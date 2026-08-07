@@ -18,7 +18,7 @@ interface NotificationBellProps {
 }
 
 export default function NotificationBell({ initialUnread }: NotificationBellProps) {
-	const { t } = useI18n();
+	const { locale, t } = useI18n();
 	const router = useRouter();
 	const [open, setOpen] = useState(false);
 	const [items, setItems] = useState<RenderedNotification[] | null>(null);
@@ -216,7 +216,7 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 												<span className="block text-[11.5px] text-muted mt-1">{n.body}</span>
 											)}
 											<span className="block text-[11px] text-disabled mt-1">
-												{relativeTime(n.created_at)}
+												{relativeTime(n.created_at, locale)}
 											</span>
 										</span>
 

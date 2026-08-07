@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { renderNotification } from "@/lib/notifications";
+import { getI18n } from "@/lib/i18n/server";
 import type { AppNotification, RenderedNotification } from "@/types";
 
 /**
@@ -43,10 +44,13 @@ export async function getNotifications(): Promise<
 	// La valuta arriva dal profilo, non è cablata: è la stessa scelta
 	// nell'onboarding che governa ogni altro importo dell'app.
 	const currency = profile?.currency || "EUR";
+	// La lingua arriva dal cookie: le frasi si compongono ADESSO, quindi anche
+	// una notifica di due mesi fa esce nella lingua attuale dell'utente.
+	const { locale, t } = await getI18n();
 
 	const rendered = (data ?? []).map((row) => {
 		const n = row as AppNotification;
-		return { ...n, ...renderNotification(n, currency) };
+		return { ...n, ...renderNotification(n, { currency, locale, t }) };
 	});
 
 	return { data: rendered, unread: unreadResult.data };

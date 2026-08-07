@@ -817,6 +817,49 @@ export const it = {
 		title: "Notifiche",
 		markAllRead: "segna tutte come lette",
 		emptyDescription: "Qui arrivano gli avvisi su budget, obiettivi e rinnovi in arrivo.",
+		/**
+		 * Le frasi delle notifiche, composte dai FATTI salvati nel `payload` JSONB.
+		 *
+		 * È il motivo per cui la Fase 17b ha scelto di non salvare il testo già
+		 * scritto: la riga registra "categoria X, speso 120, limite 100" e la frase
+		 * nasce alla lettura, quindi **anche le notifiche di mesi fa cambiano lingua**
+		 * insieme all'app. Salvando la frase, tutto lo storico sarebbe rimasto
+		 * italiano per sempre — ed è esattamente ciò che quella decisione previde.
+		 *
+		 * ⚠️ Frasi INTERE per ogni caso, non un tronco comune più un aggettivo
+		 * appeso. Il codice componeva `Budget "X" ` + ("superato" | "quasi
+		 * esaurito"): funziona finché l'aggettivo va in coda, cioè finché la lingua
+		 * è quella in cui è stato scritto.
+		 */
+		messages: {
+			budgetExceeded: 'Budget "{category}" superato',
+			budgetNearLimit: 'Budget "{category}" quasi esaurito',
+			/** Budget GLOBALE: "variabili" e mai "totali" — affitto e utenze restano fuori. */
+			globalExceeded: "Limite sulle spese variabili superato",
+			globalNearLimit: "Limite sulle spese variabili quasi raggiunto",
+			spentOf: "Hai speso {spent} su {amount}",
+
+			goalReached: 'Obiettivo "{goal}" raggiunto',
+			goalHalfway: 'Obiettivo "{goal}" a metà strada',
+			savedOf: "Hai messo da parte {saved} su {target}",
+
+			/** `{when}` è "oggi" / "domani" / "fra 3 giorni", prodotto da `Intl`. */
+			renewal: 'Rinnovo "{name}" {when}',
+			renewalFallbackName: "abbonamento",
+			renewalAmount: "Sono previsti {amount}",
+
+			recurringGenerated: {
+				one: "Registrato {n} movimento ricorrente",
+				other: "Registrati {n} movimenti ricorrenti",
+			},
+
+			/**
+			 * Tipo sconosciuto. Il `CHECK` sui tipi vive nella migration e può
+			 * crescere senza che questo file lo sappia: senza ripiego, `meta.icon`
+			 * su `undefined` porterebbe via l'intera dashboard.
+			 */
+			fallback: "Notifica",
+		},
 	},
 
 	settings: {

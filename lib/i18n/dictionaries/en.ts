@@ -652,6 +652,28 @@ export const en: Dictionary = {
 		title: "Notifications",
 		markAllRead: "mark all as read",
 		emptyDescription: "Alerts about budgets, goals and upcoming renewals show up here.",
+		messages: {
+			budgetExceeded: 'Budget "{category}" exceeded',
+			budgetNearLimit: 'Budget "{category}" almost used up',
+			globalExceeded: "Variable spending limit exceeded",
+			globalNearLimit: "Variable spending limit almost reached",
+			spentOf: "You've spent {spent} of {amount}",
+
+			goalReached: 'Goal "{goal}" reached',
+			goalHalfway: 'Goal "{goal}" halfway there',
+			savedOf: "You've set aside {saved} of {target}",
+
+			renewal: 'Renewal "{name}" {when}',
+			renewalFallbackName: "subscription",
+			renewalAmount: "{amount} due",
+
+			recurringGenerated: {
+				one: "{n} recurring transaction recorded",
+				other: "{n} recurring transactions recorded",
+			},
+
+			fallback: "Notification",
+		},
 	},
 
 	settings: {

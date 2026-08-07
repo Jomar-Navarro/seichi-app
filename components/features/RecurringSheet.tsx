@@ -10,6 +10,7 @@ import { buildCategoryOptions } from "@/lib/category-options";
 import { TIPO_COLOR } from "@/lib/transaction-utils";
 import { updateRecurringRule } from "@/app/(main)/action";
 import { useI18n } from "./I18nProvider";
+import DatePicker from "@/components/UI/DatePicker";
 import type { RecurringRule, Category, Frequency } from "@/types";
 
 interface RecurringSheetProps {
@@ -139,16 +140,9 @@ export default function RecurringSheet({ isOpen, rule, onClose }: RecurringSheet
 					{/* Prossima data */}
 					<div>
 						<label className="text-xs text-muted mb-1.5 block">{t.recurring.nextDate}</label>
-						<div className="flex items-center rounded-2xl px-4 py-3 bg-card border border-subtle">
-							<input
-								type="date"
-								value={nextRun}
-								min={todayISO}
-								onChange={(e) => setNextRun(e.target.value)}
-								className="flex-1 bg-transparent outline-none text-sm text-muted appearance-none"
-								style={{ colorScheme: "inherit" }}
-							/>
-						</div>
+						{/* Picker custom: `<input type="date">` seguiva la lingua del
+						    browser e mostrava mm/dd/yyyy — vedi DatePicker. */}
+						<DatePicker value={nextRun} onChange={setNextRun} min={todayISO} />
 					</div>
 
 					{/* Descrizione */}
