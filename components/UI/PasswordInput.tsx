@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { useI18n } from "@/components/features/I18nProvider";
 
 interface PasswordInputProps {
 	name: string;
@@ -30,6 +31,7 @@ export default function PasswordInput({
 	autoFocus,
 	invalid,
 }: PasswordInputProps) {
+	const { t } = useI18n();
 	const [visible, setVisible] = useState(false);
 
 	return (
@@ -55,7 +57,7 @@ export default function PasswordInput({
 					type="button"
 					onClick={() => setVisible((v) => !v)}
 					className="p-1 flex items-center shrink-0 cursor-pointer"
-					aria-label={visible ? "Nascondi password" : "Mostra password"}
+					aria-label={visible ? t.account.passwordCommon.hide : t.account.passwordCommon.show}
 				>
 					{/* L'icona mostra l'AZIONE, non lo stato: a password visibile si
 					    offre "nascondi". Deve concordare con l'aria-label qui sopra. */}

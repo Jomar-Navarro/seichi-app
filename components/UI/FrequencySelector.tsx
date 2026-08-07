@@ -1,6 +1,7 @@
 "use client";
 
 import { FREQUENCIES } from "@/lib/recurring";
+import { useI18n } from "@/components/features/I18nProvider";
 import type { Frequency } from "@/types";
 
 interface FrequencySelectorProps {
@@ -10,15 +11,17 @@ interface FrequencySelectorProps {
 }
 
 export default function FrequencySelector({ value, onChange, color }: FrequencySelectorProps) {
+	const { t } = useI18n();
+
 	return (
 		<div className="grid grid-cols-3 gap-2">
 			{FREQUENCIES.map((f) => {
-				const selected = value === f.id;
+				const selected = value === f;
 				return (
 					<button
-						key={f.id}
+						key={f}
 						type="button"
-						onClick={() => onChange(f.id)}
+						onClick={() => onChange(f)}
 						className="py-2.5 rounded-xl text-[12.5px] font-medium border transition-all"
 						style={{
 							background: selected
@@ -28,7 +31,7 @@ export default function FrequencySelector({ value, onChange, color }: FrequencyS
 							color: selected ? color : "var(--text-secondary)",
 						}}
 					>
-						{f.label}
+						{t.frequencies[f].label}
 					</button>
 				);
 			})}

@@ -27,6 +27,7 @@ export const en: Dictionary = {
 		confirm: "Confirm",
 		done: "Done",
 		saving: "Saving…",
+		deleting: "Deleting…",
 		loading: "Loading…",
 		retry: "Try again",
 		genericError: "Something went wrong. Please try again.",
@@ -94,6 +95,12 @@ export const en: Dictionary = {
 		avatarRemoveFailed: "Could not remove your profile photo. Please try again.",
 	},
 
+	auth: {
+		recovery: {
+			linkExpired: "That link has expired or is invalid — request a new reset",
+		},
+	},
+
 	budget: {
 		monthlyLimit: "Monthly limit",
 		variableOnly: "Variable spending only",
@@ -104,13 +111,167 @@ export const en: Dictionary = {
 		fixedOutflowsHint: "This month's subscriptions, outside the limit",
 		amountMustBePositive: "Enter an amount greater than zero",
 		readFailed: "Could not read your budget: {reason}",
+
+		sectionTitle: "Budget",
+		variableExpenses: "Variable spending",
+		fixedThisMonth: "fixed this month {amount}",
+	},
+
+	// Annidate per tipo: le stesse nove icone che in italiano cambiano nome col
+	// contesto lo cambiano anche qui (Landmark = Bank transfer / Stocks).
+	iconLabels: {
+		entrata: {
+			Briefcase: "Salary",
+			Banknote: "Cash",
+			Landmark: "Bank transfer",
+			Award: "Bonus",
+			Gift: "Gift received",
+			Coins: "Extra",
+			TrendingUp: "Growth",
+			ArrowDownToLine: "Payment in",
+			HandCoins: "Tip",
+			Percent: "Interest",
+			Handshake: "Freelance",
+			CircleDollarSign: "Dividends",
+		},
+		spesa: {
+			ShoppingCart: "Everyday shopping",
+			ShoppingBasket: "Groceries",
+			Utensils: "Restaurants",
+			Car: "Transport",
+			Home: "Home / Rent",
+			Zap: "Utilities",
+			Shirt: "Clothing",
+			HeartPulse: "Health",
+			GraduationCap: "Education",
+			Wifi: "Internet",
+			Fuel: "Fuel",
+			Baby: "Children",
+			PawPrint: "Pets",
+			Coffee: "Coffee shops",
+			Wrench: "Maintenance",
+			Stethoscope: "Medical visits",
+		},
+		investimento: {
+			TrendingUp: "ETF / DCA",
+			LineChart: "Performance",
+			Landmark: "Stocks",
+			Bitcoin: "Crypto",
+			Building2: "Real estate",
+			PieChart: "Allocation",
+			Layers: "Portfolio",
+			Coins: "Bonds",
+			BarChart3: "Returns",
+			Vault: "Deposit",
+			Globe: "Foreign funds",
+			Percent: "Yield %",
+			CircleDollarSign: "Dividends",
+		},
+		risparmio: {
+			PiggyBank: "General",
+			Shield: "Emergency fund",
+			Plane: "Travel",
+			Home: "New home",
+			GraduationCap: "Children's education",
+			Heart: "Wedding",
+			Gem: "Big purchase",
+			Target: "Goal",
+			Baby: "Baby fund",
+			Car: "New car",
+			Umbrella: "Protection",
+			Sunrise: "Retirement",
+			Sparkles: "Special occasion",
+		},
+		abbonamento: {
+			Repeat: "General",
+			Tv: "Streaming",
+			Music: "Music",
+			Smartphone: "Mobile",
+			Cloud: "Storage",
+			Newspaper: "Magazines",
+			Dumbbell: "Gym",
+			Wifi: "Connectivity",
+			Gamepad2: "Cloud gaming",
+			BookOpen: "Ebooks / audiobooks",
+			Mail: "Premium mail",
+			CreditCard: "Prepaid card",
+			Radio: "Podcasts",
+			Headphones: "Premium music",
+		},
+	},
+
+	frequencies: {
+		settimanale: { label: "Weekly", recur: "Every week" },
+		mensile: { label: "Monthly", recur: "Every month" },
+		annuale: { label: "Yearly", recur: "Every year" },
+	},
+
+	budgetPeriods: {
+		settimanale: { label: "weekly", suffix: "/ week", window: "this week" },
+		mensile: { label: "monthly", suffix: "/ month", window: "this month" },
+		annuale: { label: "yearly", suffix: "/ year", window: "this year" },
+	},
+
+	typesShort: {
+		entrata: "income",
+		spesa: "expense",
+		investimento: "invest.",
+		risparmio: "saving",
+		abbonamento: "subscr.",
 	},
 
 	categories: {
 		deleteTitle: "Delete category",
 		deleteQuestionBefore: "Delete ",
 		deleteQuestionAfter: "? This cannot be undone.",
-		deleting: "Deleting…",
+
+		editTitle: "Edit category",
+		newTitle: "New category",
+		nameLabel: "Name",
+		namePlaceholder: "e.g. Gym",
+		nameRequired: "Enter a name",
+		typeLabel: "Type",
+		iconLabel: "Icon",
+		iconSet: "set — {type}",
+		currentIcon: "current",
+		saveChanges: "Save changes",
+		create: "Create category",
+
+		budgetLabel: "Budget limit",
+		optional: "(optional)",
+		budgetPlaceholder: "e.g. 250",
+		budgetMustBePositive: "The budget limit must be an amount greater than zero",
+		budgetHintExisting:
+			"Clear the field to remove the limit: past periods stay as they were.",
+		budgetHintNew: "Leave empty to set no limit.",
+	},
+
+	recurring: {
+		emptyTitle: "No recurring payments",
+		emptyDescription:
+			"Your subscriptions and scheduled payments will show up here as soon as you add one.",
+		addAction: "Add recurring",
+		count: {
+			one: "{n} scheduled payment",
+			other: "{n} scheduled payments",
+		},
+		paused: "paused",
+		pause: "pause",
+		resume: "resume",
+		edit: "edit",
+		delete: "delete",
+		deleteTitle: "Delete recurring rule",
+		deleteBody: "This stops future generations. Transactions already created stay. Continue?",
+
+		editTitle: "Edit recurring rule",
+		amount: "Amount",
+		category: "Category",
+		noCategory: "No category",
+		frequency: "Frequency",
+		nextDate: "Next date",
+		description: "Description",
+		descriptionPlaceholder: "Optional",
+		saveChanges: "Save changes",
 	},
 
 	account: {
@@ -150,6 +311,19 @@ export const en: Dictionary = {
 			update: "Update password",
 			updating: "Updating…",
 			updatedTitle: "Password updated",
+		},
+
+		passwordCommon: {
+			show: "Show password",
+			hide: "Hide password",
+			tooShort: "Your password must be at least {min} characters",
+			mismatch: "The passwords don't match",
+			strength: {
+				0: "too short",
+				1: "weak",
+				2: "medium",
+				3: "strong",
+			},
 		},
 
 		delete: {

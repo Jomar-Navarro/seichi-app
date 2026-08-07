@@ -1,15 +1,13 @@
 import type { Frequency } from "@/types";
 
-export const FREQUENCIES: { id: Frequency; label: string; recurLabel: string }[] = [
-	{ id: "settimanale", label: "Settimanale", recurLabel: "Ogni settimana" },
-	{ id: "mensile", label: "Mensile", recurLabel: "Ogni mese" },
-	{ id: "annuale", label: "Annuale", recurLabel: "Ogni anno" },
-];
-
-// tipo -> "Ogni mese" ecc. (usato nelle card ricorrenti)
-export const FREQ_RECUR_LABEL: Record<string, string> = Object.fromEntries(
-	FREQUENCIES.map((f) => [f.id, f.recurLabel]),
-);
+/**
+ * Le cadenze ammesse, nell'ordine del selettore.
+ *
+ * Solo gli ID (Fase 19): le due etichette che ogni cadenza portava — quella del
+ * selettore ("Mensile") e quella delle card ("Ogni mese") — stanno in
+ * `t.frequencies[id]`. Questo modulo fa aritmetica sulle date, non copy.
+ */
+export const FREQUENCIES: Frequency[] = ["settimanale", "mensile", "annuale"];
 
 function parseISODate(s: string): Date {
 	const [y, m, d] = s.split("-").map(Number);

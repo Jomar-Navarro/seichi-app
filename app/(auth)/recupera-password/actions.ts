@@ -2,8 +2,10 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { validateNewPassword } from "@/lib/password";
+import { PASSWORD_MIN_LENGTH, validateNewPassword } from "@/lib/password";
 import { clearRecoverySession, hasRecoverySession } from "@/lib/recovery";
+import { getDictionary } from "@/lib/i18n/server";
+import { fill } from "@/lib/i18n/format";
 import { SITE_URL } from "@/lib/site-url";
 
 type ActionResult = { error: string } | { success: true };
@@ -25,7 +27,8 @@ export async function requestPasswordReset(email: string): Promise<ActionResult>
 	const address = email.trim().toLowerCase();
 
 	if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) {
-		return { error: "Indirizzo email non valido" };
+		const t = await getDictionary();
+		return { error: t.errors.invalidEmail };
 	}
 
 	await supabase.auth.resetPasswordForEmail(address, {
@@ -63,12 +66,21 @@ export async function resetPassword(
 		data: { user },
 	} = await supabase.auth.getUser();
 
+	const t = await getDictionary();
+
 	if (!user || !(await hasRecoverySession())) {
-		return { error: "Link scaduto o non valido — richiedi un nuovo recupero" };
+		return { error: t.auth.recovery.linkExpired };
 	}
 
 	const invalid = validateNewPassword(newPassword, confirmPassword);
-	if (invalid) return { error: invalid };
+	if (invalid) {
+		return {
+			error:
+				invalid === "tooShort"
+					? fill(t.account.passwordCommon.tooShort, { min: PASSWORD_MIN_LENGTH })
+					: t.account.passwordCommon.mismatch,
+		};
+	}
 
 	const { error } = await supabase.auth.updateUser({ password: newPassword });
 	if (error) return { error: error.message };

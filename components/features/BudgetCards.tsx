@@ -2,13 +2,16 @@
 
 import { AlertTriangle } from "lucide-react";
 import { ICON_MAP } from "@/lib/icon-map";
-import { budgetColor, budgetInk, periodWindow } from "@/lib/budget";
+import { budgetColor, budgetInk } from "@/lib/budget";
+import { useI18n } from "./I18nProvider";
+import { DISPLAY_CURRENCY, fill, formatMoney } from "@/lib/i18n/format";
 import type { BudgetOverview, BudgetWithSpending } from "@/types";
 
-/** Importi arrotondati all'euro: nelle card i centesimi sono rumore. */
-const euro = new Intl.NumberFormat("it-IT", { maximumFractionDigits: 0 });
-
 function BudgetCard({ budget }: { budget: BudgetWithSpending }) {
+	const { locale, t } = useI18n();
+	/** Importi arrotondati all'euro: nelle card i centesimi sono rumore. */
+	const money = (v: number) =>
+		formatMoney(v, { locale, currency: DISPLAY_CURRENCY });
 	const isGlobal = budget.categoryId === null;
 	const baseColor = isGlobal
 		? "var(--color-aka)"
@@ -54,11 +57,11 @@ function BudgetCard({ budget }: { budget: BudgetWithSpending }) {
 			</span>
 
 			<div className="text-sm font-semibold truncate pr-4">
-				{isGlobal ? "Spese variabili" : budget.category?.name}
+				{isGlobal ? t.budget.variableExpenses : budget.category?.name}
 			</div>
 
 			<div className="text-[11px] text-muted/80 mb-1.5 mt-0.5">
-				{periodWindow(budget.period)}
+				{t.budgetPeriods[budget.period].window}
 			</div>
 
 			<div className="text-[12.5px] text-muted mb-3">
@@ -69,9 +72,9 @@ function BudgetCard({ budget }: { budget: BudgetWithSpending }) {
 					className="font-medium"
 					style={{ color: sforato ? budgetInk(budget.status) : "var(--text-primary)" }}
 				>
-					€ {euro.format(budget.spent)}
+					{money(budget.spent)}
 				</span>{" "}
-				/ € {euro.format(budget.amount)}
+				/ {money(budget.amount)}
 			</div>
 
 			<div
@@ -88,6 +91,7 @@ function BudgetCard({ budget }: { budget: BudgetWithSpending }) {
 }
 
 export default function BudgetCards({ overview }: { overview: BudgetOverview }) {
+	const { locale, t } = useI18n();
 	const { global, perCategory, fixedOutflowsThisMonth } = overview;
 	const cards = [...(global ? [global] : []), ...perCategory];
 
@@ -101,12 +105,19 @@ export default function BudgetCards({ overview }: { overview: BudgetOverview }) 
 	return (
 		<div className="mb-5">
 			<div className="flex items-baseline justify-between mb-3">
-				<h2 className="text-[13px] font-semibold text-muted tracking-wide">Budget</h2>
+				<h2 className="text-[13px] font-semibold text-muted tracking-wide">
+					{t.budget.sectionTitle}
+				</h2>
 				{/* "del mese" va detto qui: senza più quella parola nell'intestazione,
 				    questa cifra resterebbe senza arco temporale. */}
 				{global && fixedOutflowsThisMonth > 0 && (
 					<span className="text-[11px] text-muted/80">
-						fisse del mese € {euro.format(fixedOutflowsThisMonth)}
+						{fill(t.budget.fixedThisMonth, {
+							amount: formatMoney(fixedOutflowsThisMonth, {
+								locale,
+								currency: DISPLAY_CURRENCY,
+							}),
+						})}
 					</span>
 				)}
 			</div>

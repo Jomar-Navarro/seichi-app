@@ -192,7 +192,7 @@ export default function CategoryManager({ categories }: { categories: Category[]
 									// scontato, e in chiaro sta a 2,8:1 (CLAUDE.md, Fase 18).
 									style={{ background: "var(--color-aka)", color: "var(--on-accent)" }}
 								>
-									{deleting ? t.categories.deleting : t.common.delete}
+									{deleting ? t.common.deleting : t.common.delete}
 								</button>
 							)}
 						</div>

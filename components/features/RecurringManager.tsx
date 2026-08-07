@@ -5,22 +5,25 @@ import { useRouter } from "next/navigation";
 import { Pause, Play, Plus, Pencil } from "lucide-react";
 import { ICON_MAP } from "@/lib/icon-map";
 import { GOAL_ICON_MAP } from "@/lib/goal-icons";
-import { TIPO_COLOR, TIPO_INK, TIPO_LABEL, formatDate, numberFormatter } from "@/lib/transaction-utils";
+import { TIPO_COLOR, TIPO_INK, formatDate } from "@/lib/transaction-utils";
 import { RepeatIcon } from "@/lib/seichi-icons";
 import EmptyState from "@/components/UI/EmptyState";
 import RecurringSheet from "./RecurringSheet";
+import { useI18n } from "./I18nProvider";
+import { DISPLAY_CURRENCY, formatMoney, plural } from "@/lib/i18n/format";
 import { deleteRecurringRule, setRecurringActive } from "@/app/(main)/action";
-import { FREQ_RECUR_LABEL } from "@/lib/recurring";
 import { useUIStore } from "@/store/useUIStore";
+import type { Locale } from "@/lib/i18n/config";
 import type { RecurringRule } from "@/types";
 
-function formatRuleAmount(r: RecurringRule) {
+function formatRuleAmount(r: RecurringRule, locale: Locale) {
 	const sign = r.type === "entrata" ? "+ " : "";
-	return `${sign}€ ${numberFormatter.format(r.amount)}`;
+	return `${sign}${formatMoney(r.amount, { locale, currency: DISPLAY_CURRENCY, decimals: 2 })}`;
 }
 
 export default function RecurringManager({ rules }: { rules: RecurringRule[] }) {
 	const router = useRouter();
+	const { locale, t } = useI18n();
 	const { openTransactionModal, transactionSavedAt } = useUIStore();
 	const [pending, setPending] = useState<RecurringRule | null>(null);
 	const [editing, setEditing] = useState<RecurringRule | null>(null);
@@ -60,9 +63,9 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 		return (
 			<div className="flex-1 flex items-center justify-center py-16">
 				<EmptyState
-					title="Nessun pagamento ricorrente"
-					description="I tuoi abbonamenti e pagamenti pianificati appariranno qui non appena ne aggiungerai uno."
-					actionLabel="Aggiungi ricorrente"
+					title={t.recurring.emptyTitle}
+					description={t.recurring.emptyDescription}
+					actionLabel={t.recurring.addAction}
 					onAction={() => openTransactionModal(true)}
 				/>
 			</div>
@@ -72,7 +75,7 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 	return (
 		<div className="flex-1 flex flex-col">
 			<p className="text-[12.5px] text-muted mb-4">
-				{rules.length} {rules.length === 1 ? "pagamento pianificato" : "pagamenti pianificati"}
+				{plural(t.recurring.count, rules.length, locale)}
 			</p>
 
 			<div className="flex flex-col gap-2.5">
@@ -100,19 +103,19 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 								<div className="flex-1 min-w-0">
 									<div className="flex items-center justify-between gap-2">
 										<span className="text-[13.5px] font-semibold truncate">
-											{r.categories?.name ?? TIPO_LABEL[r.type]}
+											{r.categories?.name ?? t.types[r.type as keyof typeof t.types]}
 										</span>
 										<span className="text-[13.5px] font-semibold whitespace-nowrap" style={{ color: ink }}>
-											{formatRuleAmount(r)}
+											{formatRuleAmount(r, locale)}
 										</span>
 									</div>
 									<div className="flex items-center gap-1.5 mt-1">
 										<span className="text-[11px] font-semibold" style={{ color: "var(--ink-murasaki)" }}>
-											{FREQ_RECUR_LABEL[r.frequency] ?? r.frequency}
+											{t.frequencies[r.frequency].recur}
 										</span>
 										<span className="w-0.75 h-0.75 rounded-full bg-muted/50" />
 										<span className="text-[11px] text-muted">
-											{r.active ? formatDate(r.next_run) : "in pausa"}
+											{r.active ? formatDate(r.next_run) : t.recurring.paused}
 										</span>
 									</div>
 								</div>
@@ -125,14 +128,14 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 									className="flex items-center gap-1.5 text-[11.5px] text-secondary active:opacity-70 disabled:opacity-50"
 								>
 									{r.active ? <Pause size={12} /> : <Play size={12} />}
-									{r.active ? "pausa" : "riprendi"}
+									{r.active ? t.recurring.pause : t.recurring.resume}
 								</button>
 								<button
 									onClick={() => setEditing(r)}
 									className="flex items-center gap-1.5 text-[11.5px] text-secondary active:opacity-70"
 								>
 									<Pencil size={12} />
-									modifica
+									{t.recurring.edit}
 								</button>
 								<span className="flex-1" />
 								<button
@@ -140,7 +143,7 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 									className="text-[11.5px] active:opacity-70"
 									style={{ color: "var(--ink-aka)" }}
 								>
-									elimina
+									{t.recurring.delete}
 								</button>
 							</div>
 						</div>
@@ -155,7 +158,7 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 				className="w-full py-4 mt-4 rounded-2xl btn-primary font-semibold flex items-center justify-center gap-2"
 			>
 				<Plus size={16} strokeWidth={2} />
-				Aggiungi ricorrente
+				{t.recurring.addAction}
 			</button>
 
 			<RecurringSheet isOpen={!!editing} rule={editing} onClose={() => setEditing(null)} />
@@ -164,16 +167,16 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 				<div className="fixed inset-0 z-50 flex items-center justify-center px-8">
 					<div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={() => setPending(null)} />
 					<div className="relative w-full max-w-xs rounded-3xl p-6 bg-modal border border-subtle modal-shadow backdrop-blur-2xl">
-						<h3 className="text-[17px] font-semibold mb-2">Elimina ricorrenza</h3>
+						<h3 className="text-[17px] font-semibold mb-2">{t.recurring.deleteTitle}</h3>
 						<p className="text-[13px] text-muted leading-relaxed mb-5">
-							Interrompe le generazioni future. I movimenti già creati restano. Continuare?
+							{t.recurring.deleteBody}
 						</p>
 						<div className="flex gap-2.5">
 							<button
 								onClick={() => setPending(null)}
 								className="flex-1 py-3 rounded-2xl text-sm font-semibold bg-control border border-subtle active:opacity-80"
 							>
-								Annulla
+								{t.common.cancel}
 							</button>
 							<button
 								onClick={confirmDelete}
@@ -182,7 +185,7 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 								// `--on-accent`, non "#fff": vedi CLAUDE.md, Fase 18.
 								style={{ background: "var(--color-aka)", color: "var(--on-accent)" }}
 							>
-								{deleting ? "Elimino…" : "Elimina"}
+								{deleting ? t.common.deleting : t.common.delete}
 							</button>
 						</div>
 					</div>

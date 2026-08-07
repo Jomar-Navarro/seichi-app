@@ -38,6 +38,7 @@ export const it = {
 		confirm: "Conferma",
 		done: "Fatto",
 		saving: "Salvataggio…",
+		deleting: "Elimino…",
 		loading: "Caricamento…",
 		retry: "Riprova",
 		genericError: "Si è verificato un errore. Riprova.",
@@ -140,6 +141,13 @@ export const it = {
 		avatarRemoveFailed: "Non è stato possibile rimuovere la foto profilo. Riprova.",
 	},
 
+	/** Autenticazione — cresce nel lotto 2. */
+	auth: {
+		recovery: {
+			linkExpired: "Link scaduto o non valido — richiedi un nuovo recupero",
+		},
+	},
+
 	/** Budget (Fase 17a). */
 	budget: {
 		monthlyLimit: "Limite mensile",
@@ -152,6 +160,135 @@ export const it = {
 		fixedOutflowsHint: "Abbonamenti di questo mese, fuori dal limite",
 		amountMustBePositive: "Inserisci un importo maggiore di zero",
 		readFailed: "Impossibile leggere il budget: {reason}",
+
+		/** Intestazione neutra: la finestra temporale la porta ogni card. */
+		sectionTitle: "Budget",
+		/**
+		 * Nome del budget globale sulla card.
+		 * ⚠️ "variabili" e mai "totali": affitto e utenze sono categorie
+		 * `abbonamento` e restano fuori dal limite.
+		 */
+		variableExpenses: "Spese variabili",
+		/** "del mese" va detto qui: l'intestazione non porta più l'arco temporale. */
+		fixedThisMonth: "fisse del mese {amount}",
+	},
+
+	/**
+	 * Etichette del picker icone, annidate per TIPO.
+	 *
+	 * ⚠️ Non è una mappa piatta `id → etichetta` perché nove icone cambiano nome
+	 * col contesto: `Landmark` è "Bonifico" fra le entrate e "Azioni" fra gli
+	 * investimenti, `Home` è "Casa / Affitto" fra le spese e "Casa nuova" fra i
+	 * risparmi. Vedi `lib/category-icons.ts`.
+	 */
+	iconLabels: {
+		entrata: {
+			Briefcase: "Stipendio",
+			Banknote: "Contanti",
+			Landmark: "Bonifico",
+			Award: "Bonus",
+			Gift: "Regalo ricevuto",
+			Coins: "Extra",
+			TrendingUp: "Crescita",
+			ArrowDownToLine: "Incasso",
+			HandCoins: "Mancia",
+			Percent: "Interessi",
+			Handshake: "Freelance",
+			CircleDollarSign: "Dividendi",
+		},
+		spesa: {
+			ShoppingCart: "Spesa quotidiana",
+			ShoppingBasket: "Alimentari",
+			Utensils: "Ristoranti",
+			Car: "Trasporti",
+			Home: "Casa / Affitto",
+			Zap: "Utenze",
+			Shirt: "Abbigliamento",
+			HeartPulse: "Salute",
+			GraduationCap: "Formazione",
+			Wifi: "Internet",
+			Fuel: "Carburante",
+			Baby: "Figli",
+			PawPrint: "Animali",
+			Coffee: "Bar",
+			Wrench: "Manutenzione",
+			Stethoscope: "Visite mediche",
+		},
+		investimento: {
+			TrendingUp: "ETF / PAC",
+			LineChart: "Andamento",
+			Landmark: "Azioni",
+			Bitcoin: "Crypto",
+			Building2: "Immobiliare",
+			PieChart: "Composizione",
+			Layers: "Portafoglio",
+			Coins: "Obbligazioni",
+			BarChart3: "Rendimento",
+			Vault: "Deposito",
+			Globe: "Fondi esteri",
+			Percent: "Rendimento %",
+			CircleDollarSign: "Dividendi",
+		},
+		risparmio: {
+			PiggyBank: "Generico",
+			Shield: "Fondo emergenza",
+			Plane: "Viaggio",
+			Home: "Casa nuova",
+			GraduationCap: "Studi figli",
+			Heart: "Matrimonio",
+			Gem: "Grande acquisto",
+			Target: "Obiettivo",
+			Baby: "Fondo bebè",
+			Car: "Auto nuova",
+			Umbrella: "Protezione",
+			Sunrise: "Pensione",
+			Sparkles: "Occasione speciale",
+		},
+		abbonamento: {
+			Repeat: "Generico",
+			Tv: "Streaming",
+			Music: "Musica",
+			Smartphone: "Telefonia",
+			Cloud: "Storage",
+			Newspaper: "Riviste",
+			Dumbbell: "Palestra",
+			Wifi: "Connettività",
+			Gamepad2: "Cloud gaming",
+			BookOpen: "Ebook / audiolibri",
+			Mail: "Posta premium",
+			CreditCard: "Carta prepagata",
+			Radio: "Podcast",
+			Headphones: "Musica premium",
+		},
+	},
+
+	/**
+	 * Cadenze delle regole ricorrenti (Fase 14).
+	 * `label` nel selettore, `recur` sulle card ("Ogni mese").
+	 */
+	frequencies: {
+		settimanale: { label: "Settimanale", recur: "Ogni settimana" },
+		mensile: { label: "Mensile", recur: "Ogni mese" },
+		annuale: { label: "Annuale", recur: "Ogni anno" },
+	},
+
+	/** Periodi di budget (Fase 17a). */
+	budgetPeriods: {
+		settimanale: { label: "settimanale", suffix: "/ settimana", window: "questa settimana" },
+		mensile: { label: "mensile", suffix: "/ mese", window: "questo mese" },
+		annuale: { label: "annuale", suffix: "/ anno", window: "quest'anno" },
+	},
+
+	/**
+	 * Tipi ABBREVIATI per la griglia a 5 colonne del form categoria.
+	 * Su uno schermo stretto ogni colonna ha ~60px: "investimento" non ci sta.
+	 */
+	typesShort: {
+		entrata: "entrata",
+		spesa: "spesa",
+		investimento: "investim.",
+		risparmio: "risparmio",
+		abbonamento: "abbon.",
 	},
 
 	/** Gestione delle categorie (Fase 13). */
@@ -160,7 +297,61 @@ export const it = {
 		/** `{name}` viene reso in grassetto, quindi la frase è spezzata in due. */
 		deleteQuestionBefore: "Vuoi eliminare ",
 		deleteQuestionAfter: "? L'azione non si può annullare.",
-		deleting: "Elimino…",
+
+		editTitle: "Modifica categoria",
+		newTitle: "Nuova categoria",
+		nameLabel: "Nome",
+		namePlaceholder: "es. Palestra",
+		nameRequired: "Inserisci un nome",
+		typeLabel: "Tipo",
+		iconLabel: "Icona",
+		iconSet: "set — {type}",
+		/** Icona di una categoria vecchia, non più nella libreria del suo tipo. */
+		currentIcon: "attuale",
+		saveChanges: "Salva modifiche",
+		create: "Crea categoria",
+
+		budgetLabel: "Limite di budget",
+		optional: "(opzionale)",
+		budgetPlaceholder: "es. 250",
+		budgetMustBePositive: "Il limite di budget deve essere un importo maggiore di zero",
+		budgetHintExisting:
+			"Svuota il campo per togliere il limite: i periodi passati restano com'erano.",
+		budgetHintNew: "Lascia vuoto per non impostare nessun limite.",
+	},
+
+	/** Transazioni ricorrenti (Fase 14). */
+	recurring: {
+		emptyTitle: "Nessun pagamento ricorrente",
+		emptyDescription:
+			"I tuoi abbonamenti e pagamenti pianificati appariranno qui non appena ne aggiungerai uno.",
+		addAction: "Aggiungi ricorrente",
+		/**
+		 * ⚠️ Forme plurali, non una ternaria `n === 1 ? … : …` nel componente.
+		 * Quella funziona in italiano e in inglese per caso: le categorie plurali
+		 * sono una proprietà della lingua, e `plural()` le chiede a `Intl`.
+		 */
+		count: {
+			one: "{n} pagamento pianificato",
+			other: "{n} pagamenti pianificati",
+		},
+		paused: "in pausa",
+		pause: "pausa",
+		resume: "riprendi",
+		edit: "modifica",
+		delete: "elimina",
+		deleteTitle: "Elimina ricorrenza",
+		deleteBody: "Interrompe le generazioni future. I movimenti già creati restano. Continuare?",
+
+		editTitle: "Modifica ricorrenza",
+		amount: "Importo",
+		category: "Categoria",
+		noCategory: "Nessuna categoria",
+		frequency: "Frequenza",
+		nextDate: "Prossima data",
+		description: "Descrizione",
+		descriptionPlaceholder: "Opzionale",
+		saveChanges: "Salva modifiche",
 	},
 
 	/** Gestione account e sicurezza (Fase 16). */
@@ -207,6 +398,21 @@ export const it = {
 			update: "Aggiorna password",
 			updating: "Aggiornamento…",
 			updatedTitle: "Password aggiornata",
+		},
+
+		/** Testo delle password, condiviso con il recupero pre-login. */
+		passwordCommon: {
+			show: "Mostra password",
+			hide: "Nascondi password",
+			tooShort: "La password deve essere di almeno {min} caratteri",
+			mismatch: "Le password non corrispondono",
+			/** Indicizzate dal punteggio 0–3 di `scorePassword`. */
+			strength: {
+				0: "troppo corta",
+				1: "sicurezza bassa",
+				2: "sicurezza media",
+				3: "sicurezza alta",
+			},
 		},
 
 		delete: {

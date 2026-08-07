@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { validateNewPassword } from "@/lib/password";
+import { PASSWORD_MIN_LENGTH, validateNewPassword } from "@/lib/password";
 import { getDictionary } from "@/lib/i18n/server";
 import { fill } from "@/lib/i18n/format";
 import { SITE_URL } from "@/lib/site-url";
@@ -246,8 +246,17 @@ export async function changePassword(
 	const { supabase, user, t } = await requireUser();
 	if (!user?.email) return { error: t.errors.notAuthenticated };
 
+	// `validateNewPassword` restituisce un codice, non una frase: la frase la
+	// compone chi conosce la lingua dell'utente.
 	const invalid = validateNewPassword(newPassword, confirmPassword);
-	if (invalid) return { error: invalid };
+	if (invalid) {
+		return {
+			error:
+				invalid === "tooShort"
+					? fill(t.account.passwordCommon.tooShort, { min: PASSWORD_MIN_LENGTH })
+					: t.account.passwordCommon.mismatch,
+		};
+	}
 
 	if (newPassword === currentPassword) {
 		return { error: t.errors.samePassword };

@@ -11,18 +11,26 @@ export type PasswordScore = 0 | 1 | 2 | 3;
 
 export interface PasswordStrength {
 	score: PasswordScore;
-	label: string;
 	/** Riempimento delle barre: l'accento pieno. */
 	color: string;
 	/** L'etichetta sotto le barre: l'inchiostro, o in chiaro resta a ~3,4:1. */
 	ink: string;
 }
 
+/**
+ * ⚠️ Niente `label` qui dentro (Fase 19).
+ *
+ * Questo modulo è condiviso fra client e server e contiene regole, non copy:
+ * l'etichetta vive in `t.password.strength[score]`, indicizzata dallo stesso
+ * punteggio. Il colore invece resta, perché è una proprietà del livello e non
+ * cambia con la lingua — stessa divisione che c'è fra `TIPO_COLOR` e
+ * `t.types` in `lib/transaction-utils.ts`.
+ */
 const STRENGTH: Record<PasswordScore, Omit<PasswordStrength, "score">> = {
-	0: { label: "troppo corta", color: "var(--text-muted)", ink: "var(--text-muted)" },
-	1: { label: "sicurezza bassa", color: "var(--color-aka)", ink: "var(--ink-aka)" },
-	2: { label: "sicurezza media", color: "var(--color-kin)", ink: "var(--ink-kin)" },
-	3: { label: "sicurezza alta", color: "var(--color-midori)", ink: "var(--ink-midori)" },
+	0: { color: "var(--text-muted)", ink: "var(--text-muted)" },
+	1: { color: "var(--color-aka)", ink: "var(--ink-aka)" },
+	2: { color: "var(--color-kin)", ink: "var(--ink-kin)" },
+	3: { color: "var(--color-midori)", ink: "var(--ink-midori)" },
 };
 
 /** Punteggio 0–3: lunghezza + varietà di caratteri. */
@@ -40,11 +48,19 @@ export function scorePassword(password: string): PasswordStrength {
 	return { score, ...STRENGTH[score] };
 }
 
-/** Ritorna il messaggio d'errore, oppure null se la coppia è valida. */
-export function validateNewPassword(password: string, confirm: string): string | null {
-	if (password.length < PASSWORD_MIN_LENGTH) {
-		return `La password deve essere di almeno ${PASSWORD_MIN_LENGTH} caratteri`;
-	}
-	if (password !== confirm) return "Le password non corrispondono";
+/**
+ * Cosa c'è che non va nella coppia di password.
+ *
+ * Un CODICE e non una frase: la frase la compone il chiamante col proprio
+ * dizionario. Entrambi i chiamanti sono server action, che il dizionario ce
+ * l'hanno già — e restituire testo da qui avrebbe significato che una funzione
+ * di regole debba conoscere la lingua dell'utente per fare il proprio lavoro.
+ */
+export type PasswordProblem = "tooShort" | "mismatch";
+
+/** Ritorna il problema, oppure null se la coppia è valida. */
+export function validateNewPassword(password: string, confirm: string): PasswordProblem | null {
+	if (password.length < PASSWORD_MIN_LENGTH) return "tooShort";
+	if (password !== confirm) return "mismatch";
 	return null;
 }

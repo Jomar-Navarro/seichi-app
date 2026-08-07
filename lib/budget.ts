@@ -6,36 +6,20 @@ import type { BudgetPeriod, BudgetStatus } from "@/types";
  */
 export const BUDGET_WARNING_THRESHOLD = 0.8;
 
-export const BUDGET_PERIODS: {
-	id: BudgetPeriod;
-	/** etichetta nel selettore del form categoria */
-	label: string;
-	/** suffisso dell'input importo: "€ 250 / mese" */
-	suffix: string;
-	/** finestra temporale, mostrata sulla card: "€ 10 / € 100" su quanto? */
-	window: string;
-}[] = [
-	{ id: "settimanale", label: "settimanale", suffix: "/ settimana", window: "questa settimana" },
-	{ id: "mensile",     label: "mensile",     suffix: "/ mese",      window: "questo mese" },
-	{ id: "annuale",     label: "annuale",     suffix: "/ anno",      window: "quest'anno" },
-];
-
-const BY_ID = new Map(BUDGET_PERIODS.map((p) => [p.id, p]));
-
-export function periodSuffix(period: BudgetPeriod): string {
-	return BY_ID.get(period)?.suffix ?? "";
-}
-
 /**
- * La finestra di una card. Va sulla CARD e non nell'intestazione di sezione,
+ * I periodi ammessi, nell'ordine in cui vanno mostrati.
+ *
+ * ⚠️ Solo gli ID (Fase 19). Le tre stringhe che ogni periodo portava con sé —
+ * l'etichetta del selettore, il suffisso dell'importo ("/ mese") e la finestra
+ * mostrata sulla card ("questo mese") — vivono in `t.budgetPeriods[id]`.
+ *
+ * La FINESTRA in particolare va sulla CARD e non nell'intestazione di sezione,
  * perché i periodi possono essere misti (spesa alimentare settimanale, viaggi
  * annuale) e le card si scorrono orizzontalmente: guardandone una a metà scroll,
  * "€ 10 / € 100" non dice su quale arco di tempo, e l'intestazione è già uscita
  * dal campo visivo.
  */
-export function periodWindow(period: BudgetPeriod): string {
-	return BY_ID.get(period)?.window ?? "";
-}
+export const BUDGET_PERIODS: BudgetPeriod[] = ["settimanale", "mensile", "annuale"];
 
 /**
  * Lo stato di un budget. `amount` è già garantito > 0 dal vincolo sulla tabella,
