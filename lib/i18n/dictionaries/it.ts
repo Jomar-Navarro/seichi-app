@@ -55,6 +55,8 @@ export const it = {
 		genericError: "Si è verificato un errore. Riprova.",
 		unknownError: "Errore sconosciuto",
 		required: "Campo obbligatorio",
+		/** Segnaposto di un Select non ancora scelto: "Seleziona categoria". */
+		selectPlaceholder: "Seleziona {field}",
 	},
 
 	/** Barra di navigazione in fondo. */
@@ -240,6 +242,7 @@ export const it = {
 			confirmPassword: "Conferma password",
 			reset: "Reimposta password",
 			resetting: "Aggiornamento…",
+			resetTitle: "Reimposta password",
 		},
 
 		emailConfirmed: {
@@ -451,6 +454,8 @@ export const it = {
 			"Crea il tuo primo obiettivo per iniziare a metterlo da parte con calma.",
 		create: "Crea obiettivo",
 		noDeadline: "Nessuna scadenza",
+		/** Intestazione del gruppo di obiettivi già raggiunti. */
+		completedSection: "Completati",
 		/** Riga sotto il nome sulla card: "Scadenza · ago 2026". */
 		reached: "Raggiunto · {date}",
 		deadline: "Scadenza · {date}",

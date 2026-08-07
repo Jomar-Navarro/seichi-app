@@ -81,7 +81,7 @@ export default function GoalsPageClient({ goals }: GoalsPageClientProps) {
 						<>
 							{active.length > 0 && (
 								<p className="text-xs text-muted font-medium mt-1 mb-0.5 ml-1 tracking-wide">
-									Completati
+									{t.goals.completedSection}
 								</p>
 							)}
 							{completed.map((g) => (

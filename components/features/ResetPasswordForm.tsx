@@ -35,7 +35,7 @@ export default function ResetPasswordForm() {
 				<span className="w-18 h-18 rounded-[26px] flex items-center justify-center mb-5 bg-control border border-subtle box-shadow">
 					<Lock size={34} className="text-foreground" strokeWidth={1.5} />
 				</span>
-				<h1 className="text-[21px] font-semibold">Reimposta password</h1>
+				<h1 className="text-[21px] font-semibold">{t.auth.recovery.resetTitle}</h1>
 			</div>
 
 			<PasswordInput

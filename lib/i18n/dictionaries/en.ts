@@ -38,6 +38,7 @@ export const en: Dictionary = {
 		genericError: "Something went wrong. Please try again.",
 		unknownError: "Unknown error",
 		required: "This field is required",
+		selectPlaceholder: "Select {field}",
 	},
 
 	nav: {
@@ -167,6 +168,7 @@ export const en: Dictionary = {
 			confirmPassword: "Confirm password",
 			reset: "Reset password",
 			resetting: "Updating…",
+			resetTitle: "Reset password",
 		},
 
 		emailConfirmed: {
@@ -340,6 +342,7 @@ export const en: Dictionary = {
 		emptyDescription: "Create your first goal and start setting money aside, calmly.",
 		create: "Create goal",
 		noDeadline: "No deadline",
+		completedSection: "Completed",
 		reached: "Reached · {date}",
 		deadline: "Due · {date}",
 		of: "of",

@@ -1,6 +1,8 @@
 "use client";
 import { useState } from "react";
 import { ChevronDown, Check } from "lucide-react";
+import { useI18n } from "@/components/features/I18nProvider";
+import { fill } from "@/lib/i18n/format";
 
 export interface Option {
 	icon: React.ReactNode;
@@ -23,8 +25,22 @@ export default function Select({
 	title,
 	variant = "default",
 }: DropdownProps) {
+	const { t } = useI18n();
 	const [isOpen, setIsOpen] = useState(false);
 	const selectedOption = options.find((o) => o.value === selected);
+
+	/**
+	 * Segnaposto quando non c'è ancora una scelta: "Seleziona categoria".
+	 *
+	 * ⚠️ Era `` `Seleziona ${title.toLowerCase()}` ``: un verbo CABLATO
+	 * concatenato a un titolo tradotto, che in inglese produceva la mezza frase
+	 * "Seleziona category". Ora è una voce di dizionario con segnaposto, così
+	 * ogni lingua può ricomporre la frase a modo suo invece di ereditare
+	 * l'ordine delle parole dell'italiano.
+	 */
+	const placeholder = fill(t.common.selectPlaceholder, {
+		field: title.toLowerCase(),
+	});
 
 	if (variant === "compact") {
 		return (
@@ -38,7 +54,7 @@ export default function Select({
 						<span className="shrink-0">{selectedOption.icon}</span>
 					)}
 					<span className="text-sm flex-1 text-left">
-						{selectedOption ? selectedOption.label : `Seleziona ${title.toLowerCase()}`}
+						{selectedOption ? selectedOption.label : placeholder}
 					</span>
 					<ChevronDown size={14} className="text-muted" />
 				</button>
