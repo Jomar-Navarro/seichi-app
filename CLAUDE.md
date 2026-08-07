@@ -722,6 +722,44 @@ corretti e la build passava — l'errore compare solo **aprendo la pagina**.
 `SummaryCard` resta quindi un server component e legge la lingua con `getI18n()`.
 Build verde non significa app funzionante.
 
+⚠️ **Scrivere il cookie della lingua NON basta a cambiare la lingua resa.** Una
+navigazione soft (`router.push`) riusa il root layout dalla cache del router, e
+quindi il dizionario vecchio. Nell'onboarding questo produceva il difetto
+peggiore possibile: `/category` mostrava le card in italiano mentre
+`saveCategories()` — che il cookie lo legge sul server — scriveva i nomi in
+inglese nel database, cioè proprio il disallineamento che il catalogo unico
+esiste per impedire. Ogni action che cambia lingua deve fare
+`revalidatePath("/", "layout")`, non solo `setLocaleCookie()`.
+
+#### Emerso dal code-review
+
+Dodici difetti, undici introdotti dalla fase. I quattro che valgono una regola:
+
+- ⚠️ **`t.mappa[valoreDalDatabase].campo` è una dereferenziazione ottimista.**
+  Il tipo dice cosa il DB *dovrebbe* contenere, non cosa contiene: sostituendo
+  `FREQ_RECUR_LABEL[f] ?? f` con l'accesso diretto, una riga inattesa passava da
+  difetto cosmetico a schianto di pagina. Si usa `lookup()` di
+  `lib/i18n/format.ts`, che il ripiego lo impone.
+- ⚠️ **Un array italiano sostituito da `Intl` può perdere la maiuscola.**
+  `MESI`/`GIORNI` davano "Gen"/"Lun", `Intl` dà "gen"/"lun" — e in inglese non si
+  nota ("Jan"/"Mon"), quindi la regressione si vede **solo nella lingua di
+  default**. Vale per `weekdayInitials` e `shortMonth`, che ora capitalizzano.
+- ⚠️ **`Intl` non vince sempre.** `format(0, "second")` in italiano è "ora", che
+  accanto a "1 ora fa" nella stessa colonna si legge come un conteggio troncato.
+  È l'unico caso in cui una parola scritta a mano ("adesso") batte `Intl`, e sta
+  nel dizionario per questo.
+- ⚠️ **Sostituire un controllo nativo può togliere uno stato.**
+  `<input type="date">` si poteva svuotare; il `DatePicker` emetteva solo giorni
+  concreti, quindi una scadenza opzionale diventava irreversibile. Il comando che
+  la rimuove compare quando `placeholder` dichiara che la data è opzionale.
+
+Più due lezioni sul metodo di verifica, entrambe pagate:
+**estrarre un componente non è finito finché l'originale non è cancellato**
+(il calendario è vissuto duplicato in `TransactionForm` e `DatePicker`, già
+divergenti); e **uno scanner va messo alla controprova**, perché quello del testo
+cablato leggeva solo i `.tsx` e non guardava le stringhe fuori dal JSX — due
+buchi che insieme nascondevano sei `"Non autenticato"` nelle server action.
+
 ## Auth Flow
 
 - `/welcome` → landing page pre-auth

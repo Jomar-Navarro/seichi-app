@@ -64,6 +64,23 @@ export const LOCALE_LABELS: Record<Locale, string> = {
 	en: "English",
 };
 
+/**
+ * Le valute che l'app sa nominare — le stesse chiavi di `t.settings.currencies`.
+ *
+ * Stanno qui accanto a `LOCALES` perché sono la stessa cosa: un insieme chiuso e
+ * piccolo di preferenze utente che va **validato al confine**. La lingua aveva
+ * già la sua guardia; la valuta, nello stesso `upsert`, passava grezza — e
+ * `profiles.currency` è il flag dell'onboarding, quindi una stringa vuota
+ * rimbalza l'utente su `/start` a ogni accesso, per sempre.
+ */
+export const CURRENCIES = ["EUR", "USD", "GBP", "CHF", "JPY"] as const;
+
+export type Currency = (typeof CURRENCIES)[number];
+
+export function isCurrency(value: unknown): value is Currency {
+	return typeof value === "string" && (CURRENCIES as readonly string[]).includes(value);
+}
+
 export function isLocale(value: unknown): value is Locale {
 	return typeof value === "string" && (LOCALES as readonly string[]).includes(value);
 }
@@ -117,24 +134,26 @@ export function negotiateLocale(acceptLanguage: string | null | undefined): Loca
 	return DEFAULT_LOCALE;
 }
 
-/* ---------------------------------------------------------------- client --- */
-
-/**
- * Persiste la lingua per le richieste successive.
+/*
+ * ⚠️ NON esiste uno scrittore lato client, a differenza del tema.
  *
- * Niente `httpOnly`, come per il tema: non c'è nulla da proteggere. Il cookie è
- * la fonte per il RENDERING; `profiles.language` resta la persistenza fra
- * dispositivi e viene riseminato qui al login (vedi `lib/i18n/server.ts`).
+ * Ce n'era uno (`writeLocaleCookie`), esportato e mai chiamato: contraddiceva la
+ * decisione presa in `I18nProvider`, cioè che il cambio lingua passa SEMPRE da
+ * una server action — perché le parole nuove stanno sul server e vanno comunque
+ * rilette. Due vie per scrivere lo stesso cookie, con attributi diversi, sono un
+ * modo per farlo finire con flag incoerenti a seconda di chi ha scritto per
+ * ultimo. Il cookie lo scrive solo il server, con le opzioni qui sotto.
  */
-export function writeLocaleCookie(locale: Locale) {
-	const secure = window.location.protocol === "https:" ? "; Secure" : "";
-	document.cookie = `${LOCALE_COOKIE}=${locale}; Path=/; Max-Age=${MAX_AGE}; SameSite=Lax${secure}`;
-}
 
 /** Attributi del cookie per chi lo scrive dal server (server action o route). */
 export const LOCALE_COOKIE_OPTIONS = {
 	path: "/",
 	maxAge: MAX_AGE,
 	sameSite: "lax",
+	// Niente httpOnly: non c'è nulla da proteggere in una lingua.
 	httpOnly: false,
+	// ⚠️ In produzione il cookie non deve viaggiare su http in chiaro. Mancava,
+	// e la versione client-side lo impostava: lo stesso cookie finiva con flag
+	// diversi a seconda di chi lo aveva scritto per ultimo.
+	secure: process.env.NODE_ENV === "production",
 } as const;

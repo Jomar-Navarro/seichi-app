@@ -368,7 +368,7 @@ export default function CategorySheet({
 							<label className="text-xs text-muted tracking-wide">{t.categories.iconLabel}</label>
 							<span className="text-[11px] text-muted">
 								{fill(t.categories.iconSet, {
-									type: t.typesShort[type as keyof typeof t.typesShort] ?? type,
+									type: t.typesSingular[type as keyof typeof t.typesSingular] ?? type,
 								})}
 							</span>
 						</div>

@@ -89,6 +89,7 @@ export const en: Dictionary = {
 		nameTooLong: "That name is too long",
 		invalidType: "Invalid type",
 		unsupportedLanguage: "Unsupported language",
+		unsupportedCurrency: "Unsupported currency",
 		noFileSelected: "No file selected",
 		unsupportedFormat: "Unsupported format — use JPG, PNG or WebP",
 		enterPassword: "Enter your password",
@@ -649,6 +650,7 @@ export const en: Dictionary = {
 	notifications: {
 		loading: "Loading…",
 		empty: "No notifications",
+		justNow: "just now",
 		title: "Notifications",
 		markAllRead: "mark all as read",
 		emptyDescription: "Alerts about budgets, goals and upcoming renewals show up here.",

@@ -2,16 +2,7 @@
 import { useEffect, useState } from "react";
 import { TransactionType, Category, Transaction, Frequency } from "@/types";
 import { createClient } from "@/lib/supabase/client";
-import {
-	Calendar,
-	ChevronLeft,
-	ChevronRight,
-	Pencil,
-	Delete,
-	Check,
-	Trash2,
-	Repeat,
-} from "lucide-react";
+import { Pencil, Delete, Check, Trash2, Repeat } from "lucide-react";
 import Select from "@/components/UI/Select";
 import FrequencySelector from "@/components/UI/FrequencySelector";
 import { SwitchVisual } from "@/components/UI/Switch";
@@ -23,23 +14,20 @@ import {
 	createRecurringRule,
 } from "@/app/(main)/action";
 import { useUIStore } from "@/store/useUIStore";
+import DatePicker from "@/components/UI/DatePicker";
 import { useI18n } from "@/components/features/I18nProvider";
-import {
-	DISPLAY_CURRENCY,
-	currencySymbol,
-	formatDate,
-	weekdayInitials,
-} from "@/lib/i18n/format";
+import { DISPLAY_CURRENCY, currencySymbol } from "@/lib/i18n/format";
 
-function getDaysInMonth(year: number, month: number) {
-	return new Date(year, month + 1, 0).getDate();
-}
-
-function getFirstWeekday(year: number, month: number) {
-	const day = new Date(year, month, 1).getDay();
-	return day === 0 ? 6 : day - 1;
-}
-
+/**
+ * ⚠️ Il calendario NON sta più qui.
+ *
+ * Questo file conteneva un picker inline completo — griglia dei giorni,
+ * navigazione dei mesi, intestazione della settimana — che nella Fase 19 è stato
+ * spostato in `components/UI/DatePicker.tsx` per darlo anche a `GoalSheet` e
+ * `RecurringSheet`, che usavano ancora `<input type="date">`. Per un po' le due
+ * copie sono coesistite: sbagliato, e già stavano divergendo (`min` e il comando
+ * "svuota" esistevano solo nella nuova). Ora il picker è uno solo.
+ */
 interface TransactionFormProps {
 	selectedType: TransactionType;
 	transaction?: Transaction;
@@ -50,8 +38,6 @@ export default function TransactionForm({
 	transaction,
 }: TransactionFormProps) {
 	const { locale, t } = useI18n();
-	// Le iniziali dei giorni le dà Intl: erano un array italiano cablato.
-	const DAYS = weekdayInitials(locale);
 	const isEditing = !!transaction;
 
 	const [amount, setAmount] = useState(() =>
@@ -67,10 +53,6 @@ export default function TransactionForm({
 		transaction ? new Date(transaction.date) : new Date(),
 	);
 	const [categoryList, setCategoryList] = useState<Category[]>([]);
-	const [isDateOpen, setIsDateOpen] = useState(false);
-	const [viewDate, setViewDate] = useState(() =>
-		transaction ? new Date(transaction.date) : new Date(),
-	);
 	const [isDeleteConfirm, setIsDeleteConfirm] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
 	const { closeTransactionModal, notifyTransactionSaved, recurringDefault } =
@@ -160,19 +142,6 @@ export default function TransactionForm({
 		}
 	}
 
-	function selectDay(day: number) {
-		setDate(new Date(viewDate.getFullYear(), viewDate.getMonth(), day, 12));
-		setIsDateOpen(false);
-	}
-
-	function navigateMonth(delta: number) {
-		setViewDate((prev) => {
-			const d = new Date(prev);
-			d.setMonth(d.getMonth() + delta);
-			return d;
-		});
-	}
-
 	const effectiveCategoryList: Category[] =
 		categoryList.length > 0
 			? categoryList
@@ -190,12 +159,6 @@ export default function TransactionForm({
 				: [];
 
 	const categoryOptions = buildCategoryOptions(effectiveCategoryList);
-
-	const year = viewDate.getFullYear();
-	const month = viewDate.getMonth();
-	const totalDays = getDaysInMonth(year, month);
-	const firstWeekday = getFirstWeekday(year, month);
-	const today = new Date();
 
 	return (
 		<div className="flex flex-col flex-1 min-h-0 overflow-y-auto overscroll-contain">
@@ -234,97 +197,16 @@ export default function TransactionForm({
 				</div>
 
 				{/* Data */}
-				<div className="relative">
+				<div>
 					<p className="text-xs text-muted mb-1.5">{t.transactions.form.date}</p>
-					<button
-						type="button"
-						onClick={() => {
-							setViewDate(new Date(date));
-							setIsDateOpen((p) => !p);
-						}}
-						className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-card border border-subtle"
-					>
-						<Calendar size={14} className="text-muted shrink-0" />
-						<span className="text-sm flex-1 text-left">
-							{formatDate(date, locale, {
-								day: "numeric",
-								month: "long",
-								year: "numeric",
-							})}
-						</span>
-						<ChevronRight size={14} className="text-muted" />
-					</button>
-
-					{isDateOpen && (
-						<div className="absolute top-full mt-1 left-0 right-0 z-20 rounded-2xl bg-deep border border-subtle p-3">
-							<div className="flex items-center justify-between mb-2">
-								<button
-									type="button"
-									onClick={() => navigateMonth(-1)}
-									className="w-7 h-7 flex items-center justify-center rounded-xl bg-card border border-subtle"
-								>
-									<ChevronLeft size={14} />
-								</button>
-								<span className="text-sm font-medium capitalize">
-									{formatDate(viewDate, locale, {
-										month: "long",
-										year: "numeric",
-									})}
-								</span>
-								<button
-									type="button"
-									onClick={() => navigateMonth(1)}
-									className="w-7 h-7 flex items-center justify-center rounded-xl bg-card border border-subtle"
-								>
-									<ChevronRight size={14} />
-								</button>
-							</div>
-
-							<div className="grid grid-cols-7 mb-1">
-								{DAYS.map((d) => (
-									<span
-										key={d}
-										className="text-center text-[10px] text-muted py-1"
-									>
-										{d}
-									</span>
-								))}
-							</div>
-
-							<div className="grid grid-cols-7 gap-0.5">
-								{Array.from({ length: firstWeekday }).map((_, i) => (
-									<div key={`e${i}`} />
-								))}
-								{Array.from({ length: totalDays }).map((_, i) => {
-									const day = i + 1;
-									const isSelected =
-										date.getDate() === day &&
-										date.getMonth() === month &&
-										date.getFullYear() === year;
-									const isToday =
-										today.getDate() === day &&
-										today.getMonth() === month &&
-										today.getFullYear() === year;
-									return (
-										<button
-											key={day}
-											type="button"
-											onClick={() => selectDay(day)}
-											className={`h-8 w-full rounded-xl text-xs flex items-center justify-center transition-colors ${
-												isSelected
-													? "btn-primary font-semibold"
-													: isToday
-														? "border border-subtle font-medium"
-														: "hover:bg-card"
-											}`}
-										>
-											{day}
-										</button>
-									);
-								})}
-							</div>
-						</div>
-					)}
+					{/* Lo stesso picker di GoalSheet e RecurringSheet: qui viveva la copia
+					    originale, ora estratta in components/UI/DatePicker.tsx. */}
+					<DatePicker
+						value={date.toLocaleDateString("sv-SE")}
+						// Mezzogiorno, non mezzanotte: attorno al cambio ora legale una
+						// data costruita a mezzanotte può ricadere nel giorno prima.
+						onChange={(iso) => setDate(new Date(`${iso}T12:00:00`))}
+					/>
 				</div>
 			</div>
 

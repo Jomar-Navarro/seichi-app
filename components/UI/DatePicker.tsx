@@ -40,7 +40,15 @@ interface DatePickerProps {
 	onChange: (isoDate: string) => void;
 	/** Data minima selezionabile, ISO. I giorni prima restano visibili ma spenti. */
 	min?: string;
-	/** Testo quando `value` è vuoto (la data è opzionale sugli obiettivi). */
+	/**
+	 * Testo quando `value` è vuoto, e etichetta del comando che la svuota.
+	 *
+	 * ⚠️ Valorizzarlo è ciò che rende la data OPZIONALE, e senza il comando il
+	 * picker era una trappola: `<input type="date">` si poteva cancellare, questo
+	 * emetteva solo giorni concreti. Chi metteva una scadenza a un obiettivo non
+	 * poteva più tornare a "nessuna scadenza" — uno stato raggiungibile dalla UI
+	 * solo in una direzione.
+	 */
 	placeholder?: string;
 	className?: string;
 }
@@ -169,6 +177,21 @@ export default function DatePicker({
 							);
 						})}
 					</div>
+
+					{/* Il comando che riporta la data a "non impostata". Compare solo
+					    quando `placeholder` dice che la data è opzionale. */}
+					{placeholder !== undefined && value !== "" && (
+						<button
+							type="button"
+							onClick={() => {
+								onChange("");
+								setOpen(false);
+							}}
+							className="w-full mt-2 pt-2 border-t border-subtle text-[11px] text-muted active:opacity-60"
+						>
+							{placeholder}
+						</button>
+					)}
 				</div>
 			)}
 		</div>

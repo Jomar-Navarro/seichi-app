@@ -1,7 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { getI18n } from "@/lib/i18n/server";
-import { formatDate } from "@/lib/i18n/format";
+import { getDictionary, getI18n } from "@/lib/i18n/server";
+import { formatDate, shortMonth } from "@/lib/i18n/format";
 import { createClient } from "@/lib/supabase/server";
 import { firstRunFrom, rollForwardPastToday } from "@/lib/recurring";
 import type { Frequency } from "@/types";
@@ -17,7 +17,7 @@ export async function saveTransaction(
 	const {
 		data: { user },
 	} = await supabase.auth.getUser();
-	const t = await getI18n().then((i) => i.t);
+	const t = await getDictionary();
 
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -44,7 +44,7 @@ export async function getTransactions(
 	const {
 		data: { user },
 	} = await supabase.auth.getUser();
-	const t = await getI18n().then((i) => i.t);
+	const t = await getDictionary();
 
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -83,7 +83,7 @@ export async function updateTransaction(
 	const {
 		data: { user },
 	} = await supabase.auth.getUser();
-	const t = await getI18n().then((i) => i.t);
+	const t = await getDictionary();
 
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -109,7 +109,7 @@ export async function deleteTransaction(id: string) {
 	const {
 		data: { user },
 	} = await supabase.auth.getUser();
-	const t = await getI18n().then((i) => i.t);
+	const t = await getDictionary();
 
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -138,7 +138,7 @@ export async function createRecurringRule(
 	const {
 		data: { user },
 	} = await supabase.auth.getUser();
-	const t = await getI18n().then((i) => i.t);
+	const t = await getDictionary();
 
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -170,7 +170,7 @@ export async function getRecurringRules() {
 	const {
 		data: { user },
 	} = await supabase.auth.getUser();
-	const t = await getI18n().then((i) => i.t);
+	const t = await getDictionary();
 
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -188,7 +188,7 @@ export async function deleteRecurringRule(id: string) {
 	const {
 		data: { user },
 	} = await supabase.auth.getUser();
-	const t = await getI18n().then((i) => i.t);
+	const t = await getDictionary();
 
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -216,7 +216,7 @@ export async function updateRecurringRule(
 	const {
 		data: { user },
 	} = await supabase.auth.getUser();
-	const t = await getI18n().then((i) => i.t);
+	const t = await getDictionary();
 
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -243,7 +243,7 @@ export async function setRecurringActive(id: string, active: boolean) {
 	const {
 		data: { user },
 	} = await supabase.auth.getUser();
-	const t = await getI18n().then((i) => i.t);
+	const t = await getDictionary();
 
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -281,7 +281,7 @@ export async function getDashboardTotals() {
 	const {
 		data: { user },
 	} = await supabase.auth.getUser();
-	const t = await getI18n().then((i) => i.t);
+	const t = await getDictionary();
 
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -404,8 +404,9 @@ export async function getAnalyticsData(periodo: string = "mese") {
 	} = await supabase.auth.getUser();
 
 	const { locale, t } = await getI18n();
-	const shortMonth = (d: Date) => formatDate(d, locale, { month: "short" });
-	const shortWeekday = (d: Date) => formatDate(d, locale, { weekday: "short" });
+	const month = (d: Date) => shortMonth(d, locale);
+	const weekday = (d: Date) =>
+		formatDate(d, locale, { weekday: "short" });
 
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -429,7 +430,7 @@ export async function getAnalyticsData(periodo: string = "mese") {
 		trendPoints = Array.from({ length: 7 }, (_, i) => {
 			const d = new Date(oggi.getFullYear(), oggi.getMonth(), oggi.getDate() - 6 + i);
 			return {
-				label: shortWeekday(d),
+				label: weekday(d),
 				start: d,
 				end: new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1),
 			};
@@ -441,7 +442,7 @@ export async function getAnalyticsData(periodo: string = "mese") {
 		prevEnd = rangeStart;
 		fetchStart = prevStart;
 		trendPoints = Array.from({ length: 12 }, (_, i) => ({
-			label: shortMonth(new Date(now.getFullYear(), i, 1)),
+			label: month(new Date(now.getFullYear(), i, 1)),
 			start: new Date(now.getFullYear(), i, 1),
 			end: new Date(now.getFullYear(), i + 1, 1),
 		}));
@@ -455,7 +456,7 @@ export async function getAnalyticsData(periodo: string = "mese") {
 		trendPoints = Array.from({ length: 6 }, (_, i) => {
 			const m = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
 			return {
-				label: shortMonth(m),
+				label: month(m),
 				start: m,
 				end: new Date(now.getFullYear(), now.getMonth() - 5 + i + 1, 1),
 			};

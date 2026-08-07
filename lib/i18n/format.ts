@@ -200,9 +200,23 @@ export function calendarDaysAgo(date: Date): number {
 export function weekdayInitials(locale: Locale): string[] {
 	const fmt = dateFormat(locale, { weekday: "short" });
 	// 5 gennaio 1970 = lunedì. Sette giorni consecutivi da lì.
+	// ⚠️ `capitalize`: in italiano `Intl` restituisce "lun", "mar" MINUSCOLI,
+	// mentre l'array cablato che ha sostituito dava "Lun", "Mar". In inglese non
+	// si nota ("Mon" è già maiuscolo), quindi la regressione si vedeva solo nella
+	// lingua di default — il caso peggiore per accorgersene.
 	return Array.from({ length: 7 }, (_, i) =>
-		fmt.format(new Date(1970, 0, 5 + i)),
+		capitalize(fmt.format(new Date(1970, 0, 5 + i))),
 	);
+}
+
+/**
+ * Mese abbreviato con l'iniziale maiuscola: "Gen", "Feb".
+ *
+ * Stesso motivo di `weekdayInitials`: `Intl` dà "gen" in italiano e "Jan" in
+ * inglese, e le etichette degli assi dei grafici erano capitalizzate.
+ */
+export function shortMonth(date: Date, locale: Locale): string {
+	return capitalize(formatDate(date, locale, { month: "short" }));
 }
 
 /** L'istanza `Intl.RelativeTimeFormat` per un locale, memorizzata. */
@@ -240,12 +254,25 @@ export function relativeDayLabel(days: number, locale: Locale): string {
  * Oltre la settimana torna alla data assoluta: "12 giorni fa" non aiuta a
  * collocare un evento, "24 luglio" sì.
  */
-export function formatRelativeTime(iso: string, locale: Locale): string {
+export function formatRelativeTime(
+	iso: string,
+	locale: Locale,
+	/**
+	 * Testo per "meno di un minuto fa".
+	 *
+	 * ⚠️ `Intl` qui NON va bene: `format(0, "second")` in italiano dà **"ora"**,
+	 * che capitalizzato diventa "Ora" — nella stessa colonna dove le righe più
+	 * vecchie dicono "1 ora fa". Si legge come un conteggio di ore troncato.
+	 * È l'unico caso in cui una parola scritta a mano batte `Intl`, quindi arriva
+	 * dal dizionario invece di essere dedotta.
+	 */
+	justNow: string,
+): string {
 	const then = new Date(iso);
 	const minutes = Math.floor((Date.now() - then.getTime()) / 60_000);
 	const rtf = relativeFormat(locale);
 
-	if (minutes < 1) return rtf.format(0, "second");
+	if (minutes < 1) return justNow;
 	if (minutes < 60) return rtf.format(-minutes, "minute");
 
 	const hours = Math.floor(minutes / 60);
@@ -255,6 +282,33 @@ export function formatRelativeTime(iso: string, locale: Locale): string {
 	if (days < 7) return rtf.format(-days, "day");
 
 	return formatDate(then, locale);
+}
+
+/* -------------------------------------------------- letture con ripiego --- */
+
+/**
+ * Legge una voce da una mappa del dizionario indicizzata con un valore che
+ * arriva dal DATABASE, con ripiego.
+ *
+ * ⚠️ Serve perché TypeScript si fida troppo. `r.frequency` è tipato come l'unione
+ * `Frequency`, quindi `t.frequencies[r.frequency].recur` compila — ma il tipo
+ * descrive ciò che il database *dovrebbe* contenere, non ciò che contiene. Il
+ * codice sostituito aveva un `?? r.frequency` che degradava a mostrare il valore
+ * grezzo; dereferenziando subito, una riga inattesa passa da difetto cosmetico a
+ * schianto dell'intera pagina.
+ *
+ * Non è teoria: CLAUDE.md registra che il `CHECK` su `recurring_rules.type` è
+ * mancato dal database vero fino al 2026-08-04, e che il repo non sa ancora
+ * ricostruire lo schema da zero (issue #43).
+ */
+export function lookup<T>(
+	map: Record<string, T>,
+	key: string,
+	pick: (entry: T) => string,
+	fallback: string,
+): string {
+	const entry = map[key] as T | undefined;
+	return entry ? pick(entry) : fallback;
 }
 
 /* -------------------------------------------------------------- stringhe --- */

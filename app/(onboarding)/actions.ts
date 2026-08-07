@@ -1,14 +1,22 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { normalizeLocale } from "@/lib/i18n/config";
+import { isCurrency, normalizeLocale } from "@/lib/i18n/config";
 import { getDictionary, setLocaleCookie } from "@/lib/i18n/server";
 
 export async function savePreferences(currency: string, language: string) {
 	const supabase = await createClient();
 	const { data: { user } } = await supabase.auth.getUser();
 
-	if (!user) return { error: "Non autenticato" };
+	const t = await getDictionary();
+
+	if (!user) return { error: t.errors.notAuthenticated };
+
+	// La valuta si valida come la lingua: `profiles.currency` è il flag
+	// dell'onboarding, e un valore vuoto rimbalzerebbe l'utente su /start a ogni
+	// accesso. La action è raggiungibile con una POST diretta, non solo dalla UI.
+	if (!isCurrency(currency)) return { error: t.errors.unsupportedCurrency };
 
 	// ⚠️ Il tag si normalizza QUI, al confine. Questa action ha sempre scritto in
 	// `profiles.language` il valore grezzo della select — cioè "IT"/"EN"
@@ -17,7 +25,7 @@ export async function savePreferences(currency: string, language: string) {
 	// "Italiano", in silenzio. Finché nessuno consumava quel campo il difetto era
 	// invisibile; da ora in poi sarebbe l'intera app nella lingua sbagliata.
 	const locale = normalizeLocale(language);
-	if (!locale) return { error: "Lingua non supportata" };
+	if (!locale) return { error: t.errors.unsupportedLanguage };
 
 	const { error } = await supabase
 		.from("profiles")
@@ -28,6 +36,15 @@ export async function savePreferences(currency: string, language: string) {
 	// Il cookie è ciò che il rendering legge: senza questa riga la scelta finirebbe
 	// nel database e la pagina successiva dell'onboarding resterebbe in italiano.
 	await setLocaleCookie(locale);
+
+	// ⚠️ Scrivere il cookie NON basta: la pagina successiva si raggiunge con un
+	// `router.push`, cioè una navigazione soft, che riusa il root layout dalla
+	// cache del router e quindi il dizionario VECCHIO. Il risultato era il peggiore
+	// possibile: `/category` mostrava le card in italiano mentre `saveCategories()`
+	// — che il cookie lo legge sul server — scriveva i nomi in inglese nel
+	// database. Esattamente il disallineamento che il catalogo unico esiste per
+	// impedire. `revalidatePath` sul layout invalida quella cache.
+	revalidatePath("/", "layout");
 	return { success: true };
 }
 

@@ -4,7 +4,7 @@ import { AlertTriangle } from "lucide-react";
 import { ICON_MAP } from "@/lib/icon-map";
 import { budgetColor, budgetInk } from "@/lib/budget";
 import { useI18n } from "./I18nProvider";
-import { DISPLAY_CURRENCY, fill, formatMoney } from "@/lib/i18n/format";
+import { DISPLAY_CURRENCY, fill, formatMoney, lookup } from "@/lib/i18n/format";
 import type { BudgetOverview, BudgetWithSpending } from "@/types";
 
 function BudgetCard({ budget }: { budget: BudgetWithSpending }) {
@@ -61,7 +61,7 @@ function BudgetCard({ budget }: { budget: BudgetWithSpending }) {
 			</div>
 
 			<div className="text-[11px] text-muted/80 mb-1.5 mt-0.5">
-				{t.budgetPeriods[budget.period].window}
+				{lookup(t.budgetPeriods, budget.period, (p) => p.window, "")}
 			</div>
 
 			<div className="text-[12.5px] text-muted mb-3">

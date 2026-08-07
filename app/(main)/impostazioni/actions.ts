@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { normalizeLocale } from "@/lib/i18n/config";
+import { isCurrency, normalizeLocale } from "@/lib/i18n/config";
 import { getDictionary, setLocaleCookie } from "@/lib/i18n/server";
 import type { Category } from "@/types";
 
@@ -130,7 +130,11 @@ export async function updatePreferences(currency: string, language: string) {
 	const t = await getDictionary();
 	if (!user) return { error: t.errors.notAuthenticated };
 
-	// Stessa normalizzazione di `savePreferences`: il tag canonico è minuscolo.
+	// Stessa validazione di `savePreferences`, su ENTRAMBI i parametri: la
+	// valuta passava grezza in un upsert dove la lingua era già controllata.
+	if (!isCurrency(currency)) return { error: t.errors.unsupportedCurrency };
+
+	// Il tag canonico è minuscolo.
 	const locale = normalizeLocale(language);
 	if (!locale) return { error: t.errors.unsupportedLanguage };
 

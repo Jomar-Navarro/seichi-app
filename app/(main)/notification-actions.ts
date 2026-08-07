@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { renderNotification } from "@/lib/notifications";
-import { getI18n } from "@/lib/i18n/server";
+import { getDictionary, getI18n } from "@/lib/i18n/server";
 import type { AppNotification, RenderedNotification } from "@/types";
 
 /**
@@ -25,7 +25,7 @@ export async function getNotifications(): Promise<
 > {
 	const supabase = await createClient();
 	const { data: { user } } = await supabase.auth.getUser();
-	if (!user) return { error: "Non autenticato" };
+	if (!user) return { error: (await getDictionary()).errors.notAuthenticated };
 
 	const [{ data, error }, { data: profile }, unreadResult] = await Promise.all([
 		supabase
@@ -60,7 +60,7 @@ export async function getNotifications(): Promise<
 export async function getUnreadCount(): Promise<{ data: number } | { error: string }> {
 	const supabase = await createClient();
 	const { data: { user } } = await supabase.auth.getUser();
-	if (!user) return { error: "Non autenticato" };
+	if (!user) return { error: (await getDictionary()).errors.notAuthenticated };
 
 	// head: true → nessuna riga trasferita, solo il conteggio. L'indice parziale
 	// su (user_id) where not read serve esattamente a questa query.
@@ -86,7 +86,7 @@ export async function markNotificationRead(
 ): Promise<{ success: true } | { error: string }> {
 	const supabase = await createClient();
 	const { data: { user } } = await supabase.auth.getUser();
-	if (!user) return { error: "Non autenticato" };
+	if (!user) return { error: (await getDictionary()).errors.notAuthenticated };
 
 	const { error } = await supabase
 		.from("notifications")
@@ -104,7 +104,7 @@ export async function markAllNotificationsRead(): Promise<
 > {
 	const supabase = await createClient();
 	const { data: { user } } = await supabase.auth.getUser();
-	if (!user) return { error: "Non autenticato" };
+	if (!user) return { error: (await getDictionary()).errors.notAuthenticated };
 
 	// Il filtro su `read` non è cosmetico: senza, l'UPDATE riscriverebbe ogni
 	// riga dell'utente a ogni tocco, comprese quelle già lette.

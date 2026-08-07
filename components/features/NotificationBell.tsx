@@ -216,7 +216,7 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 												<span className="block text-[11.5px] text-muted mt-1">{n.body}</span>
 											)}
 											<span className="block text-[11px] text-disabled mt-1">
-												{relativeTime(n.created_at, locale)}
+												{relativeTime(n.created_at, locale, t.notifications.justNow)}
 											</span>
 										</span>
 

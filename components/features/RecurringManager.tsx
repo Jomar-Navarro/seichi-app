@@ -10,7 +10,7 @@ import { RepeatIcon } from "@/lib/seichi-icons";
 import EmptyState from "@/components/UI/EmptyState";
 import RecurringSheet from "./RecurringSheet";
 import { useI18n } from "./I18nProvider";
-import { DISPLAY_CURRENCY, formatMoney, plural } from "@/lib/i18n/format";
+import { DISPLAY_CURRENCY, formatMoney, lookup, plural } from "@/lib/i18n/format";
 import { deleteRecurringRule, setRecurringActive } from "@/app/(main)/action";
 import { useUIStore } from "@/store/useUIStore";
 import type { Locale } from "@/lib/i18n/config";
@@ -111,7 +111,7 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 									</div>
 									<div className="flex items-center gap-1.5 mt-1">
 										<span className="text-[11px] font-semibold" style={{ color: "var(--ink-murasaki)" }}>
-											{t.frequencies[r.frequency].recur}
+											{lookup(t.frequencies, r.frequency, (f) => f.recur, r.frequency)}
 										</span>
 										<span className="w-0.75 h-0.75 rounded-full bg-muted/50" />
 										<span className="text-[11px] text-muted">

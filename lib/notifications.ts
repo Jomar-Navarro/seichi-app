@@ -50,8 +50,8 @@ export function notificationMeta(type: NotificationType) {
  * lingua. `capitalize` perché `Intl` restituisce "ieri" minuscolo e qui la
  * stringa apre una riga.
  */
-export function relativeTime(iso: string, locale: Locale): string {
-	return capitalize(formatRelativeTime(iso, locale));
+export function relativeTime(iso: string, locale: Locale, justNow: string): string {
+	return capitalize(formatRelativeTime(iso, locale, justNow));
 }
 
 /**

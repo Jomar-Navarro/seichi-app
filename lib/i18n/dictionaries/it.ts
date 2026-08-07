@@ -142,6 +142,7 @@ export const it = {
 		nameTooLong: "Il nome è troppo lungo",
 		invalidType: "Tipo non valido",
 		unsupportedLanguage: "Lingua non supportata",
+		unsupportedCurrency: "Valuta non supportata",
 		noFileSelected: "Nessun file selezionato",
 		unsupportedFormat: "Formato non supportato — usa JPG, PNG o WebP",
 		enterPassword: "Inserisci la password",
@@ -814,6 +815,8 @@ export const it = {
 	notifications: {
 		loading: "Caricamento…",
 		empty: "Nessuna notifica",
+		/** Meno di un minuto fa. Intl darebbe "ora", ambiguo accanto a "1 ora fa". */
+		justNow: "adesso",
 		title: "Notifiche",
 		markAllRead: "segna tutte come lette",
 		emptyDescription: "Qui arrivano gli avvisi su budget, obiettivi e rinnovi in arrivo.",
