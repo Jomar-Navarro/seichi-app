@@ -148,6 +148,94 @@ export const it = {
 		},
 	},
 
+	onboarding: {
+		start: {
+			eyebrow: "Benvenuto",
+			heading: "Iniziamo con calma.",
+			lead: "Prepara il terreno prima di costruire.",
+			leadMuted: "Metti in ordine le tue finanze — con calma e intenzione.",
+			description:
+				"Tre passi brevi per preparare il tuo spazio finanziario. Nessuna fretta — puoi cambiare tutto più tardi.",
+			cta: "Inizia",
+		},
+		preference: {
+			eyebrow: "Preferenze",
+			headingLine1: "Lingua",
+			headingLine2: "e valuta",
+			heading: "Lingua e valuta",
+			description:
+				"Imposta le tue preferenze di base. Potrai cambiarle in qualsiasi momento.",
+		},
+		category: {
+			eyebrow: "Categorie",
+			headingLine1: "Scegli le",
+			headingLine2: "categorie",
+			heading: "Scegli le categorie",
+			description:
+				"Seleziona ciò che vuoi tenere in ordine. Puoi aggiungerne altre più tardi.",
+			cta: "Completa la configurazione",
+			/**
+			 * ⚠️ "Spese" e non `t.types.spesa` ("Uscite"): sono due parole diverse,
+			 * e riusare il token avrebbe cambiato il testo italiano dell'onboarding
+			 * mentre lo traducevo. Tradurre non è riscrivere.
+			 */
+			groups: {
+				entrata: "Entrate",
+				spesa: "Spese",
+				risparmio: "Risparmi",
+				investimento: "Investimenti",
+				abbonamento: "Abbonamenti",
+			},
+		},
+	},
+
+	/**
+	 * Le categorie proposte dall'onboarding.
+	 *
+	 * ⚠️ Serve a DUE cose, e la seconda non è interfaccia: `title` è anche il nome
+	 * che `saveCategories()` SCRIVE in `categories.name`. Da quel momento è un dato
+	 * dell'utente — rinominabile, e già copiato nel payload delle notifiche
+	 * (`'category', c.name` nella migration della 17b). Per questo si traduce alla
+	 * SCRITTURA e non alla lettura: un nome tradotto al render disaccorderebbe la
+	 * lista dalle notifiche già emesse, mostrando due nomi per la stessa categoria
+	 * nella stessa schermata.
+	 *
+	 * Le CHIAVI (`stipendio`, `alimentari`) restano italiane: sono identificatori,
+	 * come i valori di `categories.type`.
+	 */
+	presetCategories: {
+		// Entrate
+		stipendio: { title: "Stipendio", subtitle: "Reddito mensile" },
+		freelance: { title: "Freelance", subtitle: "Lavoro autonomo" },
+		bonus: { title: "Bonus", subtitle: "Premi e incentivi" },
+		regalo: { title: "Regalo", subtitle: "Entrate inaspettate" },
+		rimborso: { title: "Rimborso", subtitle: "Spese rimborsate" },
+		// Spese
+		alimentari: { title: "Alimentari", subtitle: "Spesa e supermercato" },
+		ristoranti: { title: "Ristoranti", subtitle: "Bar e locali" },
+		trasporti: { title: "Trasporti", subtitle: "Auto, treni, bus" },
+		salute: { title: "Salute", subtitle: "Visite e farmaci" },
+		abbigliamento: { title: "Abbigliamento", subtitle: "Vestiti e accessori" },
+		svago: { title: "Svago", subtitle: "Tempo libero" },
+		casa_spesa: { title: "Casa", subtitle: "Arredi e manutenzione" },
+		// Risparmi
+		fondo_emergenza: { title: "Fondo emergenza", subtitle: "Cuscinetto di sicurezza" },
+		vacanze: { title: "Vacanze", subtitle: "Viaggi e soggiorni" },
+		obiettivo_casa: { title: "Obiettivo casa", subtitle: "Acquisto o affitto" },
+		elettronica: { title: "Elettronica", subtitle: "Gadget e dispositivi" },
+		// Investimenti
+		etf: { title: "ETF", subtitle: "Fondi indicizzati" },
+		azioni: { title: "Azioni", subtitle: "Mercati azionari" },
+		crypto: { title: "Crypto", subtitle: "Asset digitali" },
+		fondi: { title: "Fondi", subtitle: "Gestione attiva" },
+		// Abbonamenti
+		streaming: { title: "Streaming", subtitle: "Video on demand" },
+		musica: { title: "Musica", subtitle: "Piattaforme audio" },
+		palestra: { title: "Palestra", subtitle: "Fitness e sport" },
+		utenze: { title: "Utenze", subtitle: "Luce, gas, internet" },
+		affitto: { title: "Affitto", subtitle: "Casa e spazi" },
+	},
+
 	/** Budget (Fase 17a). */
 	budget: {
 		monthlyLimit: "Limite mensile",

@@ -101,6 +101,74 @@ export const en: Dictionary = {
 		},
 	},
 
+	onboarding: {
+		start: {
+			eyebrow: "Welcome",
+			heading: "Let's start calmly.",
+			lead: "Level the ground before you build.",
+			leadMuted: "Put your finances in order — calmly, and on purpose.",
+			description:
+				"Three short steps to set up your financial space. No rush — you can change everything later.",
+			cta: "Start",
+		},
+		preference: {
+			eyebrow: "Preferences",
+			headingLine1: "Language",
+			headingLine2: "and currency",
+			heading: "Language and currency",
+			description: "Set your basics. You can change them at any time.",
+		},
+		category: {
+			eyebrow: "Categories",
+			headingLine1: "Choose your",
+			headingLine2: "categories",
+			heading: "Choose your categories",
+			description:
+				"Pick what you want to keep in order. You can add more later.",
+			cta: "Finish setup",
+			groups: {
+				entrata: "Income",
+				spesa: "Expenses",
+				risparmio: "Savings",
+				investimento: "Investments",
+				abbonamento: "Subscriptions",
+			},
+		},
+	},
+
+	// `title` è anche il nome scritto in categories.name: vedi it.ts.
+	presetCategories: {
+		stipendio: { title: "Salary", subtitle: "Monthly income" },
+		freelance: { title: "Freelance", subtitle: "Self-employed work" },
+		bonus: { title: "Bonus", subtitle: "Rewards and incentives" },
+		regalo: { title: "Gift", subtitle: "Unexpected income" },
+		rimborso: { title: "Refund", subtitle: "Reimbursed expenses" },
+
+		alimentari: { title: "Groceries", subtitle: "Food and supermarket" },
+		ristoranti: { title: "Restaurants", subtitle: "Bars and eating out" },
+		trasporti: { title: "Transport", subtitle: "Car, trains, buses" },
+		salute: { title: "Health", subtitle: "Appointments and medicine" },
+		abbigliamento: { title: "Clothing", subtitle: "Clothes and accessories" },
+		svago: { title: "Leisure", subtitle: "Free time" },
+		casa_spesa: { title: "Home", subtitle: "Furniture and upkeep" },
+
+		fondo_emergenza: { title: "Emergency fund", subtitle: "Your safety buffer" },
+		vacanze: { title: "Holidays", subtitle: "Trips and stays" },
+		obiettivo_casa: { title: "Home goal", subtitle: "Buying or renting" },
+		elettronica: { title: "Electronics", subtitle: "Gadgets and devices" },
+
+		etf: { title: "ETF", subtitle: "Index funds" },
+		azioni: { title: "Stocks", subtitle: "Equity markets" },
+		crypto: { title: "Crypto", subtitle: "Digital assets" },
+		fondi: { title: "Funds", subtitle: "Actively managed" },
+
+		streaming: { title: "Streaming", subtitle: "Video on demand" },
+		musica: { title: "Music", subtitle: "Audio platforms" },
+		palestra: { title: "Gym", subtitle: "Fitness and sport" },
+		utenze: { title: "Utilities", subtitle: "Power, gas, internet" },
+		affitto: { title: "Rent", subtitle: "Home and spaces" },
+	},
+
 	budget: {
 		monthlyLimit: "Monthly limit",
 		variableOnly: "Variable spending only",
