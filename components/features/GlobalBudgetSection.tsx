@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Repeat } from "lucide-react";
 import { getFixedOutflows, getGlobalBudget, setBudget } from "@/app/(main)/budget-actions";
 import { useI18n } from "@/components/features/I18nProvider";
-import { DISPLAY_CURRENCY, fill, formatMoney } from "@/lib/i18n/format";
+import { DISPLAY_CURRENCY, currencySymbol, fill, formatMoney } from "@/lib/i18n/format";
 import { clientClock } from "@/lib/dates";
 
 /**
@@ -110,7 +110,7 @@ export default function GlobalBudgetSection() {
 				*/}
 				<label className="flex items-center gap-3 h-15.5 px-4 border-b border-subtle cursor-text">
 					<span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-control">
-						<span className="text-[15px] font-semibold text-secondary">€</span>
+						<span className="text-[15px] font-semibold text-secondary">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
 					</span>
 					<span className="flex-1 min-w-0">
 						<span className="block text-sm font-medium">{t.budget.monthlyLimit}</span>

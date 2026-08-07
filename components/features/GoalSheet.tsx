@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { GOAL_ICONS } from "@/lib/goal-icons";
 import { createGoal, updateGoal, deleteGoal } from "@/app/(main)/risparmi/actions";
 import { useI18n } from "./I18nProvider";
+import { DISPLAY_CURRENCY, currencySymbol } from "@/lib/i18n/format";
 import DatePicker from "@/components/UI/DatePicker";
 import type { GoalWithProgress } from "@/types";
 
@@ -30,7 +31,7 @@ const EMPTY_FORM: FormState = {
 };
 
 export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
-	const { t } = useI18n();
+	const { locale, t } = useI18n();
 	const router = useRouter();
 	const [form, setForm] = useState<FormState>(EMPTY_FORM);
 	const [submitted, setSubmitted] = useState(false);
@@ -173,7 +174,7 @@ export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
 							className="flex items-center gap-2 rounded-[18px] px-4 py-3.5 bg-input border border-subtle"
 							style={{ borderColor: amountError ? "var(--color-aka)" : undefined }}
 						>
-							<span className="text-[14.5px] text-muted">€</span>
+							<span className="text-[14.5px] text-muted">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
 							<input
 								type="number"
 								inputMode="decimal"

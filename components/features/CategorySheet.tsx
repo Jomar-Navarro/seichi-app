@@ -16,7 +16,7 @@ import { getBudgetForCategory, setBudget } from "@/app/(main)/budget-actions";
 import { BUDGET_PERIODS } from "@/lib/budget";
 import { clientClock } from "@/lib/dates";
 import { useI18n } from "./I18nProvider";
-import { fill } from "@/lib/i18n/format";
+import { DISPLAY_CURRENCY, currencySymbol, fill } from "@/lib/i18n/format";
 import type { BudgetPeriod, Category } from "@/types";
 
 /** Solo l'ordine: le etichette abbreviate stanno in `t.typesShort`. */
@@ -57,7 +57,7 @@ export default function CategorySheet({
 	onClose,
 }: CategorySheetProps) {
 	const router = useRouter();
-	const { t } = useI18n();
+	const { locale, t } = useI18n();
 	const [name, setName] = useState("");
 	const [icon, setIcon] = useState("");
 	const [type, setType] = useState("spesa");
@@ -340,7 +340,7 @@ export default function CategorySheet({
 							</div>
 
 							<div className="flex items-center rounded-2xl px-4 py-3.5 bg-input border border-subtle">
-								<span className="text-[14.5px] text-muted mr-1.5">€</span>
+								<span className="text-[14.5px] text-muted mr-1.5">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
 								<input
 									type="text"
 									inputMode="decimal"

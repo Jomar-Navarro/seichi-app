@@ -10,6 +10,7 @@ import { buildCategoryOptions } from "@/lib/category-options";
 import { TIPO_COLOR } from "@/lib/transaction-utils";
 import { updateRecurringRule } from "@/app/(main)/action";
 import { useI18n } from "./I18nProvider";
+import { DISPLAY_CURRENCY, currencySymbol } from "@/lib/i18n/format";
 import DatePicker from "@/components/UI/DatePicker";
 import type { RecurringRule, Category, Frequency } from "@/types";
 
@@ -21,7 +22,7 @@ interface RecurringSheetProps {
 
 export default function RecurringSheet({ isOpen, rule, onClose }: RecurringSheetProps) {
 	const router = useRouter();
-	const { t } = useI18n();
+	const { locale, t } = useI18n();
 	const [amount, setAmount] = useState("");
 	const [categoryId, setCategoryId] = useState<string | null>(null);
 	const [notes, setNotes] = useState("");
@@ -111,7 +112,7 @@ export default function RecurringSheet({ isOpen, rule, onClose }: RecurringSheet
 					<div>
 						<label className="text-xs text-muted mb-1.5 block">{t.recurring.amount}</label>
 						<div className="flex items-center gap-2 rounded-2xl px-4 py-3 bg-card border border-subtle">
-							<span className="text-sm text-muted">€</span>
+							<span className="text-sm text-muted">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
 							<input
 								type="text"
 								inputMode="decimal"
