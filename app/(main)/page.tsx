@@ -14,6 +14,8 @@ import NotificationBell from "@/components/features/NotificationBell";
 import { getUnreadCount } from "@/app/(main)/notification-actions";
 import Sparkline from "@/components/UI/Sparkline";
 import { getAccountContext } from "@/lib/account";
+import { getI18n } from "@/lib/i18n/server";
+import { fill } from "@/lib/i18n/format";
 import { ChartNoAxesCombinedIcon } from "@/lib/seichi-icons";
 
 export default function MainPage() {
@@ -32,6 +34,7 @@ async function DashboardContent() {
 		getAccountContext(),
 		getUnreadCount(),
 	]);
+	const { t } = await getI18n();
 
 	// Il conteggio arriva già risolto dal server così il badge non lampeggia da
 	// zero al numero vero. Su errore si mostra 0: un badge sbagliato in eccesso
@@ -43,8 +46,8 @@ async function DashboardContent() {
 	const investimento = TRANSACTION_TYPES.find((t) => t.id === "investimento")!;
 	const risparmio = TRANSACTION_TYPES.find((t) => t.id === "risparmio")!;
 
-	if ("error" in result) return <p>Errore</p>;
-	if ("error" in transaction) return <p>Errore</p>;
+	if ("error" in result) return <p>{t.home.error}</p>;
+	if ("error" in transaction) return <p>{t.home.error}</p>;
 
 	const goals = "error" in goalsResult ? [] : goalsResult.data;
 	const goalsWithTarget = goals.filter((g) => (g.target_amount ?? 0) > 0);
@@ -84,7 +87,7 @@ async function DashboardContent() {
 					initials={account.initials}
 					avatarUrl={account.avatarUrl}
 					name={account.displayName}
-					greeting="Bentornato"
+					greeting={t.home.greeting}
 				/>
 				<NotificationBell initialUnread={unreadCount} />
 			</div>
@@ -99,7 +102,7 @@ async function DashboardContent() {
 					amount={result.entrateMese}
 					icon={entrata.icon}
 					color={entrata.color}
-					label="Entrate"
+					label={t.home.cards.income}
 					trend={result.entrateTrend}
 				/>
 
@@ -107,7 +110,7 @@ async function DashboardContent() {
 					amount={result.speseMese}
 					icon={uscita.icon}
 					color={uscita.color}
-					label="Spese"
+					label={t.home.cards.expenses}
 					trend={result.speseTrend}
 				/>
 
@@ -115,7 +118,7 @@ async function DashboardContent() {
 					amount={result.investimentiMese}
 					icon={investimento.icon}
 					color={investimento.color}
-					label="Investimenti"
+					label={t.home.cards.investments}
 					trend={result.investimentiTrend}
 				/>
 
@@ -123,7 +126,7 @@ async function DashboardContent() {
 					amount={result.risparmiMese}
 					icon={risparmio.icon}
 					color={risparmio.color}
-					label={totalTarget > 0 ? `Risparmi · ${risparmiProgress}%` : "Risparmi"}
+					label={totalTarget > 0 ? fill(t.home.cards.savingsWithProgress, { pct: risparmiProgress }) : t.home.cards.savings}
 					progress={totalTarget > 0 ? risparmiProgress : undefined}
 					trend={result.risparmiTrend}
 				/>
@@ -143,8 +146,8 @@ async function DashboardContent() {
 						<ChartNoAxesCombinedIcon size={17} strokeWidth={1.5} style={{ color: "var(--color-ao)" }} />
 					</div>
 					<div>
-						<p className="text-sm font-semibold">Analisi</p>
-						<p className="text-xs text-muted">Grafici e statistiche</p>
+						<p className="text-sm font-semibold">{t.home.analyticsTitle}</p>
+						<p className="text-xs text-muted">{t.home.analyticsSubtitle}</p>
 					</div>
 				</div>
 				<div className="flex items-center gap-2">

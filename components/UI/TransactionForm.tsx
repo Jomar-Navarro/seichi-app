@@ -23,8 +23,13 @@ import {
 	createRecurringRule,
 } from "@/app/(main)/action";
 import { useUIStore } from "@/store/useUIStore";
-
-const DAYS = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
+import { useI18n } from "@/components/features/I18nProvider";
+import {
+	DISPLAY_CURRENCY,
+	currencySymbol,
+	formatDate,
+	weekdayInitials,
+} from "@/lib/i18n/format";
 
 function getDaysInMonth(year: number, month: number) {
 	return new Date(year, month + 1, 0).getDate();
@@ -44,6 +49,9 @@ export default function TransactionForm({
 	selectedType,
 	transaction,
 }: TransactionFormProps) {
+	const { locale, t } = useI18n();
+	// Le iniziali dei giorni le dà Intl: erano un array italiano cablato.
+	const DAYS = weekdayInitials(locale);
 	const isEditing = !!transaction;
 
 	const [amount, setAmount] = useState(() =>
@@ -193,9 +201,9 @@ export default function TransactionForm({
 		<div className="flex flex-col flex-1 min-h-0 overflow-y-auto overscroll-contain">
 			{/* Importo */}
 			<div className="text-center pt-1 pb-3">
-				<p className="text-muted text-md mb-2">Importo</p>
+				<p className="text-muted text-md mb-2">{t.transactions.form.amount}</p>
 				<div className="text-7xl font-bold tracking-tight">
-					<span className="text-3xl mr-1">€</span>
+					<span className="text-3xl mr-1">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
 					{amount || "0"}
 				</div>
 			</div>
@@ -203,7 +211,7 @@ export default function TransactionForm({
 			<div className="flex flex-col gap-2 mb-3">
 				{/* Categoria */}
 				<Select
-					title="Categoria"
+					title={t.transactions.form.category}
 					variant="compact"
 					options={categoryOptions}
 					selected={categoryId ?? ""}
@@ -212,12 +220,12 @@ export default function TransactionForm({
 
 				{/* Descrizione */}
 				<div>
-					<p className="text-xs text-muted mb-1.5">Descrizione</p>
+					<p className="text-xs text-muted mb-1.5">{t.transactions.form.description}</p>
 					<div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-card border border-subtle">
 						<Pencil size={14} className="text-muted shrink-0" />
 						<input
 							type="text"
-							placeholder="Es. Trenord, Esselunga..."
+							placeholder={t.transactions.form.descriptionPlaceholder}
 							value={description ?? ""}
 							onChange={(e) => setDescription(e.target.value)}
 							className="bg-transparent text-sm flex-1 outline-none placeholder:text-muted"
@@ -227,7 +235,7 @@ export default function TransactionForm({
 
 				{/* Data */}
 				<div className="relative">
-					<p className="text-xs text-muted mb-1.5">Data</p>
+					<p className="text-xs text-muted mb-1.5">{t.transactions.form.date}</p>
 					<button
 						type="button"
 						onClick={() => {
@@ -238,7 +246,7 @@ export default function TransactionForm({
 					>
 						<Calendar size={14} className="text-muted shrink-0" />
 						<span className="text-sm flex-1 text-left">
-							{date.toLocaleDateString("it-IT", {
+							{formatDate(date, locale, {
 								day: "numeric",
 								month: "long",
 								year: "numeric",
@@ -258,7 +266,7 @@ export default function TransactionForm({
 									<ChevronLeft size={14} />
 								</button>
 								<span className="text-sm font-medium capitalize">
-									{viewDate.toLocaleDateString("it-IT", {
+									{formatDate(viewDate, locale, {
 										month: "long",
 										year: "numeric",
 									})}
@@ -323,14 +331,14 @@ export default function TransactionForm({
 			{/* Ripeti (solo nuovi movimenti) */}
 			{!isEditing && (
 				<div className="mb-3">
-					<p className="text-xs text-muted mb-1.5">Ricorrenti</p>
+					<p className="text-xs text-muted mb-1.5">{t.transactions.form.recurringSection}</p>
 					<button
 						type="button"
 						onClick={() => setIsRecurring((v) => !v)}
 						className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-card border border-subtle"
 					>
 						<Repeat size={14} className="text-muted shrink-0" />
-						<span className="text-sm flex-1 text-left">Ripeti</span>
+						<span className="text-sm flex-1 text-left">{t.transactions.form.repeat}</span>
 						{/*
 							Il DISEGNO di <Switch> senza il suo comando: questa riga è già
 							un <button>, e annidarci dentro il bottone role="switch" del
@@ -381,10 +389,10 @@ export default function TransactionForm({
 			>
 				<Check size={18} />
 				{isEditing
-					? "Salva modifiche"
+					? t.transactions.form.saveChanges
 					: isRecurring
-						? "Crea ricorrenza"
-						: "Salva movimento"}
+						? t.transactions.form.createRecurring
+						: t.transactions.form.save}
 			</button>
 
 			{isEditing && (

@@ -110,6 +110,46 @@ export function formatMoney(
 	return `${currencySymbol(currency, locale)} ${amount}`;
 }
 
+/**
+ * Spezza un importo in parte intera e parte decimale, per renderle di due
+ * dimensioni diverse (la card del saldo in home).
+ *
+ * ⚠️ Passa da `formatToParts` e NON dalla ricerca della virgola. Il codice
+ * precedente faceva `lastIndexOf(",")`: giusto in italiano, rotto in inglese,
+ * dove la virgola separa le MIGLIAIA e il punto i decimali. "1.234,50" diventa
+ * "1,234.50", e cercando la virgola si sarebbe ottenuto `1` + `,234.50` — cioè
+ * un saldo di milleduecento euro mostrato come "1" grande e il resto piccolo.
+ * `formatToParts` etichetta i pezzi, quindi la domanda "qual è la parte
+ * decimale" ha una risposta indipendente dalla lingua.
+ */
+export function splitAmount(
+	value: number,
+	locale: Locale,
+	decimals = 2,
+): { sign: string; integer: string; decimal: string } {
+	const parts = numberFormat(locale, {
+		minimumFractionDigits: decimals,
+		maximumFractionDigits: decimals,
+	}).formatToParts(Math.abs(value));
+
+	let integer = "";
+	let decimal = "";
+	let seenFraction = false;
+
+	for (const part of parts) {
+		if (part.type === "decimal" || part.type === "fraction") {
+			seenFraction = true;
+			decimal += part.value;
+		} else if (!seenFraction) {
+			integer += part.value;
+		}
+	}
+
+	// Il meno tipografico (U+2212), non il trattino: è quello che il design usa
+	// accanto agli importi negativi.
+	return { sign: value < 0 ? "−" : "", integer, decimal };
+}
+
 /* ----------------------------------------------------------------- date --- */
 
 /**
@@ -150,6 +190,45 @@ export function calendarDaysAgo(date: Date): number {
 }
 
 /**
+ * Le iniziali dei giorni per il calendario, **da lunedì**.
+ *
+ * Erano un array `["Lun", "Mar", …]` scritto a mano nel form transazione.
+ * `Intl` li conosce per ogni lingua, e la settimana che parte da lunedì resta
+ * una scelta nostra: si ottiene partendo da una domenica nota (4 gennaio 1970 era
+ * una domenica) e saltando al giorno dopo.
+ */
+export function weekdayInitials(locale: Locale): string[] {
+	const fmt = dateFormat(locale, { weekday: "short" });
+	// 5 gennaio 1970 = lunedì. Sette giorni consecutivi da lì.
+	return Array.from({ length: 7 }, (_, i) =>
+		fmt.format(new Date(1970, 0, 5 + i)),
+	);
+}
+
+/** L'istanza `Intl.RelativeTimeFormat` per un locale, memorizzata. */
+function relativeFormat(locale: Locale) {
+	const key = INTL_LOCALE[locale];
+	let rtf = relativeFormats.get(key);
+	if (!rtf) {
+		rtf = new Intl.RelativeTimeFormat(key, { numeric: "auto" });
+		relativeFormats.set(key, rtf);
+	}
+	return rtf;
+}
+
+/**
+ * "oggi", "ieri", "3 giorni fa" — dal solo scarto in giorni.
+ *
+ * È `numeric: "auto"` a trasformare `-1` in "ieri" invece di "1 giorno fa", ed è
+ * il motivo per cui quelle due parole non stanno nei dizionari: `Intl` le
+ * conosce per ogni lingua. Restituisce minuscolo, quindi a inizio riga va
+ * passato per `capitalize`.
+ */
+export function relativeDayLabel(days: number, locale: Locale): string {
+	return relativeFormat(locale).format(days, "day");
+}
+
+/**
  * Timestamp relativo — "2 ore fa", "ieri", "3 giorni fa".
  *
  * Usa `Intl.RelativeTimeFormat` con `numeric: "auto"`, che è ciò che trasforma
@@ -164,13 +243,7 @@ export function calendarDaysAgo(date: Date): number {
 export function formatRelativeTime(iso: string, locale: Locale): string {
 	const then = new Date(iso);
 	const minutes = Math.floor((Date.now() - then.getTime()) / 60_000);
-
-	const key = INTL_LOCALE[locale];
-	let rtf = relativeFormats.get(key);
-	if (!rtf) {
-		rtf = new Intl.RelativeTimeFormat(key, { numeric: "auto" });
-		relativeFormats.set(key, rtf);
-	}
+	const rtf = relativeFormat(locale);
 
 	if (minutes < 1) return rtf.format(0, "second");
 	if (minutes < 60) return rtf.format(-minutes, "minute");

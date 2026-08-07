@@ -2,7 +2,8 @@
 import { PieChart, Pie, Tooltip, ResponsiveContainer } from "recharts";
 import { TrendingUpIcon } from "@/lib/seichi-icons";
 import { ICON_MAP } from "@/lib/icon-map";
-import { numberFormatter } from "@/lib/transaction-utils";
+import { useI18n } from "./I18nProvider";
+import { DISPLAY_CURRENCY, formatMoney } from "@/lib/i18n/format";
 import type { InvestmentData } from "@/types";
 import { INVESTMENT_TYPE_META as TYPE_META } from "@/lib/investment-types";
 
@@ -56,6 +57,11 @@ export default function InvestimentiTab({
 }: {
 	data: InvestmentData | null;
 }) {
+	const { locale } = useI18n();
+	/** Importi con i decimali, nel formato del locale. */
+	const money = (v: number) =>
+		formatMoney(v, { locale, currency: DISPLAY_CURRENCY, decimals: 2 });
+
 	if (!data || data.positions.length === 0) return <EmptyState />;
 
 	const { total, variazionePct, byType, positions } = data;
@@ -95,7 +101,7 @@ export default function InvestimentiTab({
 					Valore portafoglio
 				</p>
 				<p className="text-[36px] font-semibold tracking-[-0.5px] mt-2 text-foreground">
-					€ {numberFormatter.format(total)}
+					{money(total)}
 				</p>
 				{variazionePct !== null && (
 					<p
@@ -143,7 +149,7 @@ export default function InvestimentiTab({
 											color: "var(--text-primary)",
 										}}
 										formatter={(value) => [
-											`€ ${numberFormatter.format(Number(value))}`,
+											money(Number(value)),
 											"",
 										]}
 									/>
@@ -154,7 +160,7 @@ export default function InvestimentiTab({
 									Totale
 								</p>
 								<p className="text-[15px] font-semibold text-foreground leading-none">
-									€ {numberFormatter.format(total)}
+									{money(total)}
 								</p>
 							</div>
 						</div>
@@ -223,7 +229,7 @@ export default function InvestimentiTab({
 							<div className="flex items-center justify-between mt-2.5 text-[12.5px]">
 								<span className="text-muted">Investito</span>
 								<span className="font-semibold">
-									€ {numberFormatter.format(pos.total)}
+									{money(pos.total)}
 								</span>
 							</div>
 						</div>

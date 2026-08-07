@@ -5,6 +5,7 @@ import { useState, useLayoutEffect, useEffect } from "react";
 import { useUIStore } from "@/store/useUIStore";
 import { TRANSACTION_TYPES } from "@/types";
 import TransactionForm from "./TransactionForm";
+import { useI18n } from "@/components/features/I18nProvider";
 
 export default function TransactionModal() {
 	const {
@@ -14,6 +15,7 @@ export default function TransactionModal() {
 		closeTransactionModal,
 		setTransactionType,
 	} = useUIStore();
+	const { t } = useI18n();
 
 	const [step, setStep] = useState<"type" | "form">("type");
 
@@ -80,15 +82,15 @@ export default function TransactionModal() {
 									className="text-xs font-medium mb-0.5"
 									style={{ color: selectedType.color }}
 								>
-									{selectedType.label}
+									{t.transactionTypes[selectedType.id].label}
 								</p>
 							)}
 							<h2 className="text-xl font-semibold">
-								{editingTransaction ? "Modifica movimento" : "Nuovo movimento"}
+								{editingTransaction ? t.transactions.modalEdit : t.transactions.modalNew}
 							</h2>
 							{step === "type" && (
 								<p className="text-sm text-muted mt-1">
-									Che tipo di movimento vuoi registrare?
+									{t.transactions.modalTypeQuestion}
 								</p>
 							)}
 						</div>
@@ -147,9 +149,9 @@ export default function TransactionModal() {
 									</div>
 
 									<div>
-										<p className="font-semibold text-sm">{type.label}</p>
+										<p className="font-semibold text-sm">{t.transactionTypes[type.id].label}</p>
 										<p className="text-[11px] text-muted mt-0.5 leading-tight">
-											{type.description}
+											{t.transactionTypes[type.id].description}
 										</p>
 									</div>
 								</button>

@@ -359,6 +359,80 @@ export const it = {
 		affitto: { title: "Affitto", subtitle: "Casa e spazi" },
 	},
 
+	/**
+	 * I cinque tipi nel selettore del modale transazione.
+	 *
+	 * ⚠️ Non è `typesSingular`: lì `abbonamento` è "Abbonamento", qui è
+	 * "Ricorrente". Sono due parole diverse per lo stesso tipo, già prima della
+	 * traduzione, e unificarle sarebbe stato riscrivere il testo italiano.
+	 */
+	transactionTypes: {
+		spesa: { label: "Uscita", description: "Spese e acquisti quotidiani" },
+		entrata: { label: "Entrata", description: "Stipendio, rimborsi, regali" },
+		risparmio: { label: "Risparmio", description: "Accantonamenti e obiettivi" },
+		investimento: { label: "Investimento", description: "Mercati, fondi, portafoglio" },
+		abbonamento: { label: "Ricorrente", description: "Abbonamenti e pagamenti fissi" },
+	},
+
+	home: {
+		greeting: "Bentornato",
+		error: "Errore",
+		balanceTotal: "Saldo totale",
+		balanceThisMonth: "questo mese",
+		/**
+		 * ⚠️ "Spese" e non `t.types.spesa` ("Uscite"): le card della home e il
+		 * filtro dei movimenti usano due parole diverse già in italiano.
+		 */
+		cards: {
+			income: "Entrate",
+			expenses: "Spese",
+			investments: "Investimenti",
+			savings: "Risparmi",
+			/** Quando ci sono obiettivi con un traguardo: "Risparmi · 42%". */
+			savingsWithProgress: "Risparmi · {pct}%",
+		},
+		analyticsTitle: "Analisi",
+		analyticsSubtitle: "Grafici e statistiche",
+		recentTitle: "Transazioni recenti",
+		seeAll: "Vedi tutte →",
+		/** Lista vuota dentro la card della home, più stretta di quella a pagina piena. */
+		emptyTitle: "Ancora nessun movimento",
+		emptyDescription: "Aggiungi il primo movimento per iniziare.",
+	},
+
+	transactions: {
+		title: "Movimenti",
+		modalNew: "Nuovo movimento",
+		modalEdit: "Modifica movimento",
+		modalTypeQuestion: "Che tipo di movimento vuoi registrare?",
+
+		/** Il form dentro il modale. */
+		form: {
+			amount: "Importo",
+			category: "Categoria",
+			description: "Descrizione",
+			descriptionPlaceholder: "Es. Trenord, Esselunga...",
+			date: "Data",
+			recurringSection: "Ricorrenti",
+			repeat: "Ripeti",
+			saveChanges: "Salva modifiche",
+			createRecurring: "Crea ricorrenza",
+			save: "Salva movimento",
+		},
+		emptyTitle: "Nessuna transazione ancora",
+		emptyDescription:
+			"Le tue entrate e uscite appariranno qui non appena registrerai il primo movimento.",
+		addAction: "Aggiungi movimento",
+		searchPlaceholder: "Cerca movimenti",
+		filterAll: "Tutte",
+		periods: {
+			"7d": "7 giorni",
+			"30d": "30 giorni",
+			"3m": "3 mesi",
+			tutto: "Tutto",
+		},
+	},
+
 	/** Budget (Fase 17a). */
 	budget: {
 		monthlyLimit: "Limite mensile",
@@ -635,6 +709,18 @@ export const it = {
 			deleteForever: "Elimina definitivamente",
 			deleting: "Eliminazione…",
 		},
+	},
+
+	/** Menu che si apre dal gruppo avatar+nome in home (Fase 18). */
+	profileMenu: {
+		settings: "Impostazioni",
+		signOut: "Esci",
+	},
+
+	/** Pannello notifiche (Fase 17b) — le frasi arrivano nel lotto 5. */
+	notifications: {
+		loading: "Caricamento…",
+		empty: "Nessuna notifica",
 	},
 
 	settings: {

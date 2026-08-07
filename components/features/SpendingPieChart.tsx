@@ -1,6 +1,7 @@
 "use client";
 import { PieChart, Pie, Tooltip, ResponsiveContainer } from "recharts";
-import { numberFormatter } from "@/lib/transaction-utils";
+import { useI18n } from "./I18nProvider";
+import { DISPLAY_CURRENCY, formatMoney } from "@/lib/i18n/format";
 
 interface SpendingPieChartProps {
 	spese: { name: string; color: string; total: number }[];
@@ -33,6 +34,11 @@ const CHART_RAMP = [
 ];
 
 export default function SpendingPieChart({ spese, periodo = "mese" }: SpendingPieChartProps) {
+	const { locale } = useI18n();
+	/** Importi con i decimali, nel formato del locale. */
+	const money = (v: number) =>
+		formatMoney(v, { locale, currency: DISPLAY_CURRENCY, decimals: 2 });
+
 	const totale = spese.reduce((acc, s) => acc + s.total, 0);
 	const data = spese.map((s, i) => ({
 		...s,
@@ -84,7 +90,7 @@ export default function SpendingPieChart({ spese, periodo = "mese" }: SpendingPi
 									color: "var(--text-primary)",
 								}}
 								formatter={(value) => [
-									`€ ${numberFormatter.format(Number(value))}`,
+									money(Number(value)),
 									"",
 								]}
 							/>
@@ -96,7 +102,7 @@ export default function SpendingPieChart({ spese, periodo = "mese" }: SpendingPi
 							Uscite
 						</p>
 						<p className="text-[15px] font-semibold text-foreground leading-none">
-							€ {numberFormatter.format(totale)}
+							{money(totale)}
 						</p>
 					</div>
 				</div>

@@ -3,7 +3,8 @@ import { getAnalyticsData } from "../action";
 import SpendingPieChart from "@/components/features/SpendingPieChart";
 import MonthlyLineChart from "@/components/features/MonthlyLineChart";
 import AnalyticsTabs from "@/components/features/AnalyticsTabs";
-import { numberFormatter } from "@/lib/transaction-utils";
+import { getI18n } from "@/lib/i18n/server";
+import { DISPLAY_CURRENCY, formatMoney } from "@/lib/i18n/format";
 
 const MESI_LUNGHI = [
 	"Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
@@ -24,6 +25,7 @@ export default async function AnalyticsPage({
 }) {
 	const { periodo = "mese" } = await searchParams;
 	const analytics = await getAnalyticsData(periodo);
+	const { locale } = await getI18n();
 	if ("error" in analytics) return <p>Errore</p>;
 
 	const isPositive = analytics.saldoMese >= 0;
@@ -46,7 +48,7 @@ export default async function AnalyticsPage({
 				<p className="text-[13px] text-muted mb-1.5">Flusso netto</p>
 				<div className="flex items-center gap-2.5">
 					<p className="text-[34px] font-semibold tracking-[-0.5px] text-foreground">
-						{isPositive ? "+" : "−"} € {numberFormatter.format(Math.abs(analytics.saldoMese))}
+						{isPositive ? "+" : "−"} {formatMoney(Math.abs(analytics.saldoMese), { locale, currency: DISPLAY_CURRENCY, decimals: 2 })}
 					</p>
 					{analytics.variazionePct !== null ? (
 						<span

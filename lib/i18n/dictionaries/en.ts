@@ -265,6 +265,66 @@ export const en: Dictionary = {
 		affitto: { title: "Rent", subtitle: "Home and spaces" },
 	},
 
+	transactionTypes: {
+		spesa: { label: "Expense", description: "Everyday spending and purchases" },
+		entrata: { label: "Income", description: "Salary, refunds, gifts" },
+		risparmio: { label: "Saving", description: "Set-asides and goals" },
+		investimento: { label: "Investment", description: "Markets, funds, portfolio" },
+		abbonamento: { label: "Recurring", description: "Subscriptions and fixed payments" },
+	},
+
+	home: {
+		greeting: "Welcome back",
+		error: "Something went wrong",
+		balanceTotal: "Total balance",
+		balanceThisMonth: "this month",
+		cards: {
+			income: "Income",
+			expenses: "Spending",
+			investments: "Investments",
+			savings: "Savings",
+			savingsWithProgress: "Savings · {pct}%",
+		},
+		analyticsTitle: "Analytics",
+		analyticsSubtitle: "Charts and statistics",
+		recentTitle: "Recent transactions",
+		seeAll: "See all →",
+		emptyTitle: "No transactions yet",
+		emptyDescription: "Add your first one to get started.",
+	},
+
+	transactions: {
+		title: "Transactions",
+		modalNew: "New transaction",
+		modalEdit: "Edit transaction",
+		modalTypeQuestion: "What kind of transaction do you want to record?",
+
+		form: {
+			amount: "Amount",
+			category: "Category",
+			description: "Description",
+			descriptionPlaceholder: "e.g. Trainline, Tesco...",
+			date: "Date",
+			recurringSection: "Recurring",
+			repeat: "Repeat",
+			saveChanges: "Save changes",
+			createRecurring: "Create recurring rule",
+			save: "Save transaction",
+		},
+		emptyTitle: "No transactions yet",
+		emptyDescription:
+			"Your income and spending will show up here as soon as you record your first one.",
+		addAction: "Add transaction",
+		searchPlaceholder: "Search transactions",
+		filterAll: "All",
+		periods: {
+			"7d": "7 days",
+			"30d": "30 days",
+			"3m": "3 months",
+			tutto: "All time",
+		},
+	},
+
 	budget: {
 		monthlyLimit: "Monthly limit",
 		variableOnly: "Variable spending only",
@@ -498,6 +558,16 @@ export const en: Dictionary = {
 			deleteForever: "Delete permanently",
 			deleting: "Deleting…",
 		},
+	},
+
+	profileMenu: {
+		settings: "Settings",
+		signOut: "Sign out",
+	},
+
+	notifications: {
+		loading: "Loading…",
+		empty: "No notifications",
 	},
 
 	settings: {

@@ -4,7 +4,8 @@ import { GOAL_ICON_MAP } from "@/lib/goal-icons";
 import { useUIStore } from "@/store/useUIStore";
 import EmptyState from "@/components/UI/EmptyState";
 import type { Transaction } from "@/types";
-import { TIPO_INK, TIPO_LABEL, formatDate, formatAmount } from "@/lib/transaction-utils";
+import { TIPO_INK, formatDate, formatAmount } from "@/lib/transaction-utils";
+import { useI18n } from "./I18nProvider";
 
 interface TransactionListProps {
 	transactions: Transaction[];
@@ -30,12 +31,13 @@ function Skeleton() {
 
 function TransactionsEmpty() {
 	const { openTransactionModal } = useUIStore();
+	const { t } = useI18n();
 	return (
 		<div className="py-16">
 			<EmptyState
-				title="Nessuna transazione ancora"
-				description="Le tue entrate e uscite appariranno qui non appena registrerai il primo movimento."
-				actionLabel="Aggiungi movimento"
+				title={t.transactions.emptyTitle}
+				description={t.transactions.emptyDescription}
+				actionLabel={t.transactions.addAction}
 				onAction={openTransactionModal}
 			/>
 		</div>
@@ -44,14 +46,15 @@ function TransactionsEmpty() {
 
 export default function TransactionList({ transactions, loading }: TransactionListProps) {
 	const { openEditModal } = useUIStore();
+	const { locale, t } = useI18n();
 
 	if (loading) return <Skeleton />;
 	if (transactions.length === 0) return <TransactionsEmpty />;
 
-	const groups = transactions.reduce<Record<string, Transaction[]>>((acc, t) => {
-		const key = formatDate(t.date);
+	const groups = transactions.reduce<Record<string, Transaction[]>>((acc, tx) => {
+		const key = formatDate(tx.date, locale);
 		if (!acc[key]) acc[key] = [];
-		acc[key].push(t);
+		acc[key].push(tx);
 		return acc;
 	}, {});
 
@@ -61,16 +64,16 @@ export default function TransactionList({ transactions, loading }: TransactionLi
 				<div key={date}>
 					<p className="text-xs font-medium tracking-[1.6px] text-muted mb-2.5 ms-1">{date}</p>
 					<div className="space-y-2">
-						{items.map((t) => {
-							const cat = t.categories;
+						{items.map((tx) => {
+							const cat = tx.categories;
 							const Icon = cat ? (ICON_MAP[cat.icon] ?? GOAL_ICON_MAP[cat.icon]) : null;
 							const color = `var(--color-${cat?.color ?? "kiri"})`;
-							const amountColor = TIPO_INK[t.type] ?? "var(--text-primary)";
+							const amountColor = TIPO_INK[tx.type] ?? "var(--text-primary)";
 
 							return (
 								<button
-									key={t.id}
-									onClick={() => openEditModal(t)}
+									key={tx.id}
+									onClick={() => openEditModal(tx)}
 									className="w-full flex items-center gap-3.5 px-4 py-3.5 rounded-2xl bg-card border border-subtle card-shadow text-left active:opacity-75 transition-opacity"
 								>
 									<div
@@ -85,11 +88,11 @@ export default function TransactionList({ transactions, loading }: TransactionLi
 									<div className="flex-1 min-w-0">
 										<p className="text-sm font-semibold truncate">{cat?.name ?? "—"}</p>
 										<p className="text-xs text-muted mt-0.5">
-											{t.notes ? t.notes : TIPO_LABEL[t.type]}
+											{tx.notes ? tx.notes : t.types[tx.type as keyof typeof t.types]}
 										</p>
 									</div>
 									<p className="text-sm font-semibold shrink-0" style={{ color: amountColor }}>
-										{formatAmount(t.amount, t.type)}
+										{formatAmount(tx.amount, tx.type, locale)}
 									</p>
 								</button>
 							);

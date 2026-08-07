@@ -7,9 +7,11 @@ import TransactionList from "@/components/features/TransactionList";
 import BudgetCards from "@/components/features/BudgetCards";
 import { useUIStore } from "@/store/useUIStore";
 import { clientClock } from "@/lib/dates";
+import { useI18n } from "@/components/features/I18nProvider";
 import type { BudgetOverview, Transaction } from "@/types";
 
 export default function MovimentiPage() {
+	const { t } = useI18n();
 	const [search, setSearch] = useState("");
 	const [tipo, setTipo] = useState("");
 	const [periodo, setPeriodo] = useState("30d");
@@ -54,7 +56,7 @@ export default function MovimentiPage() {
 
 	return (
 		<div className="flex flex-col flex-1 px-5 pt-8 pb-34 overflow-y-auto">
-			<h1 className="text-2xl font-semibold mb-5">Movimenti</h1>
+			<h1 className="text-2xl font-semibold mb-5">{t.transactions.title}</h1>
 			<FilterBar
 				search={search}
 				tipo={tipo}

@@ -115,7 +115,7 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 										</span>
 										<span className="w-0.75 h-0.75 rounded-full bg-muted/50" />
 										<span className="text-[11px] text-muted">
-											{r.active ? formatDate(r.next_run) : t.recurring.paused}
+											{r.active ? formatDate(r.next_run, locale) : t.recurring.paused}
 										</span>
 									</div>
 								</div>
