@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, type SupabaseServerClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/auth";
 import { renderNotification } from "@/lib/notifications";
 import { getDictionary, getI18n } from "@/lib/i18n/server";
 import type { AppNotification, RenderedNotification } from "@/types";
@@ -24,22 +25,30 @@ export async function getNotifications(): Promise<
 	{ data: RenderedNotification[]; unread: number } | { error: string }
 > {
 	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	if (!user) return { error: (await getDictionary()).errors.notAuthenticated };
 
-	const [{ data, error }, { data: profile }, unreadResult] = await Promise.all([
-		supabase
-			.from("notifications")
-			.select("id, type, payload, destination, read, created_at")
-			.eq("user_id", user.id)
-			.order("created_at", { ascending: false })
-			.limit(PANEL_LIMIT),
-		supabase.from("profiles").select("currency").eq("id", user.id).single(),
-		getUnreadCount(),
-	]);
+	// ⚠️ La query del conteggio sta QUI, non dietro una chiamata a
+	// `getUnreadCount()`. Quella è una server action a sé: apriva un secondo
+	// client e rifaceva il proprio controllo di autenticazione per una query che
+	// da qui parte comunque nello stesso `Promise.all`. Il conteggio continua a
+	// non dedursi dalle righe caricate — con più di `PANEL_LIMIT` notifiche
+	// sarebbe più basso di quello vero — ma la ragione era quella, non il
+	// riuso della funzione.
+	const [{ data, error }, { data: profile }, { count, error: countError }] =
+		await Promise.all([
+			supabase
+				.from("notifications")
+				.select("id, type, payload, destination, read, created_at")
+				.eq("user_id", user.id)
+				.order("created_at", { ascending: false })
+				.limit(PANEL_LIMIT),
+			supabase.from("profiles").select("currency").eq("id", user.id).single(),
+			unreadCountQuery(supabase, user.id),
+		]);
 
 	if (error) return { error: error.message };
-	if ("error" in unreadResult) return unreadResult;
+	if (countError) return { error: countError.message };
 
 	// La valuta arriva dal profilo, non è cablata: è la stessa scelta
 	// nell'onboarding che governa ogni altro importo dell'app.
@@ -53,22 +62,30 @@ export async function getNotifications(): Promise<
 		return { ...n, ...renderNotification(n, { currency, locale, t }) };
 	});
 
-	return { data: rendered, unread: unreadResult.data };
+	return { data: rendered, unread: count ?? 0 };
+}
+
+/**
+ * La query del badge, senza il contorno da server action.
+ *
+ * `head: true` → nessuna riga trasferita, solo il conteggio. L'indice parziale
+ * su (user_id) where not read serve esattamente a questa query.
+ */
+function unreadCountQuery(supabase: SupabaseServerClient, userId: string) {
+	return supabase
+		.from("notifications")
+		.select("id", { count: "exact", head: true })
+		.eq("user_id", userId)
+		.eq("read", false);
 }
 
 /** Il numero per il badge sulla campanella. */
 export async function getUnreadCount(): Promise<{ data: number } | { error: string }> {
 	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	if (!user) return { error: (await getDictionary()).errors.notAuthenticated };
 
-	// head: true → nessuna riga trasferita, solo il conteggio. L'indice parziale
-	// su (user_id) where not read serve esattamente a questa query.
-	const { count, error } = await supabase
-		.from("notifications")
-		.select("id", { count: "exact", head: true })
-		.eq("user_id", user.id)
-		.eq("read", false);
+	const { count, error } = await unreadCountQuery(supabase, user.id);
 
 	return error ? { error: error.message } : { data: count ?? 0 };
 }
@@ -85,7 +102,7 @@ export async function markNotificationRead(
 	id: string,
 ): Promise<{ success: true } | { error: string }> {
 	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	if (!user) return { error: (await getDictionary()).errors.notAuthenticated };
 
 	const { error } = await supabase
@@ -103,7 +120,7 @@ export async function markAllNotificationsRead(): Promise<
 	{ success: true } | { error: string }
 > {
 	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	if (!user) return { error: (await getDictionary()).errors.notAuthenticated };
 
 	// Il filtro su `read` non è cosmetico: senza, l'UPDATE riscriverebbe ogni

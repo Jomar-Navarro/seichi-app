@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { getDictionary, getI18n } from "@/lib/i18n/server";
 import { formatDate, shortMonth } from "@/lib/i18n/format";
 import { createClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/auth";
 import { firstRunFrom, rollForwardPastToday } from "@/lib/recurring";
 import type { Frequency } from "@/types";
 
@@ -14,9 +15,7 @@ export async function saveTransaction(
 	data: string,
 ) {
 	const supabase = await createClient();
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	const t = await getDictionary();
 
 	if (!user) return { error: t.errors.notAuthenticated };
@@ -41,9 +40,7 @@ export async function getTransactions(
 	limit?: number,
 ) {
 	const supabase = await createClient();
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	const t = await getDictionary();
 
 	if (!user) return { error: t.errors.notAuthenticated };
@@ -80,9 +77,7 @@ export async function updateTransaction(
 	data: string,
 ) {
 	const supabase = await createClient();
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	const t = await getDictionary();
 
 	if (!user) return { error: t.errors.notAuthenticated };
@@ -106,9 +101,7 @@ export async function updateTransaction(
 
 export async function deleteTransaction(id: string) {
 	const supabase = await createClient();
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	const t = await getDictionary();
 
 	if (!user) return { error: t.errors.notAuthenticated };
@@ -135,9 +128,7 @@ export async function createRecurringRule(
 	frequency: string,
 ) {
 	const supabase = await createClient();
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	const t = await getDictionary();
 
 	if (!user) return { error: t.errors.notAuthenticated };
@@ -167,9 +158,7 @@ export async function createRecurringRule(
 
 export async function getRecurringRules() {
 	const supabase = await createClient();
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	const t = await getDictionary();
 
 	if (!user) return { error: t.errors.notAuthenticated };
@@ -185,9 +174,7 @@ export async function getRecurringRules() {
 
 export async function deleteRecurringRule(id: string) {
 	const supabase = await createClient();
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	const t = await getDictionary();
 
 	if (!user) return { error: t.errors.notAuthenticated };
@@ -213,9 +200,7 @@ export async function updateRecurringRule(
 	next_run: string, // YYYY-MM-DD
 ) {
 	const supabase = await createClient();
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	const t = await getDictionary();
 
 	if (!user) return { error: t.errors.notAuthenticated };
@@ -240,9 +225,7 @@ export async function updateRecurringRule(
 
 export async function setRecurringActive(id: string, active: boolean) {
 	const supabase = await createClient();
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	const t = await getDictionary();
 
 	if (!user) return { error: t.errors.notAuthenticated };
@@ -278,97 +261,67 @@ export async function setRecurringActive(id: string, active: boolean) {
 
 export async function getDashboardTotals() {
 	const supabase = await createClient();
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	const t = await getDictionary();
 
 	if (!user) return { error: t.errors.notAuthenticated };
 
-	let query = supabase
-		.from("transactions")
-		.select("amount, type")
-		.eq("user_id", user.id);
-
+	/*
+	 * Le somme le fa Postgres (`dashboard_totals`, migration 20260808).
+	 *
+	 * Prima questa funzione scaricava OGNI transazione dell'account — tutta la
+	 * storia, a ogni vista della home e dopo ogni salvataggio — per sommarle
+	 * qui. Ora torna al massimo una riga per (bucket, tipo): una trentina di
+	 * numeri, indipendentemente da quanto è lungo lo storico.
+	 *
+	 * ⚠️ I confini li calcola l'APP e li passa alla funzione: il fuso resta
+	 * quello del processo che rende la pagina, esattamente come prima. Farli
+	 * calcolare al database con `date_trunc` li avrebbe spostati in UTC,
+	 * cambiando in silenzio i totali in sviluppo locale nelle prime ore del mese.
+	 *
+	 * I 7 confini danno 6 bucket, e l'ULTIMO è il mese corrente — `m-5+i` con
+	 * i=5 è proprio `inizioMese`. Per questo il trend e il mese sono una domanda
+	 * sola: chiederli separatamente avrebbe sommato due volte le stesse righe.
+	 */
 	const now = new Date();
-	const inizioMese = new Date(now.getFullYear(), now.getMonth(), 1);
-	const inizioMeseProssimo = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-	query = query
-		.gte("date", inizioMese.toISOString())
-		.lt("date", inizioMeseProssimo.toISOString());
+	const TREND_MONTHS = 6;
+	const MESE_CORRENTE = TREND_MONTHS - 1;
 
-	const [{ data, error }, { data: dataTotale, error: errorTotale }] =
-		await Promise.all([
-			query,
-			supabase
-				.from("transactions")
-				.select("amount, type, date")
-				.eq("user_id", user.id),
-		]);
+	const bounds = Array.from({ length: TREND_MONTHS + 1 }, (_, i) =>
+		new Date(now.getFullYear(), now.getMonth() - (TREND_MONTHS - 1) + i, 1).toISOString(),
+	);
 
-	const entrateMese =
-		data
-			?.filter((t) => t.type === "entrata")
-			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
+	const { data, error } = await supabase.rpc("dashboard_totals", { p_bounds: bounds });
 
-	const speseMese =
-		data
-			?.filter((t) => t.type === "spesa")
-			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
+	if (error) return { error: error.message };
 
-	const investimentiMese =
-		data
-			?.filter((t) => t.type === "investimento")
-			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
+	type TotalRow = { bucket_index: number | null; type: string; total: number | string };
+	const totals = (data ?? []) as TotalRow[];
 
-	const risparmiMese =
-		data
-			?.filter((t) => t.type === "risparmio")
-			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
+	// `numeric` può arrivare come stringa a seconda di come PostgREST serializza:
+	// `Number()` al confine, una volta, invece di sperare che sia già un numero.
+	const somma = (bucket: number | null, tipo: string) =>
+		Number(totals.find((r) => r.bucket_index === bucket && r.type === tipo)?.total ?? 0);
 
-	const abbonaMese =
-		data
-			?.filter((t) => t.type === "abbonamento")
-			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
+	const entrateMese = somma(MESE_CORRENTE, "entrata");
+	const speseMese = somma(MESE_CORRENTE, "spesa");
+	const investimentiMese = somma(MESE_CORRENTE, "investimento");
+	const risparmiMese = somma(MESE_CORRENTE, "risparmio");
+	const abbonaMese = somma(MESE_CORRENTE, "abbonamento");
 
 	const saldoMese = entrateMese - speseMese - risparmiMese - investimentiMese - abbonaMese;
 
-	const entrateTotali =
-		dataTotale
-			?.filter((t) => t.type === "entrata")
-			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
-	const speseTotali =
-		dataTotale
-			?.filter((t) => t.type === "spesa")
-			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
-	const risparmiTotali =
-		dataTotale
-			?.filter((t) => t.type === "risparmio")
-			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
-	const investimentiTotali =
-		dataTotale
-			?.filter((t) => t.type === "investimento")
-			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
-	const abbonaTotali =
-		dataTotale
-			?.filter((t) => t.type === "abbonamento")
-			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
-	const saldoTotale = entrateTotali - speseTotali - risparmiTotali - investimentiTotali - abbonaTotali;
-
-	if (error || errorTotale) return { error: (error ?? errorTotale)!.message };
+	// bucket NULL = nessuna finestra, cioè tutta la storia dell'account.
+	const saldoTotale =
+		somma(null, "entrata") -
+		somma(null, "spesa") -
+		somma(null, "risparmio") -
+		somma(null, "investimento") -
+		somma(null, "abbonamento");
 
 	// Trend ultimi 6 mesi per sparkline
-	const trendMonths = Array.from({ length: 6 }, (_, i) => ({
-		start: new Date(now.getFullYear(), now.getMonth() - 5 + i, 1),
-		end: new Date(now.getFullYear(), now.getMonth() - 5 + i + 1, 1),
-	}));
-
 	function monthlyTrend(tipo: string): number[] {
-		return trendMonths.map(({ start, end }) =>
-			(dataTotale ?? [])
-				.filter((t) => t.type === tipo && new Date(t.date) >= start && new Date(t.date) < end)
-				.reduce((acc, t) => acc + t.amount, 0),
-		);
+		return Array.from({ length: TREND_MONTHS }, (_, i) => somma(i, tipo));
 	}
 
 	return {
@@ -399,9 +352,7 @@ export async function getDashboardTotals() {
 
 export async function getAnalyticsData(periodo: string = "mese") {
 	const supabase = await createClient();
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
+	const user = await getSessionUser();
 
 	const { locale, t } = await getI18n();
 	const month = (d: Date) => shortMonth(d, locale);

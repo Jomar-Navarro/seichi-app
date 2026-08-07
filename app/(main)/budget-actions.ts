@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { getDictionary } from "@/lib/i18n/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, type SupabaseServerClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/auth";
 import { localMidnightInstant, monthBoundsOf, parseLocalDate } from "@/lib/dates";
 import { advanceDate } from "@/lib/recurring";
 import { budgetStatus } from "@/lib/budget";
@@ -43,7 +44,7 @@ export async function setBudget(input: {
 	clock: ClientClock;
 }): Promise<{ success: true } | { error: string }> {
 	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	const t = await getDictionary();
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -83,7 +84,7 @@ export async function getBudgetForCategory(
 	clock: ClientClock,
 ): Promise<{ data: { period: BudgetPeriod; amount: number } | null } | { error: string }> {
 	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	const t = await getDictionary();
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -104,7 +105,7 @@ export async function getGlobalBudget(
 	clock: ClientClock,
 ): Promise<{ data: number | null } | { error: string }> {
 	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	const t = await getDictionary();
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -123,7 +124,7 @@ export async function getBudgetOverview(
 	clock: ClientClock,
 ): Promise<{ data: BudgetOverview } | { error: string }> {
 	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	const t = await getDictionary();
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -213,8 +214,6 @@ export async function getBudgetOverview(
 	return { data: { global, perCategory, fixedOutflowsThisMonth: fixed.data } };
 }
 
-type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
-
 /**
  * Quanto costano gli abbonamenti nel mese corrente.
  *
@@ -237,7 +236,7 @@ export async function getFixedOutflows(
 	clock: ClientClock,
 ): Promise<{ data: number } | { error: string }> {
 	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	const t = await getDictionary();
 	if (!user) return { error: t.errors.notAuthenticated };
 

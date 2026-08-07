@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { isCurrency, normalizeLocale } from "@/lib/i18n/config";
@@ -20,7 +21,7 @@ const VALID_TYPES = Object.keys(TYPE_COLOR);
 
 export async function getCategories(): Promise<{ data: Category[] } | { error: string }> {
 	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	const t = await getDictionary();
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -35,7 +36,7 @@ export async function getCategories(): Promise<{ data: Category[] } | { error: s
 
 export async function createCategory(input: { name: string; icon: string; type: string }) {
 	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	const t = await getDictionary();
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -68,7 +69,7 @@ export async function updateCategory(
 	input: { name: string; icon: string; type: string },
 ) {
 	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	const t = await getDictionary();
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -94,7 +95,7 @@ export async function updateCategory(
 
 export async function deleteCategory(id: string) {
 	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	const t = await getDictionary();
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -126,7 +127,7 @@ export async function deleteCategory(id: string) {
 
 export async function updatePreferences(currency: string, language: string) {
 	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	const t = await getDictionary();
 	if (!user) return { error: t.errors.notAuthenticated };
 

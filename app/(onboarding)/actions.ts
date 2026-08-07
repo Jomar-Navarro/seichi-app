@@ -2,12 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/auth";
 import { isCurrency, normalizeLocale } from "@/lib/i18n/config";
 import { getDictionary, setLocaleCookie } from "@/lib/i18n/server";
 
 export async function savePreferences(currency: string, language: string) {
 	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
+	const user = await getSessionUser();
 
 	const t = await getDictionary();
 
@@ -99,7 +100,7 @@ const ONBOARDING_TYPES = ["entrata", "spesa", "risparmio", "investimento", "abbo
 
 export async function saveCategories(selected: string[]) {
 	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	const t = await getDictionary();
 
 	if (!user) return { error: t.errors.notAuthenticated };

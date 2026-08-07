@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/auth";
 import { getInitials, getDisplayName } from "@/lib/profile";
 import { DEFAULT_LOCALE, normalizeLocale } from "@/lib/i18n/config";
 import type { AccountContext } from "@/types";
@@ -11,9 +12,7 @@ import type { AccountContext } from "@/types";
  */
 export async function getAccountContext(): Promise<AccountContext> {
 	const supabase = await createClient();
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
+	const user = await getSessionUser();
 
 	if (!user) redirect("/sign");
 
@@ -23,7 +22,7 @@ export async function getAccountContext(): Promise<AccountContext> {
 		.eq("id", user.id)
 		.single();
 
-	const email = user.email ?? "";
+	const email = user.email;
 	const fullName = profile?.full_name ?? null;
 
 	return {
@@ -40,6 +39,10 @@ export async function getAccountContext(): Promise<AccountContext> {
 		initials: getInitials(fullName, email),
 		// Chi si è registrato solo con Google/Facebook non ha una password da
 		// cambiare, né da usare per riautenticarsi.
-		hasPasswordIdentity: user.identities?.some((i) => i.provider === "email") ?? false,
+		//
+		// Il dato arriva da `app_metadata.providers` del JWT e non più da
+		// `user.identities`: è la stessa lista di provider collegati, ma già
+		// dentro il token, quindi non costa una chiamata a `/auth/v1/user`.
+		hasPasswordIdentity: user.providers.includes("email"),
 	};
 }

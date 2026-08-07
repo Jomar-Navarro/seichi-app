@@ -65,10 +65,33 @@ export async function updateSession(request: NextRequest) {
 	const isPublic = PUBLIC_PATHS.some((path) => request.nextUrl.pathname.startsWith(path));
 
 	if (!user && !isPublic) {
-		// no user, potentially respond by redirecting the user to the login page
 		const url = request.nextUrl.clone();
 		url.pathname = "/welcome";
-		return NextResponse.redirect(url);
+		const redirect = NextResponse.redirect(url);
+
+		/*
+		 * ⚠️ I cookie di `supabaseResponse` vanno RICOPIATI, non abbandonati.
+		 *
+		 * `getClaims()` può aver ruotato il refresh token — che è monouso — e
+		 * scritto le credenziali nuove su `supabaseResponse` dentro `setAll`.
+		 * Questa è una risposta creata da zero: senza il travaso, quel rinnovo
+		 * viene buttato e il browser resta con il token vecchio, ormai consumato.
+		 *
+		 * Il difetto si vede solo sotto CONCORRENZA, ed è per questo che si
+		 * manifesta all'hard refresh: la pagina e i prefetch RSC della BottomNav
+		 * partono insieme, uno solo vince la rotazione e gli altri arrivano con il
+		 * token già bruciato. Rispondendo con un redirect nudo, quelli cancellano
+		 * anche il cookie buono appena scritto dal primo, e il giro ricomincia.
+		 *
+		 * Conseguenza a valle: un prefetch RSC che riceve un redirect inatteso fa
+		 * ripiegare il client su una navigazione piena del browser — cioè il
+		 * ricaricamento ripetuto della stessa pagina.
+		 */
+		supabaseResponse.cookies.getAll().forEach((cookie) => {
+			redirect.cookies.set(cookie);
+		});
+
+		return redirect;
 	}
 
 	// IMPORTANT: You *must* return the supabaseResponse object as it is. If you're

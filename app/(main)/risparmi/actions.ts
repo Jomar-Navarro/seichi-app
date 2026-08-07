@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import type { GoalWithProgress, InvestmentData } from "@/types";
 import { INVESTMENT_TYPE_COLOR, INVESTMENT_TYPE_FALLBACK } from "@/lib/investment-types";
@@ -8,7 +9,7 @@ import { getDictionary } from "@/lib/i18n/server";
 
 export async function getGoals(): Promise<{ data: GoalWithProgress[] } | { error: string }> {
 	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	const t = await getDictionary();
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -48,7 +49,7 @@ export async function getGoals(): Promise<{ data: GoalWithProgress[] } | { error
 
 export async function getInvestments(): Promise<{ data: InvestmentData } | { error: string }> {
 	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	const t = await getDictionary();
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -139,7 +140,7 @@ export async function createGoal(payload: {
 	icon: string;
 }): Promise<{ error?: string }> {
 	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	const t = await getDictionary();
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -168,7 +169,7 @@ export async function updateGoal(
 	},
 ): Promise<{ error?: string }> {
 	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	const t = await getDictionary();
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -190,7 +191,7 @@ export async function updateGoal(
 
 export async function deleteGoal(id: string): Promise<{ error?: string }> {
 	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
+	const user = await getSessionUser();
 	const t = await getDictionary();
 	if (!user) return { error: t.errors.notAuthenticated };
 
