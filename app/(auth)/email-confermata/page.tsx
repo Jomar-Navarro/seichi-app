@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import AuthShell from "@/components/UI/AuthShell";
 import EmailConfirmedStatus from "@/components/features/EmailConfirmedStatus";
+import { getDictionary } from "@/lib/i18n/server";
 
-export const metadata: Metadata = {
-	title: "Email confermata — Seichi",
-};
+export async function generateMetadata(): Promise<Metadata> {
+	const t = await getDictionary();
+	return { title: t.auth.meta.emailConfirmed };
+}
 
 /**
  * Atterraggio del link di conferma cambio email.

@@ -10,6 +10,7 @@ import Button from "@/components/UI/Button";
 import SignTab from "@/components/UI/SignTab";
 import BrandHeader from "./UI/BrandHeader";
 import { signInWithGoogle } from "@/app/(auth)/sign/action";
+import { useI18n } from "@/components/features/I18nProvider";
 
 interface LoginFormProps {
 	onTabChange?: (value: "signin" | "signup") => void;
@@ -18,6 +19,7 @@ interface LoginFormProps {
 }
 
 export default function LoginForm({ onTabChange, notice }: LoginFormProps) {
+	const { t } = useI18n();
 	const [state, formAction] = useActionState(login, { error: "" });
 
 	return (
@@ -30,10 +32,10 @@ export default function LoginForm({ onTabChange, notice }: LoginFormProps) {
 				{/* Desktop heading */}
 				<div className="hidden lg:block mb-6">
 					<span className="text-xs text-muted uppercase tracking-widest mb-2 block">
-						Bentornato
+						{t.auth.signIn.eyebrow}
 					</span>
 					<h2 className="text-3xl font-bold leading-tight">
-						Accedi al tuo spazio.
+						{t.auth.signIn.heading}
 					</h2>
 				</div>
 
@@ -65,14 +67,14 @@ export default function LoginForm({ onTabChange, notice }: LoginFormProps) {
 						<Input
 							id="email"
 							name="email"
-							placeholder="Email"
+							placeholder={t.auth.signIn.email}
 							type="email"
 							icon={<Mail size={18} className="shrink-0" />}
 						/>
 						<PasswordField
 							id="password"
 							name="password"
-							placeholder="Password"
+							placeholder={t.auth.signIn.password}
 						/>
 						{state.error && (
 							<div className="text-xs text-aka-ink text-center">{state.error}</div>
@@ -82,20 +84,20 @@ export default function LoginForm({ onTabChange, notice }: LoginFormProps) {
 								href="/recupera-password"
 								className="text-xs cursor-pointer text-ao-ink tracking-widest"
 							>
-								Password dimenticata?
+								{t.auth.signIn.forgotPassword}
 							</Link>
 						</div>
-						<Button title="Accedi" />
+						<Button title={t.auth.signIn.submit} />
 					</form>
 
 					<p className="text-center text-sm text-muted mb-5">
-						Non hai un account?{" "}
+						{t.auth.signIn.noAccount}{" "}
 						<button
 							onClick={() => onTabChange?.("signup")}
 							type="button"
 							className="text-midori-ink cursor-pointer font-medium"
 						>
-							Registrati
+							{t.auth.signIn.signUp}
 						</button>
 					</p>
 
@@ -104,7 +106,7 @@ export default function LoginForm({ onTabChange, notice }: LoginFormProps) {
 
 					<div className="flex items-center gap-3 mb-4">
 						<span className="grow shrink basis-0 h-px bg-glass-border" />
-						<span className="text-muted text-xs">oppure</span>
+						<span className="text-muted text-xs">{t.auth.signIn.or}</span>
 						<span className="grow shrink basis-0 h-px bg-glass-border" />
 					</div>
 

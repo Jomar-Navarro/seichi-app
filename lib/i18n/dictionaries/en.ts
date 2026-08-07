@@ -96,8 +96,94 @@ export const en: Dictionary = {
 	},
 
 	auth: {
+		welcome: {
+			lead: "Level the ground before you build.",
+			leadMuted: "Put your finances in order — calmly, and on purpose.",
+			createAccount: "Create your account",
+			haveAccount: "Already have an account?",
+			signIn: "Sign in",
+		},
+
+		signIn: {
+			eyebrow: "Welcome back",
+			heading: "Sign in to your space.",
+			email: "Email",
+			password: "Password",
+			forgotPassword: "Forgot your password?",
+			submit: "Sign in",
+			noAccount: "Don't have an account?",
+			signUp: "Sign up",
+			or: "or",
+			passwordReset: "Password updated — sign in with the new one",
+		},
+
+		signUp: {
+			eyebrow: "Welcome",
+			heading: "Create your account.",
+			firstName: "First name",
+			lastName: "Last name",
+			confirmPassword: "Confirm password",
+			submit: "Create account",
+			consentBefore: "I accept Seichi's ",
+			consentTerms: "Terms of service",
+			consentMiddle: " and ",
+			consentPrivacy: "privacy policy",
+			consentAfter: ".",
+			requirements: {
+				length: "At least {n} characters",
+				number: "At least one number",
+				lowercase: "At least one lowercase letter",
+				uppercase: "At least one uppercase letter",
+				special: "At least one special character",
+			},
+			sentTitle: "Check your email",
+			sentBefore: "We've sent a verification link to ",
+			sentAfter: ". Open it to activate your account.",
+			alreadyVerified: "Already verified?",
+		},
+
 		recovery: {
 			linkExpired: "That link has expired or is invalid — request a new reset",
+			sentTitle: "Check your email",
+			sentDescription:
+				"If that address is registered, we've sent you a link to reset your password.",
+			backToLogin: "Back to sign in",
+			submit: "Send reset link",
+			sending: "Sending…",
+			newPassword: "New password",
+			confirmPassword: "Confirm password",
+			reset: "Reset password",
+			resetting: "Updating…",
+		},
+
+		emailConfirmed: {
+			title: "Email confirmed",
+			description:
+				"If Supabase also asked for confirmation from your previous address, the change only takes effect once you've opened both links.",
+			backToSettings: "Back to settings",
+			failedTitle: "Confirmation failed",
+			failedDescription:
+				"That link is invalid or has expired. Try changing your email again from settings.",
+			goToSettings: "Go to settings",
+		},
+
+		codeError: {
+			title: "Sign-in failed",
+			description: "That authentication link is invalid or has expired. Please try again.",
+			backToLogin: "Back to sign in",
+		},
+
+		meta: {
+			recover: "Recover your password — Seichi",
+			reset: "Reset password — Seichi",
+			emailConfirmed: "Email confirmed — Seichi",
+		},
+
+		errors: {
+			wrongCredentials: "Incorrect sign-in details",
+			acceptTerms: "You must accept the terms of service",
+			passwordTooShort: "Your password must be at least {n} characters",
+			passwordMismatch: "The passwords don't match",
 		},
 	},
 

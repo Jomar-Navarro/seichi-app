@@ -141,10 +141,110 @@ export const it = {
 		avatarRemoveFailed: "Non è stato possibile rimuovere la foto profilo. Riprova.",
 	},
 
-	/** Autenticazione — cresce nel lotto 2. */
+	/**
+	 * Autenticazione — l'unica parte dell'app PRE-LOGIN.
+	 *
+	 * Qui non esiste né utente né `profiles.language`: la lingua la decide
+	 * `Accept-Language`, ed è l'unico posto dove quella negoziazione è davvero
+	 * la fonte invece che un ripiego.
+	 */
 	auth: {
+		welcome: {
+			lead: "Prepara il terreno prima di costruire.",
+			leadMuted: "Metti in ordine le tue finanze — con calma e intenzione.",
+			createAccount: "Crea il tuo account",
+			haveAccount: "Hai già un account?",
+			signIn: "Accedi",
+		},
+
+		signIn: {
+			eyebrow: "Bentornato",
+			heading: "Accedi al tuo spazio.",
+			email: "Email",
+			password: "Password",
+			forgotPassword: "Password dimenticata?",
+			submit: "Accedi",
+			noAccount: "Non hai un account?",
+			signUp: "Registrati",
+			or: "oppure",
+			/** Conferma mostrata dopo un recupero password andato a buon fine. */
+			passwordReset: "Password aggiornata — accedi con quella nuova",
+		},
+
+		signUp: {
+			eyebrow: "Benvenuto",
+			heading: "Crea il tuo account.",
+			firstName: "Nome",
+			lastName: "Cognome",
+			confirmPassword: "Conferma password",
+			submit: "Crea account",
+			/** La frase del consenso è spezzata: due parti sono link. */
+			consentBefore: "Accetto i ",
+			consentTerms: "Termini di servizio",
+			consentMiddle: " e l'",
+			consentPrivacy: "informativa sulla privacy",
+			consentAfter: " di Seichi.",
+			/**
+			 * Requisiti della password mostrati come barre.
+			 * ⚠️ `{n}` viene da PASSWORD_MIN_LENGTH, non scritto a mano.
+			 */
+			requirements: {
+				length: "Minimo {n} caratteri",
+				number: "Minimo un numero",
+				lowercase: "Minimo una lettera minuscola",
+				uppercase: "Minimo una lettera maiuscola",
+				special: "Minimo un carattere speciale",
+			},
+			sentTitle: "Controlla la tua email",
+			sentBefore: "Abbiamo inviato un link di verifica a ",
+			sentAfter: ". Aprilo per attivare il tuo account.",
+			alreadyVerified: "Già verificato?",
+		},
+
 		recovery: {
 			linkExpired: "Link scaduto o non valido — richiedi un nuovo recupero",
+			sentTitle: "Controlla la tua email",
+			/** Sempre la stessa risposta, anche per indirizzi inesistenti: vedi actions.ts. */
+			sentDescription:
+				"Se l'indirizzo è registrato, ti abbiamo inviato un link per reimpostare la password.",
+			backToLogin: "Torna al login",
+			submit: "Invia link di recupero",
+			sending: "Invio…",
+			newPassword: "Nuova password",
+			confirmPassword: "Conferma password",
+			reset: "Reimposta password",
+			resetting: "Aggiornamento…",
+		},
+
+		emailConfirmed: {
+			title: "Email confermata",
+			description:
+				"Se Supabase ha richiesto la conferma anche dall'indirizzo precedente, il cambio diventa effettivo solo dopo aver aperto entrambi i link.",
+			backToSettings: "Torna alle impostazioni",
+			failedTitle: "Conferma non riuscita",
+			failedDescription:
+				"Il link non è valido o è scaduto. Riprova a cambiare email dalle impostazioni.",
+			goToSettings: "Vai alle impostazioni",
+		},
+
+		codeError: {
+			title: "Accesso non riuscito",
+			description: "Il link di autenticazione non è valido o è scaduto. Riprova ad accedere.",
+			backToLogin: "Torna al login",
+		},
+
+		/** Titoli delle schede del browser: "<pagina> — Seichi". */
+		meta: {
+			recover: "Recupera la password — Seichi",
+			reset: "Reimposta password — Seichi",
+			emailConfirmed: "Email confermata — Seichi",
+		},
+
+		errors: {
+			wrongCredentials: "Credenziali di login errate",
+			acceptTerms: "Devi accettare i termini di servizio",
+			passwordTooShort: "La password deve essere di almeno {n} caratteri",
+			passwordMismatch: "Le password non corrispondono",
 		},
 	},
 

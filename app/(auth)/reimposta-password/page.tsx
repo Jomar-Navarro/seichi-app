@@ -4,10 +4,12 @@ import AuthShell from "@/components/UI/AuthShell";
 import ResetPasswordForm from "@/components/features/ResetPasswordForm";
 import { createClient } from "@/lib/supabase/server";
 import { hasRecoverySession } from "@/lib/recovery";
+import { getDictionary } from "@/lib/i18n/server";
 
-export const metadata: Metadata = {
-	title: "Reimposta password — Seichi",
-};
+export async function generateMetadata(): Promise<Metadata> {
+	const t = await getDictionary();
+	return { title: t.auth.meta.reset };
+}
 
 export default async function ReimpostaPasswordPage() {
 	// Servono sessione E marcatore di recupero. Una sessione qualsiasi non basta:

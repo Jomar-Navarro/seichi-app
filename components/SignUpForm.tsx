@@ -9,26 +9,36 @@ import Input from "@/components/UI/Input";
 import SignTab from "./UI/SignTab";
 import BrandHeader from "./UI/BrandHeader";
 import { signInWithGoogle } from "@/app/(auth)/sign/action";
+import { useI18n } from "@/components/features/I18nProvider";
+import { PASSWORD_MIN_LENGTH } from "@/lib/password";
+import { fill } from "@/lib/i18n/format";
 
 interface SignUpFormProps {
 	onTabChange?: (value: "signin" | "signup") => void;
 }
 
-const checkStrength = (password: string) => {
-	const requirements = [
-		{ regex: /.{8,}/, text: "Minimo 8 caratteri" },
-		{ regex: /[0-9]/, text: "Minimo un numero" },
-		{ regex: /[a-z]/, text: "Minimo una lettera minuscola" },
-		{ regex: /[A-Z]/, text: "Minimo una lettera maiuscola" },
-		{ regex: /[^A-Za-z0-9]/, text: "Minimo un carattere speciale" },
-	];
-	return requirements.map((req) => ({
-		met: req.regex.test(password),
-		text: req.text,
-	}));
-};
+/**
+ * I cinque requisiti, come regole pure.
+ *
+ * ⚠️ Il testo non sta più qui (Fase 19): la barra lo mostra solo come colore, ma
+ * l'etichetta serve comunque all'accessibilità e viene da
+ * `t.auth.signUp.requirements`. La soglia di lunghezza usa `PASSWORD_MIN_LENGTH`
+ * invece dell'"8" cablato che c'era sia nella regex sia nella frase — due punti
+ * che potevano divergere in silenzio.
+ */
+const REQUIREMENTS = [
+	{ key: "length", regex: new RegExp(`.{${PASSWORD_MIN_LENGTH},}`) },
+	{ key: "number", regex: /[0-9]/ },
+	{ key: "lowercase", regex: /[a-z]/ },
+	{ key: "uppercase", regex: /[A-Z]/ },
+	{ key: "special", regex: /[^A-Za-z0-9]/ },
+] as const;
+
+const checkStrength = (password: string) =>
+	REQUIREMENTS.map((req) => ({ key: req.key, met: req.regex.test(password) }));
 
 export default function SignUpForm({ onTabChange }: SignUpFormProps) {
+	const { t } = useI18n();
 	const [password, setPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
 	const [passwordMismatch, setPasswordMismatch] = useState(false);
@@ -52,19 +62,19 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 						<div className="w-14 h-14 flex items-center justify-center rounded-2xl bg-midori/15 mb-6">
 							<MailCheck size={26} className="text-midori" />
 						</div>
-						<h2 className="text-2xl font-bold mb-3">Controlla la tua email</h2>
+						<h2 className="text-2xl font-bold mb-3">{t.auth.signUp.sentTitle}</h2>
 						<p className="text-muted text-sm leading-relaxed max-w-xs">
-							Abbiamo inviato un link di verifica a{" "}
-							<span className="text-foreground font-medium">{state.email}</span>.
-							Aprilo per attivare il tuo account.
+							{t.auth.signUp.sentBefore}
+							<span className="text-foreground font-medium">{state.email}</span>
+							{t.auth.signUp.sentAfter}
 						</p>
 						<p className="text-muted text-xs mt-5">
-							Già verificato?{" "}
+							{t.auth.signUp.alreadyVerified}{" "}
 							<button
 								onClick={() => onTabChange?.("signin")}
 								className="text-midori-ink font-medium cursor-pointer"
 							>
-								Accedi
+								{t.auth.welcome.signIn}
 							</button>
 						</p>
 					</div>
@@ -84,10 +94,10 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 				{/* Desktop heading */}
 				<div className="hidden lg:block mb-6">
 					<span className="text-xs text-muted uppercase tracking-widest mb-2 block">
-						Benvenuto
+						{t.auth.signUp.eyebrow}
 					</span>
 					<h2 className="text-3xl font-bold leading-tight">
-						Crea il tuo account.
+						{t.auth.signUp.heading}
 					</h2>
 				</div>
 
@@ -110,7 +120,7 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 						<Input
 							id="name"
 							name="name"
-							placeholder="Nome"
+							placeholder={t.auth.signUp.firstName}
 							type="text"
 							value={name}
 							onChange={setName}
@@ -120,7 +130,7 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 						<Input
 							id="surname"
 							name="surname"
-							placeholder="Cognome"
+							placeholder={t.auth.signUp.lastName}
 							type="text"
 							value={surname}
 							onChange={setSurname}
@@ -130,7 +140,7 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 						<Input
 							id="email"
 							name="email"
-							placeholder="Email"
+							placeholder={t.auth.signIn.email}
 							type="email"
 							value={email}
 							onChange={setEmail}
@@ -142,25 +152,32 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 						<PasswordField
 							id="password"
 							name="password"
-							placeholder="Password"
+							placeholder={t.auth.signIn.password}
 							onChange={setPassword}
 						/>
 						<PasswordField
 							id="confirm-password"
 							name="confirm-password"
-							placeholder="Conferma password"
+							placeholder={t.auth.signUp.confirmPassword}
 							onChange={setConfirmPassword}
 						/>
 						{confirmPassword !== password && passwordMismatch ? (
 							<div className="text-xs text-aka-ink">
-								Le password non corrispondono
+								{t.auth.errors.passwordMismatch}
 							</div>
 						) : null}
 
 						<div className="flex items-center gap-1.5 w-full my-1">
-							{checkStrength(password).map((req, index) => (
+							{checkStrength(password).map((req) => (
 								<span
-									key={index}
+									key={req.key}
+									// L'etichetta non è visibile — le barre sono solo colore —
+									// ma senza, uno screen reader legge cinque riquadri muti.
+									title={
+										req.key === "length"
+											? fill(t.auth.signUp.requirements.length, { n: PASSWORD_MIN_LENGTH })
+											: t.auth.signUp.requirements[req.key]
+									}
 									className={`grow shrink basis-0 h-1.5 rounded-sm transition-all ${
 										req.met ? "bg-midori" : "bg-glass-border"
 									}`}
@@ -182,19 +199,23 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 							type="checkbox"
 							className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 mt-px"
 						/>
+						{/* Spezzata in cinque perché due frammenti sono link: una frase
+						    unica con segnaposto non potrebbe portare il markup. */}
 						<div className="text-xs text-muted tracking-wider">
-							Accetto i <span className="text-midori-ink">Termini di servizio</span> e{" "}
-							l&apos;<span className="text-midori-ink">informativa sulla privacy</span> di
-							Seichi.
+							{t.auth.signUp.consentBefore}
+							<span className="text-midori-ink">{t.auth.signUp.consentTerms}</span>
+							{t.auth.signUp.consentMiddle}
+							<span className="text-midori-ink">{t.auth.signUp.consentPrivacy}</span>
+							{t.auth.signUp.consentAfter}
 						</div>
 					</div>
 
-					<Button title="Crea account" />
+					<Button title={t.auth.signUp.submit} />
 				</form>
 
 				<div className="flex items-center gap-3 my-5">
 					<span className="grow shrink basis-0 h-px bg-glass-border"></span>
-					<span className="text-muted text-xs">oppure</span>
+					<span className="text-muted text-xs">{t.auth.signIn.or}</span>
 					<span className="grow shrink basis-0 h-px bg-glass-border"></span>
 				</div>
 
@@ -214,7 +235,7 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 				</div>
 
 				<div className="text-center text-sm mt-4">
-					<span className="me-1 text-muted">Hai già un account?</span>
+					<span className="me-1 text-muted">{t.auth.welcome.haveAccount}</span>
 					<button
 						onClick={() => onTabChange?.("signin")}
 						className="text-midori-ink cursor-pointer font-medium"

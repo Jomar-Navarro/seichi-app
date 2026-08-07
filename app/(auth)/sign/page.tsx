@@ -4,9 +4,11 @@ import { useRouter } from "next/navigation";
 import LoginForm from "@/components/LoginForm";
 import SignUpForm from "@/components/SignUpForm";
 import BrandHeader from "@/components/UI/BrandHeader";
+import { useI18n } from "@/components/features/I18nProvider";
 
 export default function Sign() {
 	const router = useRouter();
+	const { t } = useI18n();
 	const [tab, setTab] = useState<"signin" | "signup">("signin");
 	const [notice, setNotice] = useState<string | null>(null);
 
@@ -21,9 +23,11 @@ export default function Sign() {
 		// segnala una volta per effetto, non per singola chiamata.
 		// eslint-disable-next-line react-hooks/set-state-in-effect
 		if (wantsSignup) setTab("signup");
-		if (passwordReset) setNotice("Password aggiornata — accedi con quella nuova");
+		if (passwordReset) setNotice(t.auth.signIn.passwordReset);
 		if (wantsSignup || passwordReset) router.replace("/sign");
-	}, [router]);
+		// `t` fra le dipendenze perché l'effetto ne legge una stringa. È stabile
+		// (memoizzato in I18nProvider), quindi non fa rigirare nulla.
+	}, [router, t]);
 
 	return (
 		<div className="h-lvh relative z-1 grow shrink basis-0 flex flex-col lg:flex-row overflow-hidden">
@@ -34,10 +38,8 @@ export default function Sign() {
 			<div className="hidden lg:flex flex-col items-center justify-center text-center w-2/5 border-r border-subtle onboarding-blur">
 				<BrandHeader />
 				<p className="text-xl 2xl:text-2xl leading-[1.75] max-w-xs 2xl:max-w-sm mt-2">
-					Prepara il terreno prima di costruire.{" "}
-					<span className="text-muted">
-						Metti in ordine le tue finanze — con calma e intenzione.
-					</span>
+					{t.auth.welcome.lead}{" "}
+					<span className="text-muted">{t.auth.welcome.leadMuted}</span>
 				</p>
 			</div>
 
