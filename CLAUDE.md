@@ -71,6 +71,7 @@ lib/
 ├── transaction-utils.ts  # TIPO_COLOR/TIPO_INK, formatDate, formatAmount
 ├── budget.ts             # BUDGET_PERIODS (id), soglia, budgetStatus/Color/Ink
 ├── recurring.ts          # FREQUENCIES (id) + aritmetica delle date
+├── auth.ts               # getSessionUser() — l'utente dalle CLAIMS del JWT, senza rete
 ├── account.ts            # getAccountContext() — user + profilo per le impostazioni
 ├── profile.ts            # getInitials, getDisplayName
 ├── password.ts           # PASSWORD_MIN_LENGTH, scorePassword, validateNewPassword
@@ -760,6 +761,113 @@ divergenti); e **uno scanner va messo alla controprova**, perché quello del tes
 cablato leggeva solo i `.tsx` e non guardava le stringhe fuori dal JSX — due
 buchi che insieme nascondevano sei `"Non autenticato"` nelle server action.
 
+### Costo delle richieste a Supabase (2026-08-08)
+
+Il pannello Supabase segnava ~2300 richieste in un'ora di uso normale. Non era un
+loop: era **fan-out architetturale**. Una vista della home costava **12 richieste**
+— 5 auth + 7 REST — e si ripagava a ogni navigazione, a ogni `router.refresh()` e
+dopo ogni `revalidatePath("/", "layout")`, cioè dopo ogni transazione salvata.
+Ora ne costa **6**, con le chiamate auth a **zero**.
+
+#### ⚠️ `auth.getUser()` è una chiamata di RETE, una per invocazione
+
+È la trappola centrale, e non si vede leggendo il codice: `getUser()` **non legge
+il cookie**, fa una `GET /auth/v1/user` verso GoTrue ogni volta e non memoizza
+nulla. Siccome ogni loader apriva il proprio client e rifaceva il proprio
+controllo, la home chiedeva **cinque volte la stessa risposta, in parallelo,
+dentro lo stesso render**.
+
+Il rimpiazzo è `getSessionUser()` in `lib/auth.ts`, che legge le **claims** del
+JWT: firma verificata in locale con WebCrypto, JWKS in una cache di modulo di
+`auth-js` (`GLOBAL_JWKS`, una volta per processo). Costo di rete a regime: zero.
+
+- ⚠️ **Il risparmio dipende dal TIPO DI CHIAVE, non da questo codice.** Funziona
+  perché il progetto usa chiavi JWT asimmetriche — si verifica con
+  `curl $SUPABASE_URL/auth/v1/.well-known/jwks.json`, che deve rispondere
+  `"alg":"ES256"`. Con un segreto simmetrico HS256 `getClaims()` ripiega **da
+  solo** su `getUser()`: nessun errore, nessun avviso, e ogni chiamata torna a
+  essere rete. È una regressione che nessun test coglie.
+- **`SessionUser` non è uno `User` di Supabase**, di proposito: contiene solo
+  `id`, `email` e `providers`, cioè ciò che il token porta davvero. Un tipo più
+  largo inviterebbe a leggere campi che nelle claims non esistono
+  (`identities`, `created_at`, i metadati aggiornati) e che sarebbero
+  `undefined` in silenzio. `hasPasswordIdentity` ora deriva da
+  `app_metadata.providers`, non da `user.identities`.
+- **Quattro `getUser()` restano, ed è deliberato**: cambio email, cambio
+  password, eliminazione account (`impostazioni/account/actions.ts`),
+  `resetPassword`, il gate di `/reimposta-password` e il `/callback` subito dopo
+  lo scambio del code. Le claims dicono che il token è autentico e non scaduto,
+  **non che la sessione sia ancora viva**: un logout altrove non si vede fino
+  alla scadenza dell'access token. Sul percorso di lettura non è una perdita —
+  PostgREST valida quello stesso JWT allo stesso modo, quindi la RLS non avrebbe
+  comunque visto la revoca — ma sulle operazioni sensibili la verifica lato
+  server è esattamente ciò che si sta comprando, e là costa una chiamata per
+  azione invece di cinque per render.
+
+#### `cache()` su `createClient()`
+
+Non è cosmesi: senza, la home istanziava cinque client, ognuno col proprio client
+GoTrue. Con un'istanza sola per richiesta il rinnovo di un token scaduto avviene
+una volta dentro il lock interno di GoTrue, invece che in cinque corse parallele
+sullo stesso refresh token — **che è monouso**, la stessa classe di difetto già
+documentata nel proxy.
+
+⚠️ **Fuori da un render React `cache()` non memoizza e non solleva** (verificato,
+React 19.2.7): nelle server action degrada al comportamento precedente, dove il
+controllo si fa comunque una volta sola. Quindi è sicura ovunque, ma il guadagno
+si vede **solo durante un render** — cioè esattamente nel caso che serviva.
+
+#### Le query: due difetti dello stesso tipo
+
+- **`getDashboardTotals` lanciava due query dove la seconda era un SOVRAINSIEME
+  della prima** (una filtrata sul mese, una senza filtri). La filtrata non
+  aggiungeva un solo dato: costava una richiesta e ritrasferiva le stesse righe.
+- **`getNotifications()` chiamava `getUnreadCount()`**, che è una server action a
+  sé: apriva un secondo client e rifaceva il proprio controllo auth per una query
+  che parte comunque nello stesso `Promise.all`. Ora la query è estratta in
+  `unreadCountQuery()`, condivisa fra le due.
+
+#### `dashboard_totals()` — migration `20260808_dashboard_totals.sql`
+
+Le somme della home le fa Postgres. Prima si scaricava **ogni transazione
+dell'account**, tutta la storia, per produrre una trentina di numeri.
+
+- ⚠️ **I confini dei mesi li calcola l'APP e li passa come parametro**, non
+  `date_trunc` nel database. Oggi nascono da `new Date(y, m, 1)`, cioè nel fuso
+  del processo che rende la pagina: UTC su Vercel, **ora italiana in sviluppo
+  locale**. Spostare il calcolo nel DB li avrebbe fissati a UTC, cambiando in
+  silenzio i totali della dashboard locale — e solo nelle prime ore del mese,
+  cioè il momento peggiore per accorgersene. La chiusura pulita è `ClientClock`
+  (Fase 17a), ma la home è un server component e non conosce il fuso dell'utente.
+- **Un array di 7 confini, non due domande separate.** Il mese corrente **è**
+  l'ultimo bucket del trend a 6 mesi (`m-5+i` con `i=5` è `inizioMese`):
+  chiederli separatamente avrebbe sommato due volte le stesse righe.
+- **`total` torna `numeric` senza precisione**, non `numeric(10,2)` come la
+  colonna: una somma può superare le dieci cifre anche se nessun importo singolo
+  lo fa, e il cast la farebbe fallire.
+- ⚠️ **Ordine di deploy vincolante**: la migration va eseguita **prima** di
+  pubblicare il codice, o la home risponde 404 sulla RPC. Nessun ripiego sulla
+  vecchia strada, di proposito — un fallback silenzioso nasconderebbe una
+  migration non eseguita e l'app girerebbe per mesi sulla via lenta.
+
+#### Cosa NON era il problema
+
+Vale la pena saperlo prima di rimettere mano a questa zona:
+
+- **Il proxy.** Gira su ogni richiesta ma usa già `getClaims()`, che con ES256
+  non tocca la rete.
+- **Il prefetch della `BottomNav`.** `node_modules/next/dist/docs/01-app/02-guides/prefetching.md`:
+  le pagine dinamiche non si prefetchano senza `loading.js`, e nel repo non ce
+  n'è nessuno. In sviluppo il prefetch automatico non gira proprio.
+- **Polling.** Non ce n'è: `DashboardRefresher` reagisce a un contatore di
+  Zustand, non a un timer.
+
+#### Come misurare, la prossima volta
+
+Il numero da guardare nel pannello Supabase non è il totale ma la **card Auth**:
+se non è quasi piatta, da qualche parte è rientrato un `getUser()` sul percorso
+di lettura.
+
 ## Auth Flow
 
 - `/welcome` → landing page pre-auth
@@ -818,8 +926,15 @@ buchi che insieme nascondevano sei `"Non autenticato"` nelle server action.
   impone, ma senza di essa un dispositivo sbloccato basterebbe a prendere l'account.
   Il controllo va rifatto a ogni server action: lo stato del passo precedente vive sul
   client e non è affidabile.
-- Gli account solo-OAuth non hanno `identities` con provider `email`:
-  per loro cambio email e cambio password sono disabilitati (`hasPasswordIdentity`).
+- **Chi legge l'utente usa `getSessionUser()` (`lib/auth.ts`), non
+  `auth.getUser()`** — quest'ultima è una chiamata di rete a ogni invocazione.
+  Le eccezioni sono le operazioni sensibili qui sopra, `resetPassword`, il gate
+  di `/reimposta-password` e il `/callback`: là serve la verifica lato server,
+  perché le claims non vedono una sessione revocata. Motivi e trappole nella
+  sezione "Costo delle richieste a Supabase".
+- Gli account solo-OAuth non hanno `email` fra i `providers`:
+  per loro cambio email e cambio password sono disabilitati (`hasPasswordIdentity`,
+  che legge `app_metadata.providers` dal JWT).
 
   ⚠️ **Eccezione nota**: per questi account l'**eliminazione** non ha riautenticazione
   — non esiste una password da verificare, e resta solo la digitazione dell'indirizzo.
@@ -1047,3 +1162,8 @@ Ordine per priorità (il viewport è il problema più sentito):
 - **Lingua**: dizionari tipizzati in `lib/i18n/dictionaries/`, locale dal cookie.
   Nessuna stringa rivolta all'utente vive fuori dai dizionari — nemmeno dentro
   `lib/`, che tiene solo la meccanica (vedi "Fase 19")
+- **Identità dell'utente**: dalle **claims** del JWT (`getSessionUser()` in
+  `lib/auth.ts`), non da `auth.getUser()` — quella è una chiamata di rete a ogni
+  invocazione, e i loader di una pagina sono tanti. `auth.getUser()` resta solo
+  dove serve sapere che la sessione è ancora **viva**, non solo autentica: le
+  operazioni sensibili sull'account. Vedi "Costo delle richieste a Supabase"
