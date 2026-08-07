@@ -152,13 +152,13 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 						style={{ background: "color-mix(in srgb, var(--color-deep) 94%, transparent)" }}
 					>
 						<div className="flex items-center justify-between px-5 py-4 border-b border-subtle shrink-0">
-							<h2 className="text-[15px] font-semibold">Notifiche</h2>
+							<h2 className="text-[15px] font-semibold">{t.notifications.title}</h2>
 							{unread > 0 && (
 								<button
 									onClick={markAll}
 									className="text-[12px] text-muted active:opacity-60 cursor-pointer"
 								>
-									segna tutte come lette
+									{t.notifications.markAllRead}
 								</button>
 							)}
 						</div>
@@ -186,7 +186,7 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 								<div className="px-8 py-10 text-center">
 									<p className="text-[14px] font-medium mb-1.5">{t.notifications.empty}</p>
 									<p className="text-[12.5px] text-muted leading-relaxed">
-										Qui arrivano gli avvisi su budget, obiettivi e rinnovi in arrivo.
+										{t.notifications.emptyDescription}
 									</p>
 								</div>
 							)}

@@ -1,25 +1,29 @@
 "use client";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useI18n } from "./I18nProvider";
 
-const TABS = ["Settimana", "Mese", "Anno"] as const;
+/**
+ * Gli id sono già i valori del parametro `?periodo=`.
+ *
+ * Prima erano le etichette visibili ("Settimana", "Mese", "Anno") e serviva una
+ * mappa `TAB_PARAM` per tradurle in `settimana|mese|anno`. Con le etichette nel
+ * dizionario (`t.analytics.tabs`) quella mappa sparisce: il testo non è più
+ * anche una chiave.
+ */
+const TABS = ["settimana", "mese", "anno"] as const;
 type Tab = (typeof TABS)[number];
 
-const TAB_PARAM: Record<Tab, string> = {
-	Settimana: "settimana",
-	Mese: "mese",
-	Anno: "anno",
-};
-
 export default function AnalyticsTabs() {
+	const { t } = useI18n();
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const periodo = searchParams.get("periodo") ?? "mese";
-	const active = TABS.find((t) => TAB_PARAM[t] === periodo) ?? "Mese";
+	const active: Tab = TABS.find((tab) => tab === periodo) ?? "mese";
 
 	const handleClick = (tab: Tab) => {
-		if (TAB_PARAM[tab] === periodo) return;
+		if (tab === periodo) return;
 		const params = new URLSearchParams(searchParams.toString());
-		params.set("periodo", TAB_PARAM[tab]);
+		params.set("periodo", tab);
 		router.replace(`/analisi?${params.toString()}`);
 	};
 
@@ -37,7 +41,7 @@ export default function AnalyticsTabs() {
 							: "font-medium text-muted bg-transparent"
 					}`}
 				>
-					{tab}
+					{t.analytics.tabs[tab]}
 				</button>
 			))}
 		</div>

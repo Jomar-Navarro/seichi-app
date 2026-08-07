@@ -240,7 +240,7 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 						onClick={() => onTabChange?.("signin")}
 						className="text-midori-ink cursor-pointer font-medium"
 					>
-						Accedi
+						{t.auth.welcome.signIn}
 					</button>
 				</div>
 			</div>

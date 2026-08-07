@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getDictionary } from "@/lib/i18n/server";
 import { createClient } from "@/lib/supabase/server";
 import { localMidnightInstant, monthBoundsOf, parseLocalDate } from "@/lib/dates";
 import { advanceDate } from "@/lib/recurring";
@@ -43,10 +44,11 @@ export async function setBudget(input: {
 }): Promise<{ success: true } | { error: string }> {
 	const supabase = await createClient();
 	const { data: { user } } = await supabase.auth.getUser();
-	if (!user) return { error: "Non autenticato" };
+	const t = await getDictionary();
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	if (input.amount !== null && !(input.amount > 0)) {
-		return { error: "L'importo deve essere maggiore di zero" };
+		return { error: t.errors.amountMustBePositive };
 	}
 
 	const { error } = await supabase.rpc("set_budget", {
@@ -82,7 +84,8 @@ export async function getBudgetForCategory(
 ): Promise<{ data: { period: BudgetPeriod; amount: number } | null } | { error: string }> {
 	const supabase = await createClient();
 	const { data: { user } } = await supabase.auth.getUser();
-	if (!user) return { error: "Non autenticato" };
+	const t = await getDictionary();
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const rows = await readBudgetsAt(supabase, clock);
 	if ("error" in rows) return rows;
@@ -102,7 +105,8 @@ export async function getGlobalBudget(
 ): Promise<{ data: number | null } | { error: string }> {
 	const supabase = await createClient();
 	const { data: { user } } = await supabase.auth.getUser();
-	if (!user) return { error: "Non autenticato" };
+	const t = await getDictionary();
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const rows = await readBudgetsAt(supabase, clock);
 	if ("error" in rows) return rows;
@@ -120,7 +124,8 @@ export async function getBudgetOverview(
 ): Promise<{ data: BudgetOverview } | { error: string }> {
 	const supabase = await createClient();
 	const { data: { user } } = await supabase.auth.getUser();
-	if (!user) return { error: "Non autenticato" };
+	const t = await getDictionary();
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const [rows, fixed] = await Promise.all([
 		readBudgetsAt(supabase, clock),
@@ -233,7 +238,8 @@ export async function getFixedOutflows(
 ): Promise<{ data: number } | { error: string }> {
 	const supabase = await createClient();
 	const { data: { user } } = await supabase.auth.getUser();
-	if (!user) return { error: "Non autenticato" };
+	const t = await getDictionary();
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const { start, end } = monthBoundsOf(clock.today);
 

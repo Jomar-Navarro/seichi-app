@@ -143,6 +143,7 @@ export const it = {
 		noFileSelected: "Nessun file selezionato",
 		unsupportedFormat: "Formato non supportato — usa JPG, PNG o WebP",
 		enterPassword: "Inserisci la password",
+		amountMustBePositive: "L'importo deve essere maggiore di zero",
 		invalidEmail: "Indirizzo email non valido",
 		sameEmail: "È già la tua email attuale",
 		samePassword: "La nuova password deve essere diversa da quella attuale",
@@ -226,6 +227,8 @@ export const it = {
 
 		recovery: {
 			linkExpired: "Link scaduto o non valido — richiedi un nuovo recupero",
+			title: "Recupera la password",
+			intro: "Inserisci la tua email e ti invieremo un link per reimpostarla",
 			sentTitle: "Controlla la tua email",
 			/** Sempre la stessa risposta, anche per indirizzi inesistenti: vedi actions.ts. */
 			sentDescription:
@@ -418,6 +421,8 @@ export const it = {
 			saveChanges: "Salva modifiche",
 			createRecurring: "Crea ricorrenza",
 			save: "Salva movimento",
+			deleteConfirm: "Conferma eliminazione",
+			delete: "Elimina movimento",
 		},
 		emptyTitle: "Nessuna transazione ancora",
 		emptyDescription:
@@ -430,6 +435,79 @@ export const it = {
 			"30d": "30 giorni",
 			"3m": "3 mesi",
 			tutto: "Tutto",
+		},
+	},
+
+	/** Obiettivi di risparmio (Fase 11). */
+	goals: {
+		title: "Obiettivi",
+		loadError: "Errore nel caricamento degli obiettivi.",
+		/** "2 attivi · 1 completato" — due plurali indipendenti nella stessa riga. */
+		activeCount: { one: "{n} attivo", other: "{n} attivi" },
+		completedCount: { one: "{n} completato", other: "{n} completati" },
+		new: "Nuovo",
+		emptyTitle: "Nessun obiettivo ancora",
+		emptyDescription:
+			"Crea il tuo primo obiettivo per iniziare a metterlo da parte con calma.",
+		create: "Crea obiettivo",
+		noDeadline: "Nessuna scadenza",
+		/** Riga sotto il nome sulla card: "Scadenza · ago 2026". */
+		reached: "Raggiunto · {date}",
+		deadline: "Scadenza · {date}",
+		/** "€ 400 di € 1.000" — il connettivo fra risparmiato e traguardo. */
+		of: "di",
+
+		editTitle: "Modifica obiettivo",
+		newTitle: "Nuovo obiettivo",
+		nameLabel: "Nome obiettivo",
+		namePlaceholder: "Es. Viaggio in Giappone",
+		nameRequired: "Inserisci un nome",
+		targetLabel: "Importo obiettivo",
+		optional: "(opzionale)",
+		amountInvalid: "Inserisci un importo valido",
+		dateLabel: "Data obiettivo",
+		iconLabel: "Icona",
+		saveChanges: "Salva modifiche",
+		deleteConfirm: "Conferma eliminazione",
+		delete: "Elimina obiettivo",
+	},
+
+	investments: {
+		title: "Investimenti",
+		emptyTitle: "Nessun investimento ancora",
+		/** ⚠️ Cita il nome del tipo: arriva da `t.transactionTypes.investimento.label`. */
+		emptyDescription:
+			"Aggiungi una transazione di tipo «{type}» per iniziare a tracciare il tuo portafoglio.",
+		positionCount: { one: "{n} posizione attiva", other: "{n} posizioni attive" },
+		typeCount: { one: "{n} tipologia", other: "{n} tipologie" },
+		portfolioValue: "Valore portafoglio",
+		vsLastMonth: "rispetto al mese scorso",
+		composition: "Composizione",
+		total: "Totale",
+		positions: "Posizioni",
+	},
+
+	analytics: {
+		title: "Analisi",
+		lastWeek: "Ultima settimana",
+		netFlow: "Flusso netto",
+		/** Nessun periodo precedente con cui confrontarsi. */
+		firstMonth: "— primo mese",
+		tabs: {
+			settimana: "Settimana",
+			mese: "Mese",
+			anno: "Anno",
+		},
+		legendIncome: "Entrate",
+		legendExpenses: "Uscite totali",
+		spendingByCategory: "Spese per categoria",
+		/** Stato vuoto del donut: "Nessuna spesa questo mese". */
+		noSpending: "Nessuna spesa {window}",
+		/** Periodo vuoto nel donut: "nessuna spesa questa settimana". */
+		windows: {
+			settimana: "questa settimana",
+			mese: "questo mese",
+			anno: "quest'anno",
 		},
 	},
 
@@ -721,6 +799,9 @@ export const it = {
 	notifications: {
 		loading: "Caricamento…",
 		empty: "Nessuna notifica",
+		title: "Notifiche",
+		markAllRead: "segna tutte come lette",
+		emptyDescription: "Qui arrivano gli avvisi su budget, obiettivi e rinnovi in arrivo.",
 	},
 
 	settings: {

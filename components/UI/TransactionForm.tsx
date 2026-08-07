@@ -403,7 +403,7 @@ export default function TransactionForm({
 								onClick={() => setIsDeleteConfirm(false)}
 								className="flex-1 py-3.5 rounded-2xl bg-card border border-subtle text-sm font-semibold"
 							>
-								Annulla
+								{t.common.cancel}
 							</button>
 							<button
 								onClick={handleDelete}
@@ -411,7 +411,7 @@ export default function TransactionForm({
 								// `--on-accent`, non "#fff": vedi CLAUDE.md, Fase 18.
 								style={{ background: "var(--color-aka)", color: "var(--on-accent)" }}
 							>
-								Conferma eliminazione
+								{t.transactions.form.deleteConfirm}
 							</button>
 						</div>
 					) : (
@@ -425,7 +425,7 @@ export default function TransactionForm({
 							}}
 						>
 							<Trash2 size={15} />
-							Elimina movimento
+							{t.transactions.form.delete}
 						</button>
 					)}
 				</div>

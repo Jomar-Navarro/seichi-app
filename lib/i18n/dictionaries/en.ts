@@ -91,6 +91,7 @@ export const en: Dictionary = {
 		noFileSelected: "No file selected",
 		unsupportedFormat: "Unsupported format — use JPG, PNG or WebP",
 		enterPassword: "Enter your password",
+		amountMustBePositive: "The amount must be greater than zero",
 		invalidEmail: "Invalid email address",
 		sameEmail: "That's already your current email",
 		samePassword: "The new password must be different from the current one",
@@ -154,6 +155,8 @@ export const en: Dictionary = {
 
 		recovery: {
 			linkExpired: "That link has expired or is invalid — request a new reset",
+			title: "Recover your password",
+			intro: "Enter your email and we will send you a link to reset it",
 			sentTitle: "Check your email",
 			sentDescription:
 				"If that address is registered, we've sent you a link to reset your password.",
@@ -310,6 +313,8 @@ export const en: Dictionary = {
 			saveChanges: "Save changes",
 			createRecurring: "Create recurring rule",
 			save: "Save transaction",
+			deleteConfirm: "Confirm deletion",
+			delete: "Delete transaction",
 		},
 		emptyTitle: "No transactions yet",
 		emptyDescription:
@@ -322,6 +327,70 @@ export const en: Dictionary = {
 			"30d": "30 days",
 			"3m": "3 months",
 			tutto: "All time",
+		},
+	},
+
+	goals: {
+		title: "Goals",
+		loadError: "Could not load your goals.",
+		activeCount: { one: "{n} active", other: "{n} active" },
+		completedCount: { one: "{n} completed", other: "{n} completed" },
+		new: "New",
+		emptyTitle: "No goals yet",
+		emptyDescription: "Create your first goal and start setting money aside, calmly.",
+		create: "Create goal",
+		noDeadline: "No deadline",
+		reached: "Reached · {date}",
+		deadline: "Due · {date}",
+		of: "of",
+
+		editTitle: "Edit goal",
+		newTitle: "New goal",
+		nameLabel: "Goal name",
+		namePlaceholder: "e.g. Trip to Japan",
+		nameRequired: "Enter a name",
+		targetLabel: "Target amount",
+		optional: "(optional)",
+		amountInvalid: "Enter a valid amount",
+		dateLabel: "Target date",
+		iconLabel: "Icon",
+		saveChanges: "Save changes",
+		deleteConfirm: "Confirm deletion",
+		delete: "Delete goal",
+	},
+
+	investments: {
+		title: "Investments",
+		emptyTitle: "No investments yet",
+		emptyDescription:
+			"Add a transaction of type “{type}” to start tracking your portfolio.",
+		positionCount: { one: "{n} active position", other: "{n} active positions" },
+		typeCount: { one: "{n} type", other: "{n} types" },
+		portfolioValue: "Portfolio value",
+		vsLastMonth: "vs last month",
+		composition: "Composition",
+		total: "Total",
+		positions: "Positions",
+	},
+
+	analytics: {
+		title: "Analytics",
+		lastWeek: "Last week",
+		netFlow: "Net flow",
+		firstMonth: "— first month",
+		tabs: {
+			settimana: "Week",
+			mese: "Month",
+			anno: "Year",
+		},
+		legendIncome: "Income",
+		legendExpenses: "Total spending",
+		spendingByCategory: "Spending by category",
+		noSpending: "No spending {window}",
+		windows: {
+			settimana: "this week",
+			mese: "this month",
+			anno: "this year",
 		},
 	},
 
@@ -568,6 +637,9 @@ export const en: Dictionary = {
 	notifications: {
 		loading: "Loading…",
 		empty: "No notifications",
+		title: "Notifications",
+		markAllRead: "mark all as read",
+		emptyDescription: "Alerts about budgets, goals and upcoming renewals show up here.",
 	},
 
 	settings: {

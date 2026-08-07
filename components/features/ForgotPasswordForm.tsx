@@ -48,9 +48,9 @@ export default function ForgotPasswordForm() {
 				<span className="w-18 h-18 rounded-[26px] flex items-center justify-center mb-5 bg-control border border-subtle box-shadow">
 					<Lock size={34} className="text-foreground" strokeWidth={1.5} />
 				</span>
-				<h1 className="text-[21px] font-semibold mb-2">Recupera la password</h1>
+				<h1 className="text-[21px] font-semibold mb-2">{t.auth.recovery.title}</h1>
 				<p className="text-[13px] text-muted leading-relaxed max-w-70">
-					Inserisci la tua email e ti invieremo un link per reimpostarla
+					{t.auth.recovery.intro}
 				</p>
 			</div>
 

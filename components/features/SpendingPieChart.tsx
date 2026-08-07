@@ -1,7 +1,7 @@
 "use client";
 import { PieChart, Pie, Tooltip, ResponsiveContainer } from "recharts";
 import { useI18n } from "./I18nProvider";
-import { DISPLAY_CURRENCY, formatMoney } from "@/lib/i18n/format";
+import { DISPLAY_CURRENCY, fill, formatMoney } from "@/lib/i18n/format";
 
 interface SpendingPieChartProps {
 	spese: { name: string; color: string; total: number }[];
@@ -34,7 +34,7 @@ const CHART_RAMP = [
 ];
 
 export default function SpendingPieChart({ spese, periodo = "mese" }: SpendingPieChartProps) {
-	const { locale } = useI18n();
+	const { locale, t } = useI18n();
 	/** Importi con i decimali, nel formato del locale. */
 	const money = (v: number) =>
 		formatMoney(v, { locale, currency: DISPLAY_CURRENCY, decimals: 2 });
@@ -46,14 +46,14 @@ export default function SpendingPieChart({ spese, periodo = "mese" }: SpendingPi
 	}));
 
 	if (spese.length === 0) {
-		const periodoLabel = periodo === "settimana" ? "questa settimana" : periodo === "anno" ? "quest'anno" : "questo mese";
+		const periodoLabel = t.analytics.windows[periodo as keyof typeof t.analytics.windows] ?? t.analytics.windows.mese;
 		return (
 			<>
 				<p className="text-[14.5px] font-semibold mt-5 mb-3.5 text-foreground">
-					Spese per categoria
+					{t.analytics.spendingByCategory}
 				</p>
 				<p className="text-[13px] text-muted text-center py-6">
-					Nessuna spesa {periodoLabel}
+					{fill(t.analytics.noSpending, { window: periodoLabel })}
 				</p>
 			</>
 		);
@@ -62,7 +62,7 @@ export default function SpendingPieChart({ spese, periodo = "mese" }: SpendingPi
 	return (
 		<>
 			<p className="text-[14.5px] font-semibold mt-5 mb-3.5 text-foreground">
-				Spese per categoria
+				{t.analytics.spendingByCategory}
 			</p>
 			<div className="flex items-center gap-5">
 				{/* Donut */}
@@ -99,7 +99,7 @@ export default function SpendingPieChart({ spese, periodo = "mese" }: SpendingPi
 					{/* Centro */}
 					<div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-0.5">
 						<p className="text-[9.5px] text-muted uppercase tracking-[0.08em] leading-none">
-							Uscite
+							{t.types.spesa}
 						</p>
 						<p className="text-[15px] font-semibold text-foreground leading-none">
 							{money(totale)}

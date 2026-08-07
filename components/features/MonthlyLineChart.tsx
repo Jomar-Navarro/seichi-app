@@ -8,12 +8,14 @@ import {
 	Tooltip,
 	ResponsiveContainer,
 } from "recharts";
+import { useI18n } from "./I18nProvider";
 
 interface MonthlyLineChartProps {
 	trend: { mese: string; entrate: number; uscite: number }[];
 }
 
 export default function MonthlyLineChart({ trend }: MonthlyLineChartProps) {
+	const { t } = useI18n();
 	const id = useId();
 	const gradE = `gradientEntrate-${id}`;
 	const gradU = `gradientUscite-${id}`;
@@ -23,11 +25,11 @@ export default function MonthlyLineChart({ trend }: MonthlyLineChartProps) {
 			<div className="flex items-center gap-4 mb-4">
 				<div className="flex items-center gap-1.75">
 					<span className="inline-block w-2.5 h-0.75 rounded-full bg-midori" />
-					<span className="text-xs text-muted">Entrate</span>
+					<span className="text-xs text-muted">{t.analytics.legendIncome}</span>
 				</div>
 				<div className="flex items-center gap-1.75">
 					<span className="inline-block w-2.5 h-0.75 rounded-full bg-aka" />
-					<span className="text-xs text-muted">Uscite totali</span>
+					<span className="text-xs text-muted">{t.analytics.legendExpenses}</span>
 				</div>
 			</div>
 			<ResponsiveContainer width="100%" height={160}>
