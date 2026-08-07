@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { normalizeLocale } from "@/lib/i18n/config";
-import { setLocaleCookie } from "@/lib/i18n/server";
+import { getDictionary, setLocaleCookie } from "@/lib/i18n/server";
 import type { Category } from "@/types";
 
 // Il colore di una categoria deriva dal suo tipo (design Zen Glass)
@@ -21,7 +21,8 @@ const VALID_TYPES = Object.keys(TYPE_COLOR);
 export async function getCategories(): Promise<{ data: Category[] } | { error: string }> {
 	const supabase = await createClient();
 	const { data: { user } } = await supabase.auth.getUser();
-	if (!user) return { error: "Non autenticato" };
+	const t = await getDictionary();
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const { data, error } = await supabase
 		.from("categories")
@@ -35,11 +36,12 @@ export async function getCategories(): Promise<{ data: Category[] } | { error: s
 export async function createCategory(input: { name: string; icon: string; type: string }) {
 	const supabase = await createClient();
 	const { data: { user } } = await supabase.auth.getUser();
-	if (!user) return { error: "Non autenticato" };
+	const t = await getDictionary();
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const name = input.name.trim();
-	if (!name) return { error: "Il nome è obbligatorio" };
-	if (!VALID_TYPES.includes(input.type)) return { error: "Tipo non valido" };
+	if (!name) return { error: t.errors.nameRequired };
+	if (!VALID_TYPES.includes(input.type)) return { error: t.errors.invalidType };
 
 	// L'id torna al chiamante perché il budget si imposta subito dopo, sulla
 	// categoria appena creata (vedi CategorySheet): senza, servirebbe una
@@ -67,11 +69,12 @@ export async function updateCategory(
 ) {
 	const supabase = await createClient();
 	const { data: { user } } = await supabase.auth.getUser();
-	if (!user) return { error: "Non autenticato" };
+	const t = await getDictionary();
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const name = input.name.trim();
-	if (!name) return { error: "Il nome è obbligatorio" };
-	if (!VALID_TYPES.includes(input.type)) return { error: "Tipo non valido" };
+	if (!name) return { error: t.errors.nameRequired };
+	if (!VALID_TYPES.includes(input.type)) return { error: t.errors.invalidType };
 
 	const { error } = await supabase
 		.from("categories")
@@ -92,7 +95,8 @@ export async function updateCategory(
 export async function deleteCategory(id: string) {
 	const supabase = await createClient();
 	const { data: { user } } = await supabase.auth.getUser();
-	if (!user) return { error: "Non autenticato" };
+	const t = await getDictionary();
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	// Blocca l'eliminazione se ci sono movimenti collegati (nessuna perdita accidentale)
 	const { count, error: countError } = await supabase
@@ -123,11 +127,12 @@ export async function deleteCategory(id: string) {
 export async function updatePreferences(currency: string, language: string) {
 	const supabase = await createClient();
 	const { data: { user } } = await supabase.auth.getUser();
-	if (!user) return { error: "Non autenticato" };
+	const t = await getDictionary();
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	// Stessa normalizzazione di `savePreferences`: il tag canonico è minuscolo.
 	const locale = normalizeLocale(language);
-	if (!locale) return { error: "Lingua non supportata" };
+	if (!locale) return { error: t.errors.unsupportedLanguage };
 
 	const { error } = await supabase
 		.from("profiles")

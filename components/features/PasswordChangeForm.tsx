@@ -8,10 +8,12 @@ import PasswordStrength from "@/components/UI/PasswordStrength";
 import StatusScreen from "@/components/UI/StatusScreen";
 import SubmitButton from "@/components/UI/SubmitButton";
 import { changePassword } from "@/app/(main)/impostazioni/account/actions";
+import { useI18n } from "@/components/features/I18nProvider";
 import { PASSWORD_MIN_LENGTH } from "@/lib/password";
 
 export default function PasswordChangeForm() {
 	const router = useRouter();
+	const { t } = useI18n();
 	const [current, setCurrent] = useState("");
 	const [next, setNext] = useState("");
 	const [confirm, setConfirm] = useState("");
@@ -34,10 +36,10 @@ export default function PasswordChangeForm() {
 		return (
 			<StatusScreen
 				icon={<Check size={30} style={{ color: "var(--color-midori)" }} strokeWidth={2.2} />}
-				title="Password aggiornata"
+				title={t.account.password.updatedTitle}
 				shape="circle"
 			>
-				<SubmitButton label="Fatto" onClick={() => router.push("/impostazioni")} />
+				<SubmitButton label={t.common.done} onClick={() => router.push("/impostazioni")} />
 			</StatusScreen>
 		);
 	}
@@ -46,21 +48,21 @@ export default function PasswordChangeForm() {
 		<>
 			<PasswordInput
 				name="current-password"
-				label="Password attuale"
+				label={t.account.password.current}
 				value={current}
 				onChange={setCurrent}
 				autoComplete="current-password"
 			/>
 			<PasswordInput
 				name="new-password"
-				label="Nuova password"
+				label={t.account.password.new}
 				value={next}
 				onChange={setNext}
 				autoComplete="new-password"
 			/>
 			<PasswordInput
 				name="confirm-password"
-				label="Conferma nuova password"
+				label={t.account.password.confirm}
 				value={confirm}
 				onChange={setConfirm}
 				autoComplete="new-password"
@@ -76,8 +78,8 @@ export default function PasswordChangeForm() {
 			)}
 
 			<SubmitButton
-				label="Aggiorna password"
-				pendingLabel="Aggiornamento…"
+				label={t.account.password.update}
+				pendingLabel={t.account.password.updating}
 				pending={pending}
 				disabled={!ready}
 				onClick={handleSubmit}

@@ -43,6 +43,20 @@ function dateFormat(locale: Locale, options: Intl.DateTimeFormatOptions) {
 	return fmt;
 }
 
+/**
+ * La valuta usata dove non ne arriva una dal profilo.
+ *
+ * ⚠️ È un SEGNAPOSTO, non una decisione. Prima della Fase 19 il simbolo "€" era
+ * scritto a mano in una dozzina di componenti, mentre `profiles.currency` è
+ * scelta dall'utente fin dall'onboarding e già letta da `getAccountContext()` e
+ * dalle notifiche. Far arrivare la valuta fino a ogni foglia è un lavoro
+ * indipendente dalla lingua — tocca gli stessi file ma per un'altra ragione —
+ * quindi qui il comportamento resta identico a prima. Questo nome esiste perché
+ * quando lo si farà basti seguirne i riferimenti, invece di cercare "€" in tutto
+ * il codice e distinguerlo dai simboli legittimi.
+ */
+export const DISPLAY_CURRENCY = "EUR";
+
 /* ---------------------------------------------------------------- numeri --- */
 
 export function formatNumber(

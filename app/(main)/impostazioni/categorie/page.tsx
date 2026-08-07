@@ -1,24 +1,19 @@
-import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
 import { getCategories } from "../actions";
 import CategoryManager from "@/components/features/CategoryManager";
+import PageHeader from "@/components/UI/PageHeader";
+import { getI18n } from "@/lib/i18n/server";
 
 export default async function CategoriePage() {
 	const result = await getCategories();
 	const categories = "error" in result ? [] : result.data;
+	const { t } = await getI18n();
 
 	return (
 		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34">
-			<div className="flex items-center gap-3.5 mb-6">
-				<Link
-					href="/impostazioni"
-					className="w-10 h-10 rounded-xl flex items-center justify-center bg-control border border-subtle shrink-0"
-					aria-label="Indietro"
-				>
-					<ChevronLeft size={17} className="text-secondary" />
-				</Link>
-				<h1 className="text-[22px] font-semibold">Categorie</h1>
-			</div>
+			{/* Era il markup di PageHeader ricopiato a mano, freccia e aria-label
+			    compresi. Con l'i18n sarebbe diventata una seconda stringa "Indietro"
+			    da tradurre a parte, quindi le due copie collassano sul componente. */}
+			<PageHeader title={t.settings.groups.categories} backHref="/impostazioni" />
 
 			<CategoryManager categories={categories} />
 		</div>

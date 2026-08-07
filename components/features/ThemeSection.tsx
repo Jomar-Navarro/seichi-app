@@ -2,7 +2,9 @@
 
 import { useSyncExternalStore } from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
-import { THEME_LABELS, type ThemeChoice } from "@/lib/theme";
+import { type ThemeChoice } from "@/lib/theme";
+import { fill } from "@/lib/i18n/format";
+import { useI18n } from "./I18nProvider";
 import { useTheme } from "./ThemeProvider";
 
 /* "Siamo già idratati?" — `false` sul server e durante l'idratazione, `true`
@@ -22,6 +24,7 @@ const OPTIONS: { value: ThemeChoice; icon: typeof Sun }[] = [
 
 export default function ThemeSection() {
 	const { choice, resolved, setChoice } = useTheme();
+	const { t } = useI18n();
 
 	/*
 	 * Con "sistema" `resolved` arriva dal server, che `prefers-color-scheme` non
@@ -41,9 +44,9 @@ export default function ThemeSection() {
 	const detail =
 		choice === "system"
 			? knowsResolved
-				? `segue il sistema · ora ${THEME_LABELS[resolved]}`
-				: "segue il sistema"
-			: `sempre ${THEME_LABELS[choice]}`;
+				? fill(t.theme.followsSystemNow, { theme: t.theme[resolved] })
+				: t.theme.followsSystem
+			: fill(t.theme.always, { theme: t.theme[choice] });
 
 	return (
 		// La card e l'etichetta di sezione le mette SettingsGroup: rifarle qui
@@ -60,7 +63,7 @@ export default function ThemeSection() {
 					)}
 				</span>
 				<div className="flex-1 min-w-0">
-					<p className="text-sm font-medium">Aspetto</p>
+					<p className="text-sm font-medium">{t.settings.groups.appearance}</p>
 					<p className="text-[12.5px] text-muted mt-0.5 truncate">{detail}</p>
 				</div>
 			</div>
@@ -68,7 +71,7 @@ export default function ThemeSection() {
 			<div
 				className="grid grid-cols-3 gap-1 p-1 rounded-2xl segment-tab"
 				role="radiogroup"
-				aria-label="Aspetto"
+				aria-label={t.settings.groups.appearance}
 			>
 				{OPTIONS.map(({ value, icon: Icon }) => {
 					const active = choice === value;
@@ -84,7 +87,7 @@ export default function ThemeSection() {
 							}`}
 						>
 							<Icon size={15} />
-							{THEME_LABELS[value]}
+							{t.theme[value]}
 						</button>
 					);
 				})}

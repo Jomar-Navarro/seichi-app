@@ -7,13 +7,17 @@ import { ICON_MAP } from "@/lib/icon-map";
 import { GOAL_ICON_MAP } from "@/lib/goal-icons";
 import { TIPO_COLOR, TIPO_INK } from "@/lib/transaction-utils";
 import CategorySheet from "./CategorySheet";
+import { useI18n } from "./I18nProvider";
 import { deleteCategory } from "@/app/(main)/impostazioni/actions";
 import type { Category } from "@/types";
 
-const TYPES = ["entrata", "spesa", "investimento", "risparmio", "abbonamento"];
+// `as const` per poter indicizzare i dizionari senza cast: sono le stesse cinque
+// chiavi di `categories_type_check`.
+const TYPES = ["entrata", "spesa", "investimento", "risparmio", "abbonamento"] as const;
 
 export default function CategoryManager({ categories }: { categories: Category[] }) {
 	const router = useRouter();
+	const { t } = useI18n();
 	const [sheetOpen, setSheetOpen] = useState(false);
 	const [editing, setEditing] = useState<Category | null>(null);
 	const [presetType, setPresetType] = useState<string | null>(null);
@@ -75,8 +79,10 @@ export default function CategoryManager({ categories }: { categories: Category[]
 									className="w-2 h-2 rounded-full shrink-0"
 									style={{ background: color }}
 								/>
+								{/* Era `{type}`, cioè il valore grezzo del database stampato a
+								    schermo: in inglese avrebbe continuato a dire "entrata". */}
 								<span className="text-[11.5px] font-semibold tracking-[1.6px] uppercase text-muted">
-									{type}
+									{t.typesSingular[type]}
 								</span>
 								<span className="ml-auto text-[11.5px] text-muted">{items.length}</span>
 							</div>
@@ -105,7 +111,7 @@ export default function CategoryManager({ categories }: { categories: Category[]
 											<button
 												onClick={() => openEdit(cat)}
 												className="w-7 h-7 rounded-[9px] flex items-center justify-center bg-control active:opacity-70"
-												aria-label="Modifica"
+												aria-label={t.common.edit}
 											>
 												<Pencil size={13} className="text-muted" />
 											</button>
@@ -113,7 +119,7 @@ export default function CategoryManager({ categories }: { categories: Category[]
 												onClick={() => requestDelete(cat)}
 												className="w-7 h-7 rounded-[9px] flex items-center justify-center active:opacity-70"
 												style={{ background: "color-mix(in srgb, var(--color-aka) 8%, transparent)" }}
-												aria-label="Elimina"
+												aria-label={t.common.delete}
 											>
 												<Trash2 size={13} style={{ color: "var(--color-aka)" }} />
 											</button>
@@ -129,8 +135,13 @@ export default function CategoryManager({ categories }: { categories: Category[]
 									<Plus size={15} strokeWidth={1.8} style={{ color }} />
 									{/* L'icona resta sull'accento (per i grafici basta 3:1),
 									    l'etichetta no: è testo e vuole l'inchiostro. */}
+									{/* ⚠️ Era `nuova {type}` per tutti e cinque i tipi, che in
+									    italiano è sbagliato per tre: "nuova investimento",
+									    "nuova risparmio", "nuova abbonamento". L'aggettivo si
+									    accorda col genere del nome, e il genere non sta nella
+									    chiave del database. Ora è una frase intera per tipo. */}
 									<span className="text-[13px] font-medium capitalize" style={{ color: ink }}>
-										nuova {type}
+										{t.newByType[type]}
 									</span>
 								</button>
 							</div>
@@ -152,12 +163,13 @@ export default function CategoryManager({ categories }: { categories: Category[]
 					<div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={closeDialog} />
 
 					<div className="relative w-full max-w-xs rounded-3xl p-6 bg-modal border border-subtle modal-shadow backdrop-blur-2xl">
-						<h3 className="text-[17px] font-semibold mb-2">Elimina categoria</h3>
+						<h3 className="text-[17px] font-semibold mb-2">{t.categories.deleteTitle}</h3>
 						<p className="text-[13px] text-muted leading-relaxed mb-5">
 							{dialogError ?? (
 								<>
-									Vuoi eliminare <span className="font-medium text-foreground">{pending.name}</span>?
-									L&apos;azione non si può annullare.
+									{t.categories.deleteQuestionBefore}
+									<span className="font-medium text-foreground">{pending.name}</span>
+									{t.categories.deleteQuestionAfter}
 								</>
 							)}
 						</p>
@@ -167,16 +179,20 @@ export default function CategoryManager({ categories }: { categories: Category[]
 								onClick={closeDialog}
 								className="flex-1 py-3 rounded-2xl text-sm font-semibold bg-control border border-subtle active:opacity-80"
 							>
-								Annulla
+								{t.common.cancel}
 							</button>
 							{!dialogError && (
 								<button
 									onClick={confirmDelete}
 									disabled={deleting}
 									className="flex-1 py-3 rounded-2xl text-sm font-semibold disabled:opacity-50 active:opacity-80"
-									style={{ background: "var(--color-aka)", color: "#fff" }}
+									// ⚠️ Era `color: "#fff"`. Sopra un riempimento d'accento va
+									// `--on-accent`: gli accenti invertono la luminosità fra i
+									// temi, quindi un bianco cablato è il tema scuro dato per
+									// scontato, e in chiaro sta a 2,8:1 (CLAUDE.md, Fase 18).
+									style={{ background: "var(--color-aka)", color: "var(--on-accent)" }}
 								>
-									{deleting ? "Elimino…" : "Elimina"}
+									{deleting ? t.categories.deleting : t.common.delete}
 								</button>
 							)}
 						</div>

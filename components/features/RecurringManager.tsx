@@ -179,7 +179,8 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 								onClick={confirmDelete}
 								disabled={deleting}
 								className="flex-1 py-3 rounded-2xl text-sm font-semibold disabled:opacity-50 active:opacity-80"
-								style={{ background: "var(--color-aka)", color: "#fff" }}
+								// `--on-accent`, non "#fff": vedi CLAUDE.md, Fase 18.
+								style={{ background: "var(--color-aka)", color: "var(--on-accent)" }}
 							>
 								{deleting ? "Elimino…" : "Elimina"}
 							</button>

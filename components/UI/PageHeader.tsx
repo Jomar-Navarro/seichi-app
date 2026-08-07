@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
+import { getDictionary } from "@/lib/i18n/server";
 
 interface PageHeaderProps {
 	title: string;
@@ -10,14 +11,22 @@ interface PageHeaderProps {
 	className?: string;
 }
 
-/** Intestazione condivisa da impostazioni e sottopagine: freccia + titolo. */
-export default function PageHeader({ title, backHref, tone, className = "mb-6" }: PageHeaderProps) {
+/**
+ * Intestazione condivisa da impostazioni e sottopagine: freccia + titolo.
+ *
+ * È async perché legge il dizionario per la sola `aria-label` della freccia — il
+ * titolo lo passa il chiamante. Resta un server component: nessuna delle pagine
+ * che lo usa è interattiva.
+ */
+export default async function PageHeader({ title, backHref, tone, className = "mb-6" }: PageHeaderProps) {
+	const t = await getDictionary();
+
 	return (
 		<div className={`flex items-center gap-3.5 ${className}`}>
 			<Link
 				href={backHref}
 				className="w-10 h-10 rounded-xl flex items-center justify-center bg-control border border-subtle shrink-0 active:opacity-80"
-				aria-label="Indietro"
+				aria-label={t.common.back}
 			>
 				<ChevronLeft size={17} className="text-secondary" />
 			</Link>

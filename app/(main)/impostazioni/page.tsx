@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getAccountContext } from "@/lib/account";
+import { getI18n } from "@/lib/i18n/server";
+import { fill } from "@/lib/i18n/format";
 import Avatar from "@/components/UI/Avatar";
 import PageHeader from "@/components/UI/PageHeader";
 import SettingsRow, { SettingsGroup } from "@/components/UI/SettingsRow";
@@ -29,6 +31,7 @@ const AKA_INK = "var(--ink-aka)";
 
 export default async function ImpostazioniPage() {
 	const account = await getAccountContext();
+	const { t } = await getI18n();
 
 	const supabase = await createClient();
 	// Il filtro esplicito è ridondante con la policy RLS, ed è voluto: se un
@@ -41,7 +44,7 @@ export default async function ImpostazioniPage() {
 
 	return (
 		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34">
-			<PageHeader title="Impostazioni" backHref="/" className="mb-5.5" />
+			<PageHeader title={t.settings.title} backHref="/" className="mb-5.5" />
 
 			{/* Profilo */}
 			<Link
@@ -55,7 +58,7 @@ export default async function ImpostazioniPage() {
 				</div>
 				<span className="inline-flex items-center gap-1.5 py-2 px-3 rounded-full bg-control border border-subtle text-xs font-medium text-secondary shrink-0">
 					<Pencil size={12} />
-					modifica
+					{t.settings.editProfile}
 				</span>
 			</Link>
 
@@ -63,7 +66,7 @@ export default async function ImpostazioniPage() {
 			<SettingsGroup>
 				<SettingsRow
 					icon={<Mail size={17} className="text-secondary" />}
-					label="Modifica email"
+					label={t.settings.editEmail}
 					subtitle={account.email}
 					href="/impostazioni/email"
 					chevron
@@ -71,14 +74,14 @@ export default async function ImpostazioniPage() {
 			</SettingsGroup>
 
 			{/* Aspetto */}
-			<SettingsGroup label="Aspetto">
+			<SettingsGroup label={t.settings.groups.appearance}>
 				<ThemeSection />
 			</SettingsGroup>
 
 			{/* Preferenze */}
 			<div className="mb-6">
 				<p className="text-[11.5px] font-semibold tracking-[1.6px] uppercase text-disabled mb-2.5 ml-0.5">
-					Preferenze
+					{t.settings.groups.preferences}
 				</p>
 				<PreferencesSection currency={account.currency} language={account.language} />
 			</div>
@@ -86,7 +89,7 @@ export default async function ImpostazioniPage() {
 			{/* Budget */}
 			<div className="mb-6">
 				<p className="text-[11.5px] font-semibold tracking-[1.6px] uppercase text-disabled mb-2.5 ml-0.5">
-					Budget
+					{t.settings.groups.budget}
 				</p>
 				{/* Carica da sé: i periodi di budget dipendono dal fuso dell'utente,
 				    che un server component non conosce. */}
@@ -94,10 +97,10 @@ export default async function ImpostazioniPage() {
 			</div>
 
 			{/* Categorie */}
-			<SettingsGroup label="Categorie">
+			<SettingsGroup label={t.settings.groups.categories}>
 				<SettingsRow
 					icon={<LayoutGrid size={17} className="text-secondary" />}
-					label="Gestisci categorie"
+					label={t.settings.manageCategories}
 					value={categoriesCount ?? 0}
 					href="/impostazioni/categorie"
 					chevron
@@ -105,58 +108,58 @@ export default async function ImpostazioniPage() {
 			</SettingsGroup>
 
 			{/* Automazione — non è nel mockup ma la funzionalità esiste (Fase 14) */}
-			<SettingsGroup label="Automazione">
+			<SettingsGroup label={t.settings.groups.automation}>
 				<SettingsRow
 					icon={<Repeat size={17} className="text-secondary" />}
-					label="Transazioni ricorrenti"
+					label={t.settings.recurringTransactions}
 					href="/impostazioni/ricorrenti"
 					chevron
 				/>
 			</SettingsGroup>
 
 			{/* Sicurezza */}
-			<SettingsGroup label="Sicurezza">
+			<SettingsGroup label={t.settings.groups.security}>
 				<SettingsRow
 					icon={<Fingerprint size={17} className="text-secondary" />}
-					label="Blocco biometrico"
-					value="presto"
+					label={t.settings.biometricLock}
+					value={t.settings.comingSoon}
 					disabled
 				/>
 				<SettingsRow
 					icon={<Lock size={17} className="text-secondary" />}
-					label="Blocco con PIN"
-					value="presto"
+					label={t.settings.pinLock}
+					value={t.settings.comingSoon}
 					disabled
 				/>
 				{account.hasPasswordIdentity ? (
 					<SettingsRow
 						icon={<KeyRound size={17} className="text-secondary" />}
-						label="Cambia password"
+						label={t.settings.changePassword}
 						href="/impostazioni/password"
 						chevron
 					/>
 				) : (
 					<SettingsRow
 						icon={<KeyRound size={17} className="text-secondary" />}
-						label="Cambia password"
-						subtitle="Accedi con un provider esterno"
+						label={t.settings.changePassword}
+						subtitle={t.settings.externalProvider}
 						disabled
 					/>
 				)}
 			</SettingsGroup>
 
 			{/* Supporto */}
-			<SettingsGroup label="Supporto">
+			<SettingsGroup label={t.settings.groups.support}>
 				<SettingsRow
 					icon={<Info size={17} className="text-secondary" />}
-					label="Informazioni"
-					value={`versione ${pkg.version}`}
+					label={t.settings.about}
+					value={fill(t.settings.version, { version: pkg.version })}
 				/>
 				<form action={signOut}>
 					<button type="submit" className="w-full text-left cursor-pointer">
 						<SettingsRow
 							icon={<LogOut size={16} style={{ color: AKA }} />}
-							label="Esci"
+							label={t.settings.signOut}
 							tone={AKA_INK}
 							accent={AKA}
 						/>
@@ -165,10 +168,10 @@ export default async function ImpostazioniPage() {
 			</SettingsGroup>
 
 			{/* Zona pericolo */}
-			<SettingsGroup label="Zona pericolo" tone="color-mix(in srgb, var(--color-aka) 30%, transparent)" className="mb-0">
+			<SettingsGroup label={t.settings.groups.dangerZone} tone="color-mix(in srgb, var(--color-aka) 30%, transparent)" className="mb-0">
 				<SettingsRow
 					icon={<Trash2 size={17} style={{ color: AKA }} />}
-					label="Elimina il tuo account"
+					label={t.settings.deleteAccount}
 					tone={AKA_INK}
 					accent={AKA}
 					href="/impostazioni/elimina"

@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { Repeat } from "lucide-react";
 import { getFixedOutflows, getGlobalBudget, setBudget } from "@/app/(main)/budget-actions";
+import { useI18n } from "@/components/features/I18nProvider";
+import { DISPLAY_CURRENCY, fill, formatMoney } from "@/lib/i18n/format";
 import { clientClock } from "@/lib/dates";
-
-const euro = new Intl.NumberFormat("it-IT", { maximumFractionDigits: 0 });
 
 /**
  * Stesso involucro di PreferencesSection e SettingsGroup: card `bg-card`,
@@ -19,6 +19,7 @@ const euro = new Intl.NumberFormat("it-IT", { maximumFractionDigits: 0 });
  * `clientClock()` restituisce l'orologio giusto.
  */
 export default function GlobalBudgetSection() {
+	const { locale, t } = useI18n();
 	const [amount, setAmount] = useState("");
 	/** valore confermato dal server: il confronto evita scritture inutili */
 	const [current, setCurrent] = useState<number | null>(null);
@@ -71,7 +72,7 @@ export default function GlobalBudgetSection() {
 
 		if (parsed === current) return;
 		if (parsed !== null && (!Number.isFinite(parsed) || parsed <= 0)) {
-			setError("Inserisci un importo maggiore di zero");
+			setError(t.budget.amountMustBePositive);
 			return;
 		}
 
@@ -112,14 +113,14 @@ export default function GlobalBudgetSection() {
 						<span className="text-[15px] font-semibold text-secondary">€</span>
 					</span>
 					<span className="flex-1 min-w-0">
-						<span className="block text-sm font-medium">Limite mensile</span>
+						<span className="block text-sm font-medium">{t.budget.monthlyLimit}</span>
 						{/*
 							"spese variabili" e non "spese totali": affitto e utenze sono
 							categorie di tipo abbonamento e restano fuori da questo limite.
 							Un numero che sembra il totale ma non lo è smette di essere creduto.
 						*/}
 						<span className="block text-xs text-muted truncate mt-0.5">
-							Solo spese variabili
+							{t.budget.variableOnly}
 						</span>
 					</span>
 					<span className="inline-flex items-center gap-1.5 shrink-0">
@@ -131,7 +132,7 @@ export default function GlobalBudgetSection() {
 						<input
 							type="text"
 							inputMode="decimal"
-							placeholder={loading ? "…" : loadFailed ? "—" : "nessuno"}
+							placeholder={loading ? "…" : loadFailed ? "—" : t.budget.none}
 							value={amount}
 							disabled={disabled}
 							onChange={(e) => {
@@ -142,10 +143,10 @@ export default function GlobalBudgetSection() {
 							onKeyDown={(e) => {
 								if (e.key === "Enter") e.currentTarget.blur();
 							}}
-							aria-label="Limite di spesa mensile"
+							aria-label={t.budget.limitAriaLabel}
 							className="w-20 px-2.5 py-1.5 rounded-lg text-right bg-input border border-subtle text-[13px] outline-none focus:border-muted placeholder:text-muted/60 disabled:opacity-50"
 						/>
-						<span className="text-[13px] text-muted">/ mese</span>
+						<span className="text-[13px] text-muted">{t.budget.perMonth}</span>
 					</span>
 				</label>
 
@@ -155,20 +156,24 @@ export default function GlobalBudgetSection() {
 						<Repeat size={17} className="text-secondary" />
 					</span>
 					<span className="flex-1 min-w-0">
-						<span className="block text-sm font-medium">Uscite fisse previste</span>
+						<span className="block text-sm font-medium">{t.budget.fixedOutflows}</span>
 						<span className="block text-xs text-muted truncate mt-0.5">
-							Abbonamenti di questo mese, fuori dal limite
+							{t.budget.fixedOutflowsHint}
 						</span>
 					</span>
 					<span className="text-[13px] text-muted shrink-0">
-						{loading ? "…" : loadFailed ? "—" : `€ ${euro.format(fixedOutflows)}`}
+						{loading
+							? "…"
+							: loadFailed
+								? "—"
+								: formatMoney(fixedOutflows, { locale, currency: DISPLAY_CURRENCY })}
 					</span>
 				</div>
 			</div>
 
 			{error && (
 				<p className="text-[11.5px] mt-2 ml-1" style={{ color: "var(--ink-aka)" }}>
-					{loadFailed ? `Impossibile leggere il budget: ${error}` : error}
+					{loadFailed ? fill(t.budget.readFailed, { reason: error }) : error}
 				</p>
 			)}
 		</>

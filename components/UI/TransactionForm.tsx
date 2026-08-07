@@ -400,7 +400,8 @@ export default function TransactionForm({
 							<button
 								onClick={handleDelete}
 								className="flex-1 py-3.5 rounded-2xl text-sm font-semibold"
-								style={{ background: "var(--color-aka)", color: "#fff" }}
+								// `--on-accent`, non "#fff": vedi CLAUDE.md, Fase 18.
+								style={{ background: "var(--color-aka)", color: "var(--on-accent)" }}
 							>
 								Conferma eliminazione
 							</button>
