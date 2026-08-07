@@ -16,6 +16,11 @@ export const en: Dictionary = {
 			"Financial clarity. The way you level the ground before you build, Seichi helps you put your finances in order — calmly, clearly, in control.",
 	},
 
+	// "Seichi" e 整地 restano: sono il nome. Si traduce solo la riga che spiega.
+	brand: {
+		tagline: "financial clarity",
+	},
+
 	common: {
 		save: "Save",
 		cancel: "Cancel",
@@ -96,6 +101,11 @@ export const en: Dictionary = {
 	},
 
 	auth: {
+		tabs: {
+			signIn: "Sign in",
+			signUp: "Sign up",
+		},
+
 		welcome: {
 			lead: "Level the ground before you build.",
 			leadMuted: "Put your finances in order — calmly, and on purpose.",

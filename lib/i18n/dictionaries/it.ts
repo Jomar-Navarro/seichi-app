@@ -26,6 +26,17 @@ export const it = {
 			"Ordine finanziario, Come si prepara il terreno prima di costruire, Seichi ti aiuta a mettere ordine nelle tue finanze — con calma, chiarezza e controllo.",
 	},
 
+	/**
+	 * Il marchio.
+	 *
+	 * ⚠️ "Seichi" e 整地 NON si traducono: sono il nome, e 整地 è la parola
+	 * giapponese da cui viene ("preparazione del terreno"). Si traduce solo la
+	 * riga che la spiega. Il maiuscolo lo mette il CSS, quindi qui sta minuscola.
+	 */
+	brand: {
+		tagline: "ordine finanziario",
+	},
+
 	/** Vocabolario condiviso: se una parola serve in più di un'area, sta qui. */
 	common: {
 		save: "Salva",
@@ -149,6 +160,18 @@ export const it = {
 	 * la fonte invece che un ripiego.
 	 */
 	auth: {
+		/**
+		 * Le due linguette del selettore accedi/registrati.
+		 *
+		 * Voci proprie e non riuso di `signIn.submit`: qui sono etichette di
+		 * navigazione, là è il bottone che invia il form. Oggi coincidono in
+		 * entrambe le lingue, ma la coincidenza è del testo, non del ruolo.
+		 */
+		tabs: {
+			signIn: "Accedi",
+			signUp: "Registrati",
+		},
+
 		welcome: {
 			lead: "Prepara il terreno prima di costruire.",
 			leadMuted: "Metti in ordine le tue finanze — con calma e intenzione.",

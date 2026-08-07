@@ -1,6 +1,11 @@
+"use client";
+
 import { Sprout } from "lucide-react";
+import { useI18n } from "@/components/features/I18nProvider";
 
 export default function BrandHeader() {
+	const { t } = useI18n();
+
 	return (
 		// Logo, Title, Subtitle
 		<div className="flex flex-col items-center text-center mb-6">
@@ -11,8 +16,9 @@ export default function BrandHeader() {
 			<h1 className="text-5xl 2xl:text-7xl font-semibold mb-3 md:mb-3.5">
 				Seichi
 			</h1>
+			{/* 整地 resta: è il nome giapponese da cui viene "Seichi". */}
 			<h3 className="text-xs 2xl:text-base text-muted uppercase tracking-widest">
-				整地 · ordine finanziario
+				整地 · {t.brand.tagline}
 			</h3>
 		</div>
 	);

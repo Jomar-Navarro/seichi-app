@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import { getDictionary } from "@/lib/i18n/server";
 
-export const metadata: Metadata = {
-	title: "Seichi",
-	description:
-		"Ordine finanziario, Come si prepara il terreno prima di costruire, Seichi ti aiuta a mettere ordine nelle tue finanze — con calma, chiarezza e controllo.",
-};
+// Ripete titolo e descrizione del root layout, nella lingua della richiesta.
+export async function generateMetadata(): Promise<Metadata> {
+	const t = await getDictionary();
+	return { title: t.meta.title, description: t.meta.description };
+}
 
 export default function RootLayout({
 	children,
