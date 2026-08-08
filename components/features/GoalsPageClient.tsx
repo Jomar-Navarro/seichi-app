@@ -92,7 +92,16 @@ export default function GoalsPageClient({ goals }: GoalsPageClientProps) {
 				</div>
 			)}
 
-			<GoalSheet isOpen={sheetOpen} goal={editingGoal} onClose={closeSheet} />
+			{/*
+				Montato solo da aperto: è il montaggio a dare al form uno stato
+				pulito, così `GoalSheet` non deve riazzerarsi da sé in un effetto.
+				La `key` copre il caso in cui si passi da un obiettivo all'altro
+				senza chiudere: cambiando identità React rimonta invece di riusare
+				lo stato del precedente.
+			*/}
+			{sheetOpen && (
+				<GoalSheet key={editingGoal?.id ?? "new"} goal={editingGoal} onClose={closeSheet} />
+			)}
 		</div>
 	);
 }

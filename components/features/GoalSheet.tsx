@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useLayoutEffect } from "react";
+import { useState } from "react";
 import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { GOAL_ICONS } from "@/lib/goal-icons";
@@ -10,8 +10,21 @@ import { DISPLAY_CURRENCY, currencySymbol } from "@/lib/i18n/format";
 import DatePicker from "@/components/UI/DatePicker";
 import type { GoalWithProgress } from "@/types";
 
+/**
+ * ⚠️ Non c'è una prop `isOpen`, ed è il punto di questo componente.
+ *
+ * Prima restava sempre montato e si nascondeva da sé (`if (!isOpen) return null`).
+ * Ma nascondere non è smontare: lo stato del form sopravviveva alla chiusura, e
+ * andava riazzerato a mano in un `useLayoutEffect` che riscriveva cinque `useState`
+ * a ogni apertura — cioè un render a cascata, che il lint di React segnala.
+ *
+ * Ora è il chiamante a montarlo e smontarlo (`{sheetOpen && <GoalSheet …/>}`).
+ * Montare È l'azzeramento: gli inizializzatori di `useState` girano da capo e
+ * leggono `goal`, quindi l'effetto non serve più — non è stato zittito, è
+ * scomparso. Il costo è zero: da chiuso il componente non disegnava nulla
+ * comunque, e non c'è animazione d'uscita da preservare.
+ */
 interface GoalSheetProps {
-	isOpen: boolean;
 	goal: GoalWithProgress | null;
 	onClose: () => void;
 }
@@ -30,33 +43,25 @@ const EMPTY_FORM: FormState = {
 	icon: "plane",
 };
 
-export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
+export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 	const { locale, t } = useI18n();
 	const router = useRouter();
-	const [form, setForm] = useState<FormState>(EMPTY_FORM);
+	// Inizializzatore pigro: gira una volta al montaggio, che è esattamente
+	// quando il pannello si apre. Gli altri stati partono già dal valore giusto.
+	const [form, setForm] = useState<FormState>(() =>
+		goal
+			? {
+					name: goal.name,
+					targetAmount: goal.target_amount != null ? String(goal.target_amount) : "",
+					targetDate: goal.target_date ?? "",
+					icon: GOAL_ICONS.some((i) => i.id === goal.icon) ? goal.icon : "plane",
+			  }
+			: EMPTY_FORM,
+	);
 	const [submitted, setSubmitted] = useState(false);
 	const [loading, setLoading] = useState(false);
 	const [serverError, setServerError] = useState<string | null>(null);
 	const [confirmDelete, setConfirmDelete] = useState(false);
-
-	useLayoutEffect(() => {
-		if (isOpen) {
-			setSubmitted(false);
-			setLoading(false);
-			setServerError(null);
-			setConfirmDelete(false);
-			setForm(
-				goal
-					? {
-							name: goal.name,
-							targetAmount: goal.target_amount != null ? String(goal.target_amount) : "",
-							targetDate: goal.target_date ?? "",
-							icon: GOAL_ICONS.some((i) => i.id === goal.icon) ? goal.icon : "plane",
-					  }
-					: EMPTY_FORM,
-			);
-		}
-	}, [isOpen, goal]);
 
 	const nameError = submitted && !form.name.trim();
 	const amountError =
@@ -117,8 +122,6 @@ export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
 			setLoading(false);
 		}
 	}
-
-	if (!isOpen) return null;
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-end">
