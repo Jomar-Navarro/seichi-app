@@ -13,7 +13,7 @@ import ProfileMenu from "@/components/features/ProfileMenu";
 import NotificationBell from "@/components/features/NotificationBell";
 import { getUnreadCount } from "@/app/(main)/notification-actions";
 import Sparkline from "@/components/UI/Sparkline";
-import { getAccountContext } from "@/lib/account";
+import { getProfileHeader } from "@/lib/account";
 import { getI18n } from "@/lib/i18n/server";
 import { fill } from "@/lib/i18n/format";
 import { ChartNoAxesCombinedIcon } from "@/lib/seichi-icons";
@@ -27,11 +27,11 @@ export default function MainPage() {
 }
 
 async function DashboardContent() {
-	const [result, transaction, goalsResult, account, unreadResult] = await Promise.all([
+	const [result, transaction, goalsResult, profile, unreadResult] = await Promise.all([
 		getDashboardTotals(),
 		getTransactions(undefined, undefined, 5),
 		getGoals(),
-		getAccountContext(),
+		getProfileHeader(),
 		getUnreadCount(),
 	]);
 	const { t } = await getI18n();
@@ -84,9 +84,9 @@ async function DashboardContent() {
 			    gruppo intero ad aprire il menu), a destra la sola campanella. */}
 			<div className="flex items-center justify-between mb-1">
 				<ProfileMenu
-					initials={account.initials}
-					avatarUrl={account.avatarUrl}
-					name={account.displayName}
+					initials={profile.initials}
+					avatarUrl={profile.avatarUrl}
+					name={profile.displayName}
 					greeting={t.home.greeting}
 				/>
 				<NotificationBell initialUnread={unreadCount} />

@@ -37,6 +37,21 @@ export interface AccountContext {
 	hasPasswordIdentity: boolean;
 }
 
+/**
+ * L'intestazione della home: solo ciò che si DISEGNA.
+ *
+ * ⚠️ Deliberatamente privo di `email` e `hasPasswordIdentity`. Sono i campi che
+ * pretendono un valore vivo — un confronto d'identità su un'email stantia ha già
+ * bloccato l'eliminazione account — e chi parte da qui legge dalle claims, cioè
+ * da una fotografia. Non esponendoli, l'errore non è più esprimibile.
+ * Le pagine impostazioni usano `AccountContext`, che li ha e li legge freschi.
+ */
+export interface ProfileHeader {
+	avatarUrl: string | null;
+	displayName: string;
+	initials: string;
+}
+
 export interface Category {
 	id: string;
 	user_id: string;

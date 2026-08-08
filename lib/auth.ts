@@ -1,22 +1,43 @@
 import { cache } from "react";
+import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 
 /**
  * L'identità dell'utente per questa richiesta, letta dalle CLAIMS del JWT.
  *
- * ⚠️ Non è un `User` di Supabase, ed è deliberato: contiene solo ciò che il token
- * porta davvero con sé. Un tipo più largo inviterebbe a leggere campi che nelle
- * claims non ci sono (`created_at`, `identities`, i metadati aggiornati) e che
- * sarebbero `undefined` in silenzio.
+ * ⚠️ **Un `User` di Supabase è VIVO, questo è una FOTOGRAFIA.** È la differenza
+ * che conta, e il tipo è volutamente minuscolo per renderla difficile da
+ * dimenticare: un token emesso mezz'ora fa descrive l'account di mezz'ora fa.
+ *
+ * ⚠️ **`providers` NON sta qui, ed è una rimozione deliberata.** C'era, letto da
+ * `app_metadata.providers`, e alimentava `hasPasswordIdentity` — mentre
+ * `deleteAccount()` calcolava lo stesso predicato da `user.identities` di una
+ * `getUser()` fresca. Due derivazioni della stessa domanda nello stesso flusso,
+ * che concordavano per fortuna e non per costruzione. Chi ha bisogno dei
+ * provider ha bisogno di quelli di ADESSO: si passa da `auth.getUser()`.
  */
 export type SessionUser = {
-	id: string;
-	email: string;
 	/**
-	 * I provider collegati all'account (`app_metadata.providers`). È l'equivalente
-	 * di `user.identities.map(i => i.provider)`, che nel JWT non c'è.
+	 * L'unico campo su cui appoggiarsi senza riserve: `sub` non cambia mai per un
+	 * account, quindi non può diventare stantio. Ed è anche ciò che la RLS usa.
 	 */
-	providers: string[];
+	id: string;
+	/**
+	 * ⚠️ **L'indirizzo AL MOMENTO DELL'EMISSIONE DEL TOKEN, non quello attuale.**
+	 * Va bene solo per DISEGNARE (iniziali dell'avatar, nome di ripiego). Mai per
+	 * un confronto di identità, una riautenticazione o una conferma.
+	 *
+	 * Dopo un cambio email confermato resta il valore VECCHIO fino alla scadenza
+	 * dell'access token: `/email-confermata` non è un flusso PKCE, non scambia
+	 * alcun `code` e quindi non rinnova la sessione — e `getSession()` rinnova
+	 * solo un token già scaduto, non uno che sta per esserlo.
+	 *
+	 * È già costato un difetto: la conferma di eliminazione account confrontava
+	 * questo valore con quello di `auth.getUser()`, e con i due disallineati
+	 * l'account diventava **impossibile da eliminare** — l'indirizzo nuovo non
+	 * sbloccava il pulsante, quello vecchio veniva rifiutato dal server.
+	 */
+	email: string;
 };
 
 /**
@@ -63,7 +84,36 @@ export type SessionUser = {
  */
 export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
 	const supabase = await createClient();
-	const { data } = await supabase.auth.getClaims();
+	const { data, error } = await supabase.auth.getClaims();
+
+	/*
+	 * ⚠️ **"Non lo so" non è "non sei autenticato".** L'`error` va guardato, o un
+	 * guasto passeggero si traveste da logout: `getClaims()` fallisce anche
+	 * quando non riesce a scaricare il JWKS, quando WebCrypto non c'è, o quando
+	 * il ripiego a `/auth/v1/user` non risponde. Ignorandolo, un utente con un
+	 * token perfettamente valido veniva spedito su /sign da `getAccountContext()`
+	 * a fronte di un singolo pacchetto perso, senza che nulla finisse nei log.
+	 *
+	 * Perciò i due casi si separano, e il discrimine è il tipo dell'errore:
+	 *   - rete/infrastruttura → si SOLLEVA. La pagina mostra un errore, che è
+	 *     recuperabile: l'utente ricarica e rientra. Un logout no — richiede di
+	 *     ridigitare le credenziali per un guasto che non lo riguarda.
+	 *   - token assente, scaduto o non valido → `null`, perché lì "non
+	 *     autenticato" è davvero la risposta giusta.
+	 *
+	 * NB: il caso comune del visitatore sloggato NON passa di qui. Senza cookie
+	 * `getSession()` restituisce `session: null` **senza errore**, quindi il ramo
+	 * non scatta e il log resta silenzioso — si accende solo per le anomalie.
+	 */
+	if (error) {
+		if (isAuthRetryableFetchError(error)) {
+			console.error("[auth] getClaims non raggiungibile:", error.message);
+			throw error;
+		}
+		console.warn("[auth] claims non valide:", error.message);
+		return null;
+	}
+
 	const claims = data?.claims;
 
 	if (!claims?.sub) return null;
@@ -71,8 +121,8 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
 	return {
 		id: claims.sub,
 		// `email` è opzionale nelle claims (un utente può esistere col solo
-		// telefono). Chi ha bisogno di un indirizzo vero deve controllarlo.
+		// telefono). Vedi l'avvertenza sul tipo: è una fotografia, serve a
+		// disegnare e a nient'altro.
 		email: typeof claims.email === "string" ? claims.email : "",
-		providers: claims.app_metadata?.providers ?? [],
 	};
 });

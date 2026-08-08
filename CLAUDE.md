@@ -71,8 +71,9 @@ lib/
 ├── transaction-utils.ts  # TIPO_COLOR/TIPO_INK, formatDate, formatAmount
 ├── budget.ts             # BUDGET_PERIODS (id), soglia, budgetStatus/Color/Ink
 ├── recurring.ts          # FREQUENCIES (id) + aritmetica delle date
-├── auth.ts               # getSessionUser() — l'utente dalle CLAIMS del JWT, senza rete
-├── account.ts            # getAccountContext() — user + profilo per le impostazioni
+├── auth.ts               # getSessionUser() — id + email dalle CLAIMS, senza rete (è una FOTOGRAFIA)
+├── account.ts            # getAccountContext() — identità VIVA + profilo, per le impostazioni
+│                         #   getProfileHeader() — avatar/nome per la home, dalle claims
 ├── profile.ts            # getInitials, getDisplayName
 ├── password.ts           # PASSWORD_MIN_LENGTH, scorePassword, validateNewPassword
 ├── notifications.ts      # icone/colori per tipo + renderNotification (frasi dal payload)
@@ -787,13 +788,12 @@ JWT: firma verificata in locale con WebCrypto, JWKS in una cache di modulo di
   `"alg":"ES256"`. Con un segreto simmetrico HS256 `getClaims()` ripiega **da
   solo** su `getUser()`: nessun errore, nessun avviso, e ogni chiamata torna a
   essere rete. È una regressione che nessun test coglie.
-- **`SessionUser` non è uno `User` di Supabase**, di proposito: contiene solo
-  `id`, `email` e `providers`, cioè ciò che il token porta davvero. Un tipo più
-  largo inviterebbe a leggere campi che nelle claims non esistono
-  (`identities`, `created_at`, i metadati aggiornati) e che sarebbero
-  `undefined` in silenzio. `hasPasswordIdentity` ora deriva da
-  `app_metadata.providers`, non da `user.identities`.
-- **Quattro `getUser()` restano, ed è deliberato**: cambio email, cambio
+- ⚠️ **`SessionUser` è una FOTOGRAFIA, `User` era VIVO.** È la differenza che
+  conta, e ignorarla è già costata un difetto (vedi sotto). Il tipo espone `id`
+  — `sub` non cambia mai, quindi non può diventare stantio — e `email`, marcata
+  come utilizzabile **solo per disegnare**. Niente `providers`: chi ha bisogno
+  dei provider ha bisogno di quelli di adesso.
+- **Le letture d'account restano su `getUser()`, ed è deliberato**: cambio email, cambio
   password, eliminazione account (`impostazioni/account/actions.ts`),
   `resetPassword`, il gate di `/reimposta-password` e il `/callback` subito dopo
   lo scambio del code. Le claims dicono che il token è autentico e non scaduto,
@@ -803,6 +803,48 @@ JWT: firma verificata in locale con WebCrypto, JWKS in una cache di modulo di
   comunque visto la revoca — ma sulle operazioni sensibili la verifica lato
   server è esattamente ciò che si sta comprando, e là costa una chiamata per
   azione invece di cinque per render.
+
+#### ⚠️ Il difetto che questa fase ha introdotto, e come si chiude
+
+Trovato dal code-review, non dalla verifica manuale — che infatti era passata.
+
+`getAccountContext()` era passata alle claims come tutto il resto. Ma quella
+funzione serviva **due bisogni con requisiti di freschezza diversi**: la home
+(avatar, iniziali, nome) e le pagine impostazioni (email e provider come
+*fatto*, e come *conferma*). Sulle prime uno scatto vecchio è innocuo; sulle
+seconde no.
+
+**Perché l'email diventa stantia**: `/email-confermata` non è un flusso PKCE —
+non scambia alcun `code` e quindi **non rinnova la sessione**. E `getSession()`
+rinnova solo un token già *scaduto*, non uno che sta per esserlo. Quindi dopo un
+cambio email confermato il JWT porta l'indirizzo vecchio per un'ora.
+
+**La conseguenza**: `/impostazioni/elimina` passava a `DeleteAccountFlow`
+l'email delle claims (vecchia), mentre `deleteAccount()` la confrontava con
+quella di `auth.getUser()` (nuova). Digitare la nuova non abilitava il pulsante,
+digitare la vecchia veniva rifiutato dal server: **account impossibile da
+eliminare**. Stesso schema per `hasPasswordIdentity`, che la UI ricavava dalle
+claims e il server da `user.identities` — due derivazioni della stessa domanda
+nello stesso flusso, concordi per fortuna e non per costruzione.
+
+**La chiusura è una separazione, non un ripiego a `getUser()` ovunque**:
+
+| funzione | fonte | chi la usa |
+|---|---|---|
+| `getAccountContext()` → `AccountContext` | `auth.getUser()`, viva | le 5 pagine impostazioni |
+| `getProfileHeader()` → `ProfileHeader` | claims | la home |
+
+⚠️ **A garantirlo è il TIPO, non il commento.** `ProfileHeader` non espone
+`email` né `hasPasswordIdentity`, quindi nessuna pagina che parta di lì può
+usare per una conferma d'identità un dato che è una fotografia. La classe di
+difetto non è mitigata: è **irrappresentabile**. Il costo è una chiamata auth
+sulle sole impostazioni — una per vista, non cinque — e la home resta a zero.
+
+**La regola generale**: quando si sostituisce una fonte viva con una copia
+memorizzata, la domanda non è "il dato è lo stesso?" ma "**per quanto tempo può
+divergere, e chi se ne accorge?**". Un campo che serve a disegnare e un campo
+che serve a decidere hanno bisogni diversi anche quando contengono la stessa
+stringa.
 
 #### `cache()` su `createClient()`
 
@@ -929,12 +971,15 @@ di lettura.
 - **Chi legge l'utente usa `getSessionUser()` (`lib/auth.ts`), non
   `auth.getUser()`** — quest'ultima è una chiamata di rete a ogni invocazione.
   Le eccezioni sono le operazioni sensibili qui sopra, `resetPassword`, il gate
-  di `/reimposta-password` e il `/callback`: là serve la verifica lato server,
-  perché le claims non vedono una sessione revocata. Motivi e trappole nella
-  sezione "Costo delle richieste a Supabase".
-- Gli account solo-OAuth non hanno `email` fra i `providers`:
-  per loro cambio email e cambio password sono disabilitati (`hasPasswordIdentity`,
-  che legge `app_metadata.providers` dal JWT).
+  di `/reimposta-password`, il `/callback` **e tutto ciò che passa da
+  `getAccountContext()`**: là serve la verifica lato server, perché le claims
+  non vedono né una sessione revocata né un'email appena cambiata. Motivi e
+  trappole nella sezione "Costo delle richieste a Supabase".
+- Gli account solo-OAuth non hanno `identities` con provider `email`:
+  per loro cambio email e cambio password sono disabilitati (`hasPasswordIdentity`).
+  ⚠️ Quel predicato lo calcolano **sia** `getAccountContext()` (per mostrare o
+  nascondere i campi) **sia** `deleteAccount()` (per pretenderli): devono venire
+  dalla stessa fonte viva, o la UI nasconde un campo che il server poi esige.
 
   ⚠️ **Eccezione nota**: per questi account l'**eliminazione** non ha riautenticazione
   — non esiste una password da verificare, e resta solo la digitazione dell'indirizzo.
@@ -1164,6 +1209,8 @@ Ordine per priorità (il viewport è il problema più sentito):
   `lib/`, che tiene solo la meccanica (vedi "Fase 19")
 - **Identità dell'utente**: dalle **claims** del JWT (`getSessionUser()` in
   `lib/auth.ts`), non da `auth.getUser()` — quella è una chiamata di rete a ogni
-  invocazione, e i loader di una pagina sono tanti. `auth.getUser()` resta solo
-  dove serve sapere che la sessione è ancora **viva**, non solo autentica: le
-  operazioni sensibili sull'account. Vedi "Costo delle richieste a Supabase"
+  invocazione, e i loader di una pagina sono tanti. `auth.getUser()` resta dove
+  il dato dev'essere **vivo** e non una fotografia: le operazioni sensibili
+  sull'account e `getAccountContext()`. ⚠️ Il confine passa dal TIPO —
+  `ProfileHeader` (claims) non espone email né provider, `AccountContext`
+  (`getUser()`) sì. Vedi "Costo delle richieste a Supabase"

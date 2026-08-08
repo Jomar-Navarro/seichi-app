@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, type SupabaseServerClient } from "@/lib/supabase/server";
 import { PASSWORD_MIN_LENGTH, validateNewPassword } from "@/lib/password";
 import { getDictionary } from "@/lib/i18n/server";
 import { fill } from "@/lib/i18n/format";
@@ -95,7 +95,7 @@ export async function updateFullName(fullName: string): Promise<ActionResult> {
  * abbandonare dati personali nel bucket, ed è il chiamante a doverlo decidere.
  */
 async function purgeAvatarFiles(
-	supabase: Awaited<ReturnType<typeof createClient>>,
+	supabase: SupabaseServerClient,
 	userId: string,
 	keep?: string,
 ): Promise<{ error: string | null }> {

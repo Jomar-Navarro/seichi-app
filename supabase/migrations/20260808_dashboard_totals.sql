@@ -3,6 +3,12 @@
 -- ============================================================================
 -- Eseguita a mano nel SQL Editor di Supabase il 2026-08-08.
 --
+-- ⚠️⚠️ **VA RIESEGUITA**: dopo la prima esecuzione la funzione è stata riscritta
+-- per aggiungere il tetto su `p_bounds` (vedi sotto) ed è passata da `language
+-- sql` a `plpgsql`. È un `create or replace`, quindi rilanciare l'intero file è
+-- sicuro e idempotente — ma finché non lo fai, il database contiene la versione
+-- SENZA il limite.
+--
 -- ⚠️ QUESTA MIGRATION VA ESEGUITA PRIMA DI PUBBLICARE IL CODICE CHE LA USA.
 -- `getDashboardTotals()` chiama questa funzione e basta: se manca, la RPC
 -- risponde 404 e la home mostra il messaggio d'errore. Non c'è ripiego sulla
@@ -76,16 +82,41 @@
 -- `numeric(10,2)` come la colonna: una somma può superare il limite di dieci
 -- cifre anche se nessun singolo importo lo fa, e il cast la farebbe fallire.
 
+-- ⚠️ **Il numero di finestre è limitato, e non è pedanteria.** La funzione è
+-- `grant execute to authenticated` e PostgREST passa l'array così com'è: senza
+-- tetto, un utente qualsiasi può POSTare 50.000 confini e far produrre al CTE
+-- 49.999 finestre da incrociare con le proprie transazioni — quattro ordini di
+-- grandezza di lavoro in più su un Postgres condiviso. La RLS non protegge da
+-- questo: l'abuso è contro le PROPRIE righe, quindi le policy sono soddisfatte.
+-- L'app ne manda sempre 7; 13 lascia margine (un anno di trend) e chiude il buco.
+--
+-- ⚠️ Il corpo si apre con `#variable_conflict use_column`, che DEVE essere il
+-- primo elemento — per questo la spiegazione sta qui e non lì dentro. I
+-- parametri OUT (`bucket_index`, `type`, `total`) sono anche nomi di colonna, e
+-- in plpgsql un riferimento ambiguo è un errore che si manifesta solo
+-- all'ESECUZIONE: la migration passerebbe senza un lamento e la home si
+-- romperebbe dopo. Nel corpo ogni riferimento è già qualificato (`t.type`,
+-- `b.bucket_index`), quindi l'ambiguità non c'è; la direttiva la rende
+-- impossibile a prescindere, risolvendo sempre verso la colonna.
+
 create or replace function public.dashboard_totals(p_bounds timestamptz[])
 returns table (
 	bucket_index int,     -- 0..N-1 = i bucket, NULL = totale di sempre
 	type         text,
 	total        numeric
 )
-language sql
+language plpgsql
 stable
 set search_path = ''
 as $$
+#variable_conflict use_column
+begin
+	if array_length(p_bounds, 1) > 13 then
+		raise exception 'dashboard_totals: troppi confini (%). Massimo 13.', array_length(p_bounds, 1)
+			using errcode = 'invalid_parameter_value';
+	end if;
+
+	return query
 	with bounds as (
 		select
 			i - 1           as bucket_index,
@@ -111,6 +142,7 @@ as $$
 	from public.transactions t
 	where t.user_id = (select auth.uid())
 	group by t.type;
+end;
 $$;
 
 revoke all     on function public.dashboard_totals(timestamptz[]) from public, anon;
@@ -136,3 +168,10 @@ grant  execute on function public.dashboard_totals(timestamptz[]) to authenticat
 --   )
 --   select * from b, lateral public.dashboard_totals(b.bounds)
 --   order by bucket_index nulls last, type;
+--
+-- E il tetto, che deve fallire con "troppi confini (14)":
+--
+--   select * from public.dashboard_totals(
+--     (select array_agg(now() + (n || ' days')::interval)
+--      from generate_series(1, 14) n)::timestamptz[]
+--   );

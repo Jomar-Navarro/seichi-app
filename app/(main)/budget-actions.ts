@@ -130,7 +130,12 @@ export async function getBudgetOverview(
 
 	const [rows, fixed] = await Promise.all([
 		readBudgetsAt(supabase, clock),
-		getFixedOutflows(clock),
+		// ⚠️ `readFixedOutflows`, non `getFixedOutflows`: quella è una server
+		// action a sé e aprirebbe un secondo client, rifacendo il proprio
+		// controllo di autenticazione e il proprio caricamento del dizionario per
+		// query che da qui partono già nello stesso `Promise.all`. È la forma
+		// annidata rimossa da `getNotifications()`, che qui era sopravvissuta.
+		readFixedOutflows(supabase, user.id, clock),
 	]);
 	if ("error" in rows) return rows;
 	if ("error" in fixed) return fixed;
@@ -240,6 +245,21 @@ export async function getFixedOutflows(
 	const t = await getDictionary();
 	if (!user) return { error: t.errors.notAuthenticated };
 
+	return readFixedOutflows(supabase, user.id, clock);
+}
+
+/**
+ * Il calcolo vero, che riceve il client invece di aprirsene uno.
+ *
+ * Stessa forma di `readBudgetsAt()`, e per lo stesso motivo: così `getBudgetOverview()`
+ * può riusarlo senza passare dalla server action, che ripeterebbe autenticazione
+ * e dizionario per nulla.
+ */
+async function readFixedOutflows(
+	supabase: SupabaseServerClient,
+	userId: string,
+	clock: ClientClock,
+): Promise<{ data: number } | { error: string }> {
 	const { start, end } = monthBoundsOf(clock.today);
 
 	const [{ data: txns, error: txnsError }, { data: rules, error: rulesError }] =
@@ -247,14 +267,14 @@ export async function getFixedOutflows(
 			supabase
 				.from("transactions")
 				.select("amount")
-				.eq("user_id", user.id)
+				.eq("user_id", userId)
 				.eq("type", "abbonamento")
 				.gte("date", localMidnightInstant(start, clock.tzOffsetMinutes))
 				.lt("date", localMidnightInstant(end, clock.tzOffsetMinutes)),
 			supabase
 				.from("recurring_rules")
 				.select("amount, frequency, next_run, end_date")
-				.eq("user_id", user.id)
+				.eq("user_id", userId)
 				.eq("type", "abbonamento")
 				.eq("active", true),
 		]);
