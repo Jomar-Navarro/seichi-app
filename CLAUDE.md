@@ -1202,6 +1202,18 @@ si nota, una variabile CSS inesistente no.
 - Le transazioni ricorrenti usano pg_cron + una funzione SQL `generate_recurring_transactions()` (Fase 14). Regole in tabella `recurring_rules`; il job inserisce transazioni normali con `recurring_rule_id`
 - PWA viene aggiunta solo a progetto completato (Fase 26)
 - Server Actions (`"use server"`) per tutte le operazioni DB — mai chiamate API REST dirette
+- ⚠️ **I pannelli si MONTANO, non si nascondono.** Un bottom sheet non deve avere
+  una prop `isOpen` con dentro `if (!isOpen) return null`: nascondere non è
+  smontare, quindi lo stato del form sopravvive alla chiusura e va riazzerato a
+  mano in un effetto — cinque o nove `setState` in un `useLayoutEffect`, cioè un
+  render a cascata a ogni apertura (`react-hooks/set-state-in-effect`).
+  Decide il chiamante: `{aperto && <Sheet key={record?.id ?? "new"} … />}`.
+  **Montare È l'azzeramento**: gli inizializzatori di `useState` leggono le prop
+  e l'effetto non serve più — non va zittito con un `eslint-disable`, va fatto
+  sparire. La `key` copre il passaggio da un record all'altro senza chiudere in
+  mezzo. Vale per `GoalSheet`, `CategorySheet`, `RecurringSheet` e
+  `TransactionModal` (quest'ultimo diviso in guscio + contenuto, perché lo rende
+  il layout e non ha un genitore che possa decidere)
 - Pagine onboarding usano `"use client"` + handler async con `useState` per loading/error
 
 ## Implementation Order

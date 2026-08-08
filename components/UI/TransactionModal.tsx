@@ -1,15 +1,35 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, X, Check } from "lucide-react";
-import { useState, useLayoutEffect, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useUIStore } from "@/store/useUIStore";
 import { TRANSACTION_TYPES } from "@/types";
 import TransactionForm from "./TransactionForm";
 import { useI18n } from "@/components/features/I18nProvider";
 
+/**
+ * ⚠️ Diviso in due, e il guscio esiste solo per decidere il MONTAGGIO.
+ *
+ * Questo componente lo rende il layout di `(main)`, quindi non c'è un genitore
+ * che possa montarlo e smontarlo come fanno `GoalSheet`, `CategorySheet` e
+ * `RecurringSheet`. Prima restava perciò montato per sempre e si nascondeva da
+ * sé, con `step` che sopravviveva alla chiusura e andava riportato al valore
+ * giusto in un `useLayoutEffect` — un render a cascata a ogni apertura.
+ *
+ * Ora il guscio legge lo store e monta il contenuto solo da aperto. La `key`
+ * distingue "modifica questa transazione" da "nuova": passando dall'una all'altra
+ * senza chiudere, React rimonta invece di riusare `step`.
+ */
 export default function TransactionModal() {
+	const { isTransactionModalOpen, editingTransaction } = useUIStore();
+
+	if (!isTransactionModalOpen) return null;
+
+	return <TransactionModalContent key={editingTransaction?.id ?? "new"} />;
+}
+
+function TransactionModalContent() {
 	const {
-		isTransactionModalOpen,
 		selectedTransactionType,
 		editingTransaction,
 		closeTransactionModal,
@@ -17,24 +37,23 @@ export default function TransactionModal() {
 	} = useUIStore();
 	const { t } = useI18n();
 
-	const [step, setStep] = useState<"type" | "form">("type");
+	// Il passo iniziale è una funzione del contesto di apertura, e il montaggio è
+	// esattamente quel momento: nessun effetto da scrivere.
+	const [step, setStep] = useState<"type" | "form">(
+		editingTransaction ? "form" : "type",
+	);
 
-	// Blocca lo scroll della pagina dietro il modale
+	// Blocca lo scroll della pagina dietro il modale. Ora che il componente vive
+	// solo da aperto, la guardia sullo stato del modale non serve: montaggio e
+	// smontaggio SONO apertura e chiusura, e il ripristino torna a essere un
+	// normale cleanup.
 	useEffect(() => {
-		if (!isTransactionModalOpen) return;
 		const prev = document.body.style.overflow;
 		document.body.style.overflow = "hidden";
 		return () => {
 			document.body.style.overflow = prev;
 		};
-	}, [isTransactionModalOpen]);
-
-	useLayoutEffect(() => {
-		if (isTransactionModalOpen) {
-			// eslint-disable-next-line react-hooks/set-state-in-effect
-			setStep(editingTransaction ? "form" : "type");
-		}
-	}, [isTransactionModalOpen, editingTransaction]);
+	}, []);
 
 	const selectedType = editingTransaction
 		? TRANSACTION_TYPES.find((t) => t.id === editingTransaction.type) ?? TRANSACTION_TYPES[0]
@@ -45,12 +64,12 @@ export default function TransactionModal() {
 		setStep("form");
 	}
 
+	// Nessun `setStep("type")` qui: chiudere smonta, e con lo smontaggio `step`
+	// se ne va da sé. Riportarlo a mano era la contropartita del componente che
+	// restava vivo per sempre.
 	function handleClose() {
 		closeTransactionModal();
-		setStep("type");
 	}
-
-	if (!isTransactionModalOpen) return null;
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-end">

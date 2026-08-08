@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
-import { getDictionary } from "@/lib/i18n/server";
+import { getI18n } from "@/lib/i18n/server";
 
 /**
  * L'identità dell'utente per questa richiesta, letta dalle CLAIMS del JWT.
@@ -151,6 +151,11 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
 export async function requireUser() {
 	const supabase = await createClient();
 	// Il dizionario non dipende dall'utente: si carica in parallelo.
-	const [user, t] = await Promise.all([getSessionUser(), getDictionary()]);
-	return { supabase, user, t };
+	//
+	// Torna anche il `locale`, non solo `t`: `getDictionary()` lo calcolava già
+	// internamente e lo buttava via, quindi chi deve formattare un numero, una
+	// data o un plurale (`plural()`, `formatMoney()`) era costretto a una seconda
+	// chiamata a `getI18n()` per un valore che era già stato risolto.
+	const [user, { locale, t }] = await Promise.all([getSessionUser(), getI18n()]);
+	return { supabase, user, t, locale };
 }

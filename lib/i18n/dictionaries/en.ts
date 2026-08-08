@@ -101,6 +101,10 @@ export const en: Dictionary = {
 		wrongPassword: "Incorrect password",
 		emailMismatch: "That email doesn't match your account",
 		avatarRemoveFailed: "Could not remove your profile photo. Please try again.",
+		categoryHasTransactions: {
+			one: "This category has {n} linked transaction. Move or delete it before removing the category.",
+			other: "This category has {n} linked transactions. Move or delete them before removing the category.",
+		},
 	},
 
 	auth: {

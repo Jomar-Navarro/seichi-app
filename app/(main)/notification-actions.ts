@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import type { SupabaseServerClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth";
 import { renderNotification } from "@/lib/notifications";
-import { getI18n } from "@/lib/i18n/server";
 import type { AppNotification, RenderedNotification } from "@/types";
 
 /**
@@ -24,7 +23,9 @@ const PANEL_LIMIT = 30;
 export async function getNotifications(): Promise<
 	{ data: RenderedNotification[]; unread: number } | { error: string }
 > {
-	const { supabase, user, t } = await requireUser();
+	// `locale` oltre al dizionario: `renderNotification` formatta importi e date,
+	// non solo parole. Arriva da `requireUser()`, che lo risolve comunque.
+	const { supabase, user, t, locale } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	// ⚠️ La query del conteggio sta QUI, non dietro una chiamata a
@@ -54,10 +55,6 @@ export async function getNotifications(): Promise<
 	const currency = profile?.currency || "EUR";
 	// La lingua arriva dal cookie: le frasi si compongono ADESSO, quindi anche
 	// una notifica di due mesi fa esce nella lingua attuale dell'utente.
-	// Qui serve il `locale` oltre al dizionario, che `requireUser()` non porta:
-	// `renderNotification` formatta importi e date, non solo parole.
-	const { locale } = await getI18n();
-
 	const rendered = (data ?? []).map((row) => {
 		const n = row as AppNotification;
 		return { ...n, ...renderNotification(n, { currency, locale, t }) };

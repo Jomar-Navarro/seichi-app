@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { isCurrency, normalizeLocale } from "@/lib/i18n/config";
 import { setLocaleCookie } from "@/lib/i18n/server";
+import { plural } from "@/lib/i18n/format";
 import type { Category } from "@/types";
 
 // Il colore di una categoria deriva dal suo tipo (design Zen Glass)
@@ -88,7 +89,8 @@ export async function updateCategory(
 }
 
 export async function deleteCategory(id: string) {
-	const { supabase, user, t } = await requireUser();
+	// `locale` serve al plurale del messaggio di blocco qui sotto.
+	const { supabase, user, t, locale } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	// Blocca l'eliminazione se ci sono movimenti collegati (nessuna perdita accidentale)
@@ -101,7 +103,7 @@ export async function deleteCategory(id: string) {
 	if (countError) return { error: countError.message };
 	if ((count ?? 0) > 0) {
 		return {
-			error: `Questa categoria ha ${count} ${count === 1 ? "movimento collegato" : "movimenti collegati"}. Spostali o eliminali prima di rimuoverla.`,
+			error: plural(t.errors.categoryHasTransactions, count ?? 0, locale),
 			blocked: true as const,
 		};
 	}

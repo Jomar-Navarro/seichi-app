@@ -154,6 +154,22 @@ export const it = {
 		wrongPassword: "Password non corretta",
 		emailMismatch: "L'email digitata non corrisponde al tuo account",
 		avatarRemoveFailed: "Non è stato possibile rimuovere la foto profilo. Riprova.",
+		/**
+		 * Cancellazione di una categoria che ha ancora movimenti.
+		 *
+		 * ⚠️ Era l'ULTIMA frase cablata dell'app, sopravvissuta alla Fase 19 —
+		 * un template dentro una server action, quindi invisibile a uno scanner che
+		 * guardi solo i `.tsx` o solo i nodi JSX. Un utente in inglese leggeva
+		 * italiano proprio mentre l'app gli negava un'operazione.
+		 *
+		 * Il plurale passa da `plural()`: la versione cablata lo scriveva a mano,
+		 * e nel ramo singolare sbagliava anche l'italiano — diceva "Spostali o
+		 * eliminali" (pronome plurale) per un solo movimento.
+		 */
+		categoryHasTransactions: {
+			one: "Questa categoria ha {n} movimento collegato. Spostalo o eliminalo prima di rimuoverla.",
+			other: "Questa categoria ha {n} movimenti collegati. Spostali o eliminali prima di rimuoverla.",
+		},
 	},
 
 	/**

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useLayoutEffect, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -14,48 +14,42 @@ import { DISPLAY_CURRENCY, currencySymbol } from "@/lib/i18n/format";
 import DatePicker from "@/components/UI/DatePicker";
 import type { RecurringRule, Category, Frequency } from "@/types";
 
+/**
+ * ⚠️ Niente prop `isOpen`, e qui era anche **ridondante**: il chiamante passava
+ * `isOpen={!!editing}` accanto a `rule={editing}`, cioè lo stesso dato due volte,
+ * e il componente lo ricontrollava con `if (!isOpen || !rule) return null`. Tre
+ * espressioni della stessa condizione, che potevano disaccordarsi.
+ *
+ * Ora è il chiamante a montare il pannello solo quando c'è una regola, quindi
+ * `rule` non è più nullable e lo stato iniziale si legge direttamente da essa:
+ * montare È l'azzeramento, e l'effetto che riscriveva sette `useState` — un
+ * render a cascata a ogni apertura — è scomparso invece di essere zittito.
+ */
 interface RecurringSheetProps {
-	isOpen: boolean;
-	rule: RecurringRule | null;
+	rule: RecurringRule;
 	onClose: () => void;
 }
 
-export default function RecurringSheet({ isOpen, rule, onClose }: RecurringSheetProps) {
+export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 	const router = useRouter();
 	const { locale, t } = useI18n();
-	const [amount, setAmount] = useState("");
-	const [categoryId, setCategoryId] = useState<string | null>(null);
-	const [notes, setNotes] = useState("");
-	const [frequency, setFrequency] = useState<Frequency>("mensile");
-	const [nextRun, setNextRun] = useState("");
+	const [amount, setAmount] = useState(() => rule.amount.toFixed(2).replace(".", ","));
+	const [categoryId, setCategoryId] = useState<string | null>(rule.category_id);
+	const [notes, setNotes] = useState(rule.notes ?? "");
+	const [frequency, setFrequency] = useState<Frequency>(rule.frequency);
+	const [nextRun, setNextRun] = useState(rule.next_run);
 	const [categoryList, setCategoryList] = useState<Category[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [serverError, setServerError] = useState<string | null>(null);
 
-	useLayoutEffect(() => {
-		if (isOpen && rule) {
-			// eslint-disable-next-line react-hooks/set-state-in-effect
-			setAmount(rule.amount.toFixed(2).replace(".", ","));
-			setCategoryId(rule.category_id);
-			setNotes(rule.notes ?? "");
-			setFrequency(rule.frequency);
-			setNextRun(rule.next_run);
-			setLoading(false);
-			setServerError(null);
-		}
-	}, [isOpen, rule]);
-
 	useEffect(() => {
-		if (!isOpen || !rule) return;
 		async function loadCategories() {
 			const supabase = createClient();
-			const { data } = await supabase.from("categories").select("*").eq("type", rule!.type);
+			const { data } = await supabase.from("categories").select("*").eq("type", rule.type);
 			if (data) setCategoryList(data);
 		}
 		loadCategories();
-	}, [isOpen, rule]);
-
-	if (!isOpen || !rule) return null;
+	}, [rule.type]);
 
 	const color = TIPO_COLOR[rule.type] ?? "var(--color-kiri)";
 	const todayISO = new Date().toLocaleDateString("sv-SE");
@@ -64,7 +58,8 @@ export default function RecurringSheet({ isOpen, rule, onClose }: RecurringSheet
 	const categoryOptions = buildCategoryOptions(categoryList, t.recurring.noCategory);
 
 	async function handleSubmit() {
-		if (!importoValido || loading || !rule) return;
+		// `!rule` non serve più: la prop non è nullable, il montaggio lo garantisce.
+		if (!importoValido || loading) return;
 		setLoading(true);
 		setServerError(null);
 		try {

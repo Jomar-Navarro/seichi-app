@@ -150,12 +150,18 @@ export default function CategoryManager({ categories }: { categories: Category[]
 				})}
 			</div>
 
-			<CategorySheet
-				isOpen={sheetOpen}
-				category={editing}
-				presetType={presetType}
-				onClose={() => setSheetOpen(false)}
-			/>
+			{/* Montato solo da aperto: è il montaggio a dare al form uno stato
+			    pulito, così `CategorySheet` non deve riazzerarsi in un effetto.
+			    La `key` copre il passaggio da una categoria all'altra (o da una
+			    esistente alla creazione) senza chiudere in mezzo. */}
+			{sheetOpen && (
+				<CategorySheet
+					key={editing?.id ?? `new:${presetType ?? ""}`}
+					category={editing}
+					presetType={presetType}
+					onClose={() => setSheetOpen(false)}
+				/>
+			)}
 
 			{/* Dialog conferma eliminazione */}
 			{pending && (

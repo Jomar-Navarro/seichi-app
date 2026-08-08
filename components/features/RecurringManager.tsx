@@ -161,7 +161,12 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 				{t.recurring.addAction}
 			</button>
 
-			<RecurringSheet isOpen={!!editing} rule={editing} onClose={() => setEditing(null)} />
+			{/* Montato solo quando c'è una regola: è il montaggio a dare al form uno
+			    stato pulito, letto dalla regola stessa. La `key` copre il passaggio
+			    da una regola all'altra senza chiudere in mezzo. */}
+			{editing && (
+				<RecurringSheet key={editing.id} rule={editing} onClose={() => setEditing(null)} />
+			)}
 
 			{pending && (
 				<div className="fixed inset-0 z-50 flex items-center justify-center px-8">

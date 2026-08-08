@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useLayoutEffect } from "react";
+import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ICON_MAP } from "@/lib/icon-map";
@@ -43,24 +43,38 @@ function iconListFor(type: string, current: string): string[] {
 	return lib;
 }
 
+/**
+ * ⚠️ Niente prop `isOpen`: il pannello lo monta e lo smonta il chiamante.
+ *
+ * Prima restava montato e si nascondeva da sé, quindi lo stato del form
+ * sopravviveva alla chiusura e andava riazzerato a mano — nove `setState` dentro
+ * un `useLayoutEffect`, cioè un render a cascata a ogni apertura. Montare È
+ * l'azzeramento: gli inizializzatori di `useState` girano da capo e leggono
+ * `category`/`presetType`, quindi l'effetto non serve più.
+ */
 interface CategorySheetProps {
-	isOpen: boolean;
 	category: Category | null;
 	presetType?: string | null;
 	onClose: () => void;
 }
 
 export default function CategorySheet({
-	isOpen,
 	category,
 	presetType,
 	onClose,
 }: CategorySheetProps) {
 	const router = useRouter();
 	const { locale, t } = useI18n();
-	const [name, setName] = useState("");
-	const [icon, setIcon] = useState("");
-	const [type, setType] = useState("spesa");
+
+	// Valori di partenza derivati dalle prop. Vengono ricalcolati a ogni render ma
+	// consumati solo al montaggio — sono due letture e un accesso a un oggetto.
+	// `initialType` e non `t`: quel nome ora è del dizionario.
+	const initialType = category?.type ?? presetType ?? "spesa";
+	const initialIcon = category?.icon ?? (CATEGORY_LIBRARY[initialType] ?? [])[0] ?? "";
+
+	const [name, setName] = useState(category?.name ?? "");
+	const [icon, setIcon] = useState(initialIcon);
+	const [type, setType] = useState(initialType);
 	const [submitted, setSubmitted] = useState(false);
 	const [loading, setLoading] = useState(false);
 	const [serverError, setServerError] = useState<string | null>(null);
@@ -72,29 +86,11 @@ export default function CategorySheet({
 		amount: number;
 	} | null>(null);
 
-	useLayoutEffect(() => {
-		if (isOpen) {
-			// eslint-disable-next-line react-hooks/set-state-in-effect
-			setSubmitted(false);
-			setLoading(false);
-			setServerError(null);
-			setName(category?.name ?? "");
-			// `nextType` e non `t`: quel nome ora è del dizionario.
-			const nextType = category?.type ?? presetType ?? "spesa";
-			setType(nextType);
-			const lib = CATEGORY_LIBRARY[nextType] ?? [];
-			setIcon(category?.icon ?? lib[0] ?? "");
-			setBudgetPeriod("mensile");
-			setBudgetAmount("");
-			setInitialBudget(null);
-		}
-	}, [isOpen, category, presetType]);
-
 	// Il budget vive in una tabella a parte (storico versionato), non è una
 	// colonna di `categories`: va caricato separatamente quando si apre il form
 	// su una categoria esistente.
 	useEffect(() => {
-		if (!isOpen || !category) return;
+		if (!category) return;
 		let cancelled = false;
 		getBudgetForCategory(category.id, clientClock()).then((res) => {
 			if (cancelled || !("data" in res) || !res.data) return;
@@ -105,7 +101,7 @@ export default function CategorySheet({
 		return () => {
 			cancelled = true;
 		};
-	}, [isOpen, category]);
+	}, [category]);
 
 	const nameError = submitted && !name.trim();
 	const color = TIPO_COLOR[type] ?? "var(--color-kiri)";
@@ -209,8 +205,6 @@ export default function CategorySheet({
 		});
 		return "error" in res ? res.error : null;
 	}
-
-	if (!isOpen) return null;
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-end">
