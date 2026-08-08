@@ -46,8 +46,24 @@ async function DashboardContent() {
 	const investimento = TRANSACTION_TYPES.find((t) => t.id === "investimento")!;
 	const risparmio = TRANSACTION_TYPES.find((t) => t.id === "risparmio")!;
 
-	if ("error" in result) return <p>{t.home.error}</p>;
-	if ("error" in transaction) return <p>{t.home.error}</p>;
+	/*
+	 * ⚠️ Il messaggio del database si LOGGA prima di scomparire.
+	 *
+	 * Queste due righe rendevano lo stesso "Errore" generico per due loader
+	 * diversi, buttando via il messaggio di Postgres: davanti a una home rotta non
+	 * si sapeva né QUALE query fosse fallita né PERCHÉ, e l'unico modo di scoprirlo
+	 * era rimetterci dentro un log a mano. All'utente resta la frase generica —
+	 * un errore SQL grezzo a schermo non lo aiuta e racconta la forma dello schema
+	 * — ma al server resta la traccia.
+	 */
+	if ("error" in result) {
+		console.error("[home] getDashboardTotals:", result.error);
+		return <p>{t.home.error}</p>;
+	}
+	if ("error" in transaction) {
+		console.error("[home] getTransactions:", transaction.error);
+		return <p>{t.home.error}</p>;
+	}
 
 	const goals = "error" in goalsResult ? [] : goalsResult.data;
 	const goalsWithTarget = goals.filter((g) => (g.target_amount ?? 0) > 0);

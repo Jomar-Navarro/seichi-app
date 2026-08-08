@@ -924,6 +924,18 @@ dell'account**, tutta la storia, per produrre una trentina di numeri.
   pubblicare il codice, o la home risponde 404 sulla RPC. Nessun ripiego sulla
   vecchia strada, di proposito — un fallback silenzioso nasconderebbe una
   migration non eseguita e l'app girerebbe per mesi sulla via lenta.
+- ⚠️⚠️ **`RETURN QUERY` di plpgsql pretende i tipi ESATTI; `language sql` no.**
+  Una funzione SQL accetta qualsiasi tipo *binary-coercible* e converte in
+  silenzio (`varchar` dove è dichiarato `text`, `int2` dove è dichiarato `int`).
+  La prima versione di `dashboard_totals()` era `language sql` e funzionava
+  proprio grazie a quell'indulgenza; aggiungendo il tetto su `p_bounds` è
+  diventata plpgsql e la home è morta con
+  `structure of query does not match function result type` — messaggio che **non
+  dice quale colonna** e che compare solo all'esecuzione, non alla creazione
+  (`create or replace` era passato senza un lamento). Ogni colonna restituita ha
+  ora un cast esplicito. Non è ridondanza: lega la funzione alla propria firma
+  invece che a un'assunzione sullo schema **che nessuno può verificare leggendo
+  il repo**, visto che `transactions` non è versionata (issue #43).
 
 #### Il proxy: un redirect è un'AFFERMAZIONE
 

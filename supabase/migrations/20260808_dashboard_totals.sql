@@ -3,11 +3,12 @@
 -- ============================================================================
 -- Eseguita a mano nel SQL Editor di Supabase il 2026-08-08.
 --
--- ⚠️⚠️ **VA RIESEGUITA**: dopo la prima esecuzione la funzione è stata riscritta
--- per aggiungere il tetto su `p_bounds` (vedi sotto) ed è passata da `language
--- sql` a `plpgsql`. È un `create or replace`, quindi rilanciare l'intero file è
--- sicuro e idempotente — ma finché non lo fai, il database contiene la versione
--- SENZA il limite.
+-- ⚠️⚠️ **VA RIESEGUITA.** La funzione è cambiata due volte dopo la prima
+-- esecuzione: prima per il tetto su `p_bounds` (passando da `language sql` a
+-- `plpgsql`), poi per i cast espliciti sulle colonne restituite — senza i quali
+-- la versione plpgsql fallisce a runtime con "structure of query does not match
+-- function result type". È un `create or replace`, quindi rilanciare l'intero
+-- file è sicuro e idempotente.
 --
 -- ⚠️ QUESTA MIGRATION VA ESEGUITA PRIMA DI PUBBLICARE IL CODICE CHE LA USA.
 -- `getDashboardTotals()` chiama questa funzione e basta: se manca, la RPC
@@ -90,6 +91,25 @@
 -- questo: l'abuso è contro le PROPRIE righe, quindi le policy sono soddisfatte.
 -- L'app ne manda sempre 7; 13 lascia margine (un anno di trend) e chiude il buco.
 --
+-- ⚠️⚠️ **OGNI COLONNA RESTITUITA HA UN CAST ESPLICITO, E NON È RIDONDANTE.**
+--
+-- `RETURN QUERY` di plpgsql pretende che i tipi coincidano ESATTAMENTE con quelli
+-- dichiarati in `returns table`. Una funzione `language sql` invece accetta
+-- qualsiasi tipo *binary-coercible* e converte in silenzio: `varchar` dove è
+-- dichiarato `text`, `int2` dove è dichiarato `int`, e così via.
+--
+-- La prima versione di questa funzione era `language sql` e funzionava proprio
+-- grazie a quella indulgenza. Aggiungendo il tetto su `p_bounds` è diventata
+-- plpgsql, e al primo caricamento della home è arrivato
+-- `structure of query does not match function result type` — un messaggio che
+-- non dice quale colonna, e che compare solo a ESECUZIONE, non alla creazione.
+--
+-- ⚠️ La causa non è verificabile da qui: `transactions` non è versionata nel repo
+-- (issue #43), quindi il tipo reale di `type` e `amount` non si legge da nessun
+-- file. I cast rendono la domanda irrilevante — è la risposta giusta comunque,
+-- perché lega la funzione alla propria firma invece che a un'assunzione sullo
+-- schema che nessuno può controllare leggendo il codice.
+
 -- ⚠️ Il corpo si apre con `#variable_conflict use_column`, che DEVE essere il
 -- primo elemento — per questo la spiegazione sta qui e non lì dentro. I
 -- parametri OUT (`bucket_index`, `type`, `total`) sono anche nomi di colonna, e
@@ -127,7 +147,7 @@ begin
 		-- l'inizio di uno nuovo: N confini danno N-1 bucket.
 		where i < array_length(p_bounds, 1)
 	)
-	select b.bucket_index, t.type, sum(t.amount)
+	select (b.bucket_index)::int, (t.type)::text, sum(t.amount)::numeric
 	from public.transactions t
 	join bounds b
 	  on t.date >= b.starts
@@ -155,7 +175,7 @@ begin
 	-- e ha già sostituito lo scaricamento dell'intero archivio. Va fatta da chi
 	-- può ESEGUIRE la query e confrontare i totali prima e dopo: qui un errore
 	-- non si vede: produce numeri credibili.
-	select null::int, t.type, sum(t.amount)
+	select null::int, (t.type)::text, sum(t.amount)::numeric
 	from public.transactions t
 	where t.user_id = (select auth.uid())
 	group by t.type;
