@@ -71,6 +71,7 @@ lib/
 ├── transaction-utils.ts  # TIPO_COLOR/TIPO_INK, formatDate, formatAmount
 ├── budget.ts             # BUDGET_PERIODS (id), soglia, budgetStatus/Color/Ink
 ├── recurring.ts          # FREQUENCIES (id) + aritmetica delle date
+├── jobs.ts               # getDailyJobHealth() + DAILY_JOB_STALE_HOURS (issue #47)
 ├── auth.ts               # getSessionUser() — id + email dalle CLAIMS, senza rete (è una FOTOGRAFIA)
 ├── account.ts            # getAccountContext() — identità VIVA + profilo, per le impostazioni
 │                         #   getProfileHeader() — avatar/nome per la home, dalle claims
@@ -761,6 +762,92 @@ Più due lezioni sul metodo di verifica, entrambe pagate:
 divergenti); e **uno scanner va messo alla controprova**, perché quello del testo
 cablato leggeva solo i `.tsx` e non guardava le stringhe fuori dal JSX — due
 buchi che insieme nascondevano sei `"Non autenticato"` nelle server action.
+
+### Sorveglianza del job giornaliero (2026-08-09, issue #47)
+
+Il guasto è emerso guardando a occhio una data in `/impostazioni/ricorrenti`: una
+regola con `next_run` al 3 luglio che non aveva generato nulla.
+
+⚠️ **L'ipotesi iniziale — "il cron non gira" — era SBAGLIATA**, e vale
+registrarlo perché il modo in cui si è sbriciolata è il punto di questa sezione.
+`cron.job_run_details` diceva `succeeded` ogni notte. La causa vera erano tre
+difetti sovrapposti (migration `20260810_recurring_fixes.sql`):
+
+1. **`transactions_type_check` non ammetteva `abbonamento`**, mentre
+   `categories_type_check` e `recurring_rules_type_check` sì. Una categoria e una
+   regola potevano essere `abbonamento`, la transazione che ne deriva **no**:
+   nessun abbonamento ricorrente si è mai potuto materializzare, da quando quel
+   tipo esiste. Difetto invisibile per la issue **#43** — nessun file descrive
+   quei vincoli, quindi la divergenza fra tabelle sorelle non era leggibile.
+2. ⚠️ **Una regola guasta abortiva TUTTE le altre.** `for r in … loop` non aveva
+   `exception` per singola regola, quindi la prima che falliva fermava l'intera
+   funzione — ecco perché non usciva nulla, nemmeno l'ETF che era valido. E dal
+   cron `auth.uid()` è NULL: i dati di un utente potevano fermare le ricorrenti
+   di **tutti**.
+3. **`run_daily_jobs()` trasformava l'errore in `succeeded`.** L'`exception`
+   della 17b protegge gli insert finanziari, ma catturando il guasto fa ritornare
+   la funzione normalmente, quindi pg_cron registra successo. Prima del
+   2026-08-04 `job_run_details` almeno diceva `failed`; dopo ha smesso.
+
+**La lezione, e vale oltre questo caso: isolare un guasto senza registrarlo lo
+rende invisibile.** Per questo `generate_recurring_transactions()` ora
+**restituisce il numero di regole saltate** invece di `void`: senza quel valore,
+l'isolamento per-regola avrebbe ricreato lo stesso silenzio un livello più in
+basso.
+
+Due cose trovate per strada, entrambe dai vincoli reali:
+
+- ⚠️ **`transactions.type` è `character varying`, non `text`.** È la **conferma
+  retroattiva** che i cast espliciti in `dashboard_totals()` non erano una
+  precauzione ma una necessità.
+- ⚠️ **`transactions.frequency` esiste e non è documentata qui**, con vocabolario
+  inglese (`weekly/monthly/yearly`) mentre `recurring_rules.frequency` usa
+  l'italiano. Residuo pre-Fase 14. La riga di DETAIL dell'errore mostra 13 valori
+  dove questo documento elenca 10 colonne: ce ne sono altre due da mappare. Va
+  nella issue #43, non si tocca a cuor leggero.
+- ⚠️ **`generate_recurring_transactions()` non aveva grant espliciti** e si
+  affidava al default su PUBLIC — di cui `anon` è membro. Chiunque con la chiave
+  pubblicabile poteva invocare una funzione SECURITY DEFINER che con
+  `auth.uid()` NULL scrive per tutti gli utenti. Ora ha la coppia
+  revoke/grant come ogni altra funzione dalle Fasi 16-17.
+
+- ⚠️ **L'allarme NON può essere una notifica, né un secondo cron.** Le notifiche
+  le genera il job: se è morto non può annunciarlo. E un cron di sorveglianza
+  soffrirebbe lo stesso guasto — se pg_cron non gira, non gira nemmeno lui.
+  L'unica posizione sana è **alla lettura**, su una traccia che il job lascia.
+- **`job_runs`** (migration `20260809_job_runs.sql`): una riga per passo per
+  esecuzione, con `run_at` uguale per tutti i passi dello stesso giro — è ciò che
+  permette di chiedere "l'ultima esecuzione è andata bene *per intero*". Gli
+  `insert` nei rami `exception` **persistono**: `begin … exception … end` apre una
+  sottotransazione, e il gestore gira in quella esterna.
+- ⚠️ **RLS abilitata e NESSUNA policy**, deliberatamente. In scrittura è un
+  registro del server come `notifications`; in lettura è un dato **globale**, e
+  un errore prodotto dai dati di un utente non deve comparire sullo schermo di un
+  altro. Si legge solo da `daily_job_health()`, che restituisce **tre fatti e
+  nessun testo d'errore** — `details` resta nel database.
+- **La soglia sta in TypeScript** (`DAILY_JOB_STALE_HOURS = 36`), non in SQL: è
+  una decisione di prodotto e cambiarla non deve richiedere una migration.
+  36 ore e non 24 perché il cron gira alle 03:00 e un singolo ritardo non è un
+  guasto.
+- **Un seme all'installazione.** Senza righe, `last_run_at` è NULL e "mai girato"
+  va trattato come il caso peggiore — giusto, ma appena eseguita la migration il
+  job non ha *ancora* avuto occasione di girare, e l'avviso comparirebbe a torto.
+  La migration inserisce una riga con `step = 'installed'` che fa partire il
+  cronometro: non dichiara che un lavoro è stato svolto, dichiara "da qui mi
+  aspetto un giro al giorno".
+- ⚠️ **L'avviso sta in `/impostazioni` e `/impostazioni/ricorrenti`, NON in home.**
+  Scelta di costo: la home è appena passata da 12 a 6 richieste, e un controllo
+  di salute lì sarebbe una richiesta REST in più **a ogni vista**, pagata sempre,
+  anche a job sano. Le ricorrenti sono la pagina i cui dati *sono* sbagliati
+  quando il job è fermo, quindi è là che l'avviso ha significato. La riga in
+  impostazioni compare solo in caso di problema: una spia sempre verde smette di
+  essere guardata.
+- **Ambra, non rosso**: in questa app il rosso significa "uscite", e prestarlo a
+  un allarme di sistema confonderebbe i due. L'ambra è già il livello
+  "attenzione" delle barre budget all'80%.
+- `daily_job_health()` è **`language sql`** e con cast espliciti su ogni colonna:
+  vedi la trappola di `dashboard_totals()` qui sotto — `RETURN QUERY` di plpgsql
+  pretende i tipi esatti e falliva solo a runtime.
 
 ### Costo delle richieste a Supabase (2026-08-08)
 

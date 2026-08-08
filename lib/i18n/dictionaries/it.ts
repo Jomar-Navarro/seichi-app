@@ -568,6 +568,32 @@ export const it = {
 	},
 
 	/**
+	 * Stato del job giornaliero (issue #47).
+	 *
+	 * ⚠️ Il testo dice **cosa non funziona per l'utente**, non come si chiama il
+	 * meccanismo: "job", "cron" e "pg_cron" non compaiono. Chi legge vuole sapere
+	 * che i movimenti ricorrenti non vengono registrati, non quale processo è
+	 * fermo — quello sta nella issue.
+	 */
+	jobHealth: {
+		/** Riga in /impostazioni. Compare SOLO quando c'è un problema. */
+		rowLabel: "Automazioni ferme",
+		/** Titolo dell'avviso in cima a /impostazioni/ricorrenti. */
+		title: "I movimenti ricorrenti non vengono registrati",
+		/**
+		 * `{when}` è già una frase relativa ("2 giorni fa") prodotta da
+		 * `formatRelativeTime`: qui non si compone una data a mano.
+		 */
+		lastOk: "Ultimo controllo riuscito: {when}.",
+		/** Il caso peggiore: nessuna traccia di alcuna esecuzione. */
+		never: "Non risulta alcuna esecuzione.",
+		/** Il job ha girato ma un passo è fallito: diverso da "non ha girato". */
+		withError: "L'ultima esecuzione è terminata con un errore.",
+		/** Cosa fare. Deliberatamente concreto e senza gergo. */
+		hint: "Le transazioni pianificate potrebbero non comparire e i totali essere incompleti. Controlla lo stato del database.",
+	},
+
+	/**
 	 * Etichette del picker icone, annidate per TIPO.
 	 *
 	 * ⚠️ Non è una mappa piatta `id → etichetta` perché nove icone cambiano nome

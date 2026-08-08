@@ -426,6 +426,15 @@ export const en: Dictionary = {
 		fixedThisMonth: "fixed this month {amount}",
 	},
 
+	jobHealth: {
+		rowLabel: "Automations stopped",
+		title: "Recurring transactions are not being recorded",
+		lastOk: "Last successful check: {when}.",
+		never: "No run has been recorded.",
+		withError: "The last run ended with an error.",
+		hint: "Scheduled transactions may be missing and your totals incomplete. Check your database status.",
+	},
+
 	// Annidate per tipo: le stesse nove icone che in italiano cambiano nome col
 	// contesto lo cambiano anche qui (Landmark = Bank transfer / Stocks).
 	iconLabels: {
