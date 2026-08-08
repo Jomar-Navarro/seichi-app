@@ -1,16 +1,12 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
-import { getSessionUser } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import type { GoalWithProgress, InvestmentData } from "@/types";
 import { INVESTMENT_TYPE_COLOR, INVESTMENT_TYPE_FALLBACK } from "@/lib/investment-types";
-import { getDictionary } from "@/lib/i18n/server";
 
 export async function getGoals(): Promise<{ data: GoalWithProgress[] } | { error: string }> {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	const t = await getDictionary();
+	const { supabase, user, t } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	const [{ data: cats, error: catsError }, { data: txns, error: txnsError }] = await Promise.all([
@@ -48,9 +44,7 @@ export async function getGoals(): Promise<{ data: GoalWithProgress[] } | { error
 }
 
 export async function getInvestments(): Promise<{ data: InvestmentData } | { error: string }> {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	const t = await getDictionary();
+	const { supabase, user, t } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	const { data: txns, error } = await supabase
@@ -139,9 +133,7 @@ export async function createGoal(payload: {
 	target_date: string | null;
 	icon: string;
 }): Promise<{ error?: string }> {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	const t = await getDictionary();
+	const { supabase, user, t } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	const { error } = await supabase.from("categories").insert({
@@ -168,9 +160,7 @@ export async function updateGoal(
 		icon: string;
 	},
 ): Promise<{ error?: string }> {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	const t = await getDictionary();
+	const { supabase, user, t } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	const { error } = await supabase
@@ -190,9 +180,7 @@ export async function updateGoal(
 }
 
 export async function deleteGoal(id: string): Promise<{ error?: string }> {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	const t = await getDictionary();
+	const { supabase, user, t } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	// Delete associated transactions first — otherwise they remain as

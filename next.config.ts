@@ -40,6 +40,35 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "3mb",
     },
   },
+  // ⚠️ Le rotte che scambiano credenziali NON devono essere memorizzabili.
+  //
+  // `@supabase/ssr` passa a `setAll` un secondo argomento con le direttive di
+  // cache da mettere sulla risposta, e la sua documentazione spiega perché:
+  // *"Responses that set auth cookies must not be cached by CDNs or reverse
+  // proxies, otherwise one user's session token can be served to a different
+  // user."* Il proxy quelle direttive le applica (vedi lib/supabase/proxy.ts).
+  //
+  // `lib/supabase/server.ts` NON può: dentro un Server Component `cookies()` non
+  // ha un canale per gli header di risposta, e in un Route Handler il client
+  // viene creato prima che la `Response` esista. Passare il parametro a valle
+  // non è quindi una modifica di quel file — è una modifica di ogni handler.
+  //
+  // Queste sono le quattro rotte che scrivono cookie di sessione fuori dal
+  // proxy: /callback (exchangeCodeForSession), /auth/confirm (verifyOtp) e i due
+  // signout. Dichiararle qui copre il buco in un punto solo, e resta valido
+  // anche se un domani un handler cambia implementazione.
+  async headers() {
+    return [
+      {
+        source: "/:path(callback|signout|auth/signout|auth/confirm)",
+        headers: [
+          { key: "Cache-Control", value: "private, no-cache, no-store, must-revalidate, max-age=0" },
+          { key: "Pragma", value: "no-cache" },
+          { key: "Expires", value: "0" },
+        ],
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       {

@@ -138,6 +138,23 @@ begin
 	union all
 
 	-- Il saldo totale non ha finestra: è tutta la storia dell'account.
+	--
+	-- ⚠️ Sì, questo `union all` scansiona `transactions` DUE volte, e la seconda è
+	-- quella cara (nessun limite di data). È noto e lasciato così di proposito.
+	--
+	-- La riscrittura ovvia — `left join bounds` + `group by grouping sets
+	-- ((b.bucket_index, t.type), (t.type))` — è SBAGLIATA senza un accorgimento
+	-- in più: con la left join le righe fuori da ogni finestra escono con
+	-- `bucket_index` NULL, e quel gruppo COLLIDE con le righe del totale di
+	-- sempre, che hanno anch'esse NULL. Due righe con la stessa chiave e
+	-- significato diverso: `find()` lato TypeScript ne prenderebbe una a caso e
+	-- il saldo sarebbe sbagliato in modo plausibile. Servirebbe una colonna
+	-- `grouping()` per distinguerle, quindi cambia anche la forma del risultato.
+	--
+	-- Fattibile, ma è un'ottimizzazione su una funzione che restituisce ~35 righe
+	-- e ha già sostituito lo scaricamento dell'intero archivio. Va fatta da chi
+	-- può ESEGUIRE la query e confrontare i totali prima e dopo: qui un errore
+	-- non si vede: produce numeri credibili.
 	select null::int, t.type, sum(t.amount)
 	from public.transactions t
 	where t.user_id = (select auth.uid())

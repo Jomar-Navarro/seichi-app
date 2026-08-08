@@ -1,9 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getDictionary } from "@/lib/i18n/server";
-import { createClient, type SupabaseServerClient } from "@/lib/supabase/server";
-import { getSessionUser } from "@/lib/auth";
+import type { SupabaseServerClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth";
 import { localMidnightInstant, monthBoundsOf, parseLocalDate } from "@/lib/dates";
 import { advanceDate } from "@/lib/recurring";
 import { budgetStatus } from "@/lib/budget";
@@ -43,9 +42,7 @@ export async function setBudget(input: {
 	amount: number | null;
 	clock: ClientClock;
 }): Promise<{ success: true } | { error: string }> {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	const t = await getDictionary();
+	const { supabase, user, t } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	if (input.amount !== null && !(input.amount > 0)) {
@@ -83,9 +80,7 @@ export async function getBudgetForCategory(
 	categoryId: string,
 	clock: ClientClock,
 ): Promise<{ data: { period: BudgetPeriod; amount: number } | null } | { error: string }> {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	const t = await getDictionary();
+	const { supabase, user, t } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	const rows = await readBudgetsAt(supabase, clock);
@@ -104,9 +99,7 @@ export async function getBudgetForCategory(
 export async function getGlobalBudget(
 	clock: ClientClock,
 ): Promise<{ data: number | null } | { error: string }> {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	const t = await getDictionary();
+	const { supabase, user, t } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	const rows = await readBudgetsAt(supabase, clock);
@@ -123,9 +116,7 @@ export async function getGlobalBudget(
 export async function getBudgetOverview(
 	clock: ClientClock,
 ): Promise<{ data: BudgetOverview } | { error: string }> {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	const t = await getDictionary();
+	const { supabase, user, t } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	const [rows, fixed] = await Promise.all([
@@ -240,9 +231,7 @@ export async function getBudgetOverview(
 export async function getFixedOutflows(
 	clock: ClientClock,
 ): Promise<{ data: number } | { error: string }> {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	const t = await getDictionary();
+	const { supabase, user, t } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	return readFixedOutflows(supabase, user.id, clock);

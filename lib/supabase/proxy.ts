@@ -24,6 +24,22 @@ export async function updateSession(request: NextRequest) {
 		request,
 	});
 
+	/*
+	 * Gli header che `@supabase/ssr` impone accanto ai cookie di sessione:
+	 * `Cache-Control: private, no-cache, no-store, must-revalidate, max-age=0`,
+	 * `Expires: 0`, `Pragma: no-cache`.
+	 *
+	 * ⚠️ Vanno TENUTI DA PARTE, non solo applicati a `supabaseResponse`. La
+	 * documentazione della libreria è esplicita sul perché: *"Responses that set
+	 * auth cookies must not be cached by CDNs or reverse proxies, otherwise one
+	 * user's session token can be served to a different user."* Il ramo di
+	 * redirect qui sotto costruisce una risposta NUOVA, e prima copiava solo i
+	 * cookie: usciva un 307 con dei token di sessione in `Set-Cookie` e nessuna
+	 * direttiva di cache — esattamente la forma che la libreria dice di non
+	 * produrre mai.
+	 */
+	let authHeaders: Record<string, string> = {};
+
 	// With Fluid compute, don't put this client in a global environment
 	// variable. Always create a new one on each request.
 	const supabase = createServerClient(
@@ -44,6 +60,7 @@ export async function updateSession(request: NextRequest) {
 					cookiesToSet.forEach(({ name, value, options }) =>
 						supabaseResponse.cookies.set(name, value, options),
 					);
+					authHeaders = { ...authHeaders, ...headers };
 					Object.entries(headers).forEach(([key, value]) =>
 						supabaseResponse.headers.set(key, value),
 					);
@@ -89,6 +106,13 @@ export async function updateSession(request: NextRequest) {
 		 */
 		supabaseResponse.cookies.getAll().forEach((cookie) => {
 			redirect.cookies.set(cookie);
+		});
+
+		// I cookie senza le loro direttive di cache sono la metà pericolosa del
+		// travaso: una risposta con `Set-Cookie` di sessione e nessun `no-store`
+		// è memorizzabile da un CDN, e il token finirebbe a un altro utente.
+		Object.entries(authHeaders).forEach(([key, value]) => {
+			redirect.headers.set(key, value);
 		});
 
 		return redirect;

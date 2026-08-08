@@ -30,8 +30,16 @@ export type ActionResult = { error: string } | { success: true };
  * di qui, quindi è il punto in cui la lingua arriva senza che nessuna funzione
  * debba ricordarsi di chiederla. I messaggi d'errore sono testo rivolto
  * all'utente come qualsiasi altro.
+ *
+ * ⚠️ **`LIVE` nel nome non è decorativo: distingue da `requireUser()` di
+ * `lib/auth.ts`**, che legge le claims del JWT. Quella è una fotografia; questa
+ * interroga GoTrue e torna l'utente di ADESSO — `email` e `identities`
+ * compresi. Le action di questo file lo esigono: dopo un cambio email
+ * confermato le claims restano indietro fino alla scadenza del token, e
+ * `deleteAccount()` confronta proprio l'indirizzo. Con i due nomi uguali, un
+ * domani basterebbe un import distratto per riaprire il difetto.
  */
-async function requireUser() {
+async function requireLiveUser() {
 	const supabase = await createClient();
 	const {
 		data: { user },
@@ -62,7 +70,7 @@ async function reauthenticate(email: string, password: string): Promise<string |
 /* ------------------------------------------------------------------ */
 
 export async function updateFullName(fullName: string): Promise<ActionResult> {
-	const { supabase, user, t } = await requireUser();
+	const { supabase, user, t } = await requireLiveUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	const name = fullName.trim().replace(/\s+/g, " ");
@@ -116,7 +124,7 @@ async function purgeAvatarFiles(
 }
 
 export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
-	const { supabase, user, t } = await requireUser();
+	const { supabase, user, t } = await requireLiveUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	const file = formData.get("avatar");
@@ -171,7 +179,7 @@ export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
 }
 
 export async function removeAvatar(): Promise<ActionResult> {
-	const { supabase, user, t } = await requireUser();
+	const { supabase, user, t } = await requireLiveUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	// Stesso principio di uploadAvatar, al contrario: prima si toglie il
@@ -195,7 +203,7 @@ export async function removeAvatar(): Promise<ActionResult> {
 
 /** Passo 1: conferma dell'identità prima di mostrare il campo nuova email. */
 export async function verifyCurrentPassword(password: string): Promise<ActionResult> {
-	const { user, t } = await requireUser();
+	const { user, t } = await requireLiveUser();
 	if (!user?.email) return { error: t.errors.notAuthenticated };
 	if (!password) return { error: t.errors.enterPassword };
 
@@ -208,7 +216,7 @@ export async function requestEmailChange(
 	newEmail: string,
 	password: string,
 ): Promise<ActionResult> {
-	const { supabase, user, t } = await requireUser();
+	const { supabase, user, t } = await requireLiveUser();
 	if (!user?.email) return { error: t.errors.notAuthenticated };
 
 	const email = newEmail.trim().toLowerCase();
@@ -243,7 +251,7 @@ export async function changePassword(
 	newPassword: string,
 	confirmPassword: string,
 ): Promise<ActionResult> {
-	const { supabase, user, t } = await requireUser();
+	const { supabase, user, t } = await requireLiveUser();
 	if (!user?.email) return { error: t.errors.notAuthenticated };
 
 	// `validateNewPassword` restituisce un codice, non una frase: la frase la
@@ -276,7 +284,7 @@ export async function changePassword(
 /* ------------------------------------------------------------------ */
 
 export async function deleteAccount(confirmEmail: string, password: string) {
-	const { supabase, user, t } = await requireUser();
+	const { supabase, user, t } = await requireLiveUser();
 	if (!user?.email) return { error: t.errors.notAuthenticated };
 
 	if (confirmEmail.trim().toLowerCase() !== user.email.toLowerCase()) {

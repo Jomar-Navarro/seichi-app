@@ -1,9 +1,8 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { getDictionary, getI18n } from "@/lib/i18n/server";
+import { getI18n } from "@/lib/i18n/server";
 import { formatDate, shortMonth } from "@/lib/i18n/format";
-import { createClient } from "@/lib/supabase/server";
-import { getSessionUser } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { firstRunFrom, rollForwardPastToday } from "@/lib/recurring";
 import type { Frequency } from "@/types";
 
@@ -14,9 +13,7 @@ export async function saveTransaction(
 	nota: string | null,
 	data: string,
 ) {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	const t = await getDictionary();
+	const { supabase, user, t } = await requireUser();
 
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -39,9 +36,7 @@ export async function getTransactions(
 	periodo?: string,
 	limit?: number,
 ) {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	const t = await getDictionary();
+	const { supabase, user, t } = await requireUser();
 
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -76,9 +71,7 @@ export async function updateTransaction(
 	nota: string | null,
 	data: string,
 ) {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	const t = await getDictionary();
+	const { supabase, user, t } = await requireUser();
 
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -100,9 +93,7 @@ export async function updateTransaction(
 }
 
 export async function deleteTransaction(id: string) {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	const t = await getDictionary();
+	const { supabase, user, t } = await requireUser();
 
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -127,9 +118,7 @@ export async function createRecurringRule(
 	start_date: string, // YYYY-MM-DD
 	frequency: string,
 ) {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	const t = await getDictionary();
+	const { supabase, user, t } = await requireUser();
 
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -157,9 +146,7 @@ export async function createRecurringRule(
 }
 
 export async function getRecurringRules() {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	const t = await getDictionary();
+	const { supabase, user, t } = await requireUser();
 
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -173,9 +160,7 @@ export async function getRecurringRules() {
 }
 
 export async function deleteRecurringRule(id: string) {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	const t = await getDictionary();
+	const { supabase, user, t } = await requireUser();
 
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -199,9 +184,7 @@ export async function updateRecurringRule(
 	frequency: string,
 	next_run: string, // YYYY-MM-DD
 ) {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	const t = await getDictionary();
+	const { supabase, user, t } = await requireUser();
 
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -224,9 +207,7 @@ export async function updateRecurringRule(
 }
 
 export async function setRecurringActive(id: string, active: boolean) {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	const t = await getDictionary();
+	const { supabase, user, t } = await requireUser();
 
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -260,9 +241,7 @@ export async function setRecurringActive(id: string, active: boolean) {
 }
 
 export async function getDashboardTotals() {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	const t = await getDictionary();
+	const { supabase, user, t } = await requireUser();
 
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -351,8 +330,7 @@ export async function getDashboardTotals() {
  */
 
 export async function getAnalyticsData(periodo: string = "mese") {
-	const supabase = await createClient();
-	const user = await getSessionUser();
+	const { supabase, user } = await requireUser();
 
 	const { locale, t } = await getI18n();
 	const month = (d: Date) => shortMonth(d, locale);

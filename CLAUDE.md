@@ -846,6 +846,39 @@ divergere, e chi se ne accorge?**". Un campo che serve a disegnare e un campo
 che serve a decidere hanno bisogni diversi anche quando contengono la stessa
 stringa.
 
+#### Un preambolo solo: `requireUser()`
+
+Le quattro righe di apertura (client, utente, dizionario, controllo) stavano
+copiate identiche in **32 server action su sei file**, e in un solo giorno hanno
+dovuto cambiare due volte: prima per passare alle claims, poi per gestire
+l'errore di `getClaims()`. Ogni volta una modifica a tappeto in cui **applicarla
+a metà non si vede** — la stessa "migrazione a campione" descritta nella Fase 18.
+Ora sono una chiamata: `const { supabase, user, t } = await requireUser()`.
+
+⚠️ **`requireUser()` (`lib/auth.ts`) e `requireLiveUser()`
+(`impostazioni/account/actions.ts`) NON sono intercambiabili**, e i nomi sono
+diversi apposta: la prima legge le claims (fotografia), la seconda interroga
+GoTrue (utente di adesso, `email` e `identities` compresi). Con lo stesso nome
+basterebbe un import distratto per riaprire il difetto dell'eliminazione account.
+
+#### Le risposte con i cookie di sessione non devono essere memorizzabili
+
+`@supabase/ssr` passa a `setAll` un secondo argomento con
+`Cache-Control: private, no-cache, no-store, must-revalidate, max-age=0`,
+`Expires: 0`, `Pragma: no-cache`, e la sua documentazione dice perché:
+*"Responses that set auth cookies must not be cached by CDNs or reverse proxies,
+otherwise one user's session token can be served to a different user."*
+
+- Nel **proxy** quegli header ora vengono tenuti da parte e applicati **anche al
+  ramo di redirect**, che costruisce una risposta nuova e prima copiava i soli
+  cookie: usciva un 307 con dei token in `Set-Cookie` e nessuna direttiva.
+- ⚠️ **`lib/supabase/server.ts` NON può applicarli**, e non è una svista: in un
+  Server Component `cookies()` non ha un canale per gli header di risposta, e in
+  un Route Handler la `Response` nasce dopo il client. La copertura sta in
+  `next.config.ts`, con una regola `headers()` sulle quattro rotte che scrivono
+  cookie di sessione fuori dal proxy — `/callback`, `/auth/confirm` e i due
+  signout. Verificata a runtime.
+
 #### `cache()` su `createClient()`
 
 Non è cosmesi: senza, la home istanziava cinque client, ognuno col proprio client
@@ -968,8 +1001,9 @@ di lettura.
   impone, ma senza di essa un dispositivo sbloccato basterebbe a prendere l'account.
   Il controllo va rifatto a ogni server action: lo stato del passo precedente vive sul
   client e non è affidabile.
-- **Chi legge l'utente usa `getSessionUser()` (`lib/auth.ts`), non
-  `auth.getUser()`** — quest'ultima è una chiamata di rete a ogni invocazione.
+- **Ogni server action che legge dati apre con `requireUser()` (`lib/auth.ts`)**,
+  che dà client, utente (dalle claims) e dizionario in un colpo solo. Non
+  `auth.getUser()` — quest'ultima è una chiamata di rete a ogni invocazione.
   Le eccezioni sono le operazioni sensibili qui sopra, `resetPassword`, il gate
   di `/reimposta-password`, il `/callback` **e tutto ciò che passa da
   `getAccountContext()`**: là serve la verifica lato server, perché le claims

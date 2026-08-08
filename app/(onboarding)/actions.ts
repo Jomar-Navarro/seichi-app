@@ -1,16 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
-import { getSessionUser } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { isCurrency, normalizeLocale } from "@/lib/i18n/config";
-import { getDictionary, setLocaleCookie } from "@/lib/i18n/server";
+import { setLocaleCookie } from "@/lib/i18n/server";
 
 export async function savePreferences(currency: string, language: string) {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-
-	const t = await getDictionary();
+	const { supabase, user, t } = await requireUser();
 
 	if (!user) return { error: t.errors.notAuthenticated };
 
@@ -99,9 +95,7 @@ const CATEGORY_MAP: Record<string, { icon: string; color: string; type: string }
 const ONBOARDING_TYPES = ["entrata", "spesa", "risparmio", "investimento", "abbonamento"];
 
 export async function saveCategories(selected: string[]) {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	const t = await getDictionary();
+	const { supabase, user, t } = await requireUser();
 
 	if (!user) return { error: t.errors.notAuthenticated };
 

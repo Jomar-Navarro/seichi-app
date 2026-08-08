@@ -1,11 +1,11 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { getSessionUser } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { isCurrency, normalizeLocale } from "@/lib/i18n/config";
-import { getDictionary, setLocaleCookie } from "@/lib/i18n/server";
+import { setLocaleCookie } from "@/lib/i18n/server";
 import type { Category } from "@/types";
 
 // Il colore di una categoria deriva dal suo tipo (design Zen Glass)
@@ -20,9 +20,7 @@ const TYPE_COLOR: Record<string, string> = {
 const VALID_TYPES = Object.keys(TYPE_COLOR);
 
 export async function getCategories(): Promise<{ data: Category[] } | { error: string }> {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	const t = await getDictionary();
+	const { supabase, user, t } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	const { data, error } = await supabase
@@ -35,9 +33,7 @@ export async function getCategories(): Promise<{ data: Category[] } | { error: s
 }
 
 export async function createCategory(input: { name: string; icon: string; type: string }) {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	const t = await getDictionary();
+	const { supabase, user, t } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	const name = input.name.trim();
@@ -68,9 +64,7 @@ export async function updateCategory(
 	id: string,
 	input: { name: string; icon: string; type: string },
 ) {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	const t = await getDictionary();
+	const { supabase, user, t } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	const name = input.name.trim();
@@ -94,9 +88,7 @@ export async function updateCategory(
 }
 
 export async function deleteCategory(id: string) {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	const t = await getDictionary();
+	const { supabase, user, t } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	// Blocca l'eliminazione se ci sono movimenti collegati (nessuna perdita accidentale)
@@ -126,9 +118,7 @@ export async function deleteCategory(id: string) {
 }
 
 export async function updatePreferences(currency: string, language: string) {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	const t = await getDictionary();
+	const { supabase, user, t } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	// Stessa validazione di `savePreferences`, su ENTRAMBI i parametri: la

@@ -1,10 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient, type SupabaseServerClient } from "@/lib/supabase/server";
-import { getSessionUser } from "@/lib/auth";
+import type { SupabaseServerClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth";
 import { renderNotification } from "@/lib/notifications";
-import { getDictionary, getI18n } from "@/lib/i18n/server";
+import { getI18n } from "@/lib/i18n/server";
 import type { AppNotification, RenderedNotification } from "@/types";
 
 /**
@@ -24,9 +24,8 @@ const PANEL_LIMIT = 30;
 export async function getNotifications(): Promise<
 	{ data: RenderedNotification[]; unread: number } | { error: string }
 > {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	if (!user) return { error: (await getDictionary()).errors.notAuthenticated };
+	const { supabase, user, t } = await requireUser();
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	// ⚠️ La query del conteggio sta QUI, non dietro una chiamata a
 	// `getUnreadCount()`. Quella è una server action a sé: apriva un secondo
@@ -55,7 +54,9 @@ export async function getNotifications(): Promise<
 	const currency = profile?.currency || "EUR";
 	// La lingua arriva dal cookie: le frasi si compongono ADESSO, quindi anche
 	// una notifica di due mesi fa esce nella lingua attuale dell'utente.
-	const { locale, t } = await getI18n();
+	// Qui serve il `locale` oltre al dizionario, che `requireUser()` non porta:
+	// `renderNotification` formatta importi e date, non solo parole.
+	const { locale } = await getI18n();
 
 	const rendered = (data ?? []).map((row) => {
 		const n = row as AppNotification;
@@ -81,9 +82,8 @@ function unreadCountQuery(supabase: SupabaseServerClient, userId: string) {
 
 /** Il numero per il badge sulla campanella. */
 export async function getUnreadCount(): Promise<{ data: number } | { error: string }> {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	if (!user) return { error: (await getDictionary()).errors.notAuthenticated };
+	const { supabase, user, t } = await requireUser();
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const { count, error } = await unreadCountQuery(supabase, user.id);
 
@@ -101,9 +101,8 @@ export async function getUnreadCount(): Promise<{ data: number } | { error: stri
 export async function markNotificationRead(
 	id: string,
 ): Promise<{ success: true } | { error: string }> {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	if (!user) return { error: (await getDictionary()).errors.notAuthenticated };
+	const { supabase, user, t } = await requireUser();
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const { error } = await supabase
 		.from("notifications")
@@ -119,9 +118,8 @@ export async function markNotificationRead(
 export async function markAllNotificationsRead(): Promise<
 	{ success: true } | { error: string }
 > {
-	const supabase = await createClient();
-	const user = await getSessionUser();
-	if (!user) return { error: (await getDictionary()).errors.notAuthenticated };
+	const { supabase, user, t } = await requireUser();
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	// Il filtro su `read` non è cosmetico: senza, l'UPDATE riscriverebbe ogni
 	// riga dell'utente a ogni tocco, comprese quelle già lette.

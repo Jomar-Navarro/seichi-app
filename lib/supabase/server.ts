@@ -27,6 +27,21 @@ export const createClient = cache(async () => {
 				getAll() {
 					return cookieStore.getAll();
 				},
+				/*
+					⚠️ Il secondo argomento di `setAll` — gli header `no-store` che
+					devono accompagnare i cookie di sessione — qui viene ignorato, e
+					non per svista: NON È RAGGIUNGIBILE DA QUESTO PUNTO.
+
+					In un Server Component `cookies()` non offre alcun canale per gli
+					header di risposta; in un Route Handler la `Response` viene
+					costruita dopo, dall'handler stesso, che questo client non conosce.
+					Applicarli richiederebbe di cambiare ogni handler, non questo file.
+
+					La copertura arriva da due punti: il proxy, che quegli header li
+					applica davvero (`lib/supabase/proxy.ts`), e la regola `headers()`
+					in `next.config.ts` per le quattro rotte che scrivono cookie di
+					sessione fuori dal proxy.
+				*/
 				setAll(cookiesToSet) {
 					try {
 						cookiesToSet.forEach(({ name, value, options }) =>

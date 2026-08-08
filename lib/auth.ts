@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { getDictionary } from "@/lib/i18n/server";
 
 /**
  * L'identità dell'utente per questa richiesta, letta dalle CLAIMS del JWT.
@@ -126,3 +127,30 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
 		email: typeof claims.email === "string" ? claims.email : "",
 	};
 });
+
+/**
+ * L'apertura di ogni server action che legge dati: client, utente e dizionario.
+ *
+ * ⚠️ **Esiste per avere UN posto da cambiare, non per risparmiare righe.** Quelle
+ * quattro righe stavano copiate identiche in una ventina di action su sei file, e
+ * in un solo giorno hanno dovuto cambiare due volte — prima per passare alle
+ * claims, poi per gestire l'errore di `getClaims()`. Ogni volta è stata una
+ * modifica a tappeto in cui **applicarla a metà non si vede**: è la stessa
+ * "migrazione a campione" che la sezione Fase 18 di questo progetto descrive
+ * come il modo tipico in cui i difetti entrano di soppiatto.
+ *
+ * Il dizionario arriva insieme perché ogni chiamante lo usa subito dopo, per il
+ * messaggio di "non autenticato": tenerlo fuori avrebbe lasciato metà del
+ * preambolo duplicato, cioè non avrebbe risolto niente.
+ *
+ * ⚠️ **Non è la stessa cosa di `requireLiveUser()`** in
+ * `impostazioni/account/actions.ts`. Quella interroga il server e restituisce
+ * l'utente VIVO, e i due nomi sono diversi apposta: le operazioni sensibili
+ * sull'account non possono lavorare su una fotografia.
+ */
+export async function requireUser() {
+	const supabase = await createClient();
+	// Il dizionario non dipende dall'utente: si carica in parallelo.
+	const [user, t] = await Promise.all([getSessionUser(), getDictionary()]);
+	return { supabase, user, t };
+}
