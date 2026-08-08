@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
@@ -75,7 +76,29 @@ export async function updateSession(request: NextRequest) {
 
 	// IMPORTANT: If you remove getClaims() and you use server-side rendering
 	// with the Supabase client, your users may be randomly logged out.
-	const { data } = await supabase.auth.getClaims();
+	const { data, error } = await supabase.auth.getClaims();
+
+	/*
+	 * ⚠️ **Un guasto di rete non è un logout, e qui la differenza si vedeva.**
+	 *
+	 * L'`error` veniva scartato, quindi un JWKS irraggiungibile o un GoTrue lento
+	 * finivano nello stesso cesto di "token non valido": l'utente, con una
+	 * sessione perfettamente buona, veniva spedito su /welcome. Un redirect è una
+	 * **affermazione** — dice "non sei autenticato" — e lì era falsa.
+	 *
+	 * Su un guasto passeggero si lascia passare la richiesta. Non è un buco:
+	 * il proxy è una comodità di navigazione, NON il perimetro di sicurezza.
+	 * Quello sono la RLS sul database e il controllo che ogni pagina e ogni
+	 * action rifanno per conto proprio — necessario comunque, perché una server
+	 * action è raggiungibile con una POST diretta. A valle `getSessionUser()`
+	 * incontrerà lo stesso guasto e solleverà, quindi si vede una pagina di
+	 * errore: sgradevole ma **vera e ricaricabile**, invece di un logout che
+	 * mente e costringe a ridigitare le credenziali.
+	 */
+	if (error && isAuthRetryableFetchError(error)) {
+		console.error("[proxy] getClaims non raggiungibile:", error.message);
+		return supabaseResponse;
+	}
 
 	const user = data?.claims;
 
@@ -87,22 +110,35 @@ export async function updateSession(request: NextRequest) {
 		const redirect = NextResponse.redirect(url);
 
 		/*
-		 * ⚠️ I cookie di `supabaseResponse` vanno RICOPIATI, non abbandonati.
+		 * ⚠️ I cookie di `supabaseResponse` vanno RICOPIATI, non abbandonati —
+		 * ma il motivo NON è quello che diceva la versione precedente di questo
+		 * commento, e vale la pena scriverlo giusto perché la differenza cambia
+		 * il giudizio su cosa fa questo blocco.
 		 *
-		 * `getClaims()` può aver ruotato il refresh token — che è monouso — e
-		 * scritto le credenziali nuove su `supabaseResponse` dentro `setAll`.
-		 * Questa è una risposta creata da zero: senza il travaso, quel rinnovo
-		 * viene buttato e il browser resta con il token vecchio, ormai consumato.
+		 * Il commento vecchio parlava di "salvare la rotazione". **Quella non
+		 * passa quasi mai di qui**: se il refresh riesce, `getClaims()` torna le
+		 * claims, `user` è valorizzato e la funzione esce dall'altro ramo. E
+		 * sosteneva che un redirect nudo "cancellasse il cookie buono": un
+		 * `NextResponse.redirect()` senza `Set-Cookie` non cancella nulla — non
+		 * ha alcun header con cui farlo.
 		 *
-		 * Il difetto si vede solo sotto CONCORRENZA, ed è per questo che si
-		 * manifesta all'hard refresh: la pagina e i prefetch RSC della BottomNav
-		 * partono insieme, uno solo vince la rotazione e gli altri arrivano con il
-		 * token già bruciato. Rispondendo con un redirect nudo, quelli cancellano
-		 * anche il cookie buono appena scritto dal primo, e il giro ricomincia.
+		 * Ciò che davvero arriva qui è l'opposto: il refresh è FALLITO, auth-js
+		 * ha dismesso la sessione e `setAll` ha scritto delle CANCELLAZIONI.
+		 * Inoltrarle è la cosa giusta — il token è morto, e ripulire impedisce al
+		 * browser di ripresentarlo a ogni richiesta successiva. Abbandonarle
+		 * lasciava cookie zombie che facevano ritentare un refresh destinato a
+		 * fallire per sempre.
 		 *
-		 * Conseguenza a valle: un prefetch RSC che riceve un redirect inatteso fa
-		 * ripiegare il client su una navigazione piena del browser — cioè il
-		 * ricaricamento ripetuto della stessa pagina.
+		 * ⚠️ Il rischio residuo, dichiarato: sotto concorrenza una richiesta che
+		 * perde la corsa potrebbe cancellare i cookie buoni appena scritti da una
+		 * sorella. È mitigato **da GoTrue, non da questo codice** — il
+		 * *refresh token reuse interval* (10 secondi di default) fa sì che le
+		 * richieste parallele con lo stesso refresh token ricevano tutte la
+		 * STESSA sessione nuova invece di un errore: esiste esattamente per il
+		 * burst di prefetch dell'hard refresh. Oltre quella finestra un
+		 * fallimento significa che il token è morto davvero, e allora cancellare
+		 * è corretto. Se un giorno quell'intervallo venisse portato a 0 nelle
+		 * impostazioni Auth del progetto, questo blocco va rivisto.
 		 */
 		supabaseResponse.cookies.getAll().forEach((cookie) => {
 			redirect.cookies.set(cookie);

@@ -925,6 +925,46 @@ dell'account**, tutta la storia, per produrre una trentina di numeri.
   vecchia strada, di proposito — un fallback silenzioso nasconderebbe una
   migration non eseguita e l'app girerebbe per mesi sulla via lenta.
 
+#### Il proxy: un redirect è un'AFFERMAZIONE
+
+`updateSession()` scartava l'`error` di `getClaims()` esattamente come faceva
+`getSessionUser()`. Stesso difetto, conseguenza peggiore: un JWKS irraggiungibile
+o un GoTrue lento finivano nello stesso cesto di "token non valido", e l'utente —
+con una sessione buona — veniva spedito su `/welcome`. Un redirect **dichiara**
+"non sei autenticato", e lì era una dichiarazione falsa.
+
+Ora su un errore di rete la richiesta **passa**. Non è un buco, ed è la parte che
+va capita: ⚠️ **il proxy è una comodità di navigazione, non il perimetro di
+sicurezza.** Il perimetro sono la RLS e il controllo che ogni pagina e ogni
+action rifanno da sé — necessario comunque, perché una server action è
+raggiungibile con una POST diretta. Verificato: tutte e dodici le pagine di
+`(main)` passano da un loader che autentica. A valle `getSessionUser()` incontra
+lo stesso guasto e solleva, quindi si vede una pagina d'errore: sgradevole ma
+**vera e ricaricabile**, invece di un logout che mente.
+
+#### ⚠️ Il travaso dei cookie nel redirect fa il contrario di quel che diceva
+
+Il commento originale sosteneva di "salvare la rotazione" persa da un redirect
+nudo. Riesaminato, **era sbagliato due volte**:
+
+- la rotazione riuscita non passa quasi mai di lì — se il refresh va a buon fine
+  `getClaims()` torna le claims, `user` è valorizzato e si esce dall'altro ramo;
+- un `NextResponse.redirect()` senza `Set-Cookie` **non può cancellare niente**:
+  non ha alcun header con cui farlo.
+
+Ciò che arriva davvero in quel ramo è l'opposto: refresh **fallito**, sessione
+dismessa da auth-js, e `setAll` che scrive delle **cancellazioni**. Inoltrarle è
+comunque la cosa giusta — il token è morto, e ripulire impedisce al browser di
+ripresentarlo a ogni richiesta. Il codice resta, il commento no.
+
+⚠️ Rischio residuo dichiarato: sotto concorrenza una richiesta che perde la corsa
+potrebbe cancellare i cookie appena scritti da una sorella. È mitigato **da
+GoTrue, non da noi** — il *refresh token reuse interval* (10s di default) fa sì
+che le richieste parallele con lo stesso refresh token ricevano tutte la stessa
+sessione nuova invece di un errore, ed esiste esattamente per il burst di
+prefetch dell'hard refresh. Se venisse portato a 0 nelle impostazioni Auth, quel
+blocco va rivisto.
+
 #### Cosa NON era il problema
 
 Vale la pena saperlo prima di rimettere mano a questa zona:
