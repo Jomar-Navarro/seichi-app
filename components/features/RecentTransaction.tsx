@@ -7,13 +7,14 @@ import { useUIStore } from "@/store/useUIStore";
 import type { Transaction } from "@/types";
 import {
 	TIPO_INK,
-	TIPO_LABEL,
 	formatDate,
 	formatAmount,
 } from "@/lib/transaction-utils";
+import { useI18n } from "./I18nProvider";
 
 function EmptyState() {
 	const { openTransactionModal } = useUIStore();
+	const { t } = useI18n();
 	return (
 		<div className="flex flex-col items-center justify-center py-10 text-center">
 			<button
@@ -22,9 +23,9 @@ function EmptyState() {
 			>
 				<Plus size={20} className="text-muted" />
 			</button>
-			<p className="font-semibold mb-1">Ancora nessun movimento</p>
+			<p className="font-semibold mb-1">{t.home.emptyTitle}</p>
 			<p className="text-sm text-muted max-w-xs leading-relaxed">
-				Aggiungi il primo movimento per iniziare.
+				{t.home.emptyDescription}
 			</p>
 		</div>
 	);
@@ -38,18 +39,19 @@ export default function RecentTransaction({
 	transactions,
 }: RecentTransactionProps) {
 	const { openEditModal } = useUIStore();
+	const { locale, t } = useI18n();
 
 	return (
 		<div>
 			{/* Header — esterno al card */}
 			<div className="flex items-center justify-between mb-3">
-				<p className="font-semibold">Transazioni recenti</p>
+				<p className="font-semibold">{t.home.recentTitle}</p>
 				<Link
 					href="/transazioni"
 					className="text-sm font-medium"
 					style={{ color: "var(--ink-midori)" }}
 				>
-					Vedi tutte →
+					{t.home.seeAll}
 				</Link>
 			</div>
 
@@ -65,17 +67,17 @@ export default function RecentTransaction({
 					</div>
 				) : (
 					<div className="flex flex-col">
-						{transactions.map((t, i) => {
-								const cat = t.categories;
+						{transactions.map((tx, i) => {
+								const cat = tx.categories;
 								const Icon = cat ? (ICON_MAP[cat.icon] ?? GOAL_ICON_MAP[cat.icon]) : null;
 								const color = `var(--color-${cat?.color ?? "kiri"})`;
-								const amountColor = TIPO_INK[t.type] ?? "var(--text-primary)";
+								const amountColor = TIPO_INK[tx.type] ?? "var(--text-primary)";
 								const isLast = i === transactions.length - 1;
 
 								return (
 									<button
-										key={t.id}
-										onClick={() => openEditModal(t)}
+										key={tx.id}
+										onClick={() => openEditModal(tx)}
 										className={`w-full flex items-center gap-3.5 px-4 py-3.5 text-left active:opacity-75 transition-opacity ${!isLast ? "border-b border-subtle" : ""}`}
 									>
 										<div
@@ -98,14 +100,14 @@ export default function RecentTransaction({
 												{cat?.name ?? "—"}
 											</p>
 											<p className="text-xs text-muted mt-0.5">
-												{TIPO_LABEL[t.type]} · {formatDate(t.date)}
+												{t.types[tx.type as keyof typeof t.types]} · {formatDate(tx.date, locale)}
 											</p>
 										</div>
 										<p
 											className="text-sm font-semibold shrink-0"
 											style={{ color: amountColor }}
 										>
-											{formatAmount(t.amount, t.type)}
+											{formatAmount(tx.amount, tx.type, locale)}
 										</p>
 									</button>
 								);

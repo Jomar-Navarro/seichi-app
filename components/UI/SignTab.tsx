@@ -1,3 +1,7 @@
+"use client";
+
+import { useI18n } from "@/components/features/I18nProvider";
+
 interface SignTabProps {
 	onSignUp: () => void;
 	onSignIn: () => void;
@@ -9,6 +13,8 @@ export default function SignTab({
 	onSignIn,
 	activeTab,
 }: SignTabProps) {
+	const { t } = useI18n();
+
 	return (
 		<>
 			{/* Segmented tab control */}
@@ -18,14 +24,14 @@ export default function SignTab({
 					type="button"
 					className={`grow shrink basis-0 p-3 rounded-2xl cursor-pointer text-sm font-semibold ${activeTab === "signin" ? "active-tab" : ""}`}
 				>
-					Accedi
+					{t.auth.tabs.signIn}
 				</button>
 				<button
 					onClick={onSignUp}
 					type="button"
 					className={`grow shrink basis-0 p-3 rounded-2xl cursor-pointer text-sm font-semibold ${activeTab === "signup" ? "active-tab" : ""}`}
 				>
-					Registrati
+					{t.auth.tabs.signUp}
 				</button>
 			</div>
 		</>

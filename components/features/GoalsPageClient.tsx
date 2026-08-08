@@ -5,6 +5,8 @@ import { Plus } from "lucide-react";
 import GoalCard from "./GoalCard";
 import GoalSheet from "./GoalSheet";
 import EmptyState from "@/components/UI/EmptyState";
+import { useI18n } from "./I18nProvider";
+import { plural } from "@/lib/i18n/format";
 import type { GoalWithProgress } from "@/types";
 
 interface GoalsPageClientProps {
@@ -12,6 +14,7 @@ interface GoalsPageClientProps {
 }
 
 export default function GoalsPageClient({ goals }: GoalsPageClientProps) {
+	const { locale, t } = useI18n();
 	const [sheetOpen, setSheetOpen] = useState(false);
 	const [editingGoal, setEditingGoal] = useState<GoalWithProgress | null>(null);
 
@@ -42,10 +45,10 @@ export default function GoalsPageClient({ goals }: GoalsPageClientProps) {
 			{/* Header */}
 			<div className="flex items-start justify-between mb-1.5">
 				<div>
-					<h1 className="text-[26px] font-semibold leading-tight">Obiettivi</h1>
+					<h1 className="text-[26px] font-semibold leading-tight">{t.goals.title}</h1>
 					<p className="text-[12.5px] text-muted mt-1">
-						{active.length} {active.length === 1 ? "attivo" : "attivi"} · {completed.length}{" "}
-						{completed.length === 1 ? "completato" : "completati"}
+						{plural(t.goals.activeCount, active.length, locale)} ·{" "}
+						{plural(t.goals.completedCount, completed.length, locale)}
 					</p>
 				</div>
 				<button
@@ -54,7 +57,7 @@ export default function GoalsPageClient({ goals }: GoalsPageClientProps) {
 					style={{ background: "var(--surface-elevated)" }}
 				>
 					<Plus size={13} strokeWidth={2.2} />
-					Nuovo
+					{t.goals.new}
 				</button>
 			</div>
 
@@ -62,9 +65,9 @@ export default function GoalsPageClient({ goals }: GoalsPageClientProps) {
 			{goals.length === 0 ? (
 				<div className="flex-1 flex items-center justify-center">
 					<EmptyState
-						title="Nessun obiettivo ancora"
-						description="Crea il tuo primo obiettivo per iniziare a metterlo da parte con calma."
-						actionLabel="Crea obiettivo"
+						title={t.goals.emptyTitle}
+						description={t.goals.emptyDescription}
+						actionLabel={t.goals.create}
 						onAction={openCreate}
 					/>
 				</div>
@@ -78,7 +81,7 @@ export default function GoalsPageClient({ goals }: GoalsPageClientProps) {
 						<>
 							{active.length > 0 && (
 								<p className="text-xs text-muted font-medium mt-1 mb-0.5 ml-1 tracking-wide">
-									Completati
+									{t.goals.completedSection}
 								</p>
 							)}
 							{completed.map((g) => (

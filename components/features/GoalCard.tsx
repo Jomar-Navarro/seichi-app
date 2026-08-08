@@ -3,21 +3,30 @@
 import { Check, Pencil } from "lucide-react";
 import { GOAL_ICON_MAP } from "@/lib/goal-icons";
 import { ICON_MAP } from "@/lib/icon-map";
+import { useI18n } from "./I18nProvider";
+import { DISPLAY_CURRENCY, fill, formatDate, formatMoney } from "@/lib/i18n/format";
+import type { Locale } from "@/lib/i18n/config";
 import type { GoalWithProgress } from "@/types";
 
-function formatAmount(n: number): string {
-	return new Intl.NumberFormat("it-IT", {
-		style: "currency",
-		currency: "EUR",
-		maximumFractionDigits: 0,
-		minimumFractionDigits: 0,
-	}).format(n);
+/**
+ * ⚠️ Passa da `formatMoney` e non da `style: "currency"`.
+ *
+ * Quest'ultimo, con `it-IT`, produce "180 €" — corretto per la convenzione
+ * italiana, ma tutto il resto dell'app scrive "€ 180" (card budget, importi
+ * delle transazioni, saldo). Era l'unico punto che usava l'altra disposizione,
+ * e in inglese sarebbe diventato un terzo formato ancora ("€180"). Ora segue la
+ * stessa convenzione di ogni altra cifra: simbolo davanti, spazio, numero.
+ */
+function formatAmount(n: number, locale: Locale): string {
+	return formatMoney(n, { locale, currency: DISPLAY_CURRENCY });
 }
 
-function formatTargetDate(target_date: string | null | undefined): string {
+function formatTargetDate(
+	target_date: string | null | undefined,
+	locale: Locale,
+): string {
 	if (!target_date) return "—";
-	const d = new Date(target_date);
-	return d.toLocaleDateString("it-IT", { month: "short", year: "numeric" });
+	return formatDate(target_date, locale, { month: "short", year: "numeric" });
 }
 
 function CircularRing({ percent, completed }: { percent: number; completed: boolean }) {
@@ -58,6 +67,7 @@ interface GoalCardProps {
 }
 
 export default function GoalCard({ goal, onEdit }: GoalCardProps) {
+	const { locale, t } = useI18n();
 	const hasTarget = goal.target_amount != null && goal.target_amount > 0;
 	const percent = hasTarget
 		? Math.min(100, Math.round((goal.saved_amount / goal.target_amount!) * 100))
@@ -107,10 +117,10 @@ export default function GoalCard({ goal, onEdit }: GoalCardProps) {
 					</p>
 					<p className="text-xs text-muted mt-0.5">
 						{completed
-							? `Raggiunto · ${formatTargetDate(goal.target_date)}`
+							? fill(t.goals.reached, { date: formatTargetDate(goal.target_date, locale) })
 							: goal.target_date
-								? `Scadenza · ${formatTargetDate(goal.target_date)}`
-								: "Nessuna scadenza"}
+								? fill(t.goals.deadline, { date: formatTargetDate(goal.target_date, locale) })
+								: t.goals.noDeadline}
 					</p>
 				</div>
 
@@ -124,11 +134,12 @@ export default function GoalCard({ goal, onEdit }: GoalCardProps) {
 
 			<p className="text-[12.5px] mt-3.5 font-medium">
 				<span style={{ color: completed ? "var(--color-kiri)" : "var(--color-foreground)" }}>
-					{formatAmount(goal.saved_amount)}
+					{formatAmount(goal.saved_amount, locale)}
 				</span>
 				{hasTarget && (
 					<span className="text-muted font-normal">
-						{" "}di {formatAmount(goal.target_amount!)}
+						{" "}
+						{t.goals.of} {formatAmount(goal.target_amount!, locale)}
 					</span>
 				)}
 			</p>

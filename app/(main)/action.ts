@@ -1,6 +1,8 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { getI18n } from "@/lib/i18n/server";
+import { formatDate, shortMonth } from "@/lib/i18n/format";
+import { requireUser } from "@/lib/auth";
 import { firstRunFrom, rollForwardPastToday } from "@/lib/recurring";
 import type { Frequency } from "@/types";
 
@@ -11,12 +13,9 @@ export async function saveTransaction(
 	nota: string | null,
 	data: string,
 ) {
-	const supabase = await createClient();
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
+	const { supabase, user, t } = await requireUser();
 
-	if (!user) return { error: "Non autenticato" };
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const { error } = await supabase.from("transactions").insert({
 		user_id: user.id,
@@ -37,12 +36,9 @@ export async function getTransactions(
 	periodo?: string,
 	limit?: number,
 ) {
-	const supabase = await createClient();
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
+	const { supabase, user, t } = await requireUser();
 
-	if (!user) return { error: "Non autenticato" };
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	let query = supabase
 		.from("transactions")
@@ -75,12 +71,9 @@ export async function updateTransaction(
 	nota: string | null,
 	data: string,
 ) {
-	const supabase = await createClient();
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
+	const { supabase, user, t } = await requireUser();
 
-	if (!user) return { error: "Non autenticato" };
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const { error } = await supabase
 		.from("transactions")
@@ -100,12 +93,9 @@ export async function updateTransaction(
 }
 
 export async function deleteTransaction(id: string) {
-	const supabase = await createClient();
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
+	const { supabase, user, t } = await requireUser();
 
-	if (!user) return { error: "Non autenticato" };
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const { error } = await supabase
 		.from("transactions")
@@ -128,12 +118,9 @@ export async function createRecurringRule(
 	start_date: string, // YYYY-MM-DD
 	frequency: string,
 ) {
-	const supabase = await createClient();
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
+	const { supabase, user, t } = await requireUser();
 
-	if (!user) return { error: "Non autenticato" };
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const { error } = await supabase.from("recurring_rules").insert({
 		user_id: user.id,
@@ -159,12 +146,9 @@ export async function createRecurringRule(
 }
 
 export async function getRecurringRules() {
-	const supabase = await createClient();
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
+	const { supabase, user, t } = await requireUser();
 
-	if (!user) return { error: "Non autenticato" };
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const { data, error } = await supabase
 		.from("recurring_rules")
@@ -176,12 +160,9 @@ export async function getRecurringRules() {
 }
 
 export async function deleteRecurringRule(id: string) {
-	const supabase = await createClient();
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
+	const { supabase, user, t } = await requireUser();
 
-	if (!user) return { error: "Non autenticato" };
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	// Elimina solo la regola: le transazioni già generate restano (recurring_rule_id -> null)
 	const { error } = await supabase
@@ -203,12 +184,9 @@ export async function updateRecurringRule(
 	frequency: string,
 	next_run: string, // YYYY-MM-DD
 ) {
-	const supabase = await createClient();
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
+	const { supabase, user, t } = await requireUser();
 
-	if (!user) return { error: "Non autenticato" };
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const { error } = await supabase
 		.from("recurring_rules")
@@ -229,12 +207,9 @@ export async function updateRecurringRule(
 }
 
 export async function setRecurringActive(id: string, active: boolean) {
-	const supabase = await createClient();
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
+	const { supabase, user, t } = await requireUser();
 
-	if (!user) return { error: "Non autenticato" };
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	// Al "riprendi": porta next_run al primo periodo futuro, così non genera
 	// una raffica di movimenti retroattivi per i periodi trascorsi in pausa.
@@ -266,97 +241,66 @@ export async function setRecurringActive(id: string, active: boolean) {
 }
 
 export async function getDashboardTotals() {
-	const supabase = await createClient();
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
+	const { supabase, user, t } = await requireUser();
 
-	if (!user) return { error: "Non autenticato" };
+	if (!user) return { error: t.errors.notAuthenticated };
 
-	let query = supabase
-		.from("transactions")
-		.select("amount, type")
-		.eq("user_id", user.id);
-
+	/*
+	 * Le somme le fa Postgres (`dashboard_totals`, migration 20260808).
+	 *
+	 * Prima questa funzione scaricava OGNI transazione dell'account — tutta la
+	 * storia, a ogni vista della home e dopo ogni salvataggio — per sommarle
+	 * qui. Ora torna al massimo una riga per (bucket, tipo): una trentina di
+	 * numeri, indipendentemente da quanto è lungo lo storico.
+	 *
+	 * ⚠️ I confini li calcola l'APP e li passa alla funzione: il fuso resta
+	 * quello del processo che rende la pagina, esattamente come prima. Farli
+	 * calcolare al database con `date_trunc` li avrebbe spostati in UTC,
+	 * cambiando in silenzio i totali in sviluppo locale nelle prime ore del mese.
+	 *
+	 * I 7 confini danno 6 bucket, e l'ULTIMO è il mese corrente — `m-5+i` con
+	 * i=5 è proprio `inizioMese`. Per questo il trend e il mese sono una domanda
+	 * sola: chiederli separatamente avrebbe sommato due volte le stesse righe.
+	 */
 	const now = new Date();
-	const inizioMese = new Date(now.getFullYear(), now.getMonth(), 1);
-	const inizioMeseProssimo = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-	query = query
-		.gte("date", inizioMese.toISOString())
-		.lt("date", inizioMeseProssimo.toISOString());
+	const TREND_MONTHS = 6;
+	const MESE_CORRENTE = TREND_MONTHS - 1;
 
-	const [{ data, error }, { data: dataTotale, error: errorTotale }] =
-		await Promise.all([
-			query,
-			supabase
-				.from("transactions")
-				.select("amount, type, date")
-				.eq("user_id", user.id),
-		]);
+	const bounds = Array.from({ length: TREND_MONTHS + 1 }, (_, i) =>
+		new Date(now.getFullYear(), now.getMonth() - (TREND_MONTHS - 1) + i, 1).toISOString(),
+	);
 
-	const entrateMese =
-		data
-			?.filter((t) => t.type === "entrata")
-			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
+	const { data, error } = await supabase.rpc("dashboard_totals", { p_bounds: bounds });
 
-	const speseMese =
-		data
-			?.filter((t) => t.type === "spesa")
-			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
+	if (error) return { error: error.message };
 
-	const investimentiMese =
-		data
-			?.filter((t) => t.type === "investimento")
-			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
+	type TotalRow = { bucket_index: number | null; type: string; total: number | string };
+	const totals = (data ?? []) as TotalRow[];
 
-	const risparmiMese =
-		data
-			?.filter((t) => t.type === "risparmio")
-			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
+	// `numeric` può arrivare come stringa a seconda di come PostgREST serializza:
+	// `Number()` al confine, una volta, invece di sperare che sia già un numero.
+	const somma = (bucket: number | null, tipo: string) =>
+		Number(totals.find((r) => r.bucket_index === bucket && r.type === tipo)?.total ?? 0);
 
-	const abbonaMese =
-		data
-			?.filter((t) => t.type === "abbonamento")
-			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
+	const entrateMese = somma(MESE_CORRENTE, "entrata");
+	const speseMese = somma(MESE_CORRENTE, "spesa");
+	const investimentiMese = somma(MESE_CORRENTE, "investimento");
+	const risparmiMese = somma(MESE_CORRENTE, "risparmio");
+	const abbonaMese = somma(MESE_CORRENTE, "abbonamento");
 
 	const saldoMese = entrateMese - speseMese - risparmiMese - investimentiMese - abbonaMese;
 
-	const entrateTotali =
-		dataTotale
-			?.filter((t) => t.type === "entrata")
-			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
-	const speseTotali =
-		dataTotale
-			?.filter((t) => t.type === "spesa")
-			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
-	const risparmiTotali =
-		dataTotale
-			?.filter((t) => t.type === "risparmio")
-			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
-	const investimentiTotali =
-		dataTotale
-			?.filter((t) => t.type === "investimento")
-			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
-	const abbonaTotali =
-		dataTotale
-			?.filter((t) => t.type === "abbonamento")
-			.reduce((acc, t) => acc + t.amount, 0) ?? 0;
-	const saldoTotale = entrateTotali - speseTotali - risparmiTotali - investimentiTotali - abbonaTotali;
-
-	if (error || errorTotale) return { error: (error ?? errorTotale)!.message };
+	// bucket NULL = nessuna finestra, cioè tutta la storia dell'account.
+	const saldoTotale =
+		somma(null, "entrata") -
+		somma(null, "spesa") -
+		somma(null, "risparmio") -
+		somma(null, "investimento") -
+		somma(null, "abbonamento");
 
 	// Trend ultimi 6 mesi per sparkline
-	const trendMonths = Array.from({ length: 6 }, (_, i) => ({
-		start: new Date(now.getFullYear(), now.getMonth() - 5 + i, 1),
-		end: new Date(now.getFullYear(), now.getMonth() - 5 + i + 1, 1),
-	}));
-
 	function monthlyTrend(tipo: string): number[] {
-		return trendMonths.map(({ start, end }) =>
-			(dataTotale ?? [])
-				.filter((t) => t.type === tipo && new Date(t.date) >= start && new Date(t.date) < end)
-				.reduce((acc, t) => acc + t.amount, 0),
-		);
+		return Array.from({ length: TREND_MONTHS }, (_, i) => somma(i, tipo));
 	}
 
 	return {
@@ -374,16 +318,26 @@ export async function getDashboardTotals() {
 	};
 }
 
-const MESI = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
-const GIORNI = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"];
+/*
+ * ⚠️ `MESI` e `GIORNI` erano due array italiani cablati — le etichette dell'asse
+ * X dei grafici. Sono l'unico testo di questo file, che per il resto fa solo
+ * query e aritmetica sulle date, ed erano invisibili al controllo sulle stringhe
+ * perché una sigla come "Ago" non ha spazi e non somiglia a una frase.
+ *
+ * Ora le produce `Intl` nella lingua dell'utente: il grafico è un server
+ * component e la lingua sta nel cookie, quindi la si legge qui e le etichette
+ * arrivano già giuste, senza cambiare la forma dei dati.
+ */
 
 export async function getAnalyticsData(periodo: string = "mese") {
-	const supabase = await createClient();
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
+	const { supabase, user } = await requireUser();
 
-	if (!user) return { error: "Non autenticato" };
+	const { locale, t } = await getI18n();
+	const month = (d: Date) => shortMonth(d, locale);
+	const weekday = (d: Date) =>
+		formatDate(d, locale, { weekday: "short" });
+
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const now = new Date();
 	const oggi = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -405,7 +359,7 @@ export async function getAnalyticsData(periodo: string = "mese") {
 		trendPoints = Array.from({ length: 7 }, (_, i) => {
 			const d = new Date(oggi.getFullYear(), oggi.getMonth(), oggi.getDate() - 6 + i);
 			return {
-				label: GIORNI[d.getDay()],
+				label: weekday(d),
 				start: d,
 				end: new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1),
 			};
@@ -417,7 +371,7 @@ export async function getAnalyticsData(periodo: string = "mese") {
 		prevEnd = rangeStart;
 		fetchStart = prevStart;
 		trendPoints = Array.from({ length: 12 }, (_, i) => ({
-			label: MESI[i],
+			label: month(new Date(now.getFullYear(), i, 1)),
 			start: new Date(now.getFullYear(), i, 1),
 			end: new Date(now.getFullYear(), i + 1, 1),
 		}));
@@ -431,7 +385,7 @@ export async function getAnalyticsData(periodo: string = "mese") {
 		trendPoints = Array.from({ length: 6 }, (_, i) => {
 			const m = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
 			return {
-				label: MESI[m.getMonth()],
+				label: month(m),
 				start: m,
 				end: new Date(now.getFullYear(), now.getMonth() - 5 + i + 1, 1),
 			};

@@ -13,9 +13,16 @@ import {
 import Button from "@/components/UI/Button";
 import Card from "@/components/UI/card";
 import OnboardingProgress from "@/components/UI/OnboardingProgress";
+import { useI18n } from "@/components/features/I18nProvider";
 import type { Option } from "@/components/UI/card";
+import type { Dictionary } from "@/lib/i18n/dictionaries/it";
 
 type ColorScheme = Option["color"];
+
+/** Le chiavi del catalogo dei preset — le stesse di CATEGORY_MAP nella action. */
+type PresetKey = keyof Dictionary["presetCategories"];
+/** I cinque gruppi del picker. */
+type GroupType = keyof Dictionary["onboarding"]["category"]["groups"];
 
 /**
  * L'alone della card selezionata era cablato sui valori SCURI degli accenti
@@ -34,71 +41,91 @@ const COLORS: Record<string, ColorScheme> = {
 	murasaki: { border: "border-murasaki", bg: "bg-murasaki/10", icon: "bg-murasaki/20", iconText: "text-murasaki", badge: "bg-murasaki", shadow: glow("murasaki") },
 };
 
-type Group = { label: string; colorKey: string; items: Omit<Option, "color">[] };
+/**
+ * Struttura del picker: gruppo, colore, chiavi e icone.
+ *
+ * ⚠️ Nessun testo (Fase 19). Titolo e sottotitolo di ogni voce vengono da
+ * `t.presetCategories[chiave]`, che è lo STESSO catalogo da cui `saveCategories()`
+ * prende il nome da scrivere nel database: se stessero in due posti, la card
+ * potrebbe dire "Groceries" e la categoria creata chiamarsi "Alimentari".
+ */
+type Group = {
+	type: GroupType;
+	colorKey: string;
+	items: { value: PresetKey; icon: React.ReactNode }[];
+};
 
 const TYPE_GROUPS: Group[] = [
 	{
-		label: "Entrate", colorKey: "midori",
+		type: "entrata", colorKey: "midori",
 		items: [
-			{ value: "stipendio",  title: "Stipendio",  subTitle: "Reddito mensile",     icon: <Banknote size={18} /> },
-			{ value: "freelance",  title: "Freelance",  subTitle: "Lavoro autonomo",      icon: <Briefcase size={18} /> },
-			{ value: "bonus",      title: "Bonus",      subTitle: "Premi e incentivi",    icon: <Award size={18} /> },
-			{ value: "regalo",     title: "Regalo",     subTitle: "Entrate inaspettate",  icon: <Gift size={18} /> },
-			{ value: "rimborso",   title: "Rimborso",   subTitle: "Spese rimborsate",     icon: <ArrowDownLeft size={18} /> },
+			{ value: "stipendio", icon: <Banknote size={18} /> },
+			{ value: "freelance", icon: <Briefcase size={18} /> },
+			{ value: "bonus",     icon: <Award size={18} /> },
+			{ value: "regalo",    icon: <Gift size={18} /> },
+			{ value: "rimborso",  icon: <ArrowDownLeft size={18} /> },
 		],
 	},
 	{
-		label: "Spese", colorKey: "aka",
+		type: "spesa", colorKey: "aka",
 		items: [
-			{ value: "alimentari",    title: "Alimentari",    subTitle: "Spesa e supermercato",   icon: <ShoppingCart size={18} /> },
-			{ value: "ristoranti",    title: "Ristoranti",    subTitle: "Bar e locali",           icon: <UtensilsCrossed size={18} /> },
-			{ value: "trasporti",     title: "Trasporti",     subTitle: "Auto, treni, bus",       icon: <Car size={18} /> },
-			{ value: "salute",        title: "Salute",        subTitle: "Visite e farmaci",       icon: <HeartPulse size={18} /> },
-			{ value: "abbigliamento", title: "Abbigliamento", subTitle: "Vestiti e accessori",    icon: <Shirt size={18} /> },
-			{ value: "svago",         title: "Svago",         subTitle: "Tempo libero",           icon: <Smile size={18} /> },
-			{ value: "casa_spesa",    title: "Casa",          subTitle: "Arredi e manutenzione",  icon: <Home size={18} /> },
+			{ value: "alimentari",    icon: <ShoppingCart size={18} /> },
+			{ value: "ristoranti",    icon: <UtensilsCrossed size={18} /> },
+			{ value: "trasporti",     icon: <Car size={18} /> },
+			{ value: "salute",        icon: <HeartPulse size={18} /> },
+			{ value: "abbigliamento", icon: <Shirt size={18} /> },
+			{ value: "svago",         icon: <Smile size={18} /> },
+			{ value: "casa_spesa",    icon: <Home size={18} /> },
 		],
 	},
 	{
-		label: "Risparmi", colorKey: "kin",
+		type: "risparmio", colorKey: "kin",
 		items: [
-			{ value: "fondo_emergenza", title: "Fondo emergenza", subTitle: "Cuscinetto di sicurezza", icon: <Shield size={18} /> },
-			{ value: "vacanze",         title: "Vacanze",         subTitle: "Viaggi e soggiorni",      icon: <Plane size={18} /> },
-			{ value: "obiettivo_casa",  title: "Obiettivo casa",  subTitle: "Acquisto o affitto",      icon: <Building2 size={18} /> },
-			{ value: "elettronica",     title: "Elettronica",     subTitle: "Gadget e dispositivi",    icon: <Laptop size={18} /> },
+			{ value: "fondo_emergenza", icon: <Shield size={18} /> },
+			{ value: "vacanze",         icon: <Plane size={18} /> },
+			{ value: "obiettivo_casa",  icon: <Building2 size={18} /> },
+			{ value: "elettronica",     icon: <Laptop size={18} /> },
 		],
 	},
 	{
-		label: "Investimenti", colorKey: "ao",
+		type: "investimento", colorKey: "ao",
 		items: [
-			{ value: "etf",    title: "ETF",    subTitle: "Fondi indicizzati",  icon: <BarChart2 size={18} /> },
-			{ value: "azioni", title: "Azioni", subTitle: "Mercati azionari",   icon: <TrendingUp size={18} /> },
-			{ value: "crypto", title: "Crypto", subTitle: "Asset digitali",     icon: <Bitcoin size={18} /> },
-			{ value: "fondi",  title: "Fondi",  subTitle: "Gestione attiva",    icon: <PiggyBank size={18} /> },
+			{ value: "etf",    icon: <BarChart2 size={18} /> },
+			{ value: "azioni", icon: <TrendingUp size={18} /> },
+			{ value: "crypto", icon: <Bitcoin size={18} /> },
+			{ value: "fondi",  icon: <PiggyBank size={18} /> },
 		],
 	},
 	{
-		label: "Abbonamenti", colorKey: "murasaki",
+		type: "abbonamento", colorKey: "murasaki",
 		items: [
-			{ value: "streaming", title: "Streaming", subTitle: "Video on demand",  icon: <Play size={18} /> },
-			{ value: "musica",    title: "Musica",    subTitle: "Piattaforme audio", icon: <Music size={18} /> },
-			{ value: "palestra",  title: "Palestra",  subTitle: "Fitness e sport",  icon: <Dumbbell size={18} /> },
-			{ value: "utenze",    title: "Utenze",    subTitle: "Luce, gas, internet", icon: <Zap size={18} /> },
-			{ value: "affitto",   title: "Affitto",   subTitle: "Casa e spazi",     icon: <KeyRound size={18} /> },
+			{ value: "streaming", icon: <Play size={18} /> },
+			{ value: "musica",    icon: <Music size={18} /> },
+			{ value: "palestra",  icon: <Dumbbell size={18} /> },
+			{ value: "utenze",    icon: <Zap size={18} /> },
+			{ value: "affitto",   icon: <KeyRound size={18} /> },
 		],
 	},
 ];
 
 function CategoryGroups({ selected, onChange }: { selected: string[]; onChange: (v: string) => void }) {
+	const { t } = useI18n();
+
 	return (
 		<div className="space-y-6">
 			{TYPE_GROUPS.map((group) => {
 				const color = COLORS[group.colorKey];
-				const options: Option[] = group.items.map((item) => ({ ...item, color }));
+				const options: Option[] = group.items.map((item) => ({
+					value: item.value,
+					title: t.presetCategories[item.value].title,
+					subTitle: t.presetCategories[item.value].subtitle,
+					icon: item.icon,
+					color,
+				}));
 				return (
-					<div key={group.label}>
+					<div key={group.type}>
 						<p className="text-xs uppercase tracking-[1.8px] text-muted mb-2.5 ms-1">
-							{group.label}
+							{t.onboarding.category.groups[group.type]}
 						</p>
 						<Card options={options} selected={selected} onChange={onChange} />
 					</div>
@@ -109,6 +136,7 @@ function CategoryGroups({ selected, onChange }: { selected: string[]; onChange: 
 }
 
 export default function CategoryPage() {
+	const { t } = useI18n();
 	const [selected, setSelected] = useState<string[]>([]);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -124,7 +152,7 @@ export default function CategoryPage() {
 		setError(null);
 		const result = await saveCategories(selected);
 		if ("error" in result) {
-			setError(result.error ?? "Errore sconosciuto");
+			setError(result.error ?? t.common.unknownError);
 			setIsLoading(false);
 			return;
 		}
@@ -147,15 +175,14 @@ export default function CategoryPage() {
 
 				<div>
 					<h4 className="uppercase tracking-[2.4px] text-xs text-muted mb-3">
-						Categorie
+						{t.onboarding.category.eyebrow}
 					</h4>
 					<h2 className="lg:text-5xl xl:text-6xl 2xl:text-7xl font-semibold mb-4 leading-[1.1]">
-						Scegli le
-						<br />categorie
+						{t.onboarding.category.headingLine1}
+						<br />{t.onboarding.category.headingLine2}
 					</h2>
 					<p className="lg:text-sm xl:text-base text-muted leading-[1.65] max-w-xs">
-						Seleziona ciò che vuoi tenere in ordine. Puoi aggiungerne altre più
-						tardi.
+						{t.onboarding.category.description}
 					</p>
 				</div>
 			</div>
@@ -171,21 +198,20 @@ export default function CategoryPage() {
 				<div className="lg:hidden flex flex-col grow w-full max-w-md mx-auto px-6">
 					<div className="mt-8 mb-6">
 						<h4 className="uppercase tracking-[2.4px] text-xs text-muted mb-3">
-							Categorie
+							{t.onboarding.category.eyebrow}
 						</h4>
 						<h2 className="text-4xl font-semibold mb-3 leading-[1.1]">
-							Scegli le categorie
+							{t.onboarding.category.heading}
 						</h2>
 						<p className="text-muted leading-[1.65]">
-							Seleziona ciò che vuoi tenere in ordine. Puoi aggiungerne altre
-							più tardi.
+							{t.onboarding.category.description}
 						</p>
 					</div>
 					<CategoryGroups selected={selected} onChange={toggle} />
 					<div className="grow" />
 					{error && <p className="text-aka-ink text-sm text-center mb-3">{error}</p>}
 					<div className="pb-10 pt-6">
-						<Button onClick={handleComplete} disabled={isLoading} title={isLoading ? "Salvataggio…" : "Completa la configurazione"} variant="welcome" />
+						<Button onClick={handleComplete} disabled={isLoading} title={isLoading ? t.common.saving : t.onboarding.category.cta} variant="welcome" />
 					</div>
 				</div>
 
@@ -198,7 +224,7 @@ export default function CategoryPage() {
 					</div>
 					{error && <p className="text-aka-ink text-sm text-center w-full max-w-lg mx-auto mb-3">{error}</p>}
 					<div className="w-full max-w-lg mx-auto pb-14">
-						<Button onClick={handleComplete} disabled={isLoading} title={isLoading ? "Salvataggio…" : "Completa la configurazione"} variant="welcome" />
+						<Button onClick={handleComplete} disabled={isLoading} title={isLoading ? t.common.saving : t.onboarding.category.cta} variant="welcome" />
 					</div>
 				</div>
 			</div>

@@ -3,6 +3,7 @@
 import { Sun } from "lucide-react";
 import Switch from "@/components/UI/Switch";
 import { useTheme } from "./ThemeProvider";
+import { useI18n } from "./I18nProvider";
 
 /**
  * Scorciatoia nel menu profilo (dal mockup "Seichi Dashboard").
@@ -13,18 +14,19 @@ import { useTheme } from "./ThemeProvider";
  */
 export default function ThemeToggle() {
 	const { resolved, setChoice } = useTheme();
+	const { t } = useI18n();
 	const dark = resolved === "dark";
 
 	return (
 		<div className="flex items-center justify-between gap-3 px-4 h-12 border-b border-subtle">
 			<span className="flex items-center gap-3 text-sm font-medium">
 				<Sun size={16} className="text-secondary" />
-				Modalità scura
+				{t.profileMenu.darkMode}
 			</span>
 			<Switch
 				checked={dark}
 				onChange={(next) => setChoice(next ? "dark" : "light")}
-				label="Modalità scura"
+				label={t.profileMenu.darkMode}
 			/>
 		</div>
 	);

@@ -3,6 +3,12 @@ import { NextResponse } from "next/server";
 // The client you created from the Server-Side Auth instructions
 import { createClient } from "@/lib/supabase/server";
 import { safeNext } from "@/lib/safe-redirect";
+import {
+	LOCALE_COOKIE,
+	LOCALE_COOKIE_OPTIONS,
+	normalizeLocale,
+	type Locale,
+} from "@/lib/i18n/config";
 import { markRecoverySession } from "@/lib/recovery";
 
 const RESET_PATH = "/reimposta-password";
@@ -32,15 +38,24 @@ export async function GET(request: Request) {
 				await markRecoverySession();
 			}
 
+			// La lingua salvata sul profilo, da riversare nel cookie più sotto.
+			let locale: Locale | null = null;
+
 			// Redirect new users (no onboarding completed) to /start
 			if (next === "/") {
 				const { data: { user } } = await supabase.auth.getUser();
 				if (user) {
 					const { data: profile } = await supabase
 						.from("profiles")
-						.select("currency")
+						.select("currency, language")
 						.eq("id", user.id)
 						.single();
+					// Stessa query del gate onboarding: nessun viaggio in più al
+					// database. È il ramo di ogni accesso vero — conferma email e
+					// OAuth arrivano entrambi con next="/" — mentre il recupero
+					// password, che non passa di qui, è un flusso di transito in cui
+					// la lingua non va toccata.
+					locale = normalizeLocale(profile?.language);
 					if (!profile?.currency) {
 						next = "/start";
 					}
@@ -49,13 +64,20 @@ export async function GET(request: Request) {
 
 			const forwardedHost = request.headers.get("x-forwarded-host");
 			const isLocalEnv = process.env.NODE_ENV === "development";
-			if (isLocalEnv) {
-				return NextResponse.redirect(`${origin}${next}`);
-			} else if (forwardedHost) {
-				return NextResponse.redirect(`https://${forwardedHost}${next}`);
-			} else {
-				return NextResponse.redirect(`${origin}${next}`);
+			const destination = isLocalEnv
+				? `${origin}${next}`
+				: forwardedHost
+					? `https://${forwardedHost}${next}`
+					: `${origin}${next}`;
+
+			const response = NextResponse.redirect(destination);
+			// Il cookie si scrive sulla RISPOSTA, non con `cookies()`: qui la
+			// risposta è costruita a mano, ed è l'unico oggetto su cui gli header
+			// finiscono di sicuro.
+			if (locale) {
+				response.cookies.set(LOCALE_COOKIE, locale, LOCALE_COOKIE_OPTIONS);
 			}
+			return response;
 		}
 	}
 

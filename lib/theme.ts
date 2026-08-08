@@ -52,12 +52,11 @@ export function isResolvedTheme(value: unknown): value is ResolvedTheme {
 	return value === "light" || value === "dark";
 }
 
-/** Etichette italiane per la UI — sentence case, come tutto il resto. */
-export const THEME_LABELS: Record<ThemeChoice, string> = {
-	light: "chiaro",
-	dark: "scuro",
-	system: "sistema",
-};
+/* Le etichette ("chiaro", "scuro", "sistema") stavano qui come `THEME_LABELS`.
+   Dalla Fase 19 vivono nei dizionari, sotto `t.theme`: erano testo rivolto
+   all'utente in un modulo che per il resto contiene solo meccanica, e tenerle qui
+   avrebbe significato una seconda fonte da tradurre a parte. I VALORI dei tre
+   stati restano invece qui, perché sono dati. */
 
 /* ---------------------------------------------------------------- client --- */
 

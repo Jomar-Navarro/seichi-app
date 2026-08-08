@@ -5,6 +5,9 @@ import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { GOAL_ICONS } from "@/lib/goal-icons";
 import { createGoal, updateGoal, deleteGoal } from "@/app/(main)/risparmi/actions";
+import { useI18n } from "./I18nProvider";
+import { DISPLAY_CURRENCY, currencySymbol } from "@/lib/i18n/format";
+import DatePicker from "@/components/UI/DatePicker";
 import type { GoalWithProgress } from "@/types";
 
 interface GoalSheetProps {
@@ -28,6 +31,7 @@ const EMPTY_FORM: FormState = {
 };
 
 export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
+	const { locale, t } = useI18n();
 	const router = useRouter();
 	const [form, setForm] = useState<FormState>(EMPTY_FORM);
 	const [submitted, setSubmitted] = useState(false);
@@ -131,7 +135,7 @@ export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
 
 				<div className="flex items-center justify-between mt-4 mb-6 shrink-0">
 					<h2 className="text-xl font-semibold">
-						{goal ? "Modifica obiettivo" : "Nuovo obiettivo"}
+						{goal ? t.goals.editTitle : t.goals.newTitle}
 					</h2>
 					<button
 						onClick={onClose}
@@ -144,10 +148,10 @@ export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
 				<div className="flex flex-col gap-5">
 					{/* Nome */}
 					<div>
-						<label className="text-xs text-muted mb-2 block tracking-wide">Nome obiettivo</label>
+						<label className="text-xs text-muted mb-2 block tracking-wide">{t.goals.nameLabel}</label>
 						<input
 							type="text"
-							placeholder="Es. Viaggio in Giappone"
+							placeholder={t.goals.namePlaceholder}
 							value={form.name}
 							onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
 							className="w-full rounded-[18px] px-4 py-3.5 text-[14.5px] bg-input border border-subtle outline-none placeholder:text-muted/60"
@@ -155,7 +159,7 @@ export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
 						/>
 						{nameError && (
 							<p className="text-xs mt-1.5 ml-1" style={{ color: "var(--ink-aka)" }}>
-								Inserisci un nome
+								{t.goals.nameRequired}
 							</p>
 						)}
 					</div>
@@ -163,14 +167,14 @@ export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
 					{/* Importo obiettivo */}
 					<div>
 						<label className="text-xs text-muted mb-2 block tracking-wide">
-							Importo obiettivo{" "}
-							<span className="text-muted opacity-60">(opzionale)</span>
+							{t.goals.targetLabel}{" "}
+							<span className="text-muted opacity-60">{t.goals.optional}</span>
 						</label>
 						<div
 							className="flex items-center gap-2 rounded-[18px] px-4 py-3.5 bg-input border border-subtle"
 							style={{ borderColor: amountError ? "var(--color-aka)" : undefined }}
 						>
-							<span className="text-[14.5px] text-muted">€</span>
+							<span className="text-[14.5px] text-muted">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
 							<input
 								type="number"
 								inputMode="decimal"
@@ -182,7 +186,7 @@ export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
 						</div>
 						{amountError && (
 							<p className="text-xs mt-1.5 ml-1" style={{ color: "var(--ink-aka)" }}>
-								Inserisci un importo valido
+								{t.goals.amountInvalid}
 							</p>
 						)}
 					</div>
@@ -190,23 +194,22 @@ export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
 					{/* Data obiettivo */}
 					<div>
 						<label className="text-xs text-muted mb-2 block tracking-wide">
-							Data obiettivo{" "}
-							<span className="text-muted opacity-60">(opzionale)</span>
+							{t.goals.dateLabel}{" "}
+							<span className="text-muted opacity-60">{t.goals.optional}</span>
 						</label>
-						<div className="flex items-center rounded-[18px] px-4 py-3.5 bg-input border border-subtle">
-							<input
-								type="date"
-								value={form.targetDate}
-								onChange={(e) => setForm((f) => ({ ...f, targetDate: e.target.value }))}
-								className="flex-1 bg-transparent outline-none text-[14.5px] text-muted appearance-none"
-								style={{ colorScheme: "inherit" }}
-							/>
-						</div>
+						{/* Picker custom e non `<input type="date">`: quello segue la
+						    lingua del BROWSER, non quella dell'app — vedi DatePicker. */}
+						<DatePicker
+							value={form.targetDate}
+							onChange={(iso) => setForm((f) => ({ ...f, targetDate: iso }))}
+							placeholder={t.goals.noDeadline}
+							className="rounded-[18px] px-4 py-3.5 bg-input border border-subtle"
+						/>
 					</div>
 
 					{/* Icona */}
 					<div>
-						<label className="text-xs text-muted mb-3 block tracking-wide">Icona</label>
+						<label className="text-xs text-muted mb-3 block tracking-wide">{t.goals.iconLabel}</label>
 						<div className="grid grid-cols-4 gap-2.5">
 							{GOAL_ICONS.map(({ id, icon: Icon }) => {
 								const selected = form.icon === id;
@@ -248,7 +251,7 @@ export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
 					disabled={loading}
 					className="mt-4 w-full py-4 rounded-2xl text-[14.5px] font-semibold btn-primary disabled:opacity-50"
 				>
-					{loading ? "Salvataggio…" : goal ? "Salva modifiche" : "Crea obiettivo"}
+					{loading ? t.common.saving : goal ? t.goals.saveChanges : t.goals.create}
 				</button>
 
 				{goal && (
@@ -266,7 +269,7 @@ export default function GoalSheet({ isOpen, goal, onClose }: GoalSheetProps) {
 								: undefined,
 						}}
 					>
-						{confirmDelete ? "Conferma eliminazione" : "Elimina obiettivo"}
+						{confirmDelete ? t.goals.deleteConfirm : t.goals.delete}
 					</button>
 				)}
 			</div>

@@ -36,7 +36,8 @@ app/
 │       ├── categorie/    #     gestione categorie custom
 │       └── ricorrenti/   #     regole ricorrenti
 ├── auth/confirm/         # verifyOtp per link email (?next= per il recupero password)
-└── layout.tsx            # root layout (forza tema .dark su <html>)
+└── layout.tsx            # root layout — legge i cookie e decide `.dark` e `lang`
+                          #   su <html> (Fasi 18-19). NON forza più nulla
 
 components/
 ├── UI/                   # Button, Input, Select, card, BrandHeader, OnboardingProgress,
@@ -44,27 +45,38 @@ components/
 │   │                     # SummaryCard, Sparkline, EmptyState, Avatar, PageHeader,
 │   │                     # SettingsRow (+ SettingsGroup), PasswordInput,
 │   │                     # PasswordStrength, SubmitButton, StatusScreen, AuthShell,
-│   │                     # Switch
+│   │                     # Switch, FrequencySelector, DatePicker
 ├── features/             # BalanceCard, TransactionList, RecentTransaction, Filterbar,
 │   │                     # GoalCard, GoalSheet, GoalsPageClient, InvestimentiTab,
 │   │                     # HomeSkeleton, DashboardRefresher, AnalyticsTabs,
 │   │                     # SpendingPieChart, MonthlyLineChart, ProfileEditor,
 │   │                     # EmailChangeForm, PasswordChangeForm, DeleteAccountFlow,
-│   │                     # ForgotPasswordForm, ResetPasswordForm,
-│   │                     # ThemeProvider (+ useTheme), ThemeToggle, ThemeSection
+│   │                     # ForgotPasswordForm, ResetPasswordForm, NotificationBell,
+│   │                     # ThemeProvider (+ useTheme), ThemeToggle, ThemeSection,
+│   │                     # I18nProvider (+ useI18n)
 ├── LoginForm.tsx, SignUpForm.tsx, PasswordField.tsx
 └── icons.tsx             # GoogleIcon, FacebookIcon
 
 lib/
 ├── supabase/             # client.ts, server.ts, proxy.ts (PUBLIC_PATHS)
+├── i18n/                 # config.ts (locale, cookie, negoziazione — client-safe),
+│   │                     # format.ts (Intl: numeri, denaro, date, plurali),
+│   │                     # server.ts (getI18n/getDictionary — importa next/headers),
+│   │                     # dictionaries/it.ts (fonte di verità) + en.ts (Fase 19)
 ├── seichi-icons.tsx      # set icone SVG custom (SeichiIcon)
 ├── icon-map.ts           # nome categoria → icona (Lucide)
 ├── goal-icons.ts         # GOAL_ICON_MAP + GOAL_ICONS
-├── investment-types.ts   # INVESTMENT_TYPE_META (label + colore per tipo)
-├── transaction-utils.ts  # TIPO_COLOR/LABEL, formatDate, formatAmount, numberFormatter
-├── account.ts            # getAccountContext() — user + profilo per le impostazioni
+├── category-icons.ts     # CATEGORY_LIBRARY — SOLO id icona per tipo (etichette nel dizionario)
+├── investment-types.ts   # INVESTMENT_TYPE_COLOR + FALLBACK (le etichette nel dizionario)
+├── transaction-utils.ts  # TIPO_COLOR/TIPO_INK, formatDate, formatAmount
+├── budget.ts             # BUDGET_PERIODS (id), soglia, budgetStatus/Color/Ink
+├── recurring.ts          # FREQUENCIES (id) + aritmetica delle date
+├── auth.ts               # getSessionUser() — id + email dalle CLAIMS, senza rete (è una FOTOGRAFIA)
+├── account.ts            # getAccountContext() — identità VIVA + profilo, per le impostazioni
+│                         #   getProfileHeader() — avatar/nome per la home, dalle claims
 ├── profile.ts            # getInitials, getDisplayName
 ├── password.ts           # PASSWORD_MIN_LENGTH, scorePassword, validateNewPassword
+├── notifications.ts      # icone/colori per tipo + renderNotification (frasi dal payload)
 ├── safe-redirect.ts      # safeNext() — blocca gli open redirect sul parametro next
 └── theme.ts              # tipi, cookie e risoluzione del tema (Fase 18)
 
@@ -93,11 +105,15 @@ types/  index.ts           # Transaction, Category, GoalWithProgress, Investment
 -- Ogni tabella ha RLS abilitato
 -- NB: i nomi colonna sono in INGLESE (amount/type/date...), non italiano
 
-profiles: id (= auth.users.id), currency (TEXT), language (TEXT),
+profiles: id (= auth.users.id), currency (TEXT), language (TEXT, nullable),
           full_name (TEXT, nullable), avatar_url (TEXT, nullable)
 -- La riga nasce da un trigger on_auth_user_created (non più solo in onboarding);
 --   full_name viene fatto backfill da auth.users.raw_user_meta_data.
 -- Il nome NON si legge da user_metadata: quel campo è scrivibile dal client.
+-- language: tag MINUSCOLO ('it' | 'en'), vincolato da profiles_language_check
+--   (Fase 19). NULL = non ancora scelto → l'app ripiega su Accept-Language, che
+--   è un'informazione migliore di un italiano d'ufficio. Vietare NULL romperebbe
+--   la registrazione, perché il trigger crea la riga prima dell'onboarding.
 
 categories: id, user_id, name (TEXT), icon (TEXT), color (TEXT),
             type (TEXT), created_at,
@@ -531,9 +547,453 @@ non sono semplici sostituzioni di colore:
 - Saluto orario al posto di "Bentornato": il server è in UTC su Vercel, quindi un
   "buongiorno" alle 23 è peggio di un saluto neutro. Si fa lato client, al costo di un
   lampo del testo dopo l'idratazione.
-- ⚠️ **`<input type="date">` mostra `mm/dd/yyyy`**: il formato segue la lingua del
-  **browser**, non `lang="it"` della pagina. Si chiude solo con un picker custom —
-  naturale accostarlo alla Fase 19 (i18n).
+- ~~⚠️ **`<input type="date">` mostra `mm/dd/yyyy`**~~ — **chiuso nella Fase 19**
+  con `components/UI/DatePicker.tsx`. Il formato seguiva la lingua del **browser**,
+  non `lang="it"` della pagina: era l'unico pezzo di interfaccia non traducibile,
+  perché il testo lo disegna il browser e non è nostro.
+
+### Fase 19 — lingua (it/en)
+
+Implementata il 2026-08-07 (issue #33). Migration `20260807_language.sql`, eseguita.
+Verificata end-to-end. **96 file toccati, 545 voci di dizionario per lingua.**
+
+#### Le tre decisioni di partenza
+
+- **Il locale NON sta nell'URL.** Le route restano in italiano (`/impostazioni`,
+  `/risparmi`): sono identificatori, non testo. Metterlo nel percorso avrebbe
+  imposto `app/[locale]/`, il riadattamento di `PUBLIC_PATHS` nel proxy e la
+  revisione di ogni `redirect()` e `emailRedirectTo`, in cambio di URL
+  condivisibili per lingua e SEO multilingua — che dietro un login non valgono
+  nulla. La preferenza vive in un **cookie**, come il tema della Fase 18.
+- ⚠️ **Un cookie solo, non due.** Il tema ne ha due perché `prefers-color-scheme`
+  è una proprietà del browser e **non viaggia negli header**, lasciando il server
+  cieco sulla scelta "sistema". `Accept-Language` invece viaggia: il server
+  risolve da sé anche alla primissima visita. È il caso **speculare**, e vale
+  sfruttarlo invece di ricopiare la struttura del tema per simmetria.
+- **`profiles.language` NON si legge a ogni render**: sarebbe una query a
+  Supabase su ogni pagina per un valore che cambia due volte nella vita di un
+  account. La riga del database è la persistenza fra dispositivi e viene
+  riversata nel cookie **al login**, dentro la query che già interroga il profilo
+  per il gate dell'onboarding (`profiles.currency`) — quindi a costo zero.
+  Il cookie è la fonte per il rendering.
+
+#### Struttura
+
+- **Dizionari tipizzati a mano, zero dipendenze.** `it.ts` è la fonte di verità,
+  `en.ts` è annotato `: Dictionary` e derivato da essa: una chiave dimenticata
+  **non compila**, invece di apparire in produzione come `settings.account.title`
+  in mezzo alla pagina. Plurali e numeri con `Intl.PluralRules` /
+  `Intl.NumberFormat`, che sono nativi.
+- ⚠️ **`it.ts` non usa `as const`.** Con le stringhe irrigidite a tipi letterali,
+  `Dictionary` pretenderebbe da `en.ts` esattamente le stesse parole italiane.
+- ⚠️ **I dizionari contengono SOLO stringhe e oggetti semplici, mai funzioni.**
+  Il dizionario attraversa il confine server→client come prop di
+  `<I18nProvider>`: una funzione lì dentro fa fallire la serializzazione RSC.
+  I valori variabili passano da segnaposto `{nome}` + `fill()`.
+- **`I18nProvider` non ha `setLocale`**, a differenza di `ThemeProvider`. Il tema
+  cambia nel fotogramma corrente perché al client basta una classe; le parole
+  stanno sul server. L'alternativa era impacchettare entrambe le lingue nel
+  browser per risparmiare un round-trip su un'azione biennale.
+- **`lib/i18n/config.ts` non importa `next/headers`** (serve ai client component);
+  `server.ts` sì, ed è quella la guardia che rende il modulo inutilizzabile dal
+  client — per questo non serve il pacchetto `server-only`.
+- **`en-GB` e non `en-US`** come tag `Intl`. Seichi è un'app europea in euro:
+  `en-US` scriverebbe `8/7/2026`. `en-GB` dà `07/08/2026`, identico all'italiano.
+- **Gli errori li traducono le server action**, che il cookie ce l'hanno:
+  `requireUser()` restituisce anche il dizionario. Restituire codici da mappare
+  sul client sarebbe più puro ma raddoppierebbe gli elenchi da tenere allineati.
+
+#### Il testo esce da `lib/`, e non è un dettaglio di stile
+
+Sette moduli distribuivano una parola accanto a un dato. È lo stesso schema di
+`TIPO_COLOR`/`TIPO_INK`, applicato ovunque: **il modulo tiene la meccanica, il
+dizionario le parole.**
+
+| Modulo | Cosa se n'è andato |
+|---|---|
+| `transaction-utils.ts` | `TIPO_LABEL`, `numberFormatter` |
+| `types/index.ts` | `TRANSACTION_TYPES[].label` e `.description` — in un file di TIPI |
+| `password.ts` | etichette di robustezza; `validateNewPassword` ora torna un **codice** |
+| `budget.ts` | `label`/`suffix`/`window` per periodo |
+| `recurring.ts` | `label`/`recurLabel` per cadenza |
+| `category-icons.ts` | 69 etichette icona |
+| `investment-types.ts` | `label` per tipologia |
+
+⚠️ **Le etichette icona sono annidate per TIPO, non una mappa piatta `id →
+etichetta`**: nove icone cambiano nome col contesto (`Landmark` è "Bonifico" fra
+le entrate e "Azioni" fra gli investimenti; `Home` è "Casa / Affitto" fra le
+spese e "Casa nuova" fra i risparmi). Appiattire avrebbe mostrato l'etichetta di
+un altro contesto **senza alcun errore**.
+
+#### Quello che fa `Intl`, e che quindi NON sta nei dizionari
+
+Sei array/rami italiani sono spariti perché `Intl` li produce per ogni lingua.
+Vale la pena cercarne altri prima di aggiungere una voce di dizionario:
+
+- `"Oggi"`/`"Ieri"` e `"oggi"/"domani"/"fra N giorni"` → `Intl.RelativeTimeFormat`
+  con `numeric: "auto"` (`relativeDayLabel`, `formatRelativeTime`)
+- `MESI`/`GIORNI` in `action.ts`, `MESI_LUNGHI` in `/analisi`, `DAYS` in
+  `TransactionForm` → `Intl.DateTimeFormat` (`formatDate`, `weekdayInitials`)
+- plurali scritti a mano (`n === 1 ? … : …`) in quattro punti → `Intl.PluralRules`
+  (`plural()`)
+
+#### I difetti che la traduzione ha fatto emergere
+
+- ⚠️ **`profiles.language` conteneva `"IT"`/`"EN"` maiuscoli.** L'onboarding
+  scriveva il valore grezzo della select, le impostazioni leggevano minuscolo:
+  chi sceglieva English si ritrovava "Italiano", in silenzio. Invisibile finché
+  nessuno consumava il campo; con l'i18n acceso sarebbe stata l'intera app nella
+  lingua sbagliata. Normalizzato al confine (`normalizeLocale`), in lettura, e
+  con un `CHECK` in migration — perché il codice applicativo lo scavalca un
+  insert dal SQL Editor.
+- ⚠️ **`nuova {type}` era grammaticalmente sbagliato in italiano per tre tipi su
+  cinque**: il pulsante diceva "Nuova investimento", "Nuova risparmio", "Nuova
+  abbonamento". Un aggettivo si accorda col genere del nome, e il genere non sta
+  nella chiave del database. **In inglese il problema non esiste — ed è
+  esattamente per questo che un template pensato in inglese lo nasconde.**
+  Ora `newByType` ha frasi intere. Stessa classe: `Seleziona ${title}` in
+  `Select` (che produceva "Seleziona category") e `Budget "X" ` + aggettivo nelle
+  notifiche.
+- ⚠️ **`splitAmount` in `BalanceCard` si sarebbe rotto in inglese.** Cercava la
+  virgola (`lastIndexOf(",")`) per staccare i decimali; in `en-GB` la virgola
+  separa le MIGLIAIA, quindi `1,234.50` sarebbe diventato `1` grande e `,234.50`
+  piccolo. Ora passa da `formatToParts`, che etichetta i pezzi.
+- **`GoalCard` era l'unico punto che usava `style: "currency"`**, cioè scriveva
+  "180 €" mentre tutto il resto scrive "€ 180".
+- Tre `color: "#fff"` sopra un riempimento d'accento (la stessa dialog di
+  conferma, ricopiata tre volte) — la trappola documentata nella Fase 18.
+
+#### Le categorie di default: tradotte alla SCRITTURA
+
+`CATEGORY_MAP` non ha più `name`. Il nome arriva da
+`t.presetCategories[chiave].title` **al momento dell'insert**, non al render.
+
+Motivo: una volta scritto in `categories.name` non è più una stringa dell'app ma
+un **dato dell'utente**, rinominabile, e già copiato nel payload delle notifiche
+(`'category', c.name` nella migration della 17b). Tradurlo alla lettura avrebbe
+richiesto una colonna `preset_key`, una regola "se è valorizzata ignora `name`",
+l'azzeramento al primo rename — e avrebbe fatto **disaccordare la lista dalle
+notifiche già emesse**, due nomi per la stessa categoria nella stessa schermata.
+Chi cambia lingua dopo rinomina le proprie categorie, come farebbe comunque.
+
+Lo **stesso catalogo** serve il picker dell'onboarding e la server action: se
+fossero due elenchi, la card potrebbe dire "Groceries" e la categoria creata
+chiamarsi "Alimentari".
+
+#### Le notifiche: la 17b aveva ragione
+
+`payload` JSONB con i **fatti** invece della frase già composta era stato deciso
+nella Fase 17b prevedendo esattamente questo momento. Il risultato: le frasi si
+compongono alla lettura, quindi **anche le notifiche di mesi fa cambiano lingua**
+insieme all'app. Salvando il testo, tutto lo storico sarebbe rimasto italiano.
+
+#### La valuta NON è stata toccata
+
+`profiles.currency` è scelta dall'utente e già letta da `getAccountContext()` e
+dalle notifiche, ma farla arrivare a ogni foglia è un lavoro **indipendente dalla
+lingua** — tocca gli stessi file per un'altra ragione. Il comportamento resta
+identico dietro `DISPLAY_CURRENCY` in `lib/i18n/format.ts`: quando si affronterà,
+basta seguirne i riferimenti invece di cercare "€" in tutto il codice. Per questo
+anche i cinque `€` decorativi nel markup passano da `currencySymbol()`.
+
+#### ⚠️ Come verificare, e cosa la verifica NON vede
+
+Quattro controlli, tutti ripetibili. I primi due sono **codice di verifica usa e
+getta**, non parte del repo: si riscrivono in dieci minuti quando servono.
+
+1. **Testo cablato** — cerca stringhe letterali in posizione di testo (nodi JSX,
+   prop testuali, qualsiasi stringa con uno spazio). ⚠️ **NON cercare "parole
+   italiane da un elenco"**: è stato provato e ha mancato "Altro", "Ago",
+   "Investito", "Seleziona" — e non avrebbe mai trovato
+   `"Sorry, something went wrong"`, che era cablato **in inglese**. In un'app
+   tradotta ogni letterale in posizione di testo è un residuo, in qualunque
+   lingua: quello è il controllo giusto.
+2. **Confine server→client** — per ogni server component, le prop
+   `icon`/`on*`/`render*` passate a un figlio `"use client"`.
+3. **Parità dizionari** — stesse foglie in it/en, voci mai usate, e **valori
+   identici fra le due lingue** (una traduzione dimenticata compila benissimo;
+   i 26 identici attuali sono tutti parole internazionali: Email, ETF, Budget…).
+4. **Audit dei token CSS** della Fase 18, incluse le costruzioni **dinamiche**
+   (`` var(--color-${accent}) ``): il suffisso non è visibile al grep, quindi
+   vanno enumerati i valori possibili.
+
+⚠️ **`tsc` e `next build` non vedono gli errori di serializzazione RSC.** Marcare
+`SummaryCard` come `"use client"` per usare `useI18n()` ha rotto la home: la
+pagina è un server component e gli passa `icon`, cioè una funzione. I tipi erano
+corretti e la build passava — l'errore compare solo **aprendo la pagina**.
+`SummaryCard` resta quindi un server component e legge la lingua con `getI18n()`.
+Build verde non significa app funzionante.
+
+⚠️ **Scrivere il cookie della lingua NON basta a cambiare la lingua resa.** Una
+navigazione soft (`router.push`) riusa il root layout dalla cache del router, e
+quindi il dizionario vecchio. Nell'onboarding questo produceva il difetto
+peggiore possibile: `/category` mostrava le card in italiano mentre
+`saveCategories()` — che il cookie lo legge sul server — scriveva i nomi in
+inglese nel database, cioè proprio il disallineamento che il catalogo unico
+esiste per impedire. Ogni action che cambia lingua deve fare
+`revalidatePath("/", "layout")`, non solo `setLocaleCookie()`.
+
+#### Emerso dal code-review
+
+Dodici difetti, undici introdotti dalla fase. I quattro che valgono una regola:
+
+- ⚠️ **`t.mappa[valoreDalDatabase].campo` è una dereferenziazione ottimista.**
+  Il tipo dice cosa il DB *dovrebbe* contenere, non cosa contiene: sostituendo
+  `FREQ_RECUR_LABEL[f] ?? f` con l'accesso diretto, una riga inattesa passava da
+  difetto cosmetico a schianto di pagina. Si usa `lookup()` di
+  `lib/i18n/format.ts`, che il ripiego lo impone.
+- ⚠️ **Un array italiano sostituito da `Intl` può perdere la maiuscola.**
+  `MESI`/`GIORNI` davano "Gen"/"Lun", `Intl` dà "gen"/"lun" — e in inglese non si
+  nota ("Jan"/"Mon"), quindi la regressione si vede **solo nella lingua di
+  default**. Vale per `weekdayInitials` e `shortMonth`, che ora capitalizzano.
+- ⚠️ **`Intl` non vince sempre.** `format(0, "second")` in italiano è "ora", che
+  accanto a "1 ora fa" nella stessa colonna si legge come un conteggio troncato.
+  È l'unico caso in cui una parola scritta a mano ("adesso") batte `Intl`, e sta
+  nel dizionario per questo.
+- ⚠️ **Sostituire un controllo nativo può togliere uno stato.**
+  `<input type="date">` si poteva svuotare; il `DatePicker` emetteva solo giorni
+  concreti, quindi una scadenza opzionale diventava irreversibile. Il comando che
+  la rimuove compare quando `placeholder` dichiara che la data è opzionale.
+
+Più due lezioni sul metodo di verifica, entrambe pagate:
+**estrarre un componente non è finito finché l'originale non è cancellato**
+(il calendario è vissuto duplicato in `TransactionForm` e `DatePicker`, già
+divergenti); e **uno scanner va messo alla controprova**, perché quello del testo
+cablato leggeva solo i `.tsx` e non guardava le stringhe fuori dal JSX — due
+buchi che insieme nascondevano sei `"Non autenticato"` nelle server action.
+
+### Costo delle richieste a Supabase (2026-08-08)
+
+Il pannello Supabase segnava ~2300 richieste in un'ora di uso normale. Non era un
+loop: era **fan-out architetturale**. Una vista della home costava **12 richieste**
+— 5 auth + 7 REST — e si ripagava a ogni navigazione, a ogni `router.refresh()` e
+dopo ogni `revalidatePath("/", "layout")`, cioè dopo ogni transazione salvata.
+Ora ne costa **6**, con le chiamate auth a **zero**.
+
+#### ⚠️ `auth.getUser()` è una chiamata di RETE, una per invocazione
+
+È la trappola centrale, e non si vede leggendo il codice: `getUser()` **non legge
+il cookie**, fa una `GET /auth/v1/user` verso GoTrue ogni volta e non memoizza
+nulla. Siccome ogni loader apriva il proprio client e rifaceva il proprio
+controllo, la home chiedeva **cinque volte la stessa risposta, in parallelo,
+dentro lo stesso render**.
+
+Il rimpiazzo è `getSessionUser()` in `lib/auth.ts`, che legge le **claims** del
+JWT: firma verificata in locale con WebCrypto, JWKS in una cache di modulo di
+`auth-js` (`GLOBAL_JWKS`, una volta per processo). Costo di rete a regime: zero.
+
+- ⚠️ **Il risparmio dipende dal TIPO DI CHIAVE, non da questo codice.** Funziona
+  perché il progetto usa chiavi JWT asimmetriche — si verifica con
+  `curl $SUPABASE_URL/auth/v1/.well-known/jwks.json`, che deve rispondere
+  `"alg":"ES256"`. Con un segreto simmetrico HS256 `getClaims()` ripiega **da
+  solo** su `getUser()`: nessun errore, nessun avviso, e ogni chiamata torna a
+  essere rete. È una regressione che nessun test coglie.
+- ⚠️ **`SessionUser` è una FOTOGRAFIA, `User` era VIVO.** È la differenza che
+  conta, e ignorarla è già costata un difetto (vedi sotto). Il tipo espone `id`
+  — `sub` non cambia mai, quindi non può diventare stantio — e `email`, marcata
+  come utilizzabile **solo per disegnare**. Niente `providers`: chi ha bisogno
+  dei provider ha bisogno di quelli di adesso.
+- **Le letture d'account restano su `getUser()`, ed è deliberato**: cambio email, cambio
+  password, eliminazione account (`impostazioni/account/actions.ts`),
+  `resetPassword`, il gate di `/reimposta-password` e il `/callback` subito dopo
+  lo scambio del code. Le claims dicono che il token è autentico e non scaduto,
+  **non che la sessione sia ancora viva**: un logout altrove non si vede fino
+  alla scadenza dell'access token. Sul percorso di lettura non è una perdita —
+  PostgREST valida quello stesso JWT allo stesso modo, quindi la RLS non avrebbe
+  comunque visto la revoca — ma sulle operazioni sensibili la verifica lato
+  server è esattamente ciò che si sta comprando, e là costa una chiamata per
+  azione invece di cinque per render.
+
+#### ⚠️ Il difetto che questa fase ha introdotto, e come si chiude
+
+Trovato dal code-review, non dalla verifica manuale — che infatti era passata.
+
+`getAccountContext()` era passata alle claims come tutto il resto. Ma quella
+funzione serviva **due bisogni con requisiti di freschezza diversi**: la home
+(avatar, iniziali, nome) e le pagine impostazioni (email e provider come
+*fatto*, e come *conferma*). Sulle prime uno scatto vecchio è innocuo; sulle
+seconde no.
+
+**Perché l'email diventa stantia**: `/email-confermata` non è un flusso PKCE —
+non scambia alcun `code` e quindi **non rinnova la sessione**. E `getSession()`
+rinnova solo un token già *scaduto*, non uno che sta per esserlo. Quindi dopo un
+cambio email confermato il JWT porta l'indirizzo vecchio per un'ora.
+
+**La conseguenza**: `/impostazioni/elimina` passava a `DeleteAccountFlow`
+l'email delle claims (vecchia), mentre `deleteAccount()` la confrontava con
+quella di `auth.getUser()` (nuova). Digitare la nuova non abilitava il pulsante,
+digitare la vecchia veniva rifiutato dal server: **account impossibile da
+eliminare**. Stesso schema per `hasPasswordIdentity`, che la UI ricavava dalle
+claims e il server da `user.identities` — due derivazioni della stessa domanda
+nello stesso flusso, concordi per fortuna e non per costruzione.
+
+**La chiusura è una separazione, non un ripiego a `getUser()` ovunque**:
+
+| funzione | fonte | chi la usa |
+|---|---|---|
+| `getAccountContext()` → `AccountContext` | `auth.getUser()`, viva | le 5 pagine impostazioni |
+| `getProfileHeader()` → `ProfileHeader` | claims | la home |
+
+⚠️ **A garantirlo è il TIPO, non il commento.** `ProfileHeader` non espone
+`email` né `hasPasswordIdentity`, quindi nessuna pagina che parta di lì può
+usare per una conferma d'identità un dato che è una fotografia. La classe di
+difetto non è mitigata: è **irrappresentabile**. Il costo è una chiamata auth
+sulle sole impostazioni — una per vista, non cinque — e la home resta a zero.
+
+**La regola generale**: quando si sostituisce una fonte viva con una copia
+memorizzata, la domanda non è "il dato è lo stesso?" ma "**per quanto tempo può
+divergere, e chi se ne accorge?**". Un campo che serve a disegnare e un campo
+che serve a decidere hanno bisogni diversi anche quando contengono la stessa
+stringa.
+
+#### Un preambolo solo: `requireUser()`
+
+Le quattro righe di apertura (client, utente, dizionario, controllo) stavano
+copiate identiche in **32 server action su sei file**, e in un solo giorno hanno
+dovuto cambiare due volte: prima per passare alle claims, poi per gestire
+l'errore di `getClaims()`. Ogni volta una modifica a tappeto in cui **applicarla
+a metà non si vede** — la stessa "migrazione a campione" descritta nella Fase 18.
+Ora sono una chiamata: `const { supabase, user, t } = await requireUser()`.
+
+⚠️ **`requireUser()` (`lib/auth.ts`) e `requireLiveUser()`
+(`impostazioni/account/actions.ts`) NON sono intercambiabili**, e i nomi sono
+diversi apposta: la prima legge le claims (fotografia), la seconda interroga
+GoTrue (utente di adesso, `email` e `identities` compresi). Con lo stesso nome
+basterebbe un import distratto per riaprire il difetto dell'eliminazione account.
+
+#### Le risposte con i cookie di sessione non devono essere memorizzabili
+
+`@supabase/ssr` passa a `setAll` un secondo argomento con
+`Cache-Control: private, no-cache, no-store, must-revalidate, max-age=0`,
+`Expires: 0`, `Pragma: no-cache`, e la sua documentazione dice perché:
+*"Responses that set auth cookies must not be cached by CDNs or reverse proxies,
+otherwise one user's session token can be served to a different user."*
+
+- Nel **proxy** quegli header ora vengono tenuti da parte e applicati **anche al
+  ramo di redirect**, che costruisce una risposta nuova e prima copiava i soli
+  cookie: usciva un 307 con dei token in `Set-Cookie` e nessuna direttiva.
+- ⚠️ **`lib/supabase/server.ts` NON può applicarli**, e non è una svista: in un
+  Server Component `cookies()` non ha un canale per gli header di risposta, e in
+  un Route Handler la `Response` nasce dopo il client. La copertura sta in
+  `next.config.ts`, con una regola `headers()` sulle quattro rotte che scrivono
+  cookie di sessione fuori dal proxy — `/callback`, `/auth/confirm` e i due
+  signout. Verificata a runtime.
+
+#### `cache()` su `createClient()`
+
+Non è cosmesi: senza, la home istanziava cinque client, ognuno col proprio client
+GoTrue. Con un'istanza sola per richiesta il rinnovo di un token scaduto avviene
+una volta dentro il lock interno di GoTrue, invece che in cinque corse parallele
+sullo stesso refresh token — **che è monouso**, la stessa classe di difetto già
+documentata nel proxy.
+
+⚠️ **Fuori da un render React `cache()` non memoizza e non solleva** (verificato,
+React 19.2.7): nelle server action degrada al comportamento precedente, dove il
+controllo si fa comunque una volta sola. Quindi è sicura ovunque, ma il guadagno
+si vede **solo durante un render** — cioè esattamente nel caso che serviva.
+
+#### Le query: due difetti dello stesso tipo
+
+- **`getDashboardTotals` lanciava due query dove la seconda era un SOVRAINSIEME
+  della prima** (una filtrata sul mese, una senza filtri). La filtrata non
+  aggiungeva un solo dato: costava una richiesta e ritrasferiva le stesse righe.
+- **`getNotifications()` chiamava `getUnreadCount()`**, che è una server action a
+  sé: apriva un secondo client e rifaceva il proprio controllo auth per una query
+  che parte comunque nello stesso `Promise.all`. Ora la query è estratta in
+  `unreadCountQuery()`, condivisa fra le due.
+
+#### `dashboard_totals()` — migration `20260808_dashboard_totals.sql`
+
+Le somme della home le fa Postgres. Prima si scaricava **ogni transazione
+dell'account**, tutta la storia, per produrre una trentina di numeri.
+
+- ⚠️ **I confini dei mesi li calcola l'APP e li passa come parametro**, non
+  `date_trunc` nel database. Oggi nascono da `new Date(y, m, 1)`, cioè nel fuso
+  del processo che rende la pagina: UTC su Vercel, **ora italiana in sviluppo
+  locale**. Spostare il calcolo nel DB li avrebbe fissati a UTC, cambiando in
+  silenzio i totali della dashboard locale — e solo nelle prime ore del mese,
+  cioè il momento peggiore per accorgersene. La chiusura pulita è `ClientClock`
+  (Fase 17a), ma la home è un server component e non conosce il fuso dell'utente.
+- **Un array di 7 confini, non due domande separate.** Il mese corrente **è**
+  l'ultimo bucket del trend a 6 mesi (`m-5+i` con `i=5` è `inizioMese`):
+  chiederli separatamente avrebbe sommato due volte le stesse righe.
+- **`total` torna `numeric` senza precisione**, non `numeric(10,2)` come la
+  colonna: una somma può superare le dieci cifre anche se nessun importo singolo
+  lo fa, e il cast la farebbe fallire.
+- ⚠️ **Ordine di deploy vincolante**: la migration va eseguita **prima** di
+  pubblicare il codice, o la home risponde 404 sulla RPC. Nessun ripiego sulla
+  vecchia strada, di proposito — un fallback silenzioso nasconderebbe una
+  migration non eseguita e l'app girerebbe per mesi sulla via lenta.
+- ⚠️⚠️ **`RETURN QUERY` di plpgsql pretende i tipi ESATTI; `language sql` no.**
+  Una funzione SQL accetta qualsiasi tipo *binary-coercible* e converte in
+  silenzio (`varchar` dove è dichiarato `text`, `int2` dove è dichiarato `int`).
+  La prima versione di `dashboard_totals()` era `language sql` e funzionava
+  proprio grazie a quell'indulgenza; aggiungendo il tetto su `p_bounds` è
+  diventata plpgsql e la home è morta con
+  `structure of query does not match function result type` — messaggio che **non
+  dice quale colonna** e che compare solo all'esecuzione, non alla creazione
+  (`create or replace` era passato senza un lamento). Ogni colonna restituita ha
+  ora un cast esplicito. Non è ridondanza: lega la funzione alla propria firma
+  invece che a un'assunzione sullo schema **che nessuno può verificare leggendo
+  il repo**, visto che `transactions` non è versionata (issue #43).
+
+#### Il proxy: un redirect è un'AFFERMAZIONE
+
+`updateSession()` scartava l'`error` di `getClaims()` esattamente come faceva
+`getSessionUser()`. Stesso difetto, conseguenza peggiore: un JWKS irraggiungibile
+o un GoTrue lento finivano nello stesso cesto di "token non valido", e l'utente —
+con una sessione buona — veniva spedito su `/welcome`. Un redirect **dichiara**
+"non sei autenticato", e lì era una dichiarazione falsa.
+
+Ora su un errore di rete la richiesta **passa**. Non è un buco, ed è la parte che
+va capita: ⚠️ **il proxy è una comodità di navigazione, non il perimetro di
+sicurezza.** Il perimetro sono la RLS e il controllo che ogni pagina e ogni
+action rifanno da sé — necessario comunque, perché una server action è
+raggiungibile con una POST diretta. Verificato: tutte e dodici le pagine di
+`(main)` passano da un loader che autentica. A valle `getSessionUser()` incontra
+lo stesso guasto e solleva, quindi si vede una pagina d'errore: sgradevole ma
+**vera e ricaricabile**, invece di un logout che mente.
+
+#### ⚠️ Il travaso dei cookie nel redirect fa il contrario di quel che diceva
+
+Il commento originale sosteneva di "salvare la rotazione" persa da un redirect
+nudo. Riesaminato, **era sbagliato due volte**:
+
+- la rotazione riuscita non passa quasi mai di lì — se il refresh va a buon fine
+  `getClaims()` torna le claims, `user` è valorizzato e si esce dall'altro ramo;
+- un `NextResponse.redirect()` senza `Set-Cookie` **non può cancellare niente**:
+  non ha alcun header con cui farlo.
+
+Ciò che arriva davvero in quel ramo è l'opposto: refresh **fallito**, sessione
+dismessa da auth-js, e `setAll` che scrive delle **cancellazioni**. Inoltrarle è
+comunque la cosa giusta — il token è morto, e ripulire impedisce al browser di
+ripresentarlo a ogni richiesta. Il codice resta, il commento no.
+
+⚠️ Rischio residuo dichiarato: sotto concorrenza una richiesta che perde la corsa
+potrebbe cancellare i cookie appena scritti da una sorella. È mitigato **da
+GoTrue, non da noi** — il *refresh token reuse interval* (10s di default) fa sì
+che le richieste parallele con lo stesso refresh token ricevano tutte la stessa
+sessione nuova invece di un errore, ed esiste esattamente per il burst di
+prefetch dell'hard refresh. Se venisse portato a 0 nelle impostazioni Auth, quel
+blocco va rivisto.
+
+#### Cosa NON era il problema
+
+Vale la pena saperlo prima di rimettere mano a questa zona:
+
+- **Il proxy.** Gira su ogni richiesta ma usa già `getClaims()`, che con ES256
+  non tocca la rete.
+- **Il prefetch della `BottomNav`.** `node_modules/next/dist/docs/01-app/02-guides/prefetching.md`:
+  le pagine dinamiche non si prefetchano senza `loading.js`, e nel repo non ce
+  n'è nessuno. In sviluppo il prefetch automatico non gira proprio.
+- **Polling.** Non ce n'è: `DashboardRefresher` reagisce a un contatore di
+  Zustand, non a un timer.
+
+#### Come misurare, la prossima volta
+
+Il numero da guardare nel pannello Supabase non è il totale ma la **card Auth**:
+se non è quasi piatta, da qualche parte è rientrato un `getUser()` sul percorso
+di lettura.
 
 ## Auth Flow
 
@@ -593,8 +1053,19 @@ non sono semplici sostituzioni di colore:
   impone, ma senza di essa un dispositivo sbloccato basterebbe a prendere l'account.
   Il controllo va rifatto a ogni server action: lo stato del passo precedente vive sul
   client e non è affidabile.
+- **Ogni server action che legge dati apre con `requireUser()` (`lib/auth.ts`)**,
+  che dà client, utente (dalle claims) e dizionario in un colpo solo. Non
+  `auth.getUser()` — quest'ultima è una chiamata di rete a ogni invocazione.
+  Le eccezioni sono le operazioni sensibili qui sopra, `resetPassword`, il gate
+  di `/reimposta-password`, il `/callback` **e tutto ciò che passa da
+  `getAccountContext()`**: là serve la verifica lato server, perché le claims
+  non vedono né una sessione revocata né un'email appena cambiata. Motivi e
+  trappole nella sezione "Costo delle richieste a Supabase".
 - Gli account solo-OAuth non hanno `identities` con provider `email`:
   per loro cambio email e cambio password sono disabilitati (`hasPasswordIdentity`).
+  ⚠️ Quel predicato lo calcolano **sia** `getAccountContext()` (per mostrare o
+  nascondere i campi) **sia** `deleteAccount()` (per pretenderli): devono venire
+  dalla stessa fonte viva, o la UI nasconde un campo che il server poi esige.
 
   ⚠️ **Eccezione nota**: per questi account l'**eliminazione** non ha riautenticazione
   — non esiste una password da verificare, e resta solo la digitazione dell'indirizzo.
@@ -771,7 +1242,12 @@ Seguire questo ordine, non saltare fasi:
     e selettore in `/impostazioni`. Motivazioni e trappole del tema chiaro nella
     sezione "Fase 18" sopra. Include l'allineamento di Home, Investimenti e Analisi
     ai mockup e i token `--ink-*`.
-19. Lingua i18n (it/en) — collegare la preferenza `profiles.language` già salvata ma inattiva
+19. ✅ Lingua i18n (it/en) (issue #33) — dizionari tipizzati a mano, locale da cookie
+    (niente `[locale]` nell'URL), `profiles.language` normalizzata e riversata nel
+    cookie al login. Il testo esce da sette moduli di `lib/`; sei array italiani
+    passano a `Intl`. Include il `DatePicker` custom che chiude il debito
+    `<input type="date">` della Fase 18. Motivazioni e trappole in "Fase 19" sopra.
+    Migration `20260807_language.sql` eseguita, verificata end-to-end il 2026-08-07
 20. Conti/wallet multipli — tabella `accounts` + `account_id` su transactions + trasferimenti (feature STRUTTURALE: decide lo schema presto)
 21. Import dati — CSV / estratto Trade Republic via file (nessuna API ufficiale TR: si importa un CSV, es. generato da `pytr`; l'app non gestisce credenziali)
 22. Allegati/ricevute — foto scontrino sulle transazioni via Supabase Storage
@@ -811,4 +1287,16 @@ Ordine per priorità (il viewport è il problema più sentito):
 - **Obiettivi = categorie**: nessuna tabella goal separata — categorie `type='risparmio'` con `target_amount`/`target_date`; `saved_amount` calcolato dalle transazioni. Scelta confermata (no tabella dedicata finché non servono prelievi tracciati o stato completato persistito). Il "prelievo" da un obiettivo si fa cancellando la transazione (non lascia storico). Categorie risparmio e obiettivi **convivono** di proposito. NB Fase 13: eliminare una categoria risparmio = eliminare l'obiettivo → deve usare la stessa logica/conferma di `deleteGoal`, non un delete secco.
 - **Colonne DB in inglese**: `amount`, `type`, `category_id`, `notes`, `date` (non italiano)
 - **Ricorrenti**: generazione automatica lato server con pg_cron (non al login)
-- **Monetario**: DECIMAL(10,2) in DB, `Intl.NumberFormat` per display
+- **Monetario**: DECIMAL(10,2) in DB, `Intl.NumberFormat` per display — dalla Fase 19
+  sempre tramite `lib/i18n/format.ts` (`formatMoney`/`formatNumber`), mai un
+  `new Intl.NumberFormat("it-IT")` cablato: quello non è spostabile su un altro locale
+- **Lingua**: dizionari tipizzati in `lib/i18n/dictionaries/`, locale dal cookie.
+  Nessuna stringa rivolta all'utente vive fuori dai dizionari — nemmeno dentro
+  `lib/`, che tiene solo la meccanica (vedi "Fase 19")
+- **Identità dell'utente**: dalle **claims** del JWT (`getSessionUser()` in
+  `lib/auth.ts`), non da `auth.getUser()` — quella è una chiamata di rete a ogni
+  invocazione, e i loader di una pagina sono tanti. `auth.getUser()` resta dove
+  il dato dev'essere **vivo** e non una fotografia: le operazioni sensibili
+  sull'account e `getAccountContext()`. ⚠️ Il confine passa dal TIPO —
+  `ProfileHeader` (claims) non espone email né provider, `AccountContext`
+  (`getUser()`) sì. Vedi "Costo delle richieste a Supabase"

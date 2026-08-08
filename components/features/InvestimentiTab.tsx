@@ -2,9 +2,11 @@
 import { PieChart, Pie, Tooltip, ResponsiveContainer } from "recharts";
 import { TrendingUpIcon } from "@/lib/seichi-icons";
 import { ICON_MAP } from "@/lib/icon-map";
-import { numberFormatter } from "@/lib/transaction-utils";
+import { INVESTMENT_TYPE_FALLBACK } from "@/lib/investment-types";
+import { useI18n } from "./I18nProvider";
+import { DISPLAY_CURRENCY, fill, formatMoney, plural } from "@/lib/i18n/format";
 import type { InvestmentData } from "@/types";
-import { INVESTMENT_TYPE_META as TYPE_META } from "@/lib/investment-types";
+
 
 const CHART_COLORS = ["ao", "murasaki", "kin", "midori", "aka", "kiri"] as const;
 
@@ -28,6 +30,8 @@ const ACCENT_INK: Record<(typeof CHART_COLORS)[number], string> = {
 };
 
 function EmptyState() {
+	const { t } = useI18n();
+
 	return (
 		<div className="flex flex-col items-center justify-center text-center py-16 px-6">
 			<div
@@ -40,12 +44,13 @@ function EmptyState() {
 					style={{ color: "var(--color-ao)" }}
 				/>
 			</div>
-			<p className="text-[18px] font-semibold mb-2.5">
-				Nessun investimento ancora
-			</p>
+			<p className="text-[18px] font-semibold mb-2.5">{t.investments.emptyTitle}</p>
+			{/* Cita il nome del tipo: viene dalla stessa fonte del selettore nel
+			    modale, così le due schermate non possono chiamarlo in due modi. */}
 			<p className="text-sm text-muted leading-relaxed max-w-65">
-				Aggiungi una transazione di tipo "Investimento" per iniziare a tracciare
-				il tuo portafoglio.
+				{fill(t.investments.emptyDescription, {
+					type: t.transactionTypes.investimento.label,
+				})}
 			</p>
 		</div>
 	);
@@ -56,12 +61,18 @@ export default function InvestimentiTab({
 }: {
 	data: InvestmentData | null;
 }) {
+	const { locale, t } = useI18n();
+	/** Importi con i decimali, nel formato del locale. */
+	const money = (v: number) =>
+		formatMoney(v, { locale, currency: DISPLAY_CURRENCY, decimals: 2 });
+
 	if (!data || data.positions.length === 0) return <EmptyState />;
 
 	const { total, variazionePct, byType, positions } = data;
 
 	const items = positions.map((pos, i) => {
-		const typeMeta = pos.investment_type ? TYPE_META[pos.investment_type] : undefined;
+		const typeKey = (pos.investment_type ??
+				INVESTMENT_TYPE_FALLBACK) as keyof typeof t.investments.types;
 		// Il colore viene dalla ROTAZIONE, non dalla tipologia: due posizioni ETF
 		// prenderebbero lo stesso accento e il donut mostrerebbe due fette
 		// identiche con due pallini identici in legenda, cioè illeggibile.
@@ -70,7 +81,8 @@ export default function InvestimentiTab({
 		return {
 			...pos,
 			label: pos.name,
-			typeLabel: (typeMeta ?? TYPE_META.altro).label,
+			typeLabel:
+				t.investments.types[typeKey] ?? t.investments.types[INVESTMENT_TYPE_FALLBACK],
 			accent,
 			fill: `var(--color-${accent})`,
 			ink: ACCENT_INK[accent],
@@ -81,9 +93,8 @@ export default function InvestimentiTab({
 		<>
 			{/* Summary line */}
 			<p className="text-[12.5px] text-muted mt-1">
-				{positions.length}{" "}
-				{positions.length === 1 ? "posizione attiva" : "posizioni attive"} ·{" "}
-				{byType.length} {byType.length === 1 ? "tipologia" : "tipologie"}
+				{plural(t.investments.positionCount, positions.length, locale)} ·{" "}
+				{plural(t.investments.typeCount, byType.length, locale)}
 			</p>
 
 			{/* Portfolio value card */}
@@ -92,10 +103,10 @@ export default function InvestimentiTab({
 			    la fa galleggiare. */}
 			<div className="mt-5 rounded-[28px] pt-5 px-5.5 pb-5.5 bg-surface border border-subtle backdrop-blur-[22px] box-shadow">
 				<p className="text-[11px] text-muted uppercase tracking-widest">
-					Valore portafoglio
+					{t.investments.portfolioValue}
 				</p>
 				<p className="text-[36px] font-semibold tracking-[-0.5px] mt-2 text-foreground">
-					€ {numberFormatter.format(total)}
+					{money(total)}
 				</p>
 				{variazionePct !== null && (
 					<p
@@ -106,7 +117,7 @@ export default function InvestimentiTab({
 						<span>{variazionePct >= 0 ? "↑" : "↓"}</span>
 						<span>
 							{variazionePct >= 0 ? "+" : ""}
-							{variazionePct}% rispetto al mese scorso
+							{variazionePct}% {t.investments.vsLastMonth}
 						</span>
 					</p>
 				)}
@@ -116,7 +127,7 @@ export default function InvestimentiTab({
 			{positions.length >= 2 && (
 				<>
 					<p className="text-[14.5px] font-semibold mt-5 mb-3.5 text-foreground">
-						Composizione
+						{t.investments.composition}
 					</p>
 					<div className="flex items-center gap-5">
 						<div className="relative w-40 h-40 shrink-0">
@@ -143,7 +154,7 @@ export default function InvestimentiTab({
 											color: "var(--text-primary)",
 										}}
 										formatter={(value) => [
-											`€ ${numberFormatter.format(Number(value))}`,
+											money(Number(value)),
 											"",
 										]}
 									/>
@@ -151,10 +162,10 @@ export default function InvestimentiTab({
 							</ResponsiveContainer>
 							<div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-0.5">
 								<p className="text-[9.5px] text-muted uppercase tracking-[0.08em] leading-none">
-									Totale
+									{t.investments.total}
 								</p>
 								<p className="text-[15px] font-semibold text-foreground leading-none">
-									€ {numberFormatter.format(total)}
+									{money(total)}
 								</p>
 							</div>
 						</div>
@@ -179,7 +190,7 @@ export default function InvestimentiTab({
 
 			{/* Posizioni */}
 			<p className="text-[14.5px] font-semibold mt-5 mb-3 text-foreground">
-				Posizioni
+				{t.investments.positions}
 			</p>
 			<div className="flex flex-col gap-2.5">
 				{items.map((pos) => {
@@ -221,9 +232,9 @@ export default function InvestimentiTab({
 							{/* Riga a sé, come nel design: l'importo non compete più con il
 							    nome per lo spazio orizzontale, che sui nomi lunghi troncava. */}
 							<div className="flex items-center justify-between mt-2.5 text-[12.5px]">
-								<span className="text-muted">Investito</span>
+								<span className="text-muted">{t.investments.invested}</span>
 								<span className="font-semibold">
-									€ {numberFormatter.format(pos.total)}
+									{money(pos.total)}
 								</span>
 							</div>
 						</div>

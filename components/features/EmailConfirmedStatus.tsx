@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 import { MailCheck, TriangleAlert } from "lucide-react";
 import StatusScreen from "@/components/UI/StatusScreen";
 import SubmitButton from "@/components/UI/SubmitButton";
+import { useI18n } from "@/components/features/I18nProvider";
 
 /** Il fragment non cambia dopo l'atterraggio: non c'è nulla a cui iscriversi. */
 const subscribe = () => () => {};
@@ -22,6 +23,7 @@ const subscribe = () => () => {};
  * React, e questo è l'hook fatto per leggerlo senza innescare render a cascata.
  */
 export default function EmailConfirmedStatus() {
+	const { t } = useI18n();
 	const hash = useSyncExternalStore(
 		subscribe,
 		() => window.location.hash,
@@ -39,14 +41,14 @@ export default function EmailConfirmedStatus() {
 		return (
 			<StatusScreen
 				icon={<TriangleAlert size={30} style={{ color: "var(--color-aka)" }} strokeWidth={1.6} />}
-				title="Conferma non riuscita"
+				title={t.auth.emailConfirmed.failedTitle}
 				// Messaggio nostro, non `error_description` dall'URL: quel testo è
 				// controllabile da chi costruisce il link e verrebbe mostrato sotto il
 				// marchio dell'app — un veicolo di phishing pronto all'uso.
-				description="Il link non è valido o è scaduto. Riprova a cambiare email dalle impostazioni."
+				description={t.auth.emailConfirmed.failedDescription}
 				tone="var(--color-aka)"
 			>
-				<SubmitButton label="Vai alle impostazioni" href="/impostazioni" />
+				<SubmitButton label={t.auth.emailConfirmed.goToSettings} href="/impostazioni" />
 			</StatusScreen>
 		);
 	}
@@ -54,10 +56,10 @@ export default function EmailConfirmedStatus() {
 	return (
 		<StatusScreen
 			icon={<MailCheck size={30} style={{ color: "var(--color-midori)" }} strokeWidth={1.6} />}
-			title="Email confermata"
-			description="Se Supabase ha richiesto la conferma anche dall'indirizzo precedente, il cambio diventa effettivo solo dopo aver aperto entrambi i link."
+			title={t.auth.emailConfirmed.title}
+			description={t.auth.emailConfirmed.description}
 		>
-			<SubmitButton label="Torna alle impostazioni" href="/impostazioni" />
+			<SubmitButton label={t.auth.emailConfirmed.backToSettings} href="/impostazioni" />
 		</StatusScreen>
 	);
 }

@@ -2,16 +2,7 @@
 import { useEffect, useState } from "react";
 import { TransactionType, Category, Transaction, Frequency } from "@/types";
 import { createClient } from "@/lib/supabase/client";
-import {
-	Calendar,
-	ChevronLeft,
-	ChevronRight,
-	Pencil,
-	Delete,
-	Check,
-	Trash2,
-	Repeat,
-} from "lucide-react";
+import { Pencil, Delete, Check, Trash2, Repeat } from "lucide-react";
 import Select from "@/components/UI/Select";
 import FrequencySelector from "@/components/UI/FrequencySelector";
 import { SwitchVisual } from "@/components/UI/Switch";
@@ -23,18 +14,20 @@ import {
 	createRecurringRule,
 } from "@/app/(main)/action";
 import { useUIStore } from "@/store/useUIStore";
+import DatePicker from "@/components/UI/DatePicker";
+import { useI18n } from "@/components/features/I18nProvider";
+import { DISPLAY_CURRENCY, currencySymbol } from "@/lib/i18n/format";
 
-const DAYS = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
-
-function getDaysInMonth(year: number, month: number) {
-	return new Date(year, month + 1, 0).getDate();
-}
-
-function getFirstWeekday(year: number, month: number) {
-	const day = new Date(year, month, 1).getDay();
-	return day === 0 ? 6 : day - 1;
-}
-
+/**
+ * ⚠️ Il calendario NON sta più qui.
+ *
+ * Questo file conteneva un picker inline completo — griglia dei giorni,
+ * navigazione dei mesi, intestazione della settimana — che nella Fase 19 è stato
+ * spostato in `components/UI/DatePicker.tsx` per darlo anche a `GoalSheet` e
+ * `RecurringSheet`, che usavano ancora `<input type="date">`. Per un po' le due
+ * copie sono coesistite: sbagliato, e già stavano divergendo (`min` e il comando
+ * "svuota" esistevano solo nella nuova). Ora il picker è uno solo.
+ */
 interface TransactionFormProps {
 	selectedType: TransactionType;
 	transaction?: Transaction;
@@ -44,6 +37,7 @@ export default function TransactionForm({
 	selectedType,
 	transaction,
 }: TransactionFormProps) {
+	const { locale, t } = useI18n();
 	const isEditing = !!transaction;
 
 	const [amount, setAmount] = useState(() =>
@@ -59,10 +53,6 @@ export default function TransactionForm({
 		transaction ? new Date(transaction.date) : new Date(),
 	);
 	const [categoryList, setCategoryList] = useState<Category[]>([]);
-	const [isDateOpen, setIsDateOpen] = useState(false);
-	const [viewDate, setViewDate] = useState(() =>
-		transaction ? new Date(transaction.date) : new Date(),
-	);
 	const [isDeleteConfirm, setIsDeleteConfirm] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
 	const { closeTransactionModal, notifyTransactionSaved, recurringDefault } =
@@ -152,19 +142,6 @@ export default function TransactionForm({
 		}
 	}
 
-	function selectDay(day: number) {
-		setDate(new Date(viewDate.getFullYear(), viewDate.getMonth(), day, 12));
-		setIsDateOpen(false);
-	}
-
-	function navigateMonth(delta: number) {
-		setViewDate((prev) => {
-			const d = new Date(prev);
-			d.setMonth(d.getMonth() + delta);
-			return d;
-		});
-	}
-
 	const effectiveCategoryList: Category[] =
 		categoryList.length > 0
 			? categoryList
@@ -183,19 +160,13 @@ export default function TransactionForm({
 
 	const categoryOptions = buildCategoryOptions(effectiveCategoryList);
 
-	const year = viewDate.getFullYear();
-	const month = viewDate.getMonth();
-	const totalDays = getDaysInMonth(year, month);
-	const firstWeekday = getFirstWeekday(year, month);
-	const today = new Date();
-
 	return (
 		<div className="flex flex-col flex-1 min-h-0 overflow-y-auto overscroll-contain">
 			{/* Importo */}
 			<div className="text-center pt-1 pb-3">
-				<p className="text-muted text-md mb-2">Importo</p>
+				<p className="text-muted text-md mb-2">{t.transactions.form.amount}</p>
 				<div className="text-7xl font-bold tracking-tight">
-					<span className="text-3xl mr-1">€</span>
+					<span className="text-3xl mr-1">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
 					{amount || "0"}
 				</div>
 			</div>
@@ -203,7 +174,7 @@ export default function TransactionForm({
 			<div className="flex flex-col gap-2 mb-3">
 				{/* Categoria */}
 				<Select
-					title="Categoria"
+					title={t.transactions.form.category}
 					variant="compact"
 					options={categoryOptions}
 					selected={categoryId ?? ""}
@@ -212,12 +183,12 @@ export default function TransactionForm({
 
 				{/* Descrizione */}
 				<div>
-					<p className="text-xs text-muted mb-1.5">Descrizione</p>
+					<p className="text-xs text-muted mb-1.5">{t.transactions.form.description}</p>
 					<div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-card border border-subtle">
 						<Pencil size={14} className="text-muted shrink-0" />
 						<input
 							type="text"
-							placeholder="Es. Trenord, Esselunga..."
+							placeholder={t.transactions.form.descriptionPlaceholder}
 							value={description ?? ""}
 							onChange={(e) => setDescription(e.target.value)}
 							className="bg-transparent text-sm flex-1 outline-none placeholder:text-muted"
@@ -226,111 +197,30 @@ export default function TransactionForm({
 				</div>
 
 				{/* Data */}
-				<div className="relative">
-					<p className="text-xs text-muted mb-1.5">Data</p>
-					<button
-						type="button"
-						onClick={() => {
-							setViewDate(new Date(date));
-							setIsDateOpen((p) => !p);
-						}}
-						className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-card border border-subtle"
-					>
-						<Calendar size={14} className="text-muted shrink-0" />
-						<span className="text-sm flex-1 text-left">
-							{date.toLocaleDateString("it-IT", {
-								day: "numeric",
-								month: "long",
-								year: "numeric",
-							})}
-						</span>
-						<ChevronRight size={14} className="text-muted" />
-					</button>
-
-					{isDateOpen && (
-						<div className="absolute top-full mt-1 left-0 right-0 z-20 rounded-2xl bg-deep border border-subtle p-3">
-							<div className="flex items-center justify-between mb-2">
-								<button
-									type="button"
-									onClick={() => navigateMonth(-1)}
-									className="w-7 h-7 flex items-center justify-center rounded-xl bg-card border border-subtle"
-								>
-									<ChevronLeft size={14} />
-								</button>
-								<span className="text-sm font-medium capitalize">
-									{viewDate.toLocaleDateString("it-IT", {
-										month: "long",
-										year: "numeric",
-									})}
-								</span>
-								<button
-									type="button"
-									onClick={() => navigateMonth(1)}
-									className="w-7 h-7 flex items-center justify-center rounded-xl bg-card border border-subtle"
-								>
-									<ChevronRight size={14} />
-								</button>
-							</div>
-
-							<div className="grid grid-cols-7 mb-1">
-								{DAYS.map((d) => (
-									<span
-										key={d}
-										className="text-center text-[10px] text-muted py-1"
-									>
-										{d}
-									</span>
-								))}
-							</div>
-
-							<div className="grid grid-cols-7 gap-0.5">
-								{Array.from({ length: firstWeekday }).map((_, i) => (
-									<div key={`e${i}`} />
-								))}
-								{Array.from({ length: totalDays }).map((_, i) => {
-									const day = i + 1;
-									const isSelected =
-										date.getDate() === day &&
-										date.getMonth() === month &&
-										date.getFullYear() === year;
-									const isToday =
-										today.getDate() === day &&
-										today.getMonth() === month &&
-										today.getFullYear() === year;
-									return (
-										<button
-											key={day}
-											type="button"
-											onClick={() => selectDay(day)}
-											className={`h-8 w-full rounded-xl text-xs flex items-center justify-center transition-colors ${
-												isSelected
-													? "btn-primary font-semibold"
-													: isToday
-														? "border border-subtle font-medium"
-														: "hover:bg-card"
-											}`}
-										>
-											{day}
-										</button>
-									);
-								})}
-							</div>
-						</div>
-					)}
+				<div>
+					<p className="text-xs text-muted mb-1.5">{t.transactions.form.date}</p>
+					{/* Lo stesso picker di GoalSheet e RecurringSheet: qui viveva la copia
+					    originale, ora estratta in components/UI/DatePicker.tsx. */}
+					<DatePicker
+						value={date.toLocaleDateString("sv-SE")}
+						// Mezzogiorno, non mezzanotte: attorno al cambio ora legale una
+						// data costruita a mezzanotte può ricadere nel giorno prima.
+						onChange={(iso) => setDate(new Date(`${iso}T12:00:00`))}
+					/>
 				</div>
 			</div>
 
 			{/* Ripeti (solo nuovi movimenti) */}
 			{!isEditing && (
 				<div className="mb-3">
-					<p className="text-xs text-muted mb-1.5">Ricorrenti</p>
+					<p className="text-xs text-muted mb-1.5">{t.transactions.form.recurringSection}</p>
 					<button
 						type="button"
 						onClick={() => setIsRecurring((v) => !v)}
 						className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-card border border-subtle"
 					>
 						<Repeat size={14} className="text-muted shrink-0" />
-						<span className="text-sm flex-1 text-left">Ripeti</span>
+						<span className="text-sm flex-1 text-left">{t.transactions.form.repeat}</span>
 						{/*
 							Il DISEGNO di <Switch> senza il suo comando: questa riga è già
 							un <button>, e annidarci dentro il bottone role="switch" del
@@ -381,10 +271,10 @@ export default function TransactionForm({
 			>
 				<Check size={18} />
 				{isEditing
-					? "Salva modifiche"
+					? t.transactions.form.saveChanges
 					: isRecurring
-						? "Crea ricorrenza"
-						: "Salva movimento"}
+						? t.transactions.form.createRecurring
+						: t.transactions.form.save}
 			</button>
 
 			{isEditing && (
@@ -395,14 +285,15 @@ export default function TransactionForm({
 								onClick={() => setIsDeleteConfirm(false)}
 								className="flex-1 py-3.5 rounded-2xl bg-card border border-subtle text-sm font-semibold"
 							>
-								Annulla
+								{t.common.cancel}
 							</button>
 							<button
 								onClick={handleDelete}
 								className="flex-1 py-3.5 rounded-2xl text-sm font-semibold"
-								style={{ background: "var(--color-aka)", color: "#fff" }}
+								// `--on-accent`, non "#fff": vedi CLAUDE.md, Fase 18.
+								style={{ background: "var(--color-aka)", color: "var(--on-accent)" }}
 							>
-								Conferma eliminazione
+								{t.transactions.form.deleteConfirm}
 							</button>
 						</div>
 					) : (
@@ -416,7 +307,7 @@ export default function TransactionForm({
 							}}
 						>
 							<Trash2 size={15} />
-							Elimina movimento
+							{t.transactions.form.delete}
 						</button>
 					)}
 				</div>

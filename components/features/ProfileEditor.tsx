@@ -7,6 +7,8 @@ import Avatar from "@/components/UI/Avatar";
 import SettingsRow, { SettingsGroup } from "@/components/UI/SettingsRow";
 import SubmitButton from "@/components/UI/SubmitButton";
 import { removeAvatar, updateFullName, uploadAvatar } from "@/app/(main)/impostazioni/account/actions";
+import { useI18n } from "@/components/features/I18nProvider";
+import { fill } from "@/lib/i18n/format";
 
 const ACCEPTED = "image/jpeg,image/png,image/webp";
 const AKA = "var(--color-aka)";
@@ -14,6 +16,8 @@ const AKA = "var(--color-aka)";
 // bucket. Il controllo qui evita un upload inutile, ma quello che conta è
 // quello sul server: questo è aggirabile.
 const MAX_BYTES = 2 * 1024 * 1024;
+/** I testi che citano il limite lo prendono da qui, invece di scriverlo a mano. */
+const MAX_MB = MAX_BYTES / 1024 / 1024;
 
 interface ProfileEditorProps {
 	fullName: string | null;
@@ -24,6 +28,7 @@ interface ProfileEditorProps {
 
 export default function ProfileEditor({ fullName, avatarUrl, initials, email }: ProfileEditorProps) {
 	const router = useRouter();
+	const { t } = useI18n();
 	const fileInput = useRef<HTMLInputElement>(null);
 
 	const [name, setName] = useState(fullName ?? "");
@@ -42,7 +47,7 @@ export default function ProfileEditor({ fullName, avatarUrl, initials, email }: 
 		setError(null);
 
 		if (file.size > MAX_BYTES) {
-			setError("L'immagine non può superare 2 MB");
+			setError(fill(t.account.profile.imageTooLarge, { max: MAX_MB }));
 			return;
 		}
 
@@ -58,7 +63,7 @@ export default function ProfileEditor({ fullName, avatarUrl, initials, email }: 
 				if ("error" in result) setError(result.error);
 				else router.refresh();
 			} catch {
-				setError("Caricamento non riuscito. Riprova.");
+				setError(t.account.profile.uploadFailed);
 			}
 		});
 	}
@@ -71,7 +76,7 @@ export default function ProfileEditor({ fullName, avatarUrl, initials, email }: 
 				if ("error" in result) setError(result.error);
 				else router.refresh();
 			} catch {
-				setError("Rimozione non riuscita. Riprova.");
+				setError(t.account.profile.removeFailed);
 			}
 		});
 	}
@@ -88,7 +93,7 @@ export default function ProfileEditor({ fullName, avatarUrl, initials, email }: 
 					router.refresh();
 				}
 			} catch {
-				setError("Salvataggio non riuscito. Riprova.");
+				setError(t.account.profile.saveFailed);
 			}
 		});
 	}
@@ -113,7 +118,7 @@ export default function ProfileEditor({ fullName, avatarUrl, initials, email }: 
 					<Avatar src={avatarUrl} initials={initials} size={76} />
 				</div>
 				<p className="text-[13px] text-muted">
-					{uploading ? "Caricamento in corso…" : email}
+					{uploading ? t.account.profile.uploading : email}
 				</p>
 			</div>
 
@@ -125,18 +130,18 @@ export default function ProfileEditor({ fullName, avatarUrl, initials, email }: 
 				className="hidden"
 			/>
 
-			<SettingsGroup label="Foto profilo">
+			<SettingsGroup label={t.settings.profilePhoto}>
 				<SettingsRow
 					icon={<Camera size={17} className="text-secondary" />}
-					label={avatarUrl ? "Sostituisci la foto" : "Carica una foto"}
-					subtitle="JPG, PNG o WebP — massimo 2 MB"
+					label={avatarUrl ? t.account.profile.replacePhoto : t.account.profile.uploadPhoto}
+					subtitle={fill(t.account.profile.photoHint, { max: MAX_MB })}
 					onClick={() => fileInput.current?.click()}
 					disabled={uploading}
 				/>
 				{avatarUrl && (
 					<SettingsRow
 						icon={<Trash2 size={17} style={{ color: AKA }} />}
-						label="Rimuovi foto"
+						label={t.account.profile.removePhoto}
 						tone={AKA}
 						onClick={handleRemove}
 						disabled={uploading}
@@ -146,13 +151,13 @@ export default function ProfileEditor({ fullName, avatarUrl, initials, email }: 
 
 			{/* Nome */}
 			<p className="text-[11.5px] font-semibold tracking-[1.6px] uppercase text-disabled mb-2.5 ml-0.5">
-				Nome
+				{t.account.profile.nameSection}
 			</p>
 			<input
 				type="text"
 				value={name}
 				maxLength={80}
-				placeholder="Come vuoi essere chiamato"
+				placeholder={t.account.profile.namePlaceholder}
 				onChange={(e) => {
 					setName(e.target.value);
 					setSaved(false);
@@ -167,13 +172,13 @@ export default function ProfileEditor({ fullName, avatarUrl, initials, email }: 
 			)}
 			{saved && !error && (
 				<p className="text-xs text-center mb-3" style={{ color: "var(--ink-midori)" }}>
-					Nome aggiornato
+					{t.account.profile.nameUpdated}
 				</p>
 			)}
 
 			<SubmitButton
-				label="Salva"
-				pendingLabel="Salvataggio…"
+				label={t.common.save}
+				pendingLabel={t.common.saving}
 				pending={savingName}
 				disabled={name.trim() === (fullName ?? "").trim()}
 				onClick={handleSaveName}

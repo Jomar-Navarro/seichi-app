@@ -7,8 +7,10 @@ import PasswordStrength from "@/components/UI/PasswordStrength";
 import SubmitButton from "@/components/UI/SubmitButton";
 import { resetPassword } from "@/app/(auth)/recupera-password/actions";
 import { PASSWORD_MIN_LENGTH } from "@/lib/password";
+import { useI18n } from "@/components/features/I18nProvider";
 
 export default function ResetPasswordForm() {
+	const { t } = useI18n();
 	const [password, setPassword] = useState("");
 	const [confirm, setConfirm] = useState("");
 	const [error, setError] = useState<string | null>(null);
@@ -33,12 +35,12 @@ export default function ResetPasswordForm() {
 				<span className="w-18 h-18 rounded-[26px] flex items-center justify-center mb-5 bg-control border border-subtle box-shadow">
 					<Lock size={34} className="text-foreground" strokeWidth={1.5} />
 				</span>
-				<h1 className="text-[21px] font-semibold">Reimposta password</h1>
+				<h1 className="text-[21px] font-semibold">{t.auth.recovery.resetTitle}</h1>
 			</div>
 
 			<PasswordInput
 				name="new-password"
-				label="Nuova password"
+				label={t.auth.recovery.newPassword}
 				value={password}
 				onChange={setPassword}
 				autoComplete="new-password"
@@ -46,7 +48,7 @@ export default function ResetPasswordForm() {
 			/>
 			<PasswordInput
 				name="confirm-password"
-				label="Conferma password"
+				label={t.auth.recovery.confirmPassword}
 				value={confirm}
 				onChange={setConfirm}
 				autoComplete="new-password"
@@ -62,8 +64,8 @@ export default function ResetPasswordForm() {
 			)}
 
 			<SubmitButton
-				label="Reimposta password"
-				pendingLabel="Aggiornamento…"
+				label={t.auth.recovery.reset}
+				pendingLabel={t.auth.recovery.resetting}
 				pending={pending}
 				disabled={!ready}
 				type="submit"

@@ -6,6 +6,7 @@ import { Settings, LogOut, ChevronDown } from "lucide-react";
 import Avatar from "@/components/UI/Avatar";
 import ThemeToggle from "./ThemeToggle";
 import { signOut } from "@/app/(main)/impostazioni/actions";
+import { useI18n } from "./I18nProvider";
 
 interface ProfileMenuProps {
 	initials: string;
@@ -18,6 +19,7 @@ interface ProfileMenuProps {
 }
 
 export default function ProfileMenu({ initials, avatarUrl, name, greeting }: ProfileMenuProps) {
+	const { t } = useI18n();
 	const [open, setOpen] = useState(false);
 	const ref = useRef<HTMLDivElement>(null);
 
@@ -68,7 +70,7 @@ export default function ProfileMenu({ initials, avatarUrl, name, greeting }: Pro
 						className="flex items-center gap-3 px-4 h-12 border-b border-subtle active:opacity-80"
 					>
 						<Settings size={16} className="text-secondary" />
-						<span className="text-sm font-medium">Impostazioni</span>
+						<span className="text-sm font-medium">{t.profileMenu.settings}</span>
 					</Link>
 					<form action={signOut}>
 						<button
@@ -77,7 +79,7 @@ export default function ProfileMenu({ initials, avatarUrl, name, greeting }: Pro
 						>
 							<LogOut size={16} style={{ color: "var(--color-aka)" }} />
 							<span className="text-sm font-medium" style={{ color: "var(--ink-aka)" }}>
-								Esci
+								{t.profileMenu.signOut}
 							</span>
 						</button>
 					</form>

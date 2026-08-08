@@ -9,10 +9,12 @@ import {
 	requestEmailChange,
 	verifyCurrentPassword,
 } from "@/app/(main)/impostazioni/account/actions";
+import { useI18n } from "@/components/features/I18nProvider";
 
 type Step = "identity" | "newEmail" | "sent";
 
 export default function EmailChangeForm({ currentEmail }: { currentEmail: string }) {
+	const { t } = useI18n();
 	const [step, setStep] = useState<Step>("identity");
 	const [password, setPassword] = useState("");
 	const [newEmail, setNewEmail] = useState("");
@@ -46,8 +48,8 @@ export default function EmailChangeForm({ currentEmail }: { currentEmail: string
 		return (
 			<StatusScreen
 				icon={<Mail size={30} style={{ color: "var(--color-midori)" }} strokeWidth={1.5} />}
-				title="Controlla la tua email"
-				description="Ti abbiamo inviato un link di conferma. Per sicurezza Supabase può chiedere la conferma anche dalla casella attuale: il cambio diventa effettivo solo dopo."
+				title={t.account.email.sentTitle}
+				description={t.account.email.sentDescription}
 			/>
 		);
 	}
@@ -55,10 +57,10 @@ export default function EmailChangeForm({ currentEmail }: { currentEmail: string
 	if (step === "identity") {
 		return (
 			<>
-				<p className="text-[13px] text-muted mb-5.5">Conferma la tua identità</p>
+				<p className="text-[13px] text-muted mb-5.5">{t.account.email.confirmIdentity}</p>
 
 				<div className="flex flex-col gap-1.5 mb-3.5">
-					<span className="text-[11.5px] text-disabled ml-0.5">Email attuale</span>
+					<span className="text-[11.5px] text-disabled ml-0.5">{t.account.email.currentEmail}</span>
 					<p className="px-4 py-4 rounded-2xl bg-input border border-subtle text-sm text-muted truncate">
 						{currentEmail}
 					</p>
@@ -68,7 +70,7 @@ export default function EmailChangeForm({ currentEmail }: { currentEmail: string
 					name="current-password"
 					value={password}
 					onChange={setPassword}
-					placeholder="Password"
+					placeholder={t.account.email.password}
 					icon={<Lock size={18} className="shrink-0" />}
 					autoComplete="current-password"
 					invalid={Boolean(error)}
@@ -81,8 +83,8 @@ export default function EmailChangeForm({ currentEmail }: { currentEmail: string
 				)}
 
 				<SubmitButton
-					label="Continua"
-					pendingLabel="Verifica…"
+					label={t.common.continue}
+					pendingLabel={t.account.email.verifying}
 					pending={pending}
 					disabled={!password}
 					onClick={handleIdentity}
@@ -94,7 +96,7 @@ export default function EmailChangeForm({ currentEmail }: { currentEmail: string
 
 	return (
 		<>
-			<p className="text-[13px] text-muted mb-5.5">Inserisci la tua nuova email</p>
+			<p className="text-[13px] text-muted mb-5.5">{t.account.email.newEmailIntro}</p>
 
 			<div className="flex items-center gap-3 px-4 rounded-[18px] bg-input border border-subtle text-muted mb-6">
 				<Mail size={18} className="shrink-0" />
@@ -102,7 +104,7 @@ export default function EmailChangeForm({ currentEmail }: { currentEmail: string
 					type="email"
 					value={newEmail}
 					autoFocus
-					placeholder="Nuova email"
+					placeholder={t.account.email.newEmailPlaceholder}
 					autoComplete="email"
 					onChange={(e) => setNewEmail(e.target.value)}
 					className="grow shrink basis-0 min-w-0 bg-transparent outline-none text-foreground text-base py-3.5 placeholder:text-muted/60"
@@ -116,8 +118,8 @@ export default function EmailChangeForm({ currentEmail }: { currentEmail: string
 			)}
 
 			<SubmitButton
-				label="Invia richiesta"
-				pendingLabel="Invio…"
+				label={t.account.email.sendRequest}
+				pendingLabel={t.account.email.sending}
 				pending={pending}
 				disabled={!newEmail}
 				onClick={handleSubmit}

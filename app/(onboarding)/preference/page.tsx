@@ -12,31 +12,44 @@ import {
 import Button from "@/components/UI/Button";
 import Select from "@/components/UI/Select";
 import OnboardingProgress from "@/components/UI/OnboardingProgress";
+import { DEFAULT_LOCALE, LOCALE_LABELS } from "@/lib/i18n/config";
+import { useI18n } from "@/components/features/I18nProvider";
 
-const currencies = [
-	{ value: "EUR", label: "Euro", icon: <Euro size={18} /> },
-	{ value: "USD", label: "Dollaro", icon: <DollarSign size={18} /> },
-	{ value: "GBP", label: "Sterlina", icon: <PoundSterling size={18} /> },
-	{ value: "JPY", label: "Yen", icon: <JapaneseYen size={18} /> },
-];
+/** Solo codice e icona: il nome viene da `t.settings.currencies`. */
+const CURRENCY_OPTIONS = [
+	{ value: "EUR", icon: <Euro size={18} /> },
+	{ value: "USD", icon: <DollarSign size={18} /> },
+	{ value: "GBP", icon: <PoundSterling size={18} /> },
+	{ value: "JPY", icon: <JapaneseYen size={18} /> },
+] as const;
 
+// I `value` sono i tag canonici minuscoli, gli stessi che finiscono in
+// `profiles.language` e nel cookie. Erano "IT"/"EN" e le impostazioni leggevano
+// minuscolo: la scelta dell'inglese si perdeva per strada senza dirlo.
+// L'etichetta è l'endonimo e non si traduce — chi cerca l'inglese non riconosce
+// la parola "Inglese".
 const languages = [
 	{
-		value: "IT",
-		label: "Italiano",
+		value: "it",
+		label: LOCALE_LABELS.it,
 		icon: <span className="text-base">🇮🇹</span>,
 	},
 	{
-		value: "EN",
-		label: "English",
+		value: "en",
+		label: LOCALE_LABELS.en,
 		icon: <span className="text-base">🇬🇧</span>,
 	},
 ];
 
 export default function PreferencePage() {
 	const router = useRouter();
+	const { t } = useI18n();
+	const currencies = CURRENCY_OPTIONS.map((c) => ({
+		...c,
+		label: t.settings.currencies[c.value],
+	}));
 	const [currency, setCurrency] = useState("EUR");
-	const [language, setLanguage] = useState("IT");
+	const [language, setLanguage] = useState<string>(DEFAULT_LOCALE);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
@@ -45,7 +58,7 @@ export default function PreferencePage() {
 		setError(null);
 		const result = await savePreferences(currency, language);
 		if ("error" in result) {
-			setError(result.error ?? "Errore sconosciuto");
+			setError(result.error ?? t.common.unknownError);
 			setIsLoading(false);
 			return;
 		}
@@ -67,15 +80,14 @@ export default function PreferencePage() {
 
 				<div>
 					<h4 className="uppercase tracking-[2.4px] text-xs text-muted mb-3">
-						Preferenze
+						{t.onboarding.preference.eyebrow}
 					</h4>
 					<h2 className="lg:text-5xl xl:text-6xl 2xl:text-7xl font-semibold mb-4 leading-[1.1]">
-						Lingua
-						<br />e valuta
+						{t.onboarding.preference.headingLine1}
+						<br />{t.onboarding.preference.headingLine2}
 					</h2>
 					<p className="lg:text-sm xl:text-base text-muted leading-[1.65] max-w-xs">
-						Imposta le tue preferenze di base. Potrai cambiarle in qualsiasi
-						momento.
+						{t.onboarding.preference.description}
 					</p>
 				</div>
 			</div>
@@ -91,22 +103,21 @@ export default function PreferencePage() {
 				<div className="lg:hidden flex flex-col grow w-full max-w-md mx-auto px-6">
 					<div className="mt-8 mb-6">
 						<h4 className="uppercase tracking-[2.4px] text-xs text-muted mb-3">
-							Preferenze
+							{t.onboarding.preference.eyebrow}
 						</h4>
 						<h2 className="text-4xl font-semibold mb-3 leading-[1.1]">
-							Lingua e valuta
+							{t.onboarding.preference.heading}
 						</h2>
 						<p className="text-muted leading-[1.65]">
-							Imposta le tue preferenze di base. Potrai cambiarle in qualsiasi
-							momento.
+							{t.onboarding.preference.description}
 						</p>
 					</div>
-					<Select title="Valuta" options={currencies} selected={currency} onChange={setCurrency} />
-					<Select title="Lingua" options={languages} selected={language} onChange={setLanguage} />
+					<Select title={t.settings.preferences.currency} options={currencies} selected={currency} onChange={setCurrency} />
+					<Select title={t.settings.preferences.language} options={languages} selected={language} onChange={setLanguage} />
 					<div className="grow" />
 					{error && <p className="text-aka-ink text-sm text-center mb-3">{error}</p>}
 					<div className="pb-10">
-						<Button onClick={handleContinue} disabled={isLoading} title={isLoading ? "Salvataggio…" : "Continua"} variant="welcome" />
+						<Button onClick={handleContinue} disabled={isLoading} title={isLoading ? t.common.saving : t.common.continue} variant="welcome" />
 					</div>
 				</div>
 
@@ -114,13 +125,13 @@ export default function PreferencePage() {
 				<div className="hidden lg:flex flex-col grow px-14">
 					<div className="grow flex items-center justify-center py-8">
 						<div className="w-full max-w-lg xl:bg-surface xl:border xl:border-subtle xl:rounded-2xl xl:px-10 xl:py-10 xl:backdrop-blur-sm">
-							<Select title="Valuta" options={currencies} selected={currency} onChange={setCurrency} />
-							<Select title="Lingua" options={languages} selected={language} onChange={setLanguage} />
+							<Select title={t.settings.preferences.currency} options={currencies} selected={currency} onChange={setCurrency} />
+							<Select title={t.settings.preferences.language} options={languages} selected={language} onChange={setLanguage} />
 						</div>
 					</div>
 					{error && <p className="text-aka-ink text-sm text-center w-full max-w-lg mx-auto mb-3">{error}</p>}
 					<div className="w-full max-w-lg mx-auto pb-14">
-						<Button onClick={handleContinue} disabled={isLoading} title={isLoading ? "Salvataggio…" : "Continua"} variant="welcome" />
+						<Button onClick={handleContinue} disabled={isLoading} title={isLoading ? t.common.saving : t.common.continue} variant="welcome" />
 					</div>
 				</div>
 			</div>

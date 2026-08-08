@@ -6,6 +6,7 @@ import { Lock } from "lucide-react";
 import PasswordInput from "@/components/UI/PasswordInput";
 import SubmitButton from "@/components/UI/SubmitButton";
 import { deleteAccount } from "@/app/(main)/impostazioni/account/actions";
+import { useI18n } from "@/components/features/I18nProvider";
 
 const AKA = "var(--color-aka)";
 
@@ -17,6 +18,7 @@ interface DeleteAccountFlowProps {
 
 export default function DeleteAccountFlow({ email, hasPasswordIdentity }: DeleteAccountFlowProps) {
 	const router = useRouter();
+	const { t } = useI18n();
 	const [confirmed, setConfirmed] = useState(false);
 	const [typedEmail, setTypedEmail] = useState("");
 	const [password, setPassword] = useState("");
@@ -40,11 +42,10 @@ export default function DeleteAccountFlow({ email, hasPasswordIdentity }: Delete
 		return (
 			<>
 				<p className="text-[13.5px] text-muted leading-relaxed mb-7">
-					Questa azione è permanente. Perderai per sempre transazioni, obiettivi, categorie e
-					regole ricorrenti — tutto. Non è possibile recuperare i dati dopo l&apos;eliminazione.
+					{t.account.delete.warning}
 				</p>
 
-				<SubmitButton label="Annulla" onClick={() => router.push("/impostazioni")} />
+				<SubmitButton label={t.common.cancel} onClick={() => router.push("/impostazioni")} />
 
 				<button
 					type="button"
@@ -52,7 +53,7 @@ export default function DeleteAccountFlow({ email, hasPasswordIdentity }: Delete
 					className="w-full text-center text-sm font-medium mt-4.5 py-2 cursor-pointer"
 					style={{ color: AKA }}
 				>
-					Continua
+					{t.common.continue}
 				</button>
 			</>
 		);
@@ -61,9 +62,7 @@ export default function DeleteAccountFlow({ email, hasPasswordIdentity }: Delete
 	/* Passo 2 — conferma esplicita */
 	return (
 		<>
-			<p className="text-[13px] text-muted mb-5.5">
-				Digita il tuo indirizzo email per confermare
-			</p>
+			<p className="text-[13px] text-muted mb-5.5">{t.account.delete.typeEmail}</p>
 
 			<input
 				type="text"
@@ -71,7 +70,7 @@ export default function DeleteAccountFlow({ email, hasPasswordIdentity }: Delete
 				autoFocus
 				// Il placeholder NON contiene l'email: scriverci dentro la risposta
 				// ridurrebbe la conferma a un copia-e-incolla di ciò che è a schermo.
-				placeholder="il tuo indirizzo email"
+				placeholder={t.account.delete.emailPlaceholder}
 				autoComplete="off"
 				autoCapitalize="none"
 				spellCheck={false}
@@ -85,7 +84,7 @@ export default function DeleteAccountFlow({ email, hasPasswordIdentity }: Delete
 					name="current-password"
 					value={password}
 					onChange={setPassword}
-					placeholder="Password"
+					placeholder={t.account.email.password}
 					icon={<Lock size={18} className="shrink-0" />}
 					autoComplete="current-password"
 				/>
@@ -98,8 +97,8 @@ export default function DeleteAccountFlow({ email, hasPasswordIdentity }: Delete
 			)}
 
 			<SubmitButton
-				label="Elimina definitivamente"
-				pendingLabel="Eliminazione…"
+				label={t.account.delete.deleteForever}
+				pendingLabel={t.account.delete.deleting}
 				pending={pending}
 				disabled={!ready}
 				onClick={handleDelete}

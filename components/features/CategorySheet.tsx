@@ -13,17 +13,20 @@ import {
 	updateCategory,
 } from "@/app/(main)/impostazioni/actions";
 import { getBudgetForCategory, setBudget } from "@/app/(main)/budget-actions";
-import { BUDGET_PERIODS, periodSuffix } from "@/lib/budget";
+import { BUDGET_PERIODS } from "@/lib/budget";
 import { clientClock } from "@/lib/dates";
+import { useI18n } from "./I18nProvider";
+import { DISPLAY_CURRENCY, currencySymbol, fill } from "@/lib/i18n/format";
 import type { BudgetPeriod, Category } from "@/types";
 
+/** Solo l'ordine: le etichette abbreviate stanno in `t.typesShort`. */
 const TYPE_ORDER = [
-	{ id: "entrata", label: "entrata" },
-	{ id: "spesa", label: "spesa" },
-	{ id: "investimento", label: "investim." },
-	{ id: "risparmio", label: "risparmio" },
-	{ id: "abbonamento", label: "abbon." },
-];
+	"entrata",
+	"spesa",
+	"investimento",
+	"risparmio",
+	"abbonamento",
+] as const;
 
 function typeIcon(type: string) {
 	return TRANSACTION_TYPES.find((t) => t.id === type)?.icon;
@@ -34,11 +37,9 @@ function resolveIcon(id: string) {
 }
 
 /** Set icone per il tipo, includendo l'icona corrente se non è già in libreria (edit legacy) */
-function iconListFor(type: string, current: string) {
+function iconListFor(type: string, current: string): string[] {
 	const lib = CATEGORY_LIBRARY[type] ?? [];
-	if (current && !lib.some((e) => e.id === current)) {
-		return [{ id: current, label: "attuale" }, ...lib];
-	}
+	if (current && !lib.includes(current)) return [current, ...lib];
 	return lib;
 }
 
@@ -56,6 +57,7 @@ export default function CategorySheet({
 	onClose,
 }: CategorySheetProps) {
 	const router = useRouter();
+	const { locale, t } = useI18n();
 	const [name, setName] = useState("");
 	const [icon, setIcon] = useState("");
 	const [type, setType] = useState("spesa");
@@ -77,10 +79,11 @@ export default function CategorySheet({
 			setLoading(false);
 			setServerError(null);
 			setName(category?.name ?? "");
-			const t = category?.type ?? presetType ?? "spesa";
-			setType(t);
-			const lib = CATEGORY_LIBRARY[t] ?? [];
-			setIcon(category?.icon ?? lib[0]?.id ?? "");
+			// `nextType` e non `t`: quel nome ora è del dizionario.
+			const nextType = category?.type ?? presetType ?? "spesa";
+			setType(nextType);
+			const lib = CATEGORY_LIBRARY[nextType] ?? [];
+			setIcon(category?.icon ?? lib[0] ?? "");
 			setBudgetPeriod("mensile");
 			setBudgetAmount("");
 			setInitialBudget(null);
@@ -114,10 +117,10 @@ export default function CategorySheet({
 	 */
 	const showBudget = type === "spesa";
 
-	function selectType(t: string) {
-		setType(t);
-		const lib = CATEGORY_LIBRARY[t] ?? [];
-		if (!lib.some((e) => e.id === icon)) setIcon(lib[0]?.id ?? "");
+	function selectType(nextType: string) {
+		setType(nextType);
+		const lib = CATEGORY_LIBRARY[nextType] ?? [];
+		if (!lib.includes(icon)) setIcon(lib[0] ?? "");
 	}
 
 	async function handleSubmit() {
@@ -187,7 +190,7 @@ export default function CategorySheet({
 				? null
 				: Number(budgetAmount.replace(",", "."));
 		if (parsed !== null && (!Number.isFinite(parsed) || parsed <= 0)) {
-			return "Il limite di budget deve essere un importo maggiore di zero";
+			return t.categories.budgetMustBePositive;
 		}
 
 		const unchanged =
@@ -224,7 +227,7 @@ export default function CategorySheet({
 
 				<div className="flex items-center justify-between mt-4 mb-6 shrink-0">
 					<h2 className="text-xl font-semibold">
-						{category ? "Modifica categoria" : "Nuova categoria"}
+						{category ? t.categories.editTitle : t.categories.newTitle}
 					</h2>
 					<button
 						onClick={onClose}
@@ -238,11 +241,11 @@ export default function CategorySheet({
 					{/* Nome */}
 					<div>
 						<label className="text-xs text-muted mb-2 block tracking-wide">
-							Nome
+							{t.categories.nameLabel}
 						</label>
 						<input
 							type="text"
-							placeholder="es. Palestra"
+							placeholder={t.categories.namePlaceholder}
 							value={name}
 							onChange={(e) => setName(e.target.value)}
 							className="w-full rounded-[18px] px-4 py-3.5 text-base bg-input border border-subtle outline-none placeholder:text-muted/60"
@@ -255,7 +258,7 @@ export default function CategorySheet({
 								className="text-xs mt-1.5 ml-1"
 								style={{ color: "var(--ink-aka)" }}
 							>
-								Inserisci un nome
+								{t.categories.nameRequired}
 							</p>
 						)}
 					</div>
@@ -263,18 +266,18 @@ export default function CategorySheet({
 					{/* Tipo */}
 					<div>
 						<label className="text-xs text-muted mb-2 block tracking-wide">
-							Tipo
+							{t.categories.typeLabel}
 						</label>
 						<div className="grid grid-cols-5 gap-2">
-							{TYPE_ORDER.map((t) => {
-								const selected = type === t.id;
-								const tColor = TIPO_COLOR[t.id];
-								const TIcon = typeIcon(t.id);
+							{TYPE_ORDER.map((typeId) => {
+								const selected = type === typeId;
+								const tColor = TIPO_COLOR[typeId];
+								const TIcon = typeIcon(typeId);
 								return (
 									<button
-										key={t.id}
+										key={typeId}
 										type="button"
-										onClick={() => selectType(t.id)}
+										onClick={() => selectType(typeId)}
 										className="flex flex-col items-center gap-1.5 py-2.5 rounded-2xl transition-all border"
 										style={{
 											background: selected
@@ -296,7 +299,7 @@ export default function CategorySheet({
 											className="text-[10px] font-medium leading-none"
 											style={{ color: selected ? tColor : "var(--text-muted)" }}
 										>
-											{t.label}
+											{t.typesShort[typeId]}
 										</span>
 									</button>
 								);
@@ -308,18 +311,18 @@ export default function CategorySheet({
 					{showBudget && (
 						<div>
 							<label className="text-xs text-muted mb-2 block tracking-wide">
-								Limite di budget{" "}
-								<span className="text-muted/70 font-normal">(opzionale)</span>
+								{t.categories.budgetLabel}{" "}
+								<span className="text-muted/70 font-normal">{t.categories.optional}</span>
 							</label>
 
 							<div className="grid grid-cols-3 gap-2 mb-2.5">
-								{BUDGET_PERIODS.map((p) => {
-									const selected = budgetPeriod === p.id;
+								{BUDGET_PERIODS.map((period) => {
+									const selected = budgetPeriod === period;
 									return (
 										<button
-											key={p.id}
+											key={period}
 											type="button"
-											onClick={() => setBudgetPeriod(p.id)}
+											onClick={() => setBudgetPeriod(period)}
 											className="text-center py-2 rounded-xl text-xs font-medium transition-all border"
 											style={{
 												background: selected
@@ -330,31 +333,31 @@ export default function CategorySheet({
 												fontWeight: selected ? 600 : 500,
 											}}
 										>
-											{p.label}
+											{t.budgetPeriods[period].label}
 										</button>
 									);
 								})}
 							</div>
 
 							<div className="flex items-center rounded-2xl px-4 py-3.5 bg-input border border-subtle">
-								<span className="text-[14.5px] text-muted mr-1.5">€</span>
+								<span className="text-[14.5px] text-muted mr-1.5">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
 								<input
 									type="text"
 									inputMode="decimal"
-									placeholder="es. 250"
+									placeholder={t.categories.budgetPlaceholder}
 									value={budgetAmount}
 									onChange={(e) => setBudgetAmount(e.target.value)}
 									className="flex-1 min-w-0 bg-transparent text-base outline-none placeholder:text-muted/60"
 								/>
 								<span className="text-[11px] text-muted ml-2 shrink-0">
-									{periodSuffix(budgetPeriod)}
+									{t.budgetPeriods[budgetPeriod].suffix}
 								</span>
 							</div>
 
 							<p className="text-[11px] text-muted/80 mt-2 ml-1 leading-relaxed">
 								{initialBudget
-									? "Svuota il campo per togliere il limite: i periodi passati restano com'erano."
-									: "Lascia vuoto per non impostare nessun limite."}
+									? t.categories.budgetHintExisting
+									: t.categories.budgetHintNew}
 							</p>
 						</div>
 					)}
@@ -362,21 +365,31 @@ export default function CategorySheet({
 					{/* Icona */}
 					<div>
 						<div className="flex items-center justify-between mb-3">
-							<label className="text-xs text-muted tracking-wide">Icona</label>
-							<span className="text-[11px] text-muted capitalize">
-								set — {type}
+							<label className="text-xs text-muted tracking-wide">{t.categories.iconLabel}</label>
+							<span className="text-[11px] text-muted">
+								{fill(t.categories.iconSet, {
+									type: t.typesSingular[type as keyof typeof t.typesSingular] ?? type,
+								})}
 							</span>
 						</div>
 						<div className="grid grid-cols-5 gap-x-2 gap-y-3.5">
-							{iconList.map((entry) => {
-								const Icon = resolveIcon(entry.id);
+							{iconList.map((iconId) => {
+								const Icon = resolveIcon(iconId);
 								if (!Icon) return null;
-								const selected = icon === entry.id;
+								const selected = icon === iconId;
+								// L'etichetta dipende dal TIPO oltre che dall'icona: la stessa
+								// `Landmark` è "Bonifico" fra le entrate e "Azioni" fra gli
+								// investimenti. Il ripiego copre l'icona di una categoria
+								// vecchia, non più nella libreria del suo tipo.
+								const labels = t.iconLabels[type as keyof typeof t.iconLabels];
+								const label =
+									(labels as Record<string, string> | undefined)?.[iconId] ??
+									t.categories.currentIcon;
 								return (
 									<button
-										key={entry.id}
+										key={iconId}
 										type="button"
-										onClick={() => setIcon(entry.id)}
+										onClick={() => setIcon(iconId)}
 										className="flex flex-col items-center gap-1.5"
 									>
 										<span
@@ -400,7 +413,7 @@ export default function CategorySheet({
 											className="text-[9.5px] leading-tight text-center w-full truncate"
 											style={{ color: selected ? color : "var(--text-muted)" }}
 										>
-											{entry.label}
+											{label}
 										</span>
 									</button>
 								);
@@ -424,10 +437,10 @@ export default function CategorySheet({
 					className="mt-6 w-full py-4 rounded-2xl text-[14.5px] font-semibold btn-primary disabled:opacity-50"
 				>
 					{loading
-						? "Salvataggio…"
+						? t.common.saving
 						: category
-							? "Salva modifiche"
-							: "Crea categoria"}
+							? t.categories.saveChanges
+							: t.categories.create}
 				</button>
 			</div>
 		</div>

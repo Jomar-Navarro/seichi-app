@@ -1,10 +1,12 @@
-import type { Metadata } from "next";
-
-export const metadata: Metadata = {
-	title: "Seichi",
-	description:
-		"Ordine finanziario, Come si prepara il terreno prima di costruire, Seichi ti aiuta a mettere ordine nelle tue finanze — con calma, chiarezza e controllo.",
-};
+/*
+ * ⚠️ Nessun `generateMetadata` qui.
+ *
+ * Produrrebbe esattamente ciò che il root layout già fornisce — stesso titolo,
+ * stessa descrizione, stessa fonte — quindi sarebbe un override che non
+ * sovrascrive nulla, al costo di una seconda risoluzione del dizionario a ogni
+ * pagina auth e di un secondo posto da aggiornare. Next.js unisce i metadata
+ * annidati su quelli della radice: non dichiararli è ereditarli.
+ */
 
 export default function RootLayout({
 	children,

@@ -1,6 +1,7 @@
 "use client";
 
 import { scorePassword } from "@/lib/password";
+import { useI18n } from "@/components/features/I18nProvider";
 
 /**
  * Indicatore a 3 barre. Il design del mockup le teneva neutre; qui usiamo i
@@ -8,9 +9,11 @@ import { scorePassword } from "@/lib/password";
  * monocromatico costringe a leggere l'etichetta per capire il livello.
  */
 export default function PasswordStrength({ password }: { password: string }) {
+	const { t } = useI18n();
 	if (!password) return null;
 
-	const { score, label, color, ink } = scorePassword(password);
+	const { score, color, ink } = scorePassword(password);
+	const label = t.account.passwordCommon.strength[score];
 
 	return (
 		<div className="mb-5">

@@ -1,6 +1,7 @@
 "use client";
 import { Lock, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
+import { useI18n } from "@/components/features/I18nProvider";
 
 interface PasswordFieldProps {
 	id: string;
@@ -17,6 +18,7 @@ export default function PasswordField({
 	onChange,
 	value,
 }: PasswordFieldProps) {
+	const { t } = useI18n();
 	const [isView, setIsView] = useState(false);
 
 	return (
@@ -36,7 +38,7 @@ export default function PasswordField({
 				type="button"
 				onClick={() => setIsView(!isView)}
 				className="bg-transparent cursor-pointer p-1 flex items-center"
-				aria-label={isView ? "Nascondi password" : "Mostra password"}
+				aria-label={isView ? t.account.passwordCommon.hide : t.account.passwordCommon.show}
 			>
 				{/* L'icona mostra l'azione disponibile, non lo stato corrente */}
 				{isView ? (

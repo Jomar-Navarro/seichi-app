@@ -3,6 +3,9 @@
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { getDictionary, syncLocaleFromProfile } from "@/lib/i18n/server";
+import { fill } from "@/lib/i18n/format";
+import { PASSWORD_MIN_LENGTH } from "@/lib/password";
 import { SITE_URL } from "@/lib/site-url";
 
 export async function login(_prevState: { error: string }, formData: FormData) {
@@ -16,15 +19,20 @@ export async function login(_prevState: { error: string }, formData: FormData) {
 	const { data: { user }, error } = await supabase.auth.signInWithPassword(data);
 
 	if (error) {
-		return { error: "Credenziali di login errate" };
+		const t = await getDictionary();
+		return { error: t.auth.errors.wrongCredentials };
 	}
 
 	if (user) {
 		const { data: profile } = await supabase
 			.from("profiles")
-			.select("currency")
+			.select("currency, language")
 			.eq("id", user.id)
 			.single();
+		// `language` viaggia con la query che c'era già per il gate dell'onboarding:
+		// è il momento in cui la preferenza salvata sul profilo diventa la lingua di
+		// questa sessione, ed è ciò che la rende valida su un dispositivo nuovo.
+		await syncLocaleFromProfile(profile?.language);
 		if (!profile?.currency) {
 			redirect("/start");
 		}
@@ -43,17 +51,24 @@ export async function signup(
 	const password = formData.get("password") as string;
 	const confirmPassword = formData.get("confirm-password") as string;
 	const privacy = formData.get("privacy");
+	const t = await getDictionary();
 
 	if (!privacy) {
-		return { error: "Devi accettare i termini di servizio", emailSent: false, email: "" };
+		return { error: t.auth.errors.acceptTerms, emailSent: false, email: "" };
 	}
 
-	if (password.length < 8) {
-		return { error: "La password deve essere di almeno 8 caratteri", emailSent: false, email: "" };
+	// La soglia arriva da PASSWORD_MIN_LENGTH: era scritta a mano sia nel
+	// confronto sia nel messaggio, e le due potevano divergere in silenzio.
+	if (password.length < PASSWORD_MIN_LENGTH) {
+		return {
+			error: fill(t.auth.errors.passwordTooShort, { n: PASSWORD_MIN_LENGTH }),
+			emailSent: false,
+			email: "",
+		};
 	}
 
 	if (password !== confirmPassword) {
-		return { error: "Le password non corrispondono", emailSent: false, email: "" };
+		return { error: t.auth.errors.passwordMismatch, emailSent: false, email: "" };
 	}
 
 	const { data, error } = await supabase.auth.signUp({

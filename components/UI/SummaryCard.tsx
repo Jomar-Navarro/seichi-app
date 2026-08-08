@@ -1,7 +1,23 @@
 import { ElementType } from "react";
-import { numberFormatter } from "@/lib/transaction-utils";
 import Sparkline from "@/components/UI/Sparkline";
+import { getI18n } from "@/lib/i18n/server";
+import { DISPLAY_CURRENCY, formatMoney } from "@/lib/i18n/format";
 
+/**
+ * ⚠️ RESTA UN SERVER COMPONENT, e non è un dettaglio.
+ *
+ * Per formattare l'importo serviva il locale, e la via istintiva era aggiungere
+ * `"use client"` e chiamare `useI18n()`. Ma la home è un server component e passa
+ * `icon` — un COMPONENTE React, cioè una funzione. Attraversare il confine
+ * server→client con una funzione non è possibile: React solleva "Functions cannot
+ * be passed directly to Client Components", a runtime, dove né `tsc` né la build
+ * lo vedono.
+ *
+ * La lingua si prende quindi da `getI18n()`, che è ciò che i server component
+ * fanno già ovunque. È il rovescio esatto della regola scritta nei dizionari:
+ * lì i DATI non possono portare funzioni verso il client, qui è un componente a
+ * non poterle ricevere.
+ */
 interface SummaryCardProps {
 	label: string;
 	amount: number;
@@ -41,7 +57,8 @@ function CircularProgress({ progress, color }: { progress: number; color: string
 	);
 }
 
-export default function SummaryCard({ label, amount, icon, color, trend, progress }: SummaryCardProps) {
+export default async function SummaryCard({ label, amount, icon, color, trend, progress }: SummaryCardProps) {
+	const { locale } = await getI18n();
 	const Icon = icon;
 	return (
 		<div className="rounded-2xl p-4 border border-subtle card-shadow bg-surface backdrop-blur-md flex flex-col gap-3">
@@ -60,7 +77,7 @@ export default function SummaryCard({ label, amount, icon, color, trend, progres
 			</div>
 			<div>
 				<p className="text-lg font-bold tracking-tight">
-					€ {numberFormatter.format(amount)}
+					{formatMoney(amount, { locale, currency: DISPLAY_CURRENCY, decimals: 2 })}
 				</p>
 				<p className="text-xs text-muted mt-0.5">{label}</p>
 			</div>

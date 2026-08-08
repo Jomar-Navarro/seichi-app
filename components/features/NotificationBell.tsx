@@ -10,6 +10,7 @@ import {
 } from "@/app/(main)/notification-actions";
 import { BADGE_MAX, notificationMeta, relativeTime } from "@/lib/notifications";
 import type { RenderedNotification } from "@/types";
+import { useI18n } from "./I18nProvider";
 
 interface NotificationBellProps {
 	/** conteggio risolto lato server: evita che il badge lampeggi all'apertura */
@@ -17,6 +18,7 @@ interface NotificationBellProps {
 }
 
 export default function NotificationBell({ initialUnread }: NotificationBellProps) {
+	const { locale, t } = useI18n();
 	const router = useRouter();
 	const [open, setOpen] = useState(false);
 	const [items, setItems] = useState<RenderedNotification[] | null>(null);
@@ -150,13 +152,13 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 						style={{ background: "color-mix(in srgb, var(--color-deep) 94%, transparent)" }}
 					>
 						<div className="flex items-center justify-between px-5 py-4 border-b border-subtle shrink-0">
-							<h2 className="text-[15px] font-semibold">Notifiche</h2>
+							<h2 className="text-[15px] font-semibold">{t.notifications.title}</h2>
 							{unread > 0 && (
 								<button
 									onClick={markAll}
 									className="text-[12px] text-muted active:opacity-60 cursor-pointer"
 								>
-									segna tutte come lette
+									{t.notifications.markAllRead}
 								</button>
 							)}
 						</div>
@@ -177,14 +179,14 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 							)}
 
 							{loading && items === null && (
-								<p className="px-5 py-8 text-center text-[13px] text-muted">Caricamento…</p>
+								<p className="px-5 py-8 text-center text-[13px] text-muted">{t.notifications.loading}</p>
 							)}
 
 							{items !== null && items.length === 0 && !error && (
 								<div className="px-8 py-10 text-center">
-									<p className="text-[14px] font-medium mb-1.5">Nessuna notifica</p>
+									<p className="text-[14px] font-medium mb-1.5">{t.notifications.empty}</p>
 									<p className="text-[12.5px] text-muted leading-relaxed">
-										Qui arrivano gli avvisi su budget, obiettivi e rinnovi in arrivo.
+										{t.notifications.emptyDescription}
 									</p>
 								</div>
 							)}
@@ -214,7 +216,7 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 												<span className="block text-[11.5px] text-muted mt-1">{n.body}</span>
 											)}
 											<span className="block text-[11px] text-disabled mt-1">
-												{relativeTime(n.created_at)}
+												{relativeTime(n.created_at, locale, t.notifications.justNow)}
 											</span>
 										</span>
 

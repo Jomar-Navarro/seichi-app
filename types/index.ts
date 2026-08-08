@@ -9,10 +9,16 @@ import {
 
 export type TransactionTypeId = "spesa" | "entrata" | "risparmio" | "investimento" | "abbonamento";
 
+/**
+ * Un tipo di transazione: identità, colore e icona.
+ *
+ * ⚠️ `label` e `description` non ci sono più (Fase 19). Stavano qui — in un file
+ * di TIPI — ed erano le uniche due cose che cambiano con la lingua: ora vivono
+ * in `t.transactionTypes[id]`. L'`id` è il valore scritto nel database e resta
+ * italiano, come ogni altra chiave.
+ */
 export interface TransactionType {
 	id: TransactionTypeId;
-	label: string;
-	description: string;
 	color: string;
 	icon: ElementType;
 }
@@ -29,6 +35,21 @@ export interface AccountContext {
 	initials: string;
 	/** false per gli account creati solo via OAuth: non hanno una password */
 	hasPasswordIdentity: boolean;
+}
+
+/**
+ * L'intestazione della home: solo ciò che si DISEGNA.
+ *
+ * ⚠️ Deliberatamente privo di `email` e `hasPasswordIdentity`. Sono i campi che
+ * pretendono un valore vivo — un confronto d'identità su un'email stantia ha già
+ * bloccato l'eliminazione account — e chi parte da qui legge dalle claims, cioè
+ * da una fotografia. Non esponendoli, l'errore non è più esprimibile.
+ * Le pagine impostazioni usano `AccountContext`, che li ha e li legge freschi.
+ */
+export interface ProfileHeader {
+	avatarUrl: string | null;
+	displayName: string;
+	initials: string;
 }
 
 export interface Category {
@@ -229,36 +250,26 @@ export interface InvestmentData {
 export const TRANSACTION_TYPES: TransactionType[] = [
 	{
 		id: "spesa",
-		label: "Uscita",
-		description: "Spese e acquisti quotidiani",
 		color: "var(--color-aka)",
 		icon: ShoppingBagIcon,
 	},
 	{
 		id: "entrata",
-		label: "Entrata",
-		description: "Stipendio, rimborsi, regali",
 		color: "var(--color-midori)",
 		icon: WalletIcon,
 	},
 	{
 		id: "risparmio",
-		label: "Risparmio",
-		description: "Accantonamenti e obiettivi",
 		color: "var(--color-kin)",
 		icon: PiggyBankIcon,
 	},
 	{
 		id: "investimento",
-		label: "Investimento",
-		description: "Mercati, fondi, portafoglio",
 		color: "var(--color-ao)",
 		icon: TrendingUpIcon,
 	},
 	{
 		id: "abbonamento",
-		label: "Ricorrente",
-		description: "Abbonamenti e pagamenti fissi",
 		color: "var(--color-murasaki)",
 		icon: RepeatIcon,
 	},

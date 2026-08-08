@@ -5,8 +5,10 @@ import { Mail, Lock } from "lucide-react";
 import StatusScreen from "@/components/UI/StatusScreen";
 import SubmitButton from "@/components/UI/SubmitButton";
 import { requestPasswordReset } from "@/app/(auth)/recupera-password/actions";
+import { useI18n } from "@/components/features/I18nProvider";
 
 export default function ForgotPasswordForm() {
+	const { t } = useI18n();
 	const [email, setEmail] = useState("");
 	const [error, setError] = useState<string | null>(null);
 	const [sent, setSent] = useState(false);
@@ -32,10 +34,10 @@ export default function ForgotPasswordForm() {
 						strokeWidth={1.5}
 					/>
 				}
-				title="Controlla la tua email"
-				description="Se l'indirizzo è registrato, ti abbiamo inviato un link per reimpostare la password."
+				title={t.auth.recovery.sentTitle}
+				description={t.auth.recovery.sentDescription}
 			>
-				<SubmitButton label="Torna al login" href="/sign" />
+				<SubmitButton label={t.auth.recovery.backToLogin} href="/sign" />
 			</StatusScreen>
 		);
 	}
@@ -46,9 +48,9 @@ export default function ForgotPasswordForm() {
 				<span className="w-18 h-18 rounded-[26px] flex items-center justify-center mb-5 bg-control border border-subtle box-shadow">
 					<Lock size={34} className="text-foreground" strokeWidth={1.5} />
 				</span>
-				<h1 className="text-[21px] font-semibold mb-2">Recupera la password</h1>
+				<h1 className="text-[21px] font-semibold mb-2">{t.auth.recovery.title}</h1>
 				<p className="text-[13px] text-muted leading-relaxed max-w-70">
-					Inserisci la tua email e ti invieremo un link per reimpostarla
+					{t.auth.recovery.intro}
 				</p>
 			</div>
 
@@ -59,7 +61,7 @@ export default function ForgotPasswordForm() {
 					value={email}
 					required
 					autoFocus
-					placeholder="Email"
+					placeholder={t.auth.signIn.email}
 					autoComplete="email"
 					onChange={(e) => setEmail(e.target.value)}
 					className="grow shrink basis-0 min-w-0 bg-transparent outline-none text-foreground text-base py-4 placeholder:text-muted/60"
@@ -76,14 +78,14 @@ export default function ForgotPasswordForm() {
 			)}
 
 			<SubmitButton
-				label="Invia link di recupero"
-				pendingLabel="Invio…"
+				label={t.auth.recovery.submit}
+				pendingLabel={t.auth.recovery.sending}
 				pending={pending}
 				type="submit"
 			/>
 
 			<SubmitButton
-				label="Torna al login"
+				label={t.auth.recovery.backToLogin}
 				href="/sign"
 				variant="ghost"
 				className="mt-3"

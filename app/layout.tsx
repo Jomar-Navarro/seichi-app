@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
+import I18nProvider from "@/components/features/I18nProvider";
 import ThemeProvider from "@/components/features/ThemeProvider";
+import { getI18n } from "@/lib/i18n/server";
 import {
 	DEFAULT_CHOICE,
 	DEFAULT_RESOLVED,
@@ -22,19 +24,27 @@ const geistMono = Geist_Mono({
 	subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-	title: "Seichi",
-	description:
-		"Ordine finanziario, Come si prepara il terreno prima di costruire, Seichi ti aiuta a mettere ordine nelle tue finanze — con calma, chiarezza e controllo.",
-};
+// Titolo e descrizione seguono la lingua come tutto il resto. È una funzione e non
+// più una costante perché il locale si conosce solo a richiesta in corso: una
+// costante di modulo verrebbe valutata una volta sola, alla prima esecuzione.
+export async function generateMetadata(): Promise<Metadata> {
+	const { t } = await getI18n();
+	return {
+		title: t.meta.title,
+		description: t.meta.description,
+	};
+}
 
 export default async function RootLayout({
 	children,
 }: Readonly<{
 	children: React.ReactNode;
 }>) {
-	// Il tema si legge qui, prima di emettere <html>: è l'unico punto in cui si
-	// può decidere la classe senza che il browser abbia già dipinto qualcosa.
+	// Tema e lingua si leggono qui per lo stesso motivo: `<html>` porta la classe
+	// `.dark` e l'attributo `lang`, e questo è l'unico punto in cui si decidono
+	// prima che il browser abbia dipinto o che uno screen reader abbia scelto la
+	// voce con cui leggere la pagina.
+	const { locale, t } = await getI18n();
 	const store = await cookies();
 	const rawChoice = store.get(THEME_COOKIE)?.value;
 	const rawResolved = store.get(THEME_RESOLVED_COOKIE)?.value;
@@ -51,15 +61,17 @@ export default async function RootLayout({
 
 	return (
 		<html
-			lang="it"
+			lang={locale}
 			className={`${geistSans.variable} ${geistMono.variable} h-full antialiased${
 				resolved === "dark" ? " dark" : ""
 			}`}
 		>
 			<body className="min-h-lvh flex flex-col">
-				<ThemeProvider initialChoice={choice} initialResolved={resolved}>
-					{children}
-				</ThemeProvider>
+				<I18nProvider locale={locale} dictionary={t}>
+					<ThemeProvider initialChoice={choice} initialResolved={resolved}>
+						{children}
+					</ThemeProvider>
+				</I18nProvider>
 			</body>
 		</html>
 	);

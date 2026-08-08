@@ -1,14 +1,13 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import type { GoalWithProgress, InvestmentData } from "@/types";
-import { INVESTMENT_TYPE_META } from "@/lib/investment-types";
+import { INVESTMENT_TYPE_COLOR, INVESTMENT_TYPE_FALLBACK } from "@/lib/investment-types";
 
 export async function getGoals(): Promise<{ data: GoalWithProgress[] } | { error: string }> {
-	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
-	if (!user) return { error: "Non autenticato" };
+	const { supabase, user, t } = await requireUser();
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const [{ data: cats, error: catsError }, { data: txns, error: txnsError }] = await Promise.all([
 		supabase
@@ -45,9 +44,8 @@ export async function getGoals(): Promise<{ data: GoalWithProgress[] } | { error
 }
 
 export async function getInvestments(): Promise<{ data: InvestmentData } | { error: string }> {
-	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
-	if (!user) return { error: "Non autenticato" };
+	const { supabase, user, t } = await requireUser();
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const { data: txns, error } = await supabase
 		.from("transactions")
@@ -106,8 +104,9 @@ export async function getInvestments(): Promise<{ data: InvestmentData } | { err
 	const byType = Array.from(typeMap.entries())
 		.map(([type, typeTotal]) => ({
 			type,
-			label: INVESTMENT_TYPE_META[type]?.label ?? type,
-			color: INVESTMENT_TYPE_META[type]?.color ?? "kiri",
+			label:
+					t.investments.types[type as keyof typeof t.investments.types] ?? type,
+			color: INVESTMENT_TYPE_COLOR[type] ?? INVESTMENT_TYPE_COLOR[INVESTMENT_TYPE_FALLBACK],
 			total: typeTotal,
 			pct: total > 0 ? Math.round((typeTotal / total) * 100) : 0,
 		}))
@@ -134,9 +133,8 @@ export async function createGoal(payload: {
 	target_date: string | null;
 	icon: string;
 }): Promise<{ error?: string }> {
-	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
-	if (!user) return { error: "Non autenticato" };
+	const { supabase, user, t } = await requireUser();
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const { error } = await supabase.from("categories").insert({
 		user_id: user.id,
@@ -162,9 +160,8 @@ export async function updateGoal(
 		icon: string;
 	},
 ): Promise<{ error?: string }> {
-	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
-	if (!user) return { error: "Non autenticato" };
+	const { supabase, user, t } = await requireUser();
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const { error } = await supabase
 		.from("categories")
@@ -183,9 +180,8 @@ export async function updateGoal(
 }
 
 export async function deleteGoal(id: string): Promise<{ error?: string }> {
-	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
-	if (!user) return { error: "Non autenticato" };
+	const { supabase, user, t } = await requireUser();
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	// Delete associated transactions first — otherwise they remain as
 	// orphaned outflows that permanently reduce the balance with no visible goal.

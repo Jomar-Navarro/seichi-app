@@ -2,8 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { validateNewPassword } from "@/lib/password";
+import { createClient, type SupabaseServerClient } from "@/lib/supabase/server";
+import { PASSWORD_MIN_LENGTH, validateNewPassword } from "@/lib/password";
+import { getDictionary } from "@/lib/i18n/server";
+import { fill } from "@/lib/i18n/format";
 import { SITE_URL } from "@/lib/site-url";
 
 const AVATAR_BUCKET = "avatars";
@@ -23,13 +25,27 @@ export type ActionResult = { error: string } | { success: true };
 /**
  * Ogni server action è raggiungibile con una POST diretta, non solo dalla UI:
  * l'autenticazione va verificata qui dentro, sempre.
+ *
+ * Restituisce anche il dizionario (Fase 19): ogni action di questo file comincia
+ * di qui, quindi è il punto in cui la lingua arriva senza che nessuna funzione
+ * debba ricordarsi di chiederla. I messaggi d'errore sono testo rivolto
+ * all'utente come qualsiasi altro.
+ *
+ * ⚠️ **`LIVE` nel nome non è decorativo: distingue da `requireUser()` di
+ * `lib/auth.ts`**, che legge le claims del JWT. Quella è una fotografia; questa
+ * interroga GoTrue e torna l'utente di ADESSO — `email` e `identities`
+ * compresi. Le action di questo file lo esigono: dopo un cambio email
+ * confermato le claims restano indietro fino alla scadenza del token, e
+ * `deleteAccount()` confronta proprio l'indirizzo. Con i due nomi uguali, un
+ * domani basterebbe un import distratto per riaprire il difetto.
  */
-async function requireUser() {
+async function requireLiveUser() {
 	const supabase = await createClient();
 	const {
 		data: { user },
 	} = await supabase.auth.getUser();
-	return { supabase, user };
+	const t = await getDictionary();
+	return { supabase, user, t };
 }
 
 /**
@@ -44,7 +60,9 @@ async function requireUser() {
 async function reauthenticate(email: string, password: string): Promise<string | null> {
 	const supabase = await createClient();
 	const { error } = await supabase.auth.signInWithPassword({ email, password });
-	return error ? "Password non corretta" : null;
+	if (!error) return null;
+	const t = await getDictionary();
+	return t.errors.wrongPassword;
 }
 
 /* ------------------------------------------------------------------ */
@@ -52,11 +70,11 @@ async function reauthenticate(email: string, password: string): Promise<string |
 /* ------------------------------------------------------------------ */
 
 export async function updateFullName(fullName: string): Promise<ActionResult> {
-	const { supabase, user } = await requireUser();
-	if (!user) return { error: "Non autenticato" };
+	const { supabase, user, t } = await requireLiveUser();
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const name = fullName.trim().replace(/\s+/g, " ");
-	if (name.length > 80) return { error: "Il nome è troppo lungo" };
+	if (name.length > 80) return { error: t.errors.nameTooLong };
 
 	// upsert e non update: chi si è registrato prima del trigger e ha
 	// abbandonato l'onboarding non ha una riga in profiles. Un UPDATE su zero
@@ -85,7 +103,7 @@ export async function updateFullName(fullName: string): Promise<ActionResult> {
  * abbandonare dati personali nel bucket, ed è il chiamante a doverlo decidere.
  */
 async function purgeAvatarFiles(
-	supabase: Awaited<ReturnType<typeof createClient>>,
+	supabase: SupabaseServerClient,
 	userId: string,
 	keep?: string,
 ): Promise<{ error: string | null }> {
@@ -106,18 +124,24 @@ async function purgeAvatarFiles(
 }
 
 export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
-	const { supabase, user } = await requireUser();
-	if (!user) return { error: "Non autenticato" };
+	const { supabase, user, t } = await requireLiveUser();
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const file = formData.get("avatar");
-	if (!(file instanceof File) || file.size === 0) return { error: "Nessun file selezionato" };
+	if (!(file instanceof File) || file.size === 0) return { error: t.errors.noFileSelected };
 
 	// I limiti sono anche sul bucket, ma controllarli qui dà un errore leggibile
 	// invece di un 413 opaco dallo storage.
-	if (file.size > AVATAR_MAX_BYTES) return { error: "L'immagine non può superare 2 MB" };
+	if (file.size > AVATAR_MAX_BYTES) {
+		return {
+			error: fill(t.account.profile.imageTooLarge, {
+				max: AVATAR_MAX_BYTES / 1024 / 1024,
+			}),
+		};
+	}
 
 	const ext = AVATAR_MIME[file.type];
-	if (!ext) return { error: "Formato non supportato — usa JPG, PNG o WebP" };
+	if (!ext) return { error: t.errors.unsupportedFormat };
 
 	// Nome casuale: il bucket è pubblico in lettura, quindi il path non deve
 	// essere ricostruibile conoscendo solo lo user_id.
@@ -155,8 +179,8 @@ export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
 }
 
 export async function removeAvatar(): Promise<ActionResult> {
-	const { supabase, user } = await requireUser();
-	if (!user) return { error: "Non autenticato" };
+	const { supabase, user, t } = await requireLiveUser();
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	// Stesso principio di uploadAvatar, al contrario: prima si toglie il
 	// puntatore, poi si cancellano i file. Invertendo l'ordine, un update fallito
@@ -179,9 +203,9 @@ export async function removeAvatar(): Promise<ActionResult> {
 
 /** Passo 1: conferma dell'identità prima di mostrare il campo nuova email. */
 export async function verifyCurrentPassword(password: string): Promise<ActionResult> {
-	const { user } = await requireUser();
-	if (!user?.email) return { error: "Non autenticato" };
-	if (!password) return { error: "Inserisci la password" };
+	const { user, t } = await requireLiveUser();
+	if (!user?.email) return { error: t.errors.notAuthenticated };
+	if (!password) return { error: t.errors.enterPassword };
 
 	const error = await reauthenticate(user.email, password);
 	return error ? { error } : { success: true };
@@ -192,12 +216,12 @@ export async function requestEmailChange(
 	newEmail: string,
 	password: string,
 ): Promise<ActionResult> {
-	const { supabase, user } = await requireUser();
-	if (!user?.email) return { error: "Non autenticato" };
+	const { supabase, user, t } = await requireLiveUser();
+	if (!user?.email) return { error: t.errors.notAuthenticated };
 
 	const email = newEmail.trim().toLowerCase();
-	if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Indirizzo email non valido" };
-	if (email === user.email.toLowerCase()) return { error: "È già la tua email attuale" };
+	if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: t.errors.invalidEmail };
+	if (email === user.email.toLowerCase()) return { error: t.errors.sameEmail };
 
 	// La riautenticazione va ripetuta: il passo 1 e il passo 2 sono due richieste
 	// distinte, e fidarsi di uno stato tenuto sul client renderebbe il controllo
@@ -227,18 +251,27 @@ export async function changePassword(
 	newPassword: string,
 	confirmPassword: string,
 ): Promise<ActionResult> {
-	const { supabase, user } = await requireUser();
-	if (!user?.email) return { error: "Non autenticato" };
+	const { supabase, user, t } = await requireLiveUser();
+	if (!user?.email) return { error: t.errors.notAuthenticated };
 
+	// `validateNewPassword` restituisce un codice, non una frase: la frase la
+	// compone chi conosce la lingua dell'utente.
 	const invalid = validateNewPassword(newPassword, confirmPassword);
-	if (invalid) return { error: invalid };
+	if (invalid) {
+		return {
+			error:
+				invalid === "tooShort"
+					? fill(t.account.passwordCommon.tooShort, { min: PASSWORD_MIN_LENGTH })
+					: t.account.passwordCommon.mismatch,
+		};
+	}
 
 	if (newPassword === currentPassword) {
-		return { error: "La nuova password deve essere diversa da quella attuale" };
+		return { error: t.errors.samePassword };
 	}
 
 	const authError = await reauthenticate(user.email, currentPassword);
-	if (authError) return { error: "La password attuale non è corretta" };
+	if (authError) return { error: t.errors.wrongCurrentPassword };
 
 	const { error } = await supabase.auth.updateUser({ password: newPassword });
 	if (error) return { error: error.message };
@@ -251,11 +284,11 @@ export async function changePassword(
 /* ------------------------------------------------------------------ */
 
 export async function deleteAccount(confirmEmail: string, password: string) {
-	const { supabase, user } = await requireUser();
-	if (!user?.email) return { error: "Non autenticato" };
+	const { supabase, user, t } = await requireLiveUser();
+	if (!user?.email) return { error: t.errors.notAuthenticated };
 
 	if (confirmEmail.trim().toLowerCase() !== user.email.toLowerCase()) {
-		return { error: "L'email digitata non corrisponde al tuo account" };
+		return { error: t.errors.emailMismatch };
 	}
 
 	// Gli account creati solo via OAuth non hanno password: per loro la conferma
@@ -263,7 +296,7 @@ export async function deleteAccount(confirmEmail: string, password: string) {
 	const hasPasswordIdentity = user.identities?.some((i) => i.provider === "email") ?? false;
 	if (hasPasswordIdentity) {
 		const authError = await reauthenticate(user.email, password);
-		if (authError) return { error: "Password non corretta" };
+		if (authError) return { error: t.errors.wrongPassword };
 	}
 
 	// Prova a vuoto prima di distruggere qualsiasi cosa: dry_run non cancella
@@ -280,7 +313,7 @@ export async function deleteAccount(confirmEmail: string, password: string) {
 	// cancellabile da nessuno, è il contrario di ciò che l'utente ha chiesto.
 	const purge = await purgeAvatarFiles(supabase, user.id);
 	if (purge.error) {
-		return { error: "Non è stato possibile rimuovere la foto profilo. Riprova." };
+		return { error: t.errors.avatarRemoveFailed };
 	}
 
 	// delete_current_user() è SECURITY DEFINER e cancella solo auth.uid():

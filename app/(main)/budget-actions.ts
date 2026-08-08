@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import type { SupabaseServerClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth";
 import { localMidnightInstant, monthBoundsOf, parseLocalDate } from "@/lib/dates";
 import { advanceDate } from "@/lib/recurring";
 import { budgetStatus } from "@/lib/budget";
@@ -41,12 +42,11 @@ export async function setBudget(input: {
 	amount: number | null;
 	clock: ClientClock;
 }): Promise<{ success: true } | { error: string }> {
-	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
-	if (!user) return { error: "Non autenticato" };
+	const { supabase, user, t } = await requireUser();
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	if (input.amount !== null && !(input.amount > 0)) {
-		return { error: "L'importo deve essere maggiore di zero" };
+		return { error: t.errors.amountMustBePositive };
 	}
 
 	const { error } = await supabase.rpc("set_budget", {
@@ -80,9 +80,8 @@ export async function getBudgetForCategory(
 	categoryId: string,
 	clock: ClientClock,
 ): Promise<{ data: { period: BudgetPeriod; amount: number } | null } | { error: string }> {
-	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
-	if (!user) return { error: "Non autenticato" };
+	const { supabase, user, t } = await requireUser();
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const rows = await readBudgetsAt(supabase, clock);
 	if ("error" in rows) return rows;
@@ -100,9 +99,8 @@ export async function getBudgetForCategory(
 export async function getGlobalBudget(
 	clock: ClientClock,
 ): Promise<{ data: number | null } | { error: string }> {
-	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
-	if (!user) return { error: "Non autenticato" };
+	const { supabase, user, t } = await requireUser();
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const rows = await readBudgetsAt(supabase, clock);
 	if ("error" in rows) return rows;
@@ -118,13 +116,17 @@ export async function getGlobalBudget(
 export async function getBudgetOverview(
 	clock: ClientClock,
 ): Promise<{ data: BudgetOverview } | { error: string }> {
-	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
-	if (!user) return { error: "Non autenticato" };
+	const { supabase, user, t } = await requireUser();
+	if (!user) return { error: t.errors.notAuthenticated };
 
 	const [rows, fixed] = await Promise.all([
 		readBudgetsAt(supabase, clock),
-		getFixedOutflows(clock),
+		// ⚠️ `readFixedOutflows`, non `getFixedOutflows`: quella è una server
+		// action a sé e aprirebbe un secondo client, rifacendo il proprio
+		// controllo di autenticazione e il proprio caricamento del dizionario per
+		// query che da qui partono già nello stesso `Promise.all`. È la forma
+		// annidata rimossa da `getNotifications()`, che qui era sopravvissuta.
+		readFixedOutflows(supabase, user.id, clock),
 	]);
 	if ("error" in rows) return rows;
 	if ("error" in fixed) return fixed;
@@ -208,8 +210,6 @@ export async function getBudgetOverview(
 	return { data: { global, perCategory, fixedOutflowsThisMonth: fixed.data } };
 }
 
-type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
-
 /**
  * Quanto costano gli abbonamenti nel mese corrente.
  *
@@ -231,10 +231,24 @@ type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 export async function getFixedOutflows(
 	clock: ClientClock,
 ): Promise<{ data: number } | { error: string }> {
-	const supabase = await createClient();
-	const { data: { user } } = await supabase.auth.getUser();
-	if (!user) return { error: "Non autenticato" };
+	const { supabase, user, t } = await requireUser();
+	if (!user) return { error: t.errors.notAuthenticated };
 
+	return readFixedOutflows(supabase, user.id, clock);
+}
+
+/**
+ * Il calcolo vero, che riceve il client invece di aprirsene uno.
+ *
+ * Stessa forma di `readBudgetsAt()`, e per lo stesso motivo: così `getBudgetOverview()`
+ * può riusarlo senza passare dalla server action, che ripeterebbe autenticazione
+ * e dizionario per nulla.
+ */
+async function readFixedOutflows(
+	supabase: SupabaseServerClient,
+	userId: string,
+	clock: ClientClock,
+): Promise<{ data: number } | { error: string }> {
 	const { start, end } = monthBoundsOf(clock.today);
 
 	const [{ data: txns, error: txnsError }, { data: rules, error: rulesError }] =
@@ -242,14 +256,14 @@ export async function getFixedOutflows(
 			supabase
 				.from("transactions")
 				.select("amount")
-				.eq("user_id", user.id)
+				.eq("user_id", userId)
 				.eq("type", "abbonamento")
 				.gte("date", localMidnightInstant(start, clock.tzOffsetMinutes))
 				.lt("date", localMidnightInstant(end, clock.tzOffsetMinutes)),
 			supabase
 				.from("recurring_rules")
 				.select("amount, frequency, next_run, end_date")
-				.eq("user_id", user.id)
+				.eq("user_id", userId)
 				.eq("type", "abbonamento")
 				.eq("active", true),
 		]);

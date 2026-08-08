@@ -9,6 +9,9 @@ import FrequencySelector from "@/components/UI/FrequencySelector";
 import { buildCategoryOptions } from "@/lib/category-options";
 import { TIPO_COLOR } from "@/lib/transaction-utils";
 import { updateRecurringRule } from "@/app/(main)/action";
+import { useI18n } from "./I18nProvider";
+import { DISPLAY_CURRENCY, currencySymbol } from "@/lib/i18n/format";
+import DatePicker from "@/components/UI/DatePicker";
 import type { RecurringRule, Category, Frequency } from "@/types";
 
 interface RecurringSheetProps {
@@ -19,6 +22,7 @@ interface RecurringSheetProps {
 
 export default function RecurringSheet({ isOpen, rule, onClose }: RecurringSheetProps) {
 	const router = useRouter();
+	const { locale, t } = useI18n();
 	const [amount, setAmount] = useState("");
 	const [categoryId, setCategoryId] = useState<string | null>(null);
 	const [notes, setNotes] = useState("");
@@ -57,7 +61,7 @@ export default function RecurringSheet({ isOpen, rule, onClose }: RecurringSheet
 	const todayISO = new Date().toLocaleDateString("sv-SE");
 	const importoValido = amount !== "" && parseFloat(amount.replace(",", ".")) > 0;
 
-	const categoryOptions = buildCategoryOptions(categoryList, true);
+	const categoryOptions = buildCategoryOptions(categoryList, t.recurring.noCategory);
 
 	async function handleSubmit() {
 		if (!importoValido || loading || !rule) return;
@@ -94,7 +98,7 @@ export default function RecurringSheet({ isOpen, rule, onClose }: RecurringSheet
 				<div className="w-10 h-1 rounded-full mx-auto mb-1 bg-modal-handle shrink-0" />
 
 				<div className="flex items-center justify-between mt-4 mb-6 shrink-0">
-					<h2 className="text-xl font-semibold">Modifica ricorrenza</h2>
+					<h2 className="text-xl font-semibold">{t.recurring.editTitle}</h2>
 					<button
 						onClick={onClose}
 						className="w-8 h-8 flex items-center justify-center rounded-xl bg-control border border-subtle"
@@ -106,9 +110,9 @@ export default function RecurringSheet({ isOpen, rule, onClose }: RecurringSheet
 				<div className="flex flex-col gap-4">
 					{/* Importo */}
 					<div>
-						<label className="text-xs text-muted mb-1.5 block">Importo</label>
+						<label className="text-xs text-muted mb-1.5 block">{t.recurring.amount}</label>
 						<div className="flex items-center gap-2 rounded-2xl px-4 py-3 bg-card border border-subtle">
-							<span className="text-sm text-muted">€</span>
+							<span className="text-sm text-muted">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
 							<input
 								type="text"
 								inputMode="decimal"
@@ -121,7 +125,7 @@ export default function RecurringSheet({ isOpen, rule, onClose }: RecurringSheet
 
 					{/* Categoria */}
 					<Select
-						title="Categoria"
+						title={t.recurring.category}
 						variant="compact"
 						options={categoryOptions}
 						selected={categoryId ?? ""}
@@ -130,31 +134,24 @@ export default function RecurringSheet({ isOpen, rule, onClose }: RecurringSheet
 
 					{/* Frequenza */}
 					<div>
-						<label className="text-xs text-muted mb-1.5 block">Frequenza</label>
+						<label className="text-xs text-muted mb-1.5 block">{t.recurring.frequency}</label>
 						<FrequencySelector value={frequency} onChange={setFrequency} color={color} />
 					</div>
 
 					{/* Prossima data */}
 					<div>
-						<label className="text-xs text-muted mb-1.5 block">Prossima data</label>
-						<div className="flex items-center rounded-2xl px-4 py-3 bg-card border border-subtle">
-							<input
-								type="date"
-								value={nextRun}
-								min={todayISO}
-								onChange={(e) => setNextRun(e.target.value)}
-								className="flex-1 bg-transparent outline-none text-sm text-muted appearance-none"
-								style={{ colorScheme: "inherit" }}
-							/>
-						</div>
+						<label className="text-xs text-muted mb-1.5 block">{t.recurring.nextDate}</label>
+						{/* Picker custom: `<input type="date">` seguiva la lingua del
+						    browser e mostrava mm/dd/yyyy — vedi DatePicker. */}
+						<DatePicker value={nextRun} onChange={setNextRun} min={todayISO} />
 					</div>
 
 					{/* Descrizione */}
 					<div>
-						<label className="text-xs text-muted mb-1.5 block">Descrizione</label>
+						<label className="text-xs text-muted mb-1.5 block">{t.recurring.description}</label>
 						<input
 							type="text"
-							placeholder="Opzionale"
+							placeholder={t.recurring.descriptionPlaceholder}
 							value={notes}
 							onChange={(e) => setNotes(e.target.value)}
 							className="w-full rounded-2xl px-4 py-3 text-sm bg-card border border-subtle outline-none placeholder:text-muted/60"
@@ -173,7 +170,7 @@ export default function RecurringSheet({ isOpen, rule, onClose }: RecurringSheet
 					disabled={!importoValido || loading}
 					className="mt-6 w-full py-4 rounded-2xl text-[14.5px] font-semibold btn-primary disabled:opacity-50"
 				>
-					{loading ? "Salvataggio…" : "Salva modifiche"}
+					{loading ? t.common.saving : t.recurring.saveChanges}
 				</button>
 			</div>
 		</div>

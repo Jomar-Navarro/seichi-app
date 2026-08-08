@@ -1,7 +1,22 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { cache } from "react";
 
-export async function createClient() {
+/**
+ * Il client Supabase di QUESTA richiesta.
+ *
+ * ⚠️ `cache()` non è un'ottimizzazione cosmetica. Senza, ogni loader ne creava
+ * uno suo: la home ne istanziava cinque in parallelo (totali, transazioni,
+ * obiettivi, account, notifiche), ognuno con la propria copia dei cookie e il
+ * proprio client GoTrue. Con un'istanza sola per richiesta il rinnovo del token
+ * scaduto avviene una volta, dentro il lock interno di GoTrue, invece che in
+ * cinque corse parallele sullo stesso refresh token — che è monouso (la stessa
+ * classe di difetto documentata nel proxy).
+ *
+ * La funzione non prende argomenti, quindi la memoizzazione è banalmente
+ * corretta: c'è una sola chiave possibile.
+ */
+export const createClient = cache(async () => {
 	const cookieStore = await cookies();
 
 	return createServerClient(
@@ -12,6 +27,21 @@ export async function createClient() {
 				getAll() {
 					return cookieStore.getAll();
 				},
+				/*
+					⚠️ Il secondo argomento di `setAll` — gli header `no-store` che
+					devono accompagnare i cookie di sessione — qui viene ignorato, e
+					non per svista: NON È RAGGIUNGIBILE DA QUESTO PUNTO.
+
+					In un Server Component `cookies()` non offre alcun canale per gli
+					header di risposta; in un Route Handler la `Response` viene
+					costruita dopo, dall'handler stesso, che questo client non conosce.
+					Applicarli richiederebbe di cambiare ogni handler, non questo file.
+
+					La copertura arriva da due punti: il proxy, che quegli header li
+					applica davvero (`lib/supabase/proxy.ts`), e la regola `headers()`
+					in `next.config.ts` per le quattro rotte che scrivono cookie di
+					sessione fuori dal proxy.
+				*/
 				setAll(cookiesToSet) {
 					try {
 						cookiesToSet.forEach(({ name, value, options }) =>
@@ -26,4 +56,7 @@ export async function createClient() {
 			},
 		},
 	);
-}
+});
+
+/** Il tipo del client, per gli helper che lo ricevono come parametro. */
+export type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
