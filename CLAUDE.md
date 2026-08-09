@@ -106,8 +106,15 @@ types/  index.ts           # Transaction, Category, GoalWithProgress, Investment
 -- Ogni tabella ha RLS abilitato
 -- NB: i nomi colonna sono in INGLESE (amount/type/date...), non italiano
 
-profiles: id (= auth.users.id), currency (TEXT), language (TEXT, nullable),
-          full_name (TEXT, nullable), avatar_url (TEXT, nullable)
+-- ⚠️ I TIPI qui sotto sono quelli REALI, letti dal catalogo (issue #43, 2026-08-12).
+--   Prima erano approssimati a "TEXT": in questo database sono `character
+--   varying(n)`, e la differenza NON è cosmetica — `RETURN QUERY` di plpgsql
+--   pretende i tipi esatti (vedi dashboard_totals).
+
+profiles: id (UUID = auth.users.id), currency (VARCHAR 50, default 'EUR'),
+          theme (VARCHAR 50, nullable), created_at (TIMESTAMP),
+          language (VARCHAR, nullable), full_name (TEXT, nullable),
+          avatar_url (TEXT, nullable)
 -- La riga nasce da un trigger on_auth_user_created (non più solo in onboarding);
 --   full_name viene fatto backfill da auth.users.raw_user_meta_data.
 -- Il nome NON si legge da user_metadata: quel campo è scrivibile dal client.
@@ -115,9 +122,16 @@ profiles: id (= auth.users.id), currency (TEXT), language (TEXT, nullable),
 --   (Fase 19). NULL = non ancora scelto → l'app ripiega su Accept-Language, che
 --   è un'informazione migliore di un italiano d'ufficio. Vietare NULL romperebbe
 --   la registrazione, perché il trigger crea la riga prima dell'onboarding.
+--   ⚠️ Il DEFAULT era 'IT' MAIUSCOLO e violava il proprio CHECK: ogni
+--   registrazione falliva dal 2026-08-07. Rimosso dalla 20260813 — vedi #43.
+-- theme: 'light' | 'dark' | 'system', NULL = non ancora scelto. La colonna
+--   esiste dalla Fase 3 ma NON è ancora usata: la Fase 18 persiste solo su
+--   cookie. Il default 'dark' è stato tolto perché fabbricava una preferenza.
+-- ⚠️ NIENTE policy di DELETE, ed è voluto: si cancella da delete_current_user().
 
-categories: id, user_id, name (TEXT), icon (TEXT), color (TEXT),
-            type (TEXT), created_at,
+categories: id (UUID), user_id (UUID, nullable), name (VARCHAR 50),
+            icon (VARCHAR 50), color (TEXT), type (VARCHAR 20),
+            created_at (TIMESTAMP),
             target_amount (DECIMAL 10,2, nullable), target_date (DATE, nullable)
 -- type values: 'spesa' | 'entrata' | 'investimento' | 'risparmio' | 'abbonamento'
 -- Vincolo DB: categories_type_check
@@ -125,10 +139,18 @@ categories: id, user_id, name (TEXT), icon (TEXT), color (TEXT),
 --   type='risparmio' + target_amount/target_date. saved_amount è calcolato
 --   sommando le transazioni risparmio della categoria (vedi getGoals).
 
-transactions: id, user_id, amount (DECIMAL 10,2), type (TEXT),
-              category_id, investment_type (TEXT, nullable), date (TIMESTAMP),
-              notes (TEXT), created_at, recurring_rule_id (UUID, nullable)
+transactions: id (UUID), user_id (UUID, nullable), amount (DECIMAL 10,2),
+              type (VARCHAR 20), category_id (UUID), investment_type (VARCHAR 50,
+              nullable), date (TIMESTAMP senza fuso), notes (VARCHAR 255),
+              created_at (TIMESTAMP), recurring_rule_id (UUID, nullable)
 -- recurring_rule_id: se valorizzato, la transazione è stata generata da una regola ricorrente
+-- FK category_id: ON DELETE CASCADE — cancellare una categoria cancella le sue
+--   transazioni. È ciò su cui poggia l'eliminazione di un obiettivo.
+-- ⚠️ `date` è TIMESTAMP WITHOUT TIME ZONE, quindi NON è un istante assoluto
+--   malgrado sia usata come tale. dashboard_totals() le confronta con bound
+--   `timestamptz`: Postgres interpreta la colonna nel TimeZone della sessione,
+--   e regge solo perché su Supabase è UTC. Debito aperto, non risolto da #43:
+--   cambiare il tipo cambia il significato dei dati già scritti.
 
 recurring_rules: id, user_id, amount (DECIMAL 10,2), type (TEXT), category_id,
                  notes (TEXT), frequency (TEXT), start_date (DATE), next_run (DATE),
@@ -137,6 +159,90 @@ recurring_rules: id, user_id, amount (DECIMAL 10,2), type (TEXT), category_id,
 -- pg_cron chiama generate_recurring_transactions() (giornaliero): per ogni regola
 --   attiva con next_run <= oggi inserisce transazioni e avanza next_run (idempotente)
 ```
+
+### Ricostruzione dello schema (2026-08-12, issue #43 — CHIUSA)
+
+Fino a oggi il repo **non era in grado di ricostruire il proprio database**:
+`profiles`, `categories` e `transactions` sono nate nella Fase 3 dal pannello di
+Supabase e non le creava nessun file. Le migration successive le alteravano
+dando per scontata una definizione che non esisteva da nessuna parte.
+
+Due file, e la separazione è il punto:
+
+- **`20260812_baseline_fase3.sql`** — la **fotografia**. Descrive lo stato reale,
+  difetti compresi, ed è un no-op su un database allineato.
+- **`20260813_schema_cleanup.sql`** — la **decisione**. Corregge.
+
+Fondendoli, la fotografia descriverebbe uno stato mai esistito e chi confronta
+repo e database non saprebbe distinguere gli scarti voluti dai difetti. È lo
+stesso schema `20260728` (ricostruzione) → `20260810` (correzione) delle
+ricorrenti.
+
+⚠️ **Scritte interrogando il catalogo, non a memoria** — `information_schema`,
+`pg_constraint`, `pg_policies`, `pg_indexes`. Solo così si scopre che `notes` è
+limitata a **255 caratteri** e che `transactions` ha **13 colonne** dove questo
+documento ne elencava 10.
+
+#### ⚠️ Il difetto vivo: la registrazione era rotta da 5 settimane
+
+`profiles.language` aveva `default 'IT'` **maiuscolo**, mentre
+`profiles_language_check` (Fase 19) pretende minuscolo o NULL. E
+`handle_new_user()` inserisce `(id, full_name)` **senza nominare `language`**:
+si applicava il default, che violava il CHECK, e siccome il trigger è
+`after insert on auth.users` **l'utente non veniva creato**.
+
+Ogni registrazione falliva dal 2026-08-07. Invisibile perché le registrazioni
+non sono ancora aperte (issue #40) e perché **il default non era scritto da
+nessuna parte**: la Fase 19 aveva normalizzato i valori e aggiunto il vincolo
+senza poter vedere ciò che li generava.
+
+**È lo stesso schema del difetto della #47** — `transactions_type_check` che non
+ammetteva `abbonamento` mentre le tabelle sorelle sì. Due tabelle che dicono
+cose diverse sulla stessa realtà, e nessun file dove la contraddizione sia
+leggibile. Non è una coincidenza che entrambi si scoprano scrivendo questi file.
+
+#### Gli altri difetti che la fotografia ha reso visibili
+
+- **Tre colonne residue su `transactions`**, precedenti alla Fase 14:
+  `is_ricurrent` (con il refuso), `frequency` con un CHECK in **inglese**
+  (`weekly/monthly/yearly`) mentre `recurring_rules.frequency` usa l'italiano, e
+  `parent_id` **senza FK** — un uuid libero che somigliava a un riferimento.
+  Tutte NULL su 19 righe, nessuna usata dal codice: rimosse.
+- **`profiles.name` e `surname`**, soppiantate da `full_name` nella Fase 16. Mai
+  popolate: l'app scrive nome e cognome in `raw_user_meta_data`. Rimosse.
+- ⚠️ **`profiles.theme` è lo stesso difetto di `language`**, senza un CHECK che
+  lo facesse esplodere: `default 'dark'` **fabbrica una scelta mai fatta**. In
+  Fase 18 rendere scuro senza cookie è un ripiego di *rendering* corretto; lo
+  stesso valore in colonna diventa una *preferenza dichiarata*, e il giorno in
+  cui la sincronizzazione fra dispositivi verrà accesa sovrascriverebbe il tema
+  di sistema su ogni altro dispositivo — mesi dopo, in un'altra fase, con la
+  causa ormai illeggibile. Colonna tenuta (la Fase 18 la prevede), default tolto,
+  CHECK aggiunto: NULL = non ancora scelto.
+- ⚠️ **Venti policy per undici operazioni.** `categories` ne aveva otto per
+  quattro, `profiles` otto per tre — due serie con nomi quasi identici, più
+  quelle della `20260729` che non aveva rimosso le precedenti. Le policy si
+  sommano in **OR**, quindi i duplicati sono innocui *e per questo invisibili*:
+  il costo arriva quando si vuole **restringere** un accesso, perché bisogna
+  rimuoverle tutte e chi ne stringe una lascia l'altra aperta **senza alcun
+  errore**. Ora una per operazione, `<tabella>_<op>_own`, tutte nella forma
+  `(select auth.uid())` — sotto-select valutato una volta come initplan invece
+  che per riga.
+- ⚠️ **Nessun indice oltre le chiavi primarie**, su nessuna delle tre. Niente su
+  `user_id`, che è la colonna su cui filtra la RLS di *ogni* query. Aggiunti
+  `(user_id, date desc)` su `transactions` e gli indici sulle FK — quelli non
+  servono alle SELECT ma alle **cancellazioni in cascata**, che senza scandiscono
+  l'intera tabella.
+
+#### Debiti restati aperti, deliberatamente
+
+- **`transactions.date` è `timestamp WITHOUT time zone`** — vedi la nota nello
+  schema qui sopra. Cambiare il tipo cambia il significato dei dati già scritti.
+- **`categories.user_id` e `transactions.user_id` sono NULLABLE**, mentre le
+  policy filtrano su `user_id = auth.uid()`: una riga con `user_id` NULL non
+  sarebbe visibile né cancellabile da nessuno. Impossibile oggi (ogni insert
+  passa da una server action), ma il DB non lo impedisce.
+- **`anon` ha DML su tutte e tre**, per default di Supabase. Innocuo *solo*
+  grazie alla RLS — ogni policy è `to authenticated` — quindi è difesa singola.
 
 ### Storage & funzioni (Fase 16)
 
@@ -431,11 +537,13 @@ notifications: id, user_id, type, payload (JSONB), dedup_key (TEXT),
   `categories_type_check`. Il difetto contava perché la notifica di rinnovo
   abbonamento filtra su `type = 'abbonamento'` e quindi si appoggiava alla sola
   disciplina applicativa. Vincolo aggiunto il 2026-08-04.
-- ⚠️ **IL REPO NON RICOSTRUISCE ANCORA IL DATABASE DA ZERO.** Le tabelle di base —
-  `profiles`, `categories`, `transactions` — sono nate nella Fase 3 e non sono mai
-  state versionate: nessun file le crea. Anche `transactions.recurring_rule_id` vive
-  solo nel database. Recuperare `recurring_rules` ha chiuso un buco, non tutti.
-  Tracciato nella **issue #43**, con la tecnica di ricostruzione e le query pronte.
+- ~~⚠️ **IL REPO NON RICOSTRUISCE ANCORA IL DATABASE DA ZERO.**~~ — **chiuso il
+  2026-08-12** dalla issue #43: `profiles`, `categories` e `transactions` sono
+  ora versionate in `20260812_baseline_fase3.sql`, e le correzioni che quella
+  fotografia ha reso visibili — fra cui **la registrazione rotta da cinque
+  settimane** — stanno in `20260813_schema_cleanup.sql`. Vedi la sezione
+  "Ricostruzione dello schema". Recuperare `recurring_rules` aveva chiuso un
+  buco; questo ha chiuso gli altri.
 
 ### Fase 18 — tema chiaro/scuro
 
@@ -803,8 +911,12 @@ Due cose trovate per strada, entrambe dai vincoli reali:
 - ⚠️ **`transactions.frequency` esiste e non è documentata qui**, con vocabolario
   inglese (`weekly/monthly/yearly`) mentre `recurring_rules.frequency` usa
   l'italiano. Residuo pre-Fase 14. La riga di DETAIL dell'errore mostra 13 valori
-  dove questo documento elenca 10 colonne: ce ne sono altre due da mappare. Va
-  nella issue #43, non si tocca a cuor leggero.
+  dove questo documento elenca 10 colonne: ce ne sono altre due da mappare.
+  **Chiuso dalla issue #43 il 2026-08-12**: le altre due erano `is_ricurrent` e
+  `parent_id`, tutte e tre residui pre-Fase 14 e tutte NULL, rimosse dalla
+  `20260813`. Che il conteggio delle colonne di un messaggio d'errore fosse
+  l'unico modo per accorgersene è precisamente ciò che la #43 esisteva per
+  chiudere.
 - ⚠️ **`generate_recurring_transactions()` non aveva grant espliciti** e si
   affidava al default su PUBLIC — di cui `anon` è membro. Chiunque con la chiave
   pubblicabile poteva invocare una funzione SECURITY DEFINER che con
@@ -1134,8 +1246,10 @@ dell'account**, tutta la storia, per produrre una trentina di numeri.
   dice quale colonna** e che compare solo all'esecuzione, non alla creazione
   (`create or replace` era passato senza un lamento). Ogni colonna restituita ha
   ora un cast esplicito. Non è ridondanza: lega la funzione alla propria firma
-  invece che a un'assunzione sullo schema **che nessuno può verificare leggendo
-  il repo**, visto che `transactions` non è versionata (issue #43).
+  invece che a un'assunzione sullo schema — che all'epoca **nessuno poteva
+  verificare leggendo il repo**, perché `transactions` non era versionata. Da
+  quando lo è (issue #43, `20260812`) l'assunzione è controllabile, e si vede
+  che era **giusta**: `type` è davvero `character varying`, non `text`.
 
 #### Il proxy: un redirect è un'AFFERMAZIONE
 
