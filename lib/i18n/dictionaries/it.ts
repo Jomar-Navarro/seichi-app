@@ -568,6 +568,58 @@ export const it = {
 	},
 
 	/**
+	 * Stato del job giornaliero (issue #47).
+	 *
+	 * ⚠️ Il testo dice **cosa non funziona per l'utente**, non come si chiama il
+	 * meccanismo: "job", "cron" e "pg_cron" non compaiono. Chi legge vuole sapere
+	 * che i movimenti ricorrenti non vengono registrati, non quale processo è
+	 * fermo — quello sta nella issue.
+	 */
+	jobHealth: {
+		/**
+		 * ⚠️ Due varianti annidate per AMBITO (`DailyJobScope`), non un testo solo.
+		 * Quando fallisce il passo delle notifiche i movimenti ricorrenti SONO
+		 * stati registrati: dire comunque che non lo sono è una dichiarazione
+		 * falsa sui dati finanziari dell'utente. La versione precedente ne aveva
+		 * una sola e la usava per entrambi i guasti.
+		 */
+		recurring: {
+			/** Riga in /impostazioni. Compare SOLO quando c'è un problema. */
+			rowLabel: "Automazioni ferme",
+			/** Titolo dell'avviso in cima a /impostazioni/ricorrenti. */
+			title: "I movimenti ricorrenti non vengono registrati",
+			/**
+			 * ⚠️ L'ultima frase dev'essere azionabile DA CHI LEGGE. Qui c'era
+			 * "Controlla lo stato del database": un'istruzione per lo sviluppatore,
+			 * data a un utente che non ha né database né credenziali — e per giunta
+			 * l'unica cosa concreta dell'intero avviso.
+			 */
+			hint: "Le transazioni pianificate potrebbero non comparire e i totali essere incompleti. Nel frattempo puoi inserirle a mano.",
+		},
+		notifications: {
+			rowLabel: "Avvisi non aggiornati",
+			title: "Alcuni avvisi potrebbero mancare",
+			/** Rassicura sulla parte che NON è compromessa: è tutto il punto. */
+			hint: "I tuoi movimenti sono registrati correttamente: a non essere stati generati sono gli avvisi su budget e obiettivi.",
+		},
+		/**
+		 * `{when}` è già una frase relativa ("2 giorni fa") prodotta da
+		 * `formatRelativeTime`: qui non si compone una data a mano.
+		 */
+		lastOk: "Ultimo controllo riuscito: {when}.",
+		/**
+		 * Il caso peggiore: nessuna traccia di alcuna esecuzione.
+		 *
+		 * ⚠️ Era codice morto finché il seme `installed` veniva contato come
+		 * esecuzione riuscita — cioè finché lo stato che questa frase descrive era
+		 * l'unico irraggiungibile. Vedi `20260811_job_health_fixes.sql`.
+		 */
+		never: "Non risulta alcuna esecuzione.",
+		/** Il job ha girato ma un passo è fallito: diverso da "non ha girato". */
+		withError: "L'ultima esecuzione è terminata con un errore.",
+	},
+
+	/**
 	 * Etichette del picker icone, annidate per TIPO.
 	 *
 	 * ⚠️ Non è una mappa piatta `id → etichetta` perché nove icone cambiano nome

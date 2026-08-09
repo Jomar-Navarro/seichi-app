@@ -267,6 +267,17 @@ export function formatRelativeTime(
 	 * dal dizionario invece di essere dedotta.
 	 */
 	justNow: string,
+	/**
+	 * Formato della data assoluta oltre i 7 giorni.
+	 *
+	 * ⚠️ Il default (`{day, month}`) **non porta l'anno**, ed è tarato sul
+	 * campanello delle notifiche, dove le righe sono recenti per costruzione. Chi
+	 * mostra questa frase per descrivere un ritardo — l'avviso del job, che si
+	 * vede solo passate 36 ore — deve chiedere l'anno: "3 luglio" non distingue
+	 * cinque settimane da diciassette mesi, e la distanza è l'unica cosa che quel
+	 * testo esiste per comunicare.
+	 */
+	fallbackOptions?: Intl.DateTimeFormatOptions,
 ): string {
 	const then = new Date(iso);
 	const minutes = Math.floor((Date.now() - then.getTime()) / 60_000);
@@ -281,7 +292,9 @@ export function formatRelativeTime(
 	const days = calendarDaysAgo(then);
 	if (days < 7) return rtf.format(-days, "day");
 
-	return formatDate(then, locale);
+	return fallbackOptions
+		? formatDate(then, locale, fallbackOptions)
+		: formatDate(then, locale);
 }
 
 /* -------------------------------------------------- letture con ripiego --- */

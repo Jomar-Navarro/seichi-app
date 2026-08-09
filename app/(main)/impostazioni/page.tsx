@@ -10,9 +10,11 @@ import {
 	Pencil,
 	Repeat,
 	Trash2,
+	TriangleAlert,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getAccountContext } from "@/lib/account";
+import { getDailyJobHealth } from "@/lib/jobs";
 import { getI18n } from "@/lib/i18n/server";
 import { fill } from "@/lib/i18n/format";
 import Avatar from "@/components/UI/Avatar";
@@ -28,9 +30,19 @@ import pkg from "@/package.json";
 const AKA = "var(--color-aka)";
 /** Etichette: l'inchiostro (`tone` di SettingsRow). */
 const AKA_INK = "var(--ink-aka)";
+/**
+ * Ambra per l'avviso di sistema (issue #47), non rosso: il rosso in questa app
+ * significa "uscite", e prestarlo a un allarme confonderebbe i due. L'ambra è già
+ * il livello "attenzione" delle barre budget all'80%.
+ */
+const KIN = "var(--color-kin)";
+const KIN_INK = "var(--ink-kin)";
 
 export default async function ImpostazioniPage() {
-	const account = await getAccountContext();
+	const [account, jobHealth] = await Promise.all([
+		getAccountContext(),
+		getDailyJobHealth(),
+	]);
 	const { t } = await getI18n();
 
 	const supabase = await createClient();
@@ -150,6 +162,27 @@ export default async function ImpostazioniPage() {
 
 			{/* Supporto */}
 			<SettingsGroup label={t.settings.groups.support}>
+				{/*
+					Compare SOLO quando il job è fermo (issue #47). Una riga permanente
+					"automazioni: ok" sarebbe rumore: non c'è niente da fare quando va
+					bene, e una spia sempre verde smette di essere guardata.
+					Porta a /impostazioni/ricorrenti, dove l'avviso spiega cosa manca.
+				*/}
+				{jobHealth?.stale && (
+					<SettingsRow
+						icon={<TriangleAlert size={17} style={{ color: KIN }} />}
+						// L'etichetta segue l'AMBITO: "automazioni ferme" sarebbe falso se a
+						// fallire sono state le sole notifiche. Vedi `DailyJobScope`.
+						label={t.jobHealth[jobHealth.scope].rowLabel}
+						tone={KIN_INK}
+						accent={KIN}
+						href="/impostazioni/ricorrenti"
+						// ⚠️ È l'unica riga della pagina su cui c'è qualcosa DA FARE, ed era
+						// l'unica `href` senza chevron: si leggeva come un'etichetta di stato
+						// e non come l'ingresso alla spiegazione che la attende là dietro.
+						chevron
+					/>
+				)}
 				<SettingsRow
 					icon={<Info size={17} className="text-secondary" />}
 					label={t.settings.about}
