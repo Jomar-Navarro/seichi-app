@@ -427,12 +427,19 @@ export const en: Dictionary = {
 	},
 
 	jobHealth: {
-		rowLabel: "Automations stopped",
-		title: "Recurring transactions are not being recorded",
+		recurring: {
+			rowLabel: "Automations stopped",
+			title: "Recurring transactions are not being recorded",
+			hint: "Scheduled transactions may be missing and your totals incomplete. You can add them manually in the meantime.",
+		},
+		notifications: {
+			rowLabel: "Alerts out of date",
+			title: "Some alerts may be missing",
+			hint: "Your transactions are recorded correctly — it is the budget and goal alerts that were not generated.",
+		},
 		lastOk: "Last successful check: {when}.",
 		never: "No run has been recorded.",
 		withError: "The last run ended with an error.",
-		hint: "Scheduled transactions may be missing and your totals incomplete. Check your database status.",
 	},
 
 	// Annidate per tipo: le stesse nove icone che in italiano cambiano nome col

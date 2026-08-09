@@ -31,6 +31,43 @@
 
 
 -- ----------------------------------------------------------------------------
+-- ⚠️ 0. Guardia: questo file NON va rieseguito dopo la 20260810
+-- ----------------------------------------------------------------------------
+-- Il motivo per tornare qui è reale: fino alla `20260811` questo era l'unico
+-- file contenente `cron.schedule`, quindi era il posto dove si veniva a
+-- riagganciare il job. Ma qui sotto c'è anche una versione di `run_daily_jobs()`
+-- che invoca `generate_recurring_transactions()` con `perform`, **scartandone
+-- il valore di ritorno** — cioè il conteggio delle regole saltate introdotto
+-- dalla `20260810`.
+--
+-- Rieseguire questo file dopo quella la sovrascriverebbe: le regole saltate
+-- tornerebbero a essere registrate come `recurring / ok`, l'app direbbe che il
+-- job è sano mentre non genera nulla, e non ci sarebbe **né un errore né una
+-- traccia**. Il difetto originale di questa issue, restaurato in silenzio.
+--
+-- La guardia riconosce la `20260810` dal tipo di ritorno della funzione, che là
+-- passa da `void` a `integer`. Il fallimento è rumoroso di proposito: un `if`
+-- che salta in silenzio lascerebbe chi legge convinto di aver riagganciato il
+-- cron. Dalla `20260811` in poi il file più recente è autosufficiente, quindi
+-- non c'è mai motivo di tornare indietro.
+
+do $$
+begin
+	if exists (
+		select 1
+		from pg_proc p
+		join pg_namespace n on n.oid = p.pronamespace
+		where n.nspname = 'public'
+		  and p.proname = 'generate_recurring_transactions'
+		  and pg_get_function_result(p.oid) <> 'void'
+	) then
+		raise exception
+			'STOP: la 20260810 è già stata eseguita. Rieseguire questo file sostituirebbe run_daily_jobs() con la versione che scarta il conteggio delle regole saltate. Per riagganciare il cron esegui la 20260811, che è autosufficiente.';
+	end if;
+end $$;
+
+
+-- ----------------------------------------------------------------------------
 -- 1. La tabella
 -- ----------------------------------------------------------------------------
 -- `run_at` è l'istante di inizio dell'INVOCAZIONE, identico per tutti i passi

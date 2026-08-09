@@ -891,6 +891,77 @@ dall'esecuzione notturna, e la funzione lavora su tutti gli utenti. Se l'avesse
 lanciata un utente autenticato via RPC, avrebbe toccato solo i propri dati e non
 avrebbe detto nulla sul comportamento del job.
 
+#### Emerso dal code-review — la sorveglianza affermava più di quanto sapeva
+
+⚠️ **Migration `20260811_job_health_fixes.sql` DA ESEGUIRE** (dopo la `20260809`
+e la `20260810`). Cambia il tipo di ritorno di `daily_job_health()`: senza, le
+due pagine impostazioni chiamano una firma che non esiste più.
+
+Il guasto era chiuso, ma il meccanismo costruito per sorvegliarlo diceva il falso
+in tre casi. **Sono lo stesso difetto in tre travestimenti**, ed è la classe già
+elevata a regola nella Fase 18 — *un lampo di colore era messo in conto, una
+dichiarazione falsa no.*
+
+- ⚠️ **Il seme `installed` era scritto `status = 'ok'`**, quindi finiva in
+  `last_ok_at`: l'app annunciava "ultimo controllo riuscito: 3 giorni fa" per un
+  job che non aveva eseguito un solo passo. E siccome la tabella non è mai vuota,
+  `t.jobHealth.never` era **irraggiungibile**: l'unico messaggio che descriveva
+  davvero quello stato era codice morto in due lingue.
+  ⚠️ **La correzione ovvia era sbagliata.** Togliere il seme da `last_ok_at` e
+  basta lo rende NULL su un database appena migrato, e in TypeScript
+  `lastOkAt === null` significa `stale` → l'avviso a torto dal primo minuto,
+  cioè proprio ciò che il seme esisteva per impedire. Servono **due fatti
+  distinti**: `watching_since` (l'inizio del cronometro) e `last_ok_at` (una
+  riuscita). Erano stati confusi in una colonna sola.
+- ⚠️ **Il verdetto schiacciava i due passi in un booleano e buttava via `step`.**
+  Un guasto nelle sole notifiche faceva scrivere "i movimenti ricorrenti non
+  vengono registrati" mentre erano stati registrati. La tabella sapeva quale
+  passo era fallito; la funzione lo perdeva. Ora `failed_steps` esce dalla RPC e
+  `DailyJobScope` (`lib/jobs.ts`) sceglie quale delle due frasi è lecita.
+- ⚠️ **`job_runs` è GLOBALE**, quindi una regola saltata di un utente marcava
+  `recurring / error` per l'intera esecuzione e l'allarme compariva sulle
+  impostazioni di **tutti gli altri**, le cui ricorrenti erano state generate
+  perfettamente. Non si chiude rendendo la tabella per-utente — è globale per la
+  stessa ragione per cui `details` non esce verso il client — ma **abbassando la
+  pretesa dell'affermazione**: terzo stato `partial`, che resta registrato senza
+  alzare un allarme che parlerebbe a nome di chi non c'entra.
+  Buco dichiarato: l'utente della regola saltata non riceve alcun segnale. Là una
+  *notifica* sarebbe la sede giusta — il job è vivo, quindi può generarla, a
+  differenza dell'allarme "job morto" che per costruzione non può esserlo.
+
+**E un silenzio che sarebbe tornato da solo:** fino alla `20260811` l'unico file
+con `cron.schedule` era la `20260809`, quindi era là che si tornava per
+riagganciare il job — ma quel file contiene anche la **propria** versione di
+`run_daily_jobs()`, quella che scarta il conteggio delle regole saltate.
+Rieseguirlo dopo la `20260810` avrebbe restaurato il difetto originale senza un
+errore e senza traccia. Due difese: una **guardia** in testa alla `20260809` che
+si rifiuta di girare fuori ordine (riconosce la `20260810` dal tipo di ritorno di
+`generate_recurring_transactions()`, che passa da `void` a `integer`), e la
+regola che ne discende — **il file più recente dev'essere autosufficiente**, così
+non c'è mai motivo di tornare indietro.
+
+Tre correzioni di testo, tutte della stessa famiglia:
+
+- **`hint` diceva "Controlla lo stato del database"** — in entrambe le lingue,
+  tre righe sotto un commento che vieta di nominare il meccanismo. Era anche
+  l'**unica** frase azionabile dell'avviso, rivolta a un utente che non ha né
+  database né credenziali. Ora l'azione è quella vera: inserire a mano nel
+  frattempo.
+- ⚠️ **`formatRelativeTime` oltre i 7 giorni perde l'anno**: il default
+  (`{day, month}`) è tarato sul campanello, dove le righe sono recenti per
+  costruzione. Questo avviso si vede **solo da fermo**, quindi "3 luglio" non
+  distingue cinque settimane da diciassette mesi — cioè l'unica cosa che quel
+  testo esiste per dire. Il formato è ora un parametro opzionale.
+- La riga del job era l'**unica `href` senza `chevron`** della pagina: si leggeva
+  come un'etichetta di stato invece che come l'ingresso alla spiegazione.
+
+Restano aperti, come commit separati: `createRecurringRule()` che scarta errore e
+conteggio dell'RPC (`app/(main)/action.ts`), `details` che porta il conteggio ma
+non gli id delle regole, `search_path to 'public'` in
+`generate_recurring_transactions()` dove tutte le altre usano `''`, `logged_at`
+che nessuno legge, e il `Promise.all` di `/impostazioni` che affianca una
+funzione capace di `redirect()` a una promise che resterebbe non osservata.
+
 ### Costo delle richieste a Supabase (2026-08-08)
 
 Il pannello Supabase segnava ~2300 richieste in un'ora di uso normale. Non era un
@@ -1315,7 +1386,11 @@ si nota, una variabile CSS inesistente no.
 
 ## Rules
 
-- Ogni tabella Supabase DEVE avere RLS abilitato — non creare tabelle senza policy
+- Ogni tabella Supabase DEVE avere RLS abilitato — non creare tabelle senza policy.
+  ⚠️ **Unica eccezione: RLS abilitata e ZERO policy come nego-tutto deliberato**,
+  per i registri che nessun ruolo del client deve toccare (`job_runs`). Va scritto
+  nella migration *perché* è voluto, o alla rilettura è indistinguibile da una
+  dimenticanza — che è il caso che la regola esiste per intercettare
 - Usare `DECIMAL(10,2)` per tutti i valori monetari, mai float
 - UUID per tutti gli ID, mai INT sequenziali
 - Variabili Supabase sempre in `.env.local`, mai hardcoded

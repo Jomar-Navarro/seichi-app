@@ -22,24 +22,43 @@ import type { DailyJobHealth } from "@/lib/jobs";
 export default async function JobHealthNotice({ health }: { health: DailyJobHealth }) {
 	const { locale, t } = await getI18n();
 
+	/**
+	 * ⚠️ Titolo e suggerimento dipendono dall'AMBITO, non sono un testo solo.
+	 * Con una frase unica un guasto delle sole notifiche faceva dichiarare che i
+	 * movimenti ricorrenti non venivano registrati — mentre lo erano. La scelta
+	 * la fa `getDailyJobHealth()`, dove sta anche la soglia.
+	 */
+	const scoped = t.jobHealth[health.scope];
+
 	// L'ordine è per gravità decrescente: "mai girato" è peggio di "girato male",
 	// che è peggio di "girato bene troppo tempo fa".
-	const detail = health.lastRunAt === null
-		? t.jobHealth.never
-		: health.hadError
-			? t.jobHealth.withError
-			: health.lastOkAt
-				? fill(t.jobHealth.lastOk, {
+	//
+	// ⚠️ `lastOkAt === null` con almeno un giro alle spalle significa "ha girato e
+	// non è mai riuscito", che è un errore accertato: cade nello stesso ramo di
+	// `hadError` invece di far ripiegare la frase su "non risulta alcuna
+	// esecuzione", che sarebbe falsa.
+	const detail =
+		health.lastRunAt === null
+			? t.jobHealth.never
+			: health.hadError || health.lastOkAt === null
+				? t.jobHealth.withError
+				: fill(t.jobHealth.lastOk, {
 						// `formatRelativeTime` vuole una stringa ISO, non una Date, e la
 						// frase per "meno di un minuto" arriva dal dizionario: `Intl`
 						// darebbe "ora", indistinguibile da un conteggio di ore troncato.
+						//
+						// ⚠️ L'anno va chiesto esplicitamente: oltre i 7 giorni la
+						// funzione ripiega su una data assoluta, e il suo default non lo
+						// porta. Questo avviso si vede SOLO da fermo, quindi "3 luglio"
+						// senza anno non distinguerebbe cinque settimane da diciassette
+						// mesi — cioè proprio l'informazione per cui esiste.
 						when: formatRelativeTime(
 							health.lastOkAt.toISOString(),
 							locale,
 							t.notifications.justNow,
+							{ day: "numeric", month: "long", year: "numeric" },
 						),
 					})
-				: t.jobHealth.never;
 
 	return (
 		<div
@@ -61,9 +80,9 @@ export default async function JobHealthNotice({ health }: { health: DailyJobHeal
 			<div className="min-w-0">
 				{/* Il testo prende l'INCHIOSTRO, non l'accento: su fondo chiaro
 				    l'accento sta a ~3,2:1, sotto il 4,5:1 di WCAG AA. */}
-				<p className="text-[13.5px] font-semibold text-kin-ink">{t.jobHealth.title}</p>
+				<p className="text-[13.5px] font-semibold text-kin-ink">{scoped.title}</p>
 				<p className="text-[12.5px] text-muted mt-1 leading-relaxed">
-					{detail} {t.jobHealth.hint}
+					{detail} {scoped.hint}
 				</p>
 			</div>
 		</div>

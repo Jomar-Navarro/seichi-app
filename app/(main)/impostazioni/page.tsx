@@ -171,10 +171,16 @@ export default async function ImpostazioniPage() {
 				{jobHealth?.stale && (
 					<SettingsRow
 						icon={<TriangleAlert size={17} style={{ color: KIN }} />}
-						label={t.jobHealth.rowLabel}
+						// L'etichetta segue l'AMBITO: "automazioni ferme" sarebbe falso se a
+						// fallire sono state le sole notifiche. Vedi `DailyJobScope`.
+						label={t.jobHealth[jobHealth.scope].rowLabel}
 						tone={KIN_INK}
 						accent={KIN}
 						href="/impostazioni/ricorrenti"
+						// ⚠️ È l'unica riga della pagina su cui c'è qualcosa DA FARE, ed era
+						// l'unica `href` senza chevron: si leggeva come un'etichetta di stato
+						// e non come l'ingresso alla spiegazione che la attende là dietro.
+						chevron
 					/>
 				)}
 				<SettingsRow
