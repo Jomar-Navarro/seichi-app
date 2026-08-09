@@ -849,6 +849,48 @@ Due cose trovate per strada, entrambe dai vincoli reali:
   vedi la trappola di `dashboard_totals()` qui sotto — `RETURN QUERY` di plpgsql
   pretende i tipi esatti e falliva solo a runtime.
 
+#### Il collaudo — migration eseguite e verificate il 2026-08-09
+
+`20260809_job_runs.sql` e `20260810_recurring_fixes.sql` **eseguite** (in
+quest'ordine, che è vincolante). Verifica end-to-end superata, idempotenza
+inclusa. Le righe di `job_runs` raccontano la vicenda intera e vanno lette in
+sequenza, perché è la seconda a dare valore a tutte le altre:
+
+| quando | passo | esito |
+|---|---|---|
+| 08/08 12:32 | `installed` | il seme che avvia il cronometro |
+| 08/08 12:34 | `recurring` | **`error`** — `transactions_type_check`, catturato |
+| 08/08 12:46 | entrambi | `ok` — dopo la `20260810` |
+| **09/08 03:00** | entrambi | `ok` — **il cron vero**, non una corsa a mano |
+| 09/08 15:14 | entrambi | `ok` — corsa manuale, nessun insert |
+
+⚠️ **La riga in `error` è la prova che conta, e serviva vederla.** Solo righe
+verdi non avrebbero distinto "il meccanismo funziona" da "il meccanismo è cieco
+quanto pg_cron": quel guasto era rimasto invisibile per cinque settimane proprio
+perché `job_run_details` diceva `succeeded`. Vale come regola di metodo — **un
+registro di guasti non è collaudato finché non ha registrato un guasto.**
+
+Gli arretrati sono stati recuperati in **un solo giro** (i `created_at` delle tre
+transazioni generate sono identici): `Orange palestra` 39,90 datata **3 luglio** e
+3 agosto, `Spotify` 12,00 datata 5 agosto, tutte con `recurring_rule_id`
+valorizzato. La prima è letteralmente la riga del `DETAIL:` dell'errore citato in
+testa alla migration. I `next_run` sono ora tutti al futuro (03/09, 05/09, 08/09).
+
+⚠️ **`details` NULL con `status = 'ok'` significa zero regole saltate**, non
+"nessuna informazione": se ce ne fossero state, `run_daily_jobs()` avrebbe scritto
+`error` col conteggio. È il valore di ritorno di `generate_recurring_transactions()`
+che rende leggibile la differenza.
+
+I passi registrati sono **due** — `recurring` e `notifications`. La "pulizia"
+nominata nella 17b non esiste più: cancellare le notifiche era il bug documentato
+là sopra (libera la `dedup_key` e il generatore rifà la notifica).
+
+⚠️ **Il collaudo dal SQL Editor è rappresentativo del cron**, e non per caso: in
+quella sessione non c'è JWT, quindi `auth.uid()` è NULL esattamente come
+dall'esecuzione notturna, e la funzione lavora su tutti gli utenti. Se l'avesse
+lanciata un utente autenticato via RPC, avrebbe toccato solo i propri dati e non
+avrebbe detto nulla sul comportamento del job.
+
 ### Costo delle richieste a Supabase (2026-08-08)
 
 Il pannello Supabase segnava ~2300 richieste in un'ora di uso normale. Non era un
