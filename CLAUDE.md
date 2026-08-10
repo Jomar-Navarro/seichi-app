@@ -1041,20 +1041,119 @@ saldo(X) = initial_balance(X)
          + Σ amount dove to_account_id = X
 ```
 
-⚠️ **Conseguenza dichiarata: "saldo" in home diventa ambiguo.** Oggi
-`saldoMese = entrate − spese − risparmi − investimenti − abbonamenti` significa
-"quanto è rimasto disponibile"; con i conti, i risparmi con destinazione sono
-ancora soldi tuoi, solo altrove. Patrimonio totale e disponibile diventano due
-numeri diversi. **La 20a non li riconcilia**: la home resta una vista di FLUSSO e
-i saldi stanno nella pagina conti. Riconciliarli è una decisione di prodotto a
-sé, e farla di straforo dentro questa fase produrrebbe un numero che cambia
-significato senza che nessuno l'abbia deciso.
+#### ⚠️ La home perde "Saldo totale" — deciso il 2026-08-10 sul mockup `Seichi Conti.dc.html`
+
+Oggi la home mostra `saldoTotale` = entrate − spese − risparmi − investimenti −
+abbonamenti **su tutta la storia**. Con i conti quel numero entra in
+contraddizione con la pagina conti, che alla stessa domanda ("quanto ho")
+risponde con la somma dei saldi — diversa, perché `saldoTotale` **sottrae i
+risparmi**, che sono ancora soldi tuoi solo altrove, e **ignora
+`initial_balance`**.
+
+⚠️ **La prima stesura rimandava la riconciliazione** ("la 20a non li
+riconcilia"). Sbagliato, e vale registrare perché: rimandare non è *non
+decidere*, è **spedire la contraddizione**. È la 20a a creare l'ambiguità —
+prima non esisteva, perché non c'era un secondo numero — quindi è la 20a a
+doverla chiudere. Due schermate della stessa app che rispondono diversamente a
+"quanto ho" sono il difetto già elevato a regola nella 17a: *un numero sbagliato
+che sembra giusto è peggio di un numero assente*.
+
+**La chiusura è una rinomina, non un calcolo nuovo**, e non lascia due numeri
+concorrenti perché ne toglie uno:
+
+| | oggi | dalla 20a |
+|---|---|---|
+| cifra grande | `saldoTotale`, "Saldo totale" | `saldoMese`, **"Flusso · <mese>"** |
+| riga sotto | "↑ + € X questo mese" | *"entrate meno spese di questo mese — non il saldo dei conti"* + *"i saldi reali sono nella pagina conti"* |
+
+**La home resta una vista di FLUSSO, i saldi stanno nella pagina conti** — la
+divisione non cambia, cambia il fatto che ora la home lo *dice*. `saldoTotale`
+non era una vista di patrimonio: era un **surrogato** costruito senza conti, e i
+conti sono la versione vera della stessa domanda. Tenerlo significherebbe due
+risposte, che è la configurazione peggiore.
+
+⚠️ **Conseguenza sul costo**: `saldoTotale` è l'**unico** consumatore del bucket
+`null` di `dashboard_totals()` — l'aggregazione su tutta la storia dell'account,
+rifatta a ogni vista della home. Togliendo il numero il bucket diventa morto e va
+rimosso nella stessa migration che tocca la funzione, o resta una scansione
+dell'intero storico per un valore che nessuno mostra.
+
+#### ⚠️ `accounts.type` è DECORATIVO, mai semantico — deciso il 2026-08-10
+
+La domanda che l'ha sollevato: un conto "Portafoglio investimenti" **collide con
+la pagina Investimenti**? No, e il test che lo dimostra è *"esiste un caso reale
+in cui i due numeri devono divergere?"*. Ce ne sono tre, tutti normali:
+
+1. **Liquidità non investita** — 1.000 € trasferiti sul conto titoli e non ancora
+   impiegati: il conto ha giacenza, il *totale investito* non si muove. La
+   differenza è un'informazione, non un errore.
+2. **Investimento da un altro conto** — un PAC addebitato sul corrente è
+   `type='investimento'` a pieno titolo, e il conto titoli non lo vede.
+3. **Plusvalenze** — il totale investito è per definizione la somma dei
+   versamenti (Seichi non ha quotazioni); il saldo di un conto un domani potrebbe
+   essere allineato al valore reale. Allora divergono *strutturalmente*.
+
+Sono due **dimensioni**: `transactions.type` dice **che cosa** hai fatto (flusso,
+alimenta la pagina Investimenti), il conto dice **dove si trova** il denaro
+(giacenza, alimenta la pagina Conti). Formule diverse su insiemi diversi: non
+possono essere lo stesso numero, e non devono.
+
+⚠️ **Ma regge solo se `accounts.type` non decide niente.** Nel momento in cui
+facesse qualcosa — "i movimenti su un conto investimento sono investimenti", o
+"il saldo del conto entra nel totale investito" — la domanda *"questo movimento è
+un investimento?"* avrebbe **due risposte**, quella di `transactions.type` e
+quella di `accounts.type`. È la classe di difetto già pagata tre volte:
+`hasPasswordIdentity` derivato in due punti (→ account impossibile da eliminare),
+`getAccountContext()` che serviva due bisogni con freschezze diverse, `currency
+default 'EUR'` che affermava "onboarding finito". Vale la regola già scritta:
+**un campo che serve a disegnare e un campo che serve a decidere hanno bisogni
+diversi anche quando contengono la stessa stringa.**
+
+Quindi `accounts.type` sceglie **icona ed etichetta, nient'altro**. La natura del
+movimento la decide sempre e solo `transactions.type`. Se un domani servirà far
+comportare l'app diversamente su un conto, sarà una decisione nuova presa in
+chiaro, non una conseguenza scivolata dentro da un'etichetta.
+
+**Lo stesso vale per "Fondo risparmio" contro gli obiettivi**: l'obiettivo è un
+**traguardo**, il conto è un **luogo**. Un obiettivo si finanzia da qualunque
+conto; un conto può contenere denaro di più obiettivi o di nessuno. Il saldo non
+è la somma degli obiettivi. È la ragione per cui `to_account_id` facoltativo su
+`risparmio` (20b) è la forma giusta: un gesto solo che avanza il traguardo *e*
+sposta il denaro.
+
+**Conseguenza sui nomi, come "spese variabili" nella 17a**: la pagina Conti parla
+di **giacenza**, la pagina Investimenti di **investito**. Se entrambe li
+chiamassero "investimenti", l'utente non saprebbe a quale credere e smetterebbe
+di fidarsi di tutti e due.
+
+#### I filtri per conto — deciso il 2026-08-10
+
+Due, non uno solo come prevedeva la prima stesura:
+
+- **nella lista movimenti**, accanto ai filtri esistenti;
+- **in home**, il selettore "Tutti i conti" in cima al mockup.
+
+⚠️ **Il filtro in home non è gratis**: i totali della home li calcola
+`dashboard_totals()`, quindi la funzione acquisisce un parametro conto e **cambia
+firma**. Valgono le due trappole già documentate — i cast espliciti su ogni
+colonna (`RETURN QUERY` di plpgsql pretende i tipi esatti, e fallisce solo a
+runtime) e l'**ordine di deploy vincolante**: migration prima del codice, o la
+home risponde 404 sulla RPC. È anche la migration in cui togliere il bucket
+`null` rimasto senza consumatori.
+
+**Filtrando per conto la home resta una vista di FLUSSO**, quindi i trasferimenti
+continuano a non comparire: spostare denaro non è né guadagnarlo né spenderlo, e
+il filtro cambia *quali* righe si guardano, non *che cosa* la pagina afferma. Per
+la stessa ragione il filtro agisce su `account_id` (l'origine del movimento): un
+`risparmio` fatto dal corrente verso il Fondo è un atto compiuto **dal corrente**.
 
 #### La divisione in due PR
 
 - **20a — conti**: tabella, `account_id` NOT NULL + backfill, conto in
   onboarding, `recurring_rules.account_id` + funzione SQL, pagina conti con
-  saldo, selettore conto nel form, filtro per conto nella lista.
+  saldo, selettore conto nel form, **filtro per conto nella lista e in home**,
+  **home da "Saldo totale" a "Flusso · <mese>"** + `dashboard_totals()` con
+  parametro conto e senza bucket `null`.
 - **20b — trasferimenti**: tipo `trasferimento`, `to_account_id` e i quattro
   CHECK, destinazione su `risparmio`/`investimento`, form e resa nella lista.
 
