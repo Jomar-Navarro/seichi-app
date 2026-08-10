@@ -1,9 +1,9 @@
 -- ============================================================================
 -- Le correzioni che la baseline ha reso visibili (issue #43)
 -- ============================================================================
--- ⚠️ ESEGUIRE DOPO `20260812_baseline_fase3.sql`.
+-- ⚠️ ESEGUIRE DOPO `20260727_baseline_fase3.sql`.
 --
--- La `20260812` fotografa; questo file decide. La separazione è spiegata là, e
+-- La `20260727` fotografa; questo file decide. La separazione è spiegata là, e
 -- il punto è che ciascuno dei difetti qui sotto era **invisibile fino a ieri**:
 -- nessun file del repo descriveva quelle tabelle, quindi un default che viola il
 -- proprio vincolo o otto policy dove ne bastano tre non erano leggibili da
@@ -40,6 +40,42 @@
 -- default: era invisibile, perché il default non stava scritto da nessuna parte.
 
 alter table public.profiles alter column language drop default;
+
+
+-- ----------------------------------------------------------------------------
+-- ⚠️ 1-bis. E lo STESSO difetto su `currency`, che spegne l'onboarding
+-- ----------------------------------------------------------------------------
+-- `currency` ha `default 'EUR'`, e `handle_new_user()` non la nomina: ogni riga
+-- nasce non-NULL. Ma `profiles.currency` **è il flag dell'onboarding** — NULL =
+-- non completato — e il gate è scritto così:
+--
+--     if (!profile?.currency) redirect("/start")
+--
+-- Con il default quella condizione non è mai vera. Il difetto è nato con il
+-- trigger (`20260729`, Fase 16): prima la riga non esisteva finché l'onboarding
+-- non la scriveva, quindi il gate funzionava per costruzione.
+--
+-- ⚠️ **Non si vede registrandosi**, e per questo era sopravvissuto: `signup()`
+-- con la conferma email disattivata fa `redirect("/start")` incondizionato,
+-- senza consultare il gate. Colpisce le altre tre strade:
+--
+--   · **OAuth** (Google/Facebook) → passa da `/callback`, che il gate lo usa
+--   · **conferma email** → stessa cosa, `emailRedirectTo` punta a `/callback`
+--   · **il login successivo** → chi abbandona l'onboarding a metà non ci viene
+--     più riportato, che è letteralmente il lavoro per cui il gate esiste
+--
+-- ⚠️ E riattivare *Confirm email* — uno dei debiti pre-deploy della issue #40 —
+-- instraderebbe OGNI nuova registrazione dentro `/callback`. Il difetto è
+-- dormiente solo perché quel debito non è ancora stato pagato: pagarlo lo
+-- accende. Vale la pena saperlo prima, non dopo.
+--
+-- ⚠️ **Il default si toglie, i valori NON si azzerano** — al contrario di
+-- `theme`. Là ogni valore era fabbricato dal default; qui `savePreferences()`
+-- scrive `currency` per davvero, quindi le righe esistenti contengono scelte
+-- vere e indistinguibili da quelle d'ufficio. Cancellarle rispedirebbe utenti
+-- già configurati dentro l'onboarding. Il difetto riguarda le righe FUTURE.
+
+alter table public.profiles alter column currency drop default;
 
 
 -- ----------------------------------------------------------------------------
@@ -166,11 +202,48 @@ drop policy if exists "Users can insert on their own profile" on public.profiles
 drop policy if exists "Users can update own profile"          on public.profiles;
 drop policy if exists "Users can update on their own profile" on public.profiles;
 
--- categories
-create policy "categories_select_own" on public.categories for select to authenticated using ((select auth.uid()) = user_id);
-create policy "categories_insert_own" on public.categories for insert to authenticated with check ((select auth.uid()) = user_id);
-create policy "categories_update_own" on public.categories for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
-create policy "categories_delete_own" on public.categories for delete to authenticated using ((select auth.uid()) = user_id);
+-- ⚠️ Le policy nuove si creano **solo se non esistono**, e non con la coppia
+-- `drop … if exists` + `create`.
+--
+-- Senza alcuna difesa, una seconda esecuzione aborta con 42710 ("policy already
+-- exists") **a metà di questa sezione** e non arriva mai alla 5: gli indici non
+-- verrebbero creati, e chi legge solo l'errore in cima crede di aver fallito
+-- l'intero file mentre in realtà lo ha fatto a metà.
+--
+-- Ma rimuoverle per ricrearle sarebbe peggio: su una riesecuzione le vecchie
+-- sono già sparite, quindi fra il `drop` e il `create` la tabella resterebbe con
+-- RLS attiva e **nessuna** policy — la finestra di nego-tutto che questa stessa
+-- sezione dichiara inaccettabile quindici righe più in su. La forma
+-- condizionale non ha né il fallimento né la finestra, e non dipende
+-- dall'assunzione che l'editor SQL avvolga il file in una transazione.
+
+do $$
+declare
+	pol record;
+begin
+	for pol in
+		select * from (values
+			('categories',   'categories_select_own',   'select', 'using ((select auth.uid()) = user_id)'),
+			('categories',   'categories_insert_own',   'insert', 'with check ((select auth.uid()) = user_id)'),
+			('categories',   'categories_update_own',   'update', 'using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id)'),
+			('categories',   'categories_delete_own',   'delete', 'using ((select auth.uid()) = user_id)'),
+			('transactions', 'transactions_select_own', 'select', 'using ((select auth.uid()) = user_id)'),
+			('transactions', 'transactions_insert_own', 'insert', 'with check ((select auth.uid()) = user_id)'),
+			('transactions', 'transactions_update_own', 'update', 'using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id)'),
+			('transactions', 'transactions_delete_own', 'delete', 'using ((select auth.uid()) = user_id)')
+		) as t(tbl, name, op, clause)
+	loop
+		if not exists (
+			select 1 from pg_policies
+			where schemaname = 'public' and tablename = pol.tbl and policyname = pol.name
+		) then
+			execute format(
+				'create policy %I on public.%I for %s to authenticated %s',
+				pol.name, pol.tbl, pol.op, pol.clause
+			);
+		end if;
+	end loop;
+end $$;
 
 drop policy if exists "Users can view own categories"            on public.categories;
 drop policy if exists "Users can view on their own categories"   on public.categories;
@@ -181,12 +254,7 @@ drop policy if exists "Users can update on their own categories" on public.categ
 drop policy if exists "Users can delete own categories"          on public.categories;
 drop policy if exists "Users can delete on their own categories" on public.categories;
 
--- transactions
-create policy "transactions_select_own" on public.transactions for select to authenticated using ((select auth.uid()) = user_id);
-create policy "transactions_insert_own" on public.transactions for insert to authenticated with check ((select auth.uid()) = user_id);
-create policy "transactions_update_own" on public.transactions for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
-create policy "transactions_delete_own" on public.transactions for delete to authenticated using ((select auth.uid()) = user_id);
-
+-- transactions — le nuove le ha già create il blocco qui sopra
 drop policy if exists "Users can view own transactions"   on public.transactions;
 drop policy if exists "Users can insert own transactions" on public.transactions;
 drop policy if exists "Users can update own transactions" on public.transactions;

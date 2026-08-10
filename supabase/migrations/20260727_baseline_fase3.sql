@@ -33,7 +33,56 @@
 -- voluti. È lo stesso schema `20260728` (ricostruzione) → `20260810`
 -- (correzione) già usato per le ricorrenti.
 --
+-- ----------------------------------------------------------------------------
+-- ⚠️ Perché il file è datato 27 luglio pur essendo scritto il 12 agosto
+-- ----------------------------------------------------------------------------
+-- Perché le migration di questo repo sono datate secondo **l'epoca che
+-- descrivono**, non il giorno in cui sono state scritte: `20260728_recurring.sql`
+-- ricostruisce la Fase 14 ed è stato scritto il 4 agosto. Qui la convenzione non
+-- è estetica, è **funzionale**: queste tre tabelle sono le più antiche del
+-- database, e ogni altra migration le presuppone. Numerata `20260812`, come nel
+-- primo tentativo, la baseline si ordinava dopo `20260729_account_security.sql`
+-- — che fa `alter table public.profiles` — quindi una ricostruzione da zero in
+-- ordine di nome falliva alla seconda migration. Il file esisteva, e il database
+-- restava non ricostruibile: il difetto che questo lavoro esiste per chiudere,
+-- ripresentato sotto forma di ordinamento.
+--
+-- ⚠️ Conseguenza diretta: `transactions.recurring_rule_id` e la sua FK **non
+-- stanno qui**, pur essendo colonne di `transactions`. Appartengono alla Fase 14
+-- e la loro FK richiede `recurring_rules`, che nasce nel file successivo. Sono
+-- in `20260728_recurring.sql`, cioè dove è nato il concetto.
+--
 -- ⚠️ Eseguire PRIMA di `20260813_schema_cleanup.sql`.
+
+
+-- ----------------------------------------------------------------------------
+-- ⚠️ 0. Guardia: NON rieseguire dopo la 20260813
+-- ----------------------------------------------------------------------------
+-- Questo file **ricrea** `profiles.name`, `surname` e le tre colonne residue di
+-- `transactions` che la `20260813` rimuove. Rieseguirlo dopo quella le
+-- resusciterebbe, poi esploderebbe su `transactions_frequency_check` perché la
+-- colonna `frequency` non esiste più — e se non esplodesse ripristinerebbe tutte
+-- e venti le policy duplicate.
+--
+-- È lo stesso schema della `20260809`, e la stessa lezione: **un file che
+-- descrive uno stato superato non deve poter tornare in vita di soppiatto.**
+-- La sezione 6 di questo file invita a rieseguirlo per verificare che sia un
+-- no-op: vero prima della `20260813`, falso dopo, e senza questa guardia
+-- l'invito sarebbe una trappola scritta di mia mano.
+--
+-- Riconosce la `20260813` da `profiles_theme_check`, che solo quella crea.
+
+do $$
+begin
+	if exists (
+		select 1 from pg_constraint
+		where conname = 'profiles_theme_check'
+		  and connamespace = 'public'::regnamespace
+	) then
+		raise exception
+			'STOP: la 20260813 è già stata eseguita. Questo file ricreerebbe le colonne residue che quella ha rimosso e le policy duplicate che ha deduplicato. Non serve rieseguirlo: su un database già allineato non ha nulla da fare.';
+	end if;
+end $$;
 
 
 -- ----------------------------------------------------------------------------
@@ -175,12 +224,15 @@ create table if not exists public.transactions (
 	frequency         varchar(20),
 	parent_id         uuid,
 	created_at        timestamp without time zone default now(),
-	recurring_rule_id uuid,
 	constraint transactions_pkey primary key (id)
 );
 
-alter table public.transactions add column if not exists investment_type   varchar(50);
-alter table public.transactions add column if not exists recurring_rule_id uuid;
+alter table public.transactions add column if not exists investment_type varchar(50);
+
+-- ⚠️ `recurring_rule_id` NON è qui: è della Fase 14 e la sua FK punta a
+-- `recurring_rules`, che nasce in `20260728_recurring.sql`. Metterla in questo
+-- file — che deve girare per primo — la renderebbe impossibile da creare in una
+-- ricostruzione da zero. Sta nel file successivo, dove è nato il concetto.
 
 alter table public.transactions drop constraint if exists transactions_user_id_fkey;
 alter table public.transactions add  constraint transactions_user_id_fkey
@@ -189,10 +241,6 @@ alter table public.transactions add  constraint transactions_user_id_fkey
 alter table public.transactions drop constraint if exists transactions_category_id_fkey;
 alter table public.transactions add  constraint transactions_category_id_fkey
 	foreign key (category_id) references public.categories(id) on delete cascade;
-
-alter table public.transactions drop constraint if exists transactions_recurring_rule_id_fkey;
-alter table public.transactions add  constraint transactions_recurring_rule_id_fkey
-	foreign key (recurring_rule_id) references public.recurring_rules(id) on delete set null;
 
 -- Registrato ma destinato a sparire con la colonna: vedi 20260813.
 alter table public.transactions drop constraint if exists transactions_frequency_check;
@@ -234,6 +282,13 @@ alter table public.transactions enable row level security;
 --
 -- `drop policy if exists` prima di ogni `create`: non esiste
 -- `create policy if not exists`, e il file dev'essere rieseguibile.
+--
+-- ⚠️ Rimuovere prima di ricreare apre, fra i due comandi, una finestra in cui la
+-- tabella ha RLS attiva e nessuna policy — cioè nega tutto. La `20260813` fa
+-- l'ordine opposto proprio per evitarlo, e la differenza non è una svista: **là
+-- si opera su un database vivo**, qui no. Questo file gira solo in una
+-- ricostruzione da zero, dove le policy non esistono ancora e i `drop` sono
+-- no-op — e la guardia in testa garantisce che non possa girare altrove.
 
 -- profiles
 drop policy if exists "Users can view own profile"            on public.profiles;
@@ -309,8 +364,12 @@ create policy "Users can delete own transactions" on public.transactions for del
 -- ----------------------------------------------------------------------------
 -- 6. Controprova
 -- ----------------------------------------------------------------------------
--- Rieseguire questo file su un database già allineato non deve cambiare NULLA.
--- Per verificarlo, confronta prima e dopo:
+-- ⚠️ **Non rieseguire questo file per verificare che sia un no-op**: dopo la
+-- `20260813` non lo è più, e la guardia in testa lo impedisce. La versione
+-- precedente di questo commento invitava a farlo — una trappola scritta qui
+-- dentro, che è il motivo per cui la guardia esiste.
+--
+-- La verifica si fa LEGGENDO il catalogo, senza scrivere nulla:
 --
 --   select table_name, column_name, data_type, column_default
 --   from information_schema.columns

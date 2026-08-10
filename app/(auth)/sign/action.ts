@@ -79,6 +79,13 @@ export async function signup(
 			// non scambia il `code`: l'utente finisce su /welcome senza sessione,
 			// come se la conferma non fosse servita a niente. /callback lo scambia
 			// e poi instrada a /start perché profiles.currency è ancora NULL.
+			//
+			// ⚠️ Quel "è ancora NULL" ha smesso di essere vero per cinque
+			// settimane: dalla Fase 16 il trigger on_auth_user_created crea la
+			// riga, e `currency` aveva `default 'EUR'` — quindi il gate di
+			// /callback non scattava e chi confermava l'email (o entrava con
+			// OAuth) saltava l'onboarding. Il default è stato rimosso dalla
+			// migration 20260813; il commento torna a descrivere la realtà.
 			emailRedirectTo: `${SITE_URL}/callback`,
 			data: {
 				name: formData.get("name") as string,

@@ -11,18 +11,50 @@
 -- rispetta le dipendenze reali (`20260729_account_security.sql` cancella da
 -- `recurring_rules`, quindi deve venire dopo).
 --
--- ⚠️ IL REPO NON È ANCORA AUTOSUFFICIENTE. Qui c'è `recurring_rules`, ma le
--- tabelle di base — `profiles`, `categories`, `transactions` — sono nate nella
--- Fase 3 e non sono mai state versionate: nessun file le crea. Anche la colonna
--- `transactions.recurring_rule_id`, aggiunta dalla Fase 14, vive solo nel
--- database. Ricostruire il progetto da zero oggi NON è possibile partendo dal
--- solo repository.
+-- ⚠️ ~~IL REPO NON È ANCORA AUTOSUFFICIENTE.~~ — **risolto il 2026-08-13**
+-- (issue #43). Le tabelle di base — `profiles`, `categories`, `transactions` —
+-- sono ora create da `20260727_baseline_fase3.sql`, che si ordina prima di
+-- questo file proprio perché tutto il resto le presuppone. E la colonna
+-- `transactions.recurring_rule_id`, che prima viveva solo nel database, è
+-- aggiunta qui sotto (sezione 2-bis): appartiene a questa fase, non alla Fase 3.
 --
 -- ⚠️ La schedulazione pg_cron di questa funzione è stata SOSTITUITA dalla
 -- Fase 17b: il job `generate-recurring` non esiste più, al suo posto c'è
 -- `seichi-daily` che invoca `run_daily_jobs()` (ricorrenti → notifiche →
 -- pulizia). Vedi `20260804_notifications.sql`.
 -- ============================================================================
+
+
+-- ----------------------------------------------------------------------------
+-- ⚠️ 0. Guardia: questo file NON va rieseguito dopo la 20260810
+-- ----------------------------------------------------------------------------
+-- Alla sezione 3 `generate_recurring_transactions()` è dichiarata `RETURNS
+-- void`, mentre dalla `20260810` restituisce `integer` — il conteggio delle
+-- regole saltate, senza il quale l'isolamento per-regola torna silenzioso.
+-- `create or replace` non può cambiare il tipo di ritorno, quindi rieseguire
+-- questo file fallisce con 42P13 — ma **solo alla sezione 3**, dopo aver già
+-- rimosso e ricreato le policy di `recurring_rules`. Un fallimento a metà è
+-- peggio di un rifiuto in testa: lascia il database in uno stato che nessun
+-- file descrive.
+--
+-- Stessa guardia della `20260727` e della `20260809`, e stessa regola: **un file
+-- che descrive uno stato superato non deve poter tornare in vita di soppiatto.**
+-- Per riagganciare il cron si esegue la `20260811`, che è autosufficiente.
+
+do $$
+begin
+	if exists (
+		select 1
+		from pg_proc p
+		join pg_namespace n on n.oid = p.pronamespace
+		where n.nspname = 'public'
+		  and p.proname = 'generate_recurring_transactions'
+		  and pg_get_function_result(p.oid) <> 'void'
+	) then
+		raise exception
+			'STOP: la 20260810 è già stata eseguita. Questo file ridichiara generate_recurring_transactions() come RETURNS void e fallirebbe a metà, dopo aver toccato le policy. Su un database allineato non ha nulla da fare.';
+	end if;
+end $$;
 
 
 -- ----------------------------------------------------------------------------
@@ -96,6 +128,27 @@ create policy "recurring_rules_own" on public.recurring_rules
 	for all to authenticated
 	using (auth.uid() = user_id)
 	with check (auth.uid() = user_id);
+
+
+-- ----------------------------------------------------------------------------
+-- 2-bis. transactions.recurring_rule_id — la traccia lasciata sulla transazione
+-- ----------------------------------------------------------------------------
+-- ⚠️ Aggiunta qui il 2026-08-13, spostandola dalla baseline `20260727`.
+-- La colonna è di `transactions`, che è una tabella della Fase 3, ma il CONCETTO
+-- è di questa fase: prima delle regole ricorrenti non c'era nulla a cui puntare.
+-- E la FK richiede `recurring_rules`, creata poche righe più sopra — tenendola
+-- nella baseline, che deve girare per prima, sarebbe stata impossibile da creare
+-- in una ricostruzione da zero.
+--
+-- `on delete set null` e non `cascade`: cancellare una regola ricorrente non
+-- deve cancellare i movimenti che ha già generato. Quelli sono spese realmente
+-- avvenute, e sparirebbero dai totali di mesi già chiusi.
+
+alter table public.transactions add column if not exists recurring_rule_id uuid;
+
+alter table public.transactions drop constraint if exists transactions_recurring_rule_id_fkey;
+alter table public.transactions add  constraint transactions_recurring_rule_id_fkey
+	foreign key (recurring_rule_id) references public.recurring_rules(id) on delete set null;
 
 
 -- ----------------------------------------------------------------------------

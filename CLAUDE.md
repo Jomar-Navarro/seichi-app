@@ -167,9 +167,18 @@ Fino a oggi il repo **non era in grado di ricostruire il proprio database**:
 Supabase e non le creava nessun file. Le migration successive le alteravano
 dando per scontata una definizione che non esisteva da nessuna parte.
 
+⚠️ **L'ordine dei file è funzionale, non decorativo.** La baseline è datata
+`20260727` — l'epoca che descrive, non il giorno in cui è stata scritta, come già
+`20260728_recurring.sql`. Numerata `20260812`, come nel primo tentativo, si
+ordinava **dopo** `20260729_account_security.sql`, che fa `alter table
+public.profiles`: il file esisteva e la ricostruzione da zero falliva comunque
+alla seconda migration. Il difetto della #43 ripresentato come ordinamento.
+Conseguenza: `transactions.recurring_rule_id` e la sua FK stanno nella
+`20260728`, dove nasce `recurring_rules` — appartengono alla Fase 14, non alla 3.
+
 Due file, e la separazione è il punto:
 
-- **`20260812_baseline_fase3.sql`** — la **fotografia**. Descrive lo stato reale,
+- **`20260727_baseline_fase3.sql`** — la **fotografia**. Descrive lo stato reale,
   difetti compresi, ed è un no-op su un database allineato.
 - **`20260813_schema_cleanup.sql`** — la **decisione**. Corregge.
 
@@ -200,6 +209,38 @@ senza poter vedere ciò che li generava.
 ammetteva `abbonamento` mentre le tabelle sorelle sì. Due tabelle che dicono
 cose diverse sulla stessa realtà, e nessun file dove la contraddizione sia
 leggibile. Non è una coincidenza che entrambi si scoprano scrivendo questi file.
+
+#### ⚠️ E lo stesso difetto su `currency`, che spegneva l'onboarding
+
+Trovato dal code-review **dopo** aver corretto gli altri due, ed è il più
+insidioso dei tre perché non rompe niente: `currency` aveva `default 'EUR'` e
+`handle_new_user()` non la nomina, quindi la riga nasce non-NULL. Ma
+`profiles.currency` **è il flag dell'onboarding** — `if (!profile?.currency)
+redirect("/start")` — e con il default quella condizione non è mai vera.
+
+⚠️ **Non si vede registrandosi**, ed è per questo che è sopravvissuto:
+`signup()` con la conferma email disattivata fa `redirect("/start")`
+incondizionato, senza consultare il gate. Colpisce le altre tre strade — OAuth
+e conferma email (entrambe passano da `/callback`, che il gate lo usa) e **il
+login successivo**, cioè chi abbandona l'onboarding a metà e non ci viene più
+riportato: letteralmente il lavoro per cui il gate esiste.
+
+⚠️ Riattivare *Confirm email* (debito pre-deploy, issue #40) instraderebbe
+**ogni** nuova registrazione dentro `/callback`. Il difetto era dormiente solo
+perché quel debito non è stato pagato: pagarlo lo avrebbe acceso.
+
+⚠️ **Il default si toglie, i valori NON si azzerano**, al contrario di `theme`:
+là ogni valore era fabbricato dal default, qui `savePreferences()` scrive
+`currency` per davvero e le righe esistenti contengono scelte vere,
+indistinguibili da quelle d'ufficio. Azzerarle rispedirebbe utenti già
+configurati dentro l'onboarding.
+
+**La lezione, e vale oltre queste tre colonne: un DEFAULT è un'affermazione sul
+mondo.** `'IT'` diceva "questo utente parla italiano", `'dark'` "ha scelto il
+tema scuro", `'EUR'` "ha finito l'onboarding". Tutte e tre false, tutte e tre
+scritte da nessuno. Quando una colonna serve a distinguere *scelto* da *non
+ancora scelto*, l'unico default corretto è **NULL** — e vale la pena controllare
+le colonne rimaste prima che sia un'altra fase a scoprirlo.
 
 #### Gli altri difetti che la fotografia ha reso visibili
 
@@ -232,6 +273,24 @@ leggibile. Non è una coincidenza che entrambi si scoprano scrivendo questi file
   `(user_id, date desc)` su `transactions` e gli indici sulle FK — quelli non
   servono alle SELECT ma alle **cancellazioni in cascata**, che senza scandiscono
   l'intera tabella.
+
+#### ⚠️ Le guardie: tre file non vanno più rieseguiti
+
+`20260727`, `20260728` e `20260809` descrivono stati **superati** da migration
+successive, e rieseguirli non dà un errore pulito: fallisce a metà, dopo aver già
+modificato qualcosa. Ciascuno ha ora un `do $$ … raise exception` in testa che si
+rifiuta di partire, riconoscendo il file successivo da un fatto del catalogo:
+
+| file | cosa rifarebbe | riconosce il successore da |
+|---|---|---|
+| `20260727` | ricrea le colonne residue e le 20 policy duplicate | `profiles_theme_check` (la `20260813`) |
+| `20260728` | ridichiara `generate_recurring_transactions()` `returns void` | il tipo di ritorno `integer` (la `20260810`) |
+| `20260809` | sostituisce `run_daily_jobs()` con quella che scarta il conteggio | idem |
+
+La regola che le genera: **il file più recente dev'essere autosufficiente**, così
+non c'è mai motivo di tornare indietro — e se qualcuno ci torna comunque, viene
+fermato invece di rompere in silenzio. Vale per ogni migration futura che
+sostituisca una funzione o una struttura definita in un file precedente.
 
 #### Debiti restati aperti, deliberatamente
 
@@ -539,7 +598,7 @@ notifications: id, user_id, type, payload (JSONB), dedup_key (TEXT),
   disciplina applicativa. Vincolo aggiunto il 2026-08-04.
 - ~~⚠️ **IL REPO NON RICOSTRUISCE ANCORA IL DATABASE DA ZERO.**~~ — **chiuso il
   2026-08-12** dalla issue #43: `profiles`, `categories` e `transactions` sono
-  ora versionate in `20260812_baseline_fase3.sql`, e le correzioni che quella
+  ora versionate in `20260727_baseline_fase3.sql`, e le correzioni che quella
   fotografia ha reso visibili — fra cui **la registrazione rotta da cinque
   settimane** — stanno in `20260813_schema_cleanup.sql`. Vedi la sezione
   "Ricostruzione dello schema". Recuperare `recurring_rules` aveva chiuso un
@@ -1248,7 +1307,7 @@ dell'account**, tutta la storia, per produrre una trentina di numeri.
   ora un cast esplicito. Non è ridondanza: lega la funzione alla propria firma
   invece che a un'assunzione sullo schema — che all'epoca **nessuno poteva
   verificare leggendo il repo**, perché `transactions` non era versionata. Da
-  quando lo è (issue #43, `20260812`) l'assunzione è controllabile, e si vede
+  quando lo è (issue #43, `20260727`) l'assunzione è controllabile, e si vede
   che era **giusta**: `type` è davvero `character varying`, non `text`.
 
 #### Il proxy: un redirect è un'AFFERMAZIONE
