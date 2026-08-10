@@ -930,6 +930,133 @@ divergenti); e **uno scanner va messo alla controprova**, perché quello del tes
 cablato leggeva solo i `.tsx` e non guardava le stringhe fuori dal JSX — due
 buchi che insieme nascondevano sei `"Non autenticato"` nelle server action.
 
+### Fase 20 — conti multipli e trasferimenti
+
+Progettata per intero il 2026-08-13 prima di scrivere codice, come la Fase 17.
+**Non ancora implementata.** Consegna in due PR: **20a** conti, **20b**
+trasferimenti — dipendenza a senso unico, la 20a è un prodotto finito da sola.
+
+```sql
+accounts: id (UUID), user_id (UUID NOT NULL), name (VARCHAR 50 NOT NULL),
+          type (VARCHAR 20), icon (VARCHAR 50), color (TEXT),
+          initial_balance (DECIMAL 10,2 NOT NULL default 0),
+          archived (BOOL NOT NULL default false), created_at
+
+transactions: + account_id (UUID NOT NULL), to_account_id (UUID, nullable)
+recurring_rules: + account_id (UUID NOT NULL)
+-- type acquisisce 'trasferimento'
+```
+
+#### ⚠️ Il vincolo che rende praticabile tutto il resto
+
+Prima di progettare è stato fatto l'audit di **ogni** consumatore di
+`transactions`: `dashboard_totals()` (l'app legge per nome — `somma(b,"entrata")`),
+il grafico mensile (`.in("type", [...5 nomi...])`), la torta (`spesa`), i budget
+(`spesa`/`abbonamento`), gli obiettivi (`risparmio`), gli investimenti
+(`investimento`). **Nessuno somma "tutto ciò che c'è".**
+
+Quindi un tipo nuovo è invisibile a ogni totale esistente **per costruzione, non
+per attenzione di chi scrive** — ed è ciò che rende sicuro modellare il
+trasferimento come transazione invece che come tabella separata. Se anche uno
+solo di quei punti avesse sommato indiscriminatamente, la conclusione sarebbe
+stata l'opposta. L'audit va rifatto prima di aggiungere altri tipi.
+
+#### Le decisioni
+
+- **`initial_balance` è una COLONNA, non una transazione di apertura.** Quando si
+  aggiunge "Conto corrente" ci sono già 2.400 € dentro, e l'app non ha quella
+  storia. Modellarli come `entrata` li farebbe comparire fra i redditi del mese e
+  gonfierebbe ogni grafico: **è lo stesso difetto del trasferimento, in versione
+  una-tantum.** Una colonna dice "il conto parte da qui" senza affermare che quei
+  soldi siano un reddito.
+- ⚠️ **`transactions.account_id` è `on delete RESTRICT`, non `cascade`.** La
+  cascade su `categories` è deliberata — serve a eliminare un obiettivo — ma qui
+  cancellare un conto cancellerebbe anni di movimenti reali. Un conto chiuso in
+  banca non fa sparire ciò che ci hai speso. Da qui `archived`: si archivia, non
+  si elimina.
+- **`account_id` NOT NULL**, con migration che crea un conto per ogni utente
+  esistente e fa il backfill. Nullable era la scelta comoda, ma
+  `categories.user_id` nullable è già un debito aperto per esattamente questo
+  motivo: il DB permette uno stato che l'app dà per impossibile. L'onboarding
+  crea il primo conto, come già crea le categorie.
+- ⚠️ **`recurring_rules.account_id` serve anche lei**, e
+  `generate_recurring_transactions()` va aggiornata per copiarlo sulla
+  transazione generata. Dimenticarlo produrrebbe righe senza conto — cioè
+  violerebbe il NOT NULL e fermerebbe il job notturno per tutti (la #47 insegna
+  che un guasto lì è per-utente solo se qualcuno lo isola).
+
+#### Il trasferimento: UNA riga, non due
+
+`type='trasferimento'`, `account_id` = origine, `to_account_id` = destinazione.
+
+L'alternativa — due righe legate da un `transfer_group_id` — è quella che questo
+progetto ha già scartato tre volte con lo stesso ragionamento: niente `valid_to`
+sui budget, nessuna colonna `spent`, nessun `saved_amount` memorizzato. **Due
+righe per un evento sono due punti di scrittura da tenere allineati**, e basta
+cancellarne una per ottenere mezzo trasferimento: una somma che sparisce da un
+conto senza comparire nell'altro, senza alcun errore e senza che nulla lo
+segnali.
+
+Con una riga sola lo stato illegale è **irrappresentabile**, e lo impone il DB:
+
+```sql
+check (to_account_id is null or type in ('trasferimento','risparmio','investimento'))
+check (type <> 'trasferimento' or to_account_id is not null)
+check (type <> 'trasferimento' or category_id is null)
+check (to_account_id is null or to_account_id <> account_id)
+```
+
+⚠️ **Qui si rompe l'accoppiamento 1:1 fra tipo di transazione e tipo di
+categoria** (`TransactionForm` filtra con `.eq("type", selectedType.id)`): il
+trasferimento non ha categoria, e nel form il selettore categoria lascia il posto
+al conto di destinazione. È il punto di rottura, ed è deciso adesso invece di
+essere scoperto a metà implementazione.
+
+#### ⚠️ `risparmio` e `investimento` possono avere una destinazione
+
+Deciso il 2026-08-13. È la collisione che il progetto non aveva mai dovuto
+affrontare: oggi `risparmio` e `investimento` **tolgono** soldi dal saldo e non
+li mettono da nessuna parte. Con i conti, mettere 200 € da parte diventa
+esprimibile due volte — una transazione `risparmio` verso un obiettivo **oppure**
+un trasferimento verso il conto "Libretto" — e chi facesse entrambi vedrebbe
+uscire 400 € dal conto corrente.
+
+Soluzione: `to_account_id` è **facoltativo** su `risparmio` e `investimento`. Un
+versamento verso l'obiettivo "Vacanza" può dire anche "i soldi sono finiti sul
+Libretto": avanza l'obiettivo **e** sposta il denaro, in un gesto solo. Il doppio
+conteggio diventa **impossibile**, non sconsigliato — la stessa preferenza per
+l'irrappresentabile che regge `ProfileHeader` senza `email` nella Fase 19.
+
+#### Il saldo si CALCOLA
+
+Nessuna colonna `balance`, per la stessa ragione di `spent` e `saved_amount`:
+avrebbe quattro punti di scrittura da tenere allineati, inclusi gli insert di
+pg_cron.
+
+```
+saldo(X) = initial_balance(X)
+         + Σ amount dove type='entrata' e account_id = X
+         − Σ amount dove type <> 'entrata' e account_id = X
+         + Σ amount dove to_account_id = X
+```
+
+⚠️ **Conseguenza dichiarata: "saldo" in home diventa ambiguo.** Oggi
+`saldoMese = entrate − spese − risparmi − investimenti − abbonamenti` significa
+"quanto è rimasto disponibile"; con i conti, i risparmi con destinazione sono
+ancora soldi tuoi, solo altrove. Patrimonio totale e disponibile diventano due
+numeri diversi. **La 20a non li riconcilia**: la home resta una vista di FLUSSO e
+i saldi stanno nella pagina conti. Riconciliarli è una decisione di prodotto a
+sé, e farla di straforo dentro questa fase produrrebbe un numero che cambia
+significato senza che nessuno l'abbia deciso.
+
+#### La divisione in due PR
+
+- **20a — conti**: tabella, `account_id` NOT NULL + backfill, conto in
+  onboarding, `recurring_rules.account_id` + funzione SQL, pagina conti con
+  saldo, selettore conto nel form, filtro per conto nella lista.
+- **20b — trasferimenti**: tipo `trasferimento`, `to_account_id` e i quattro
+  CHECK, destinazione su `risparmio`/`investimento`, form e resa nella lista.
+
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 
 Il guasto è emerso guardando a occhio una data in `/impostazioni/ricorrenti`: una
@@ -1637,7 +1764,13 @@ Seguire questo ordine, non saltare fasi:
     passano a `Intl`. Include il `DatePicker` custom che chiude il debito
     `<input type="date">` della Fase 18. Motivazioni e trappole in "Fase 19" sopra.
     Migration `20260807_language.sql` eseguita, verificata end-to-end il 2026-08-07
-20. Conti/wallet multipli — tabella `accounts` + `account_id` su transactions + trasferimenti (feature STRUTTURALE: decide lo schema presto)
+20. Conti/wallet multipli — **progettata per intero il 2026-08-13**, schema e
+    motivazioni in "Fase 20" sopra. Due PR:
+    - **20a conti** — `accounts`, `account_id` NOT NULL + backfill, conto
+      nell'onboarding, `recurring_rules.account_id`, pagina conti con saldo
+      calcolato, selettore nel form, filtro nella lista
+    - **20b trasferimenti** — tipo `trasferimento`, `to_account_id` + i quattro
+      CHECK, destinazione facoltativa su `risparmio`/`investimento`
 21. Import dati — CSV / estratto Trade Republic via file (nessuna API ufficiale TR: si importa un CSV, es. generato da `pytr`; l'app non gestisce credenziali)
 22. Allegati/ricevute — foto scontrino sulle transazioni via Supabase Storage
 23. Export dati / report PDF mensile — complementa l'import (Fase 21)
