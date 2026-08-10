@@ -1058,13 +1058,35 @@ doverla chiudere. Due schermate della stessa app che rispondono diversamente a
 "quanto ho" sono il difetto già elevato a regola nella 17a: *un numero sbagliato
 che sembra giusto è peggio di un numero assente*.
 
-**La chiusura è una rinomina, non un calcolo nuovo**, e non lascia due numeri
-concorrenti perché ne toglie uno:
+La chiusura non lascia due numeri concorrenti perché ne toglie uno:
 
 | | oggi | dalla 20a |
 |---|---|---|
-| cifra grande | `saldoTotale`, "Saldo totale" | `saldoMese`, **"Flusso · <mese>"** |
-| riga sotto | "↑ + € X questo mese" | *"entrate meno spese di questo mese — non il saldo dei conti"* + *"i saldi reali sono nella pagina conti"* |
+| cifra grande | `saldoTotale`, "Saldo totale" | **"Flusso · <mese>"** |
+| formula | entrate − spese − risparmi − investimenti − abbonamenti, **su tutta la storia** | **entrate − spese − abbonamenti, del mese** |
+| riga sotto | "↑ + € X questo mese" | *"entrate meno uscite di questo mese — non il saldo dei conti"* + *"i saldi reali sono nella pagina conti"* |
+
+⚠️ **"Flusso" NON è `saldoMese`, ed è un errore già commesso una volta** (questa
+riga diceva "è una rinomina, non un calcolo nuovo"). Va scritta una formula
+nuova, e le due sottrazioni che cambiano hanno ragioni opposte:
+
+- **risparmi e investimenti NON si sottraggono più.** Investire e risparmiare non
+  è *consumare*, è **spostare**: con i conti quel denaro è ancora tuo, solo
+  altrove. Sottrarlo lo farebbe sembrare speso — la premessa stessa della fase.
+  La sottrazione di oggi era corretta solo finché quei soldi sparivano dalla
+  vista, perché non c'era un posto dove metterli.
+- ⚠️ **gli abbonamenti SÌ, e questo il mockup lo sbagliava.** I suoi numeri —
+  2.400 − 1.240 = 1.160 — sottraggono le sole spese. Ma la home mostra quattro
+  card (entrate, spese, investimenti, risparmi) e `abbonaMese` **non è fra
+  quelle**: l'affitto sarebbe invisibile *e* non conteggiato, e il numero
+  direbbe "ti restano 1.160" mentre deve ancora uscire. È la trappola già
+  elevata a regola nella 17a ("spese variabili", mai "spese totali"). Nel
+  mockup non si vede perché il mese di esempio non ha abbonamenti — **il difetto
+  è nei dati d'esempio, non nel disegno**, ed è la ragione per cui i mockup vanno
+  letti anche sui numeri e non solo sul layout.
+
+Da qui anche il sottotitolo: **"uscite"**, non "spese", perché comprende gli
+abbonamenti che nella tassonomia dell'app sono un tipo a sé.
 
 **La home resta una vista di FLUSSO, i saldi stanno nella pagina conti** — la
 divisione non cambia, cambia il fatto che ora la home lo *dice*. `saldoTotale`
@@ -1146,6 +1168,88 @@ continuano a non comparire: spostare denaro non è né guadagnarlo né spenderlo
 il filtro cambia *quali* righe si guardano, non *che cosa* la pagina afferma. Per
 la stessa ragione il filtro agisce su `account_id` (l'origine del movimento): un
 `risparmio` fatto dal corrente verso il Fondo è un atto compiuto **dal corrente**.
+
+#### Emerso rileggendo i mockup, prima di scrivere codice (2026-08-10)
+
+##### `Seichi Conti.dc.html`
+
+L'audit contro le regole già scritte qui. Oltre al difetto sugli abbonamenti
+(sopra), quattro cose:
+
+- ⚠️ **"Saldo totale · 4 conti attivi" non era un totale.** 3.240 + 180 + 3.400 +
+  8.600 = 15.420, e il conto archiviato da 1.150 resta fuori. Il sottotitolo
+  correggeva a voce bassa una parola falsa in cifre grandi — di nuovo la 17a.
+  **Deciso: gli archiviati restano fuori e il numero si chiama "Saldo · N conti
+  attivi".** Le altre due strade erano peggiori: includerli fa contribuire al
+  patrimonio un conto chiuso in banca; vietare l'archiviazione con saldo ≠ 0
+  rende irrappresentabile lo stato illegale ma **richiede un trasferimento per
+  svuotare il conto, che arriva solo con la 20b** — in 20a un conto con soldi
+  dentro non sarebbe archiviabile affatto.
+- ⚠️ **`initial_balance` era modificabile solo alla creazione, e questo rende un
+  refuso irreparabile.** Il conto non si cancella (per decisione presa), il saldo
+  deriva da lì, e l'unico rimedio sarebbe una transazione fittizia — cioè
+  sporcare i movimenti reali per riparare un campo di configurazione. **Deciso:
+  modificabile**, con il testo che dice cosa fa ("cambiarlo sposta il saldo, non
+  crea né entrate né spese"). Vale il precedente della 17a: *correzione e cambio
+  sono la stessa operazione*.
+- **"riattiva" usava `--color-ao` come colore del testo** a 11,5px: ~3,2:1,
+  sotto AA. Va `--ink-ao` (`text-ao-ink`). ⚠️ Notare che è l'**unico** caso in
+  tutto il file — il mockup rispetta accento≠inchiostro ovunque, quindi è una
+  svista isolata e non un pattern da correggere a tappeto.
+- **Sei neutri fuori dai token**, il più diffuso `#5A5548` (32 usi, stroke delle
+  icone SVG); poi `#E6DFD1`, `#F2F5FA`, `#D7DEEA`, `#A9B0BF`, `#7C766A`. Tutto il
+  resto mappa **esattamente** sulla palette — i cinque accenti, gli inchiostri, i
+  neutri chiari e scuri — il che è ciò che rende visibili i pochi fuori elenco.
+  Vanno ricondotti a un token, o restano colori fissi che non si spostano fra i
+  temi.
+
+##### `Seichi Dashboard.dc.html`
+
+⚠️ **Le quattro card mescolavano flusso e giacenza senza dirlo, e questo riapriva
+il conflitto da cui è nata l'intera discussione su `accounts.type`.**
+
+Entrate `2.400` e Spese `1.240` sono flussi del mese; Investimenti `8.600` e
+Risparmi `3.400` **coincidono esattamente con i saldi** di `Portafoglio
+investimenti` e `Fondo risparmio` in `Seichi Conti.dc.html`. Quattro card
+identiche, due semantiche temporali, sotto un'intestazione che dice "Questo
+mese". Tre contraddizioni in un colpo:
+
+- **con la card tre centimetri sopra**, che dichiara *"non il saldo dei conti —
+  i saldi reali sono nella pagina conti"*;
+- **con l'altro mockup**, la cui home mostra le stesse due card come `€ 300
+  investiti / € 200 risparmiati`, cioè i flussi;
+- ⚠️ **con la separazione giacenza/investito appena decisa**: se la card
+  "Investimenti" della home è il *saldo del conto* mentre la pagina Investimenti
+  mostra l'*investito*, la home rimette sotto la stessa parola i due numeri che
+  `accounts.type` decorativo esiste per tenere distinti.
+
+**Deciso: restano flussi del mese**, come oggi (`investimentiMese`,
+`risparmiMese`, con la sparkline del trend). L'intestazione "Flusso" promette
+flusso; quattro card che parlano dello stesso arco di tempo sono la sola forma
+che non ha bisogno di essere spiegata.
+
+Da qui anche **"Risparmi · N%"**: il `%` è il progresso verso la somma dei target
+degli obiettivi, quindi l'importo accanto dev'essere il risparmiato — non il
+saldo di un conto, che un target non ce l'ha. Accostarli metteva un *luogo* e un
+*traguardo* nella stessa card.
+
+- ⚠️ **`risparmio` col `+` e `investimento` col `−` a due righe di distanza.**
+  Oggi il codice è netto (`sign = type === "entrata" ? "+" : "−"`), e due atti
+  della stessa natura non possono avere segni opposti. **Deciso: entrambi `−`** —
+  dal punto di vista del conto di origine il denaro esce, e l'origine è sempre
+  valorizzata perché `account_id` è NOT NULL. Il **trasferimento resta l'unico
+  caso neutro** (20b), ed è coerente: là il segno dipenderebbe da quale dei due
+  conti stai guardando.
+- ⚠️ **Nessuna porta d'ingresso alla pagina Conti**, in nessuna delle due nav.
+  **Deciso: dal selettore "Tutti i conti" della home** — il tap apre un pannello
+  coi conti e i loro saldi, più una voce "gestisci conti". Nessuna quinta voce
+  nella bottom nav, che con il FAB centrale è già a quattro, e l'ingresso sta
+  dove l'utente sta già pensando ai conti. Scartato `/impostazioni`: i conti non
+  sono una configurazione, sono dove vivono i saldi.
+- **Le due bottom nav del mockup non coincidono fra loro**: la chiara dice
+  "Risparmi" e "Impostazioni", la scura "Obiettivi" e "Investimenti". Ha ragione
+  la scura, che è anche ciò che l'app fa già (`nav.goals: "Obiettivi"`). Nessuna
+  decisione, solo un difetto del mockup chiaro.
 
 #### La divisione in due PR
 
