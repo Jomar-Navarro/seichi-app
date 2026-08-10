@@ -933,8 +933,9 @@ buchi che insieme nascondevano sei `"Non autenticato"` nelle server action.
 ### Fase 20 — conti multipli e trasferimenti
 
 Progettata per intero il 2026-08-13 prima di scrivere codice, come la Fase 17.
-**Non ancora implementata.** Consegna in due PR: **20a** conti, **20b**
-trasferimenti — dipendenza a senso unico, la 20a è un prodotto finito da sola.
+**Non ancora implementata.** Consegna in due PR: **20a** conti (issue #34),
+**20b** trasferimenti (issue #49) — dipendenza a senso unico, la 20a è un
+prodotto finito da sola.
 
 ```sql
 accounts: id (UUID), user_id (UUID NOT NULL), name (VARCHAR 50 NOT NULL),
@@ -1766,11 +1767,11 @@ Seguire questo ordine, non saltare fasi:
     Migration `20260807_language.sql` eseguita, verificata end-to-end il 2026-08-07
 20. Conti/wallet multipli — **progettata per intero il 2026-08-13**, schema e
     motivazioni in "Fase 20" sopra. Due PR:
-    - **20a conti** — `accounts`, `account_id` NOT NULL + backfill, conto
-      nell'onboarding, `recurring_rules.account_id`, pagina conti con saldo
+    - **20a conti (issue #34)** — `accounts`, `account_id` NOT NULL + backfill,
+      conto nell'onboarding, `recurring_rules.account_id`, pagina conti con saldo
       calcolato, selettore nel form, filtro nella lista
-    - **20b trasferimenti** — tipo `trasferimento`, `to_account_id` + i quattro
-      CHECK, destinazione facoltativa su `risparmio`/`investimento`
+    - **20b trasferimenti (issue #49)** — tipo `trasferimento`, `to_account_id` +
+      i quattro CHECK, destinazione facoltativa su `risparmio`/`investimento`
 21. Import dati — CSV / estratto Trade Republic via file (nessuna API ufficiale TR: si importa un CSV, es. generato da `pytr`; l'app non gestisce credenziali)
 22. Allegati/ricevute — foto scontrino sulle transazioni via Supabase Storage
 23. Export dati / report PDF mensile — complementa l'import (Fase 21)
