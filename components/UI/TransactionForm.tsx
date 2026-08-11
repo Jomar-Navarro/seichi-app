@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
-import { TransactionType, Category, Transaction, Frequency } from "@/types";
+import { TransactionType, Category, Transaction, Frequency, Account } from "@/types";
 import { createClient } from "@/lib/supabase/client";
 import { Pencil, Delete, Check, Trash2, Repeat } from "lucide-react";
-import Select from "@/components/UI/Select";
+import Select, { type Option } from "@/components/UI/Select";
+import { ACCOUNT_ICON_FALLBACK, ACCOUNT_TYPE_ICON, accountColor } from "@/lib/accounts";
 import FrequencySelector from "@/components/UI/FrequencySelector";
 import { SwitchVisual } from "@/components/UI/Switch";
 import { buildCategoryOptions } from "@/lib/category-options";
@@ -53,6 +54,17 @@ export default function TransactionForm({
 		transaction ? new Date(transaction.date) : new Date(),
 	);
 	const [categoryList, setCategoryList] = useState<Category[]>([]);
+	/*
+	 * ⚠️ `accountId` parte da `null` anche in creazione, e viene riempito quando
+	 * i conti arrivano — non con un valore inventato. `account_id` è NOT NULL nel
+	 * database: un default sbagliato scriverebbe il movimento sul conto
+	 * sbagliato, in silenzio, che è peggio di un salvataggio bloccato per un
+	 * istante. Il bottone resta disabilitato finché un conto non c'è davvero.
+	 */
+	const [accountList, setAccountList] = useState<Account[]>([]);
+	const [accountId, setAccountId] = useState<string | null>(
+		transaction?.account_id ?? null,
+	);
 	const [isDeleteConfirm, setIsDeleteConfirm] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
 	const { closeTransactionModal, notifyTransactionSaved, recurringDefault } =
@@ -72,6 +84,31 @@ export default function TransactionForm({
 		loadCategories();
 	}, [selectedType.id]);
 
+	/*
+	 * I conti non dipendono dal tipo di movimento, quindi si caricano una volta
+	 * sola — effetto separato invece che appeso a `selectedType.id`, o li
+	 * ricaricherebbe a ogni cambio di tipo per niente.
+	 *
+	 * ⚠️ Gli archiviati sono esclusi dal SELETTORE ma non dal record esistente:
+	 * modificando un vecchio movimento su un conto poi archiviato, il suo
+	 * `account_id` resta finché non lo si cambia. Filtrare qui e basta lo
+	 * riscriverebbe sul primo conto attivo senza che nessuno l'abbia chiesto.
+	 */
+	useEffect(() => {
+		async function loadAccounts() {
+			const supabase = createClient();
+			const { data } = await supabase
+				.from("accounts")
+				.select("*")
+				.eq("archived", false)
+				.order("created_at", { ascending: true });
+			if (!data) return;
+			setAccountList(data);
+			setAccountId((current) => current ?? data[0]?.id ?? null);
+		}
+		loadAccounts();
+	}, []);
+
 	const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ",", "0", "⌫"];
 
 	const handleKey = (key: string) => {
@@ -86,10 +123,14 @@ export default function TransactionForm({
 		setAmount((prev) => prev + key);
 	};
 
-	const isValid = amount !== "" && parseFloat(amount.replace(",", ".")) > 0;
+	// ⚠️ Il conto entra nella validità: `account_id` è NOT NULL, quindi senza un
+	// conto il salvataggio fallirebbe comunque, ma dal database e con un
+	// messaggio che parla di vincoli. Meglio un bottone spento.
+	const isValid =
+		amount !== "" && parseFloat(amount.replace(",", ".")) > 0 && accountId !== null;
 
 	async function handleSave() {
-		if (!isValid || isSaving) return;
+		if (!isValid || isSaving || !accountId) return;
 		setIsSaving(true);
 		try {
 			const importo = parseFloat(amount.replace(",", "."));
@@ -101,6 +142,7 @@ export default function TransactionForm({
 						categoryId,
 						description,
 						date.toISOString(),
+						accountId,
 					)
 				: isRecurring
 					? await createRecurringRule(
@@ -110,6 +152,7 @@ export default function TransactionForm({
 							description,
 							date.toLocaleDateString("sv-SE"), // YYYY-MM-DD in locale, no shift UTC
 							frequency,
+							accountId,
 						)
 					: await saveTransaction(
 							importo,
@@ -117,6 +160,7 @@ export default function TransactionForm({
 							categoryId,
 							description,
 							date.toISOString(),
+							accountId,
 						);
 
 			if (!result?.error) {
@@ -160,6 +204,24 @@ export default function TransactionForm({
 
 	const categoryOptions = buildCategoryOptions(effectiveCategoryList);
 
+	/*
+	 * ⚠️ L'icona usa `accountColor`, che prende il colore CUSTOM del conto se c'è
+	 * e ripiega su quello del tipo. Non si passa da `var(--color-${…})` come per
+	 * le categorie: `accounts.color` contiene già una var() completa, mentre
+	 * `categories.color` contiene il solo nome del token. Due colonne che si
+	 * chiamano uguale e contengono cose diverse — vale la pena saperlo prima di
+	 * unificarle.
+	 */
+	const accountOptions: Option[] = accountList.map((a) => {
+		const Icon = (a.type && ACCOUNT_TYPE_ICON[a.type]) || ACCOUNT_ICON_FALLBACK;
+		const color = accountColor(a.type, a.color);
+		return {
+			value: a.id,
+			label: a.name,
+			icon: <Icon size={14} style={{ color }} />,
+		};
+	});
+
 	return (
 		<div className="flex flex-col flex-1 min-h-0 overflow-y-auto overscroll-contain">
 			{/* Importo */}
@@ -179,6 +241,20 @@ export default function TransactionForm({
 					options={categoryOptions}
 					selected={categoryId ?? ""}
 					onChange={(val) => setCategoryId(val)}
+				/>
+
+				{/*
+					Conto. Sta subito sotto la categoria perché rispondono a due
+					domande vicine — "che cosa" e "da dove" — e nella 20b sarà proprio
+					questa posizione a ospitare il conto di destinazione quando il
+					tipo è `trasferimento`, che una categoria non ce l'ha.
+				*/}
+				<Select
+					title={t.accounts.title}
+					variant="compact"
+					options={accountOptions}
+					selected={accountId ?? ""}
+					onChange={(val) => setAccountId(val)}
 				/>
 
 				{/* Descrizione */}

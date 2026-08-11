@@ -52,6 +52,53 @@ export interface ProfileHeader {
 	initials: string;
 }
 
+/**
+ * I tipi di conto (Fase 20a).
+ *
+ * ⚠️ DECORATIVI: scelgono icona ed etichetta, e NIENT'ALTRO. La natura di un
+ * movimento la decide sempre e solo `transactions.type`. Nel momento in cui uno
+ * di questi valori facesse qualcosa — "i movimenti su un conto investimento sono
+ * investimenti" — la domanda *"questo movimento è un investimento?"* avrebbe due
+ * risposte, che è la classe di difetto già pagata tre volte in questo progetto.
+ *
+ * Come per `TransactionTypeId`, le chiavi restano italiane: sono i valori
+ * scritti in `accounts.type` e vincolati da `accounts_type_check`.
+ */
+export type AccountTypeId = "corrente" | "contanti" | "risparmio" | "investimento";
+
+export const ACCOUNT_TYPES: AccountTypeId[] = [
+	"corrente",
+	"contanti",
+	"risparmio",
+	"investimento",
+];
+
+export interface Account {
+	id: string;
+	user_id: string;
+	name: string;
+	/** null = nessun tipo scelto; l'app ripiega su icona ed etichetta generiche */
+	type: AccountTypeId | null;
+	icon: string | null;
+	color: string | null;
+	initial_balance: number;
+	archived: boolean;
+	created_at: string;
+}
+
+/**
+ * Un conto col saldo, dalla vista `account_balances`.
+ *
+ * ⚠️ Il saldo NON è una colonna e non lo si somma lato app: lo calcola Postgres
+ * (`initial_balance` + entrate − tutto il resto). Una colonna avrebbe quattro
+ * punti di scrittura da tenere allineati, inclusi gli insert di pg_cron; una
+ * somma in TypeScript vorrebbe dire scaricare ogni transazione di ogni conto a
+ * ogni vista, cioè rifare l'errore che la `20260808` ha corretto per la home.
+ */
+export interface AccountWithBalance extends Account {
+	balance: number;
+}
+
 export interface Category {
 	id: string;
 	user_id: string;
@@ -77,6 +124,8 @@ export interface Transaction {
 	date: string;
 	notes: string | null;
 	recurring_rule_id: string | null;
+	/** NOT NULL nel database dalla Fase 20a: ogni movimento appartiene a un conto. */
+	account_id: string;
 	categories: {
 		name: string;
 		icon: string;

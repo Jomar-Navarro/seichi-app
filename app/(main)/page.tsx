@@ -1,8 +1,10 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
-import BalanceCard from "@/components/features/BalanceCard";
+import FlowCard from "@/components/features/FlowCard";
+import AccountSelector from "@/components/features/AccountSelector";
 import { getDashboardTotals, getTransactions } from "./action";
+import { getAccounts } from "./conti/actions";
 import { getGoals } from "./risparmi/actions";
 import SummaryCard from "@/components/UI/SummaryCard";
 import { TRANSACTION_TYPES } from "@/types";
@@ -15,26 +17,41 @@ import { getUnreadCount } from "@/app/(main)/notification-actions";
 import Sparkline from "@/components/UI/Sparkline";
 import { getProfileHeader } from "@/lib/account";
 import { getI18n } from "@/lib/i18n/server";
-import { fill } from "@/lib/i18n/format";
+import { fill, formatDate } from "@/lib/i18n/format";
 import { ChartNoAxesCombinedIcon } from "@/lib/seichi-icons";
 
-export default function MainPage() {
+export default async function MainPage({
+	searchParams,
+}: {
+	searchParams: Promise<{ conto?: string }>;
+}) {
+	// ⚠️ Il filtro sta nell'URL e non in uno stato del client: i totali li somma
+	// Postgres dentro un server component, quindi cambiare conto deve rendere di
+	// nuovo dal server. Con uno stato locale il fetch sarebbe dovuto tornare nel
+	// browser, disfacendo il lavoro di `dashboard_totals`.
+	const { conto } = await searchParams;
+
 	return (
-		<Suspense fallback={<HomeSkeleton />}>
-			<DashboardContent />
+		// ⚠️ La `key` rimonta il contenuto quando cambia il conto selezionato.
+		// Senza, il Suspense non si riattiva sulla navigazione soft e si vedrebbero
+		// i totali del conto precedente finché non arrivano i nuovi.
+		<Suspense key={conto ?? "all"} fallback={<HomeSkeleton />}>
+			<DashboardContent accountId={conto ?? null} />
 		</Suspense>
 	);
 }
 
-async function DashboardContent() {
-	const [result, transaction, goalsResult, profile, unreadResult] = await Promise.all([
-		getDashboardTotals(),
-		getTransactions(undefined, undefined, 5),
-		getGoals(),
-		getProfileHeader(),
-		getUnreadCount(),
-	]);
-	const { t } = await getI18n();
+async function DashboardContent({ accountId }: { accountId: string | null }) {
+	const [result, transaction, goalsResult, profile, unreadResult, accountsResult] =
+		await Promise.all([
+			getDashboardTotals(accountId),
+			getTransactions(undefined, undefined, 5),
+			getGoals(),
+			getProfileHeader(),
+			getUnreadCount(),
+			getAccounts(),
+		]);
+	const { t, locale } = await getI18n();
 
 	// Il conteggio arriva già risolto dal server così il badge non lampeggia da
 	// zero al numero vero. Su errore si mostra 0: un badge sbagliato in eccesso
@@ -63,6 +80,15 @@ async function DashboardContent() {
 	if ("error" in transaction) {
 		console.error("[home] getTransactions:", transaction.error);
 		return <p>{t.home.error}</p>;
+	}
+
+	// ⚠️ I conti degradano, non bloccano: un errore qui non deve far sparire la
+	// home. Il selettore semplicemente non compare, e la pagina resta quella di
+	// prima della fase — a differenza dei totali, senza cui non c'è niente da
+	// mostrare. Stesso trattamento già riservato agli obiettivi qui sotto.
+	const accounts = "error" in accountsResult ? [] : accountsResult.data;
+	if ("error" in accountsResult) {
+		console.error("[home] getAccounts:", accountsResult.error);
 	}
 
 	const goals = "error" in goalsResult ? [] : goalsResult.data;
@@ -108,9 +134,27 @@ async function DashboardContent() {
 				<NotificationBell initialUnread={unreadCount} />
 			</div>
 
-			<BalanceCard
-				saldoTotale={result.saldoTotale}
-				saldoMese={result.saldoMese}
+			{/*
+				Il selettore sta SOPRA la card e non dentro: filtra tutta la pagina —
+				la cifra grande, le quattro card e le sparkline — non solo il numero
+				che ha accanto. Ed è anche l'ingresso alla pagina conti, perché la
+				bottom nav è già a quattro voci più il FAB.
+			*/}
+			{accounts.length > 0 && (
+				<AccountSelector accounts={accounts} selectedId={accountId} />
+			)}
+
+			{/*
+				⚠️ `monthLabel` si calcola QUI, nel server component, non dentro
+				`FlowCard`. Non è una questione di idratazione: i confini dei bucket
+				li calcola `getDashboardTotals` col `new Date()` del server, quindi
+				l'etichetta deve nascere dallo stesso orologio dei numeri che
+				descrive. Calcolata sul client, nelle prime ore del mese potrebbe
+				scrivere "luglio" sopra i totali di giugno.
+			*/}
+			<FlowCard
+				flussoMese={result.flussoMese}
+				monthLabel={formatDate(new Date(), locale, { month: "long" })}
 			/>
 
 			<div className="grid grid-cols-2 gap-3">

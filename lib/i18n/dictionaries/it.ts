@@ -57,6 +57,8 @@ export const it = {
 		required: "Campo obbligatorio",
 		/** Segnaposto di un Select non ancora scelto: "Seleziona categoria". */
 		selectPlaceholder: "Seleziona {field}",
+		/** L'occhio che nasconde gli importi: è un bottone con la sola icona. */
+		toggleVisibility: "Mostra o nascondi gli importi",
 	},
 
 	/** Barra di navigazione in fondo. */
@@ -295,6 +297,15 @@ export const it = {
 	},
 
 	onboarding: {
+		/**
+		 * Il nome del primo conto, creato insieme alle categorie.
+		 *
+		 * ⚠️ Sta nel dizionario ma viene scritto nel DATABASE al momento
+		 * dell'insert, non letto a ogni render: da lì in poi è un dato
+		 * dell'utente, rinominabile. Stessa regola dei nomi delle categorie
+		 * preimpostate (Fase 19).
+		 */
+		firstAccountName: "Conto principale",
 		start: {
 			eyebrow: "Benvenuto",
 			heading: "Iniziamo con calma.",
@@ -400,8 +411,25 @@ export const it = {
 	home: {
 		greeting: "Bentornato",
 		error: "Errore",
-		balanceTotal: "Saldo totale",
-		balanceThisMonth: "questo mese",
+		/**
+		 * ⚠️ Non è più "Saldo totale" (Fase 20a), e non è una rinomina: la cifra
+		 * grande è un'altra. Era entrate meno tutto il resto su TUTTA la storia,
+		 * cioè un surrogato di "quanto ho" costruito quando i conti non
+		 * esistevano; ora quella domanda ha una risposta vera nella pagina conti,
+		 * e due schermate che rispondono diversamente sono la configurazione
+		 * peggiore. La home dichiara ciò che è sempre stata: una vista di FLUSSO.
+		 *
+		 * `flowTitle` si compone col mese: "Flusso · giugno".
+		 */
+		flowTitle: "Flusso",
+		flowPeriodChip: "Questo mese",
+		/**
+		 * ⚠️ "uscite" e non "spese". Il numero sottrae anche gli abbonamenti, che
+		 * nella tassonomia dell'app sono un tipo a sé e non hanno una card: dire
+		 * "spese" escluderebbe l'affitto dalla frase mentre è dentro al calcolo.
+		 */
+		flowExplain: "entrate meno uscite di questo mese — non il saldo dei conti",
+		flowBalancesHint: "I saldi reali sono nella pagina conti",
 		/**
 		 * ⚠️ "Spese" e non `t.types.spesa` ("Uscite"): le card della home e il
 		 * filtro dei movimenti usano due parole diverse già in italiano.
@@ -421,6 +449,110 @@ export const it = {
 		/** Lista vuota dentro la card della home, più stretta di quella a pagina piena. */
 		emptyTitle: "Ancora nessun movimento",
 		emptyDescription: "Aggiungi il primo movimento per iniziare.",
+	},
+
+	/** Conti multipli — Fase 20a. */
+	accounts: {
+		title: "Conti",
+		loadError: "Errore nel caricamento dei conti.",
+
+		/** Il selettore in home e il filtro nella lista movimenti. */
+		all: "Tutti i conti",
+		manage: "Gestisci conti",
+
+		/**
+		 * ⚠️ "Saldo", non "Saldo totale". Gli archiviati restano fuori dalla
+		 * somma, quindi "totale" sarebbe falso in cifre grandi con la smentita in
+		 * piccolo accanto — la trappola già elevata a regola nella 17a ("spese
+		 * variabili", mai "spese totali").
+		 */
+		balanceHeading: "Saldo",
+		activeCount: { one: "{n} conto attivo", other: "{n} conti attivi" },
+
+		archivedSection: { one: "Archiviato · {n}", other: "Archiviati · {n}" },
+		/** Dice dove NON è finito il denaro, cioè perché il saldo sopra non lo include. */
+		archivedNote: "archiviato · fuori dal saldo",
+		reactivate: "riattiva",
+
+		/**
+		 * ⚠️ Etichette DECORATIVE, come `accounts.type` che le sceglie: servono a
+		 * disegnare e a nient'altro. La natura di un movimento la decide sempre
+		 * `transactions.type`, mai il conto su cui si trova.
+		 */
+		types: {
+			corrente: "Corrente",
+			contanti: "Contanti",
+			risparmio: "Risparmio",
+			investimento: "Investimento",
+		},
+		/** Ripiego quando `type` è NULL: la colonna è nullable, non ogni conto ne ha uno. */
+		typeless: "Conto",
+
+		newTitle: "Nuovo conto",
+		editTitle: "Modifica conto",
+		name: "Nome del conto",
+		namePlaceholder: "Es. Conto corrente, Contanti…",
+		icon: "Icona",
+		color: "Colore",
+		/**
+		 * ⚠️ I nomi servono all'`aria-label` delle pastiglie colore, che non hanno
+		 * testo visibile: senza, il nome accessibile sarebbe il token CSS.
+		 */
+		colors: {
+			blue: "Blu",
+			green: "Verde",
+			gold: "Oro",
+			purple: "Viola",
+			red: "Rosso",
+		},
+		type: "Tipo",
+		initialBalance: "Saldo iniziale",
+		/**
+		 * ⚠️ Dice cosa NON fa, perché è la domanda che l'utente si pone: 2.400 €
+		 * che compaiono senza un movimento sembrano un'entrata, e se lo fossero
+		 * gonfierebbero i redditi del mese e ogni grafico.
+		 */
+		initialBalanceHint:
+			"Il punto di partenza di questo conto — non è mai un'entrata né una spesa.",
+		/**
+		 * In modifica il campo resta (Fase 20a): senza, un refuso sarebbe
+		 * irreparabile, perché il conto non si cancella e il saldo deriva da lì.
+		 */
+		initialBalanceEditHint:
+			"Cambiarlo sposta il saldo, non crea né entrate né spese.",
+		save: "Salva conto",
+		saving: "Salvataggio…",
+
+		/**
+		 * ⚠️ "Archivia", mai "Elimina", e come azione secondaria: un conto con
+		 * storico non si cancella, perché cancellarlo porterebbe via anni di
+		 * movimenti reali. Un conto chiuso in banca non fa sparire ciò che ci hai
+		 * speso.
+		 */
+		archive: "Archivia",
+		archiveTitle: "Archiviare questo conto?",
+		archiveBody:
+			"Sparirà dai selettori, ma i suoi movimenti restano e il suo storico resta consultabile.",
+		archiveConfirm: "Archivia",
+		unarchive: "Riattiva",
+
+		emptyTitle: "Ancora nessun conto",
+		emptyDescription: "Aggiungi un conto per sapere dove si trova il tuo denaro.",
+
+		errors: {
+			nameRequired: "Dai un nome al conto.",
+			nameTooLong: "Il nome può avere al massimo 50 caratteri.",
+			notFound: "Conto non trovato.",
+			/**
+			 * ⚠️ Non è un vincolo dell'app ma della FK (`on delete no action`), e
+			 * l'utente non deve incontrarlo: la UI offre "archivia", non
+			 * "elimina". Resta per il caso in cui l'ultima difesa scatti davvero.
+			 */
+			hasTransactions:
+				"Questo conto ha dei movimenti collegati e non può essere eliminato. Archivialo.",
+			lastAccount:
+				"Questo è il tuo unico conto attivo: ogni movimento deve appartenere a un conto.",
+		},
 	},
 
 	transactions: {

@@ -118,9 +118,51 @@ export async function saveCategories(selected: string[]) {
 
 	if (deleteError) return { error: deleteError.message };
 
-	if (rows.length === 0) return { success: true };
+	if (rows.length > 0) {
+		const { error } = await supabase.from("categories").insert(rows);
+		if (error) return { error: error.message };
+	}
 
-	const { error } = await supabase.from("categories").insert(rows);
+	return ensureFirstAccount(supabase, user.id, t);
+}
+
+/**
+ * Il primo conto, creato insieme alle categorie.
+ *
+ * ⚠️ Non è un vezzo: `transactions.account_id` è NOT NULL, quindi **senza un
+ * conto l'utente non può registrare un solo movimento** e l'onboarding
+ * consegnerebbe un'app inutilizzabile. La migration `20260814` fa il backfill
+ * per chi c'era già; questa funzione copre chi arriva dopo.
+ *
+ * ⚠️ Il nome è tradotto alla SCRITTURA, come le categorie qui sopra e per lo
+ * stesso motivo: una volta scritto in `accounts.name` non è più una stringa
+ * dell'app ma un dato dell'utente, che può rinominarlo. Tradurlo alla lettura
+ * richiederebbe una colonna `preset_key` e una regola "se è valorizzata ignora
+ * `name`", che si sfalderebbe al primo rename.
+ *
+ * ⚠️ È idempotente: l'onboarding si può rifare (il gate è `profiles.currency`,
+ * e `saveCategories` infatti cancella e reinserisce), ma i conti NON si
+ * ricreano — a differenza delle categorie hanno movimenti attaccati, e
+ * cancellarli è precisamente ciò che la FK `no action` impedisce.
+ */
+async function ensureFirstAccount(
+	supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
+	userId: string,
+	t: Awaited<ReturnType<typeof requireUser>>["t"],
+) {
+	const { count, error: countError } = await supabase
+		.from("accounts")
+		.select("id", { count: "exact", head: true })
+		.eq("user_id", userId);
+
+	if (countError) return { error: countError.message };
+	if ((count ?? 0) > 0) return { success: true };
+
+	const { error } = await supabase.from("accounts").insert({
+		user_id: userId,
+		name: t.onboarding.firstAccountName,
+		type: "corrente",
+	});
 
 	return error ? { error: error.message } : { success: true };
 }
