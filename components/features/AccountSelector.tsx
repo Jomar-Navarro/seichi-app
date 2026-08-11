@@ -72,30 +72,6 @@ export default function AccountSelector({ accounts, selectedId }: AccountSelecto
 				<ChevronDown size={13} className={open ? "rotate-180 transition-transform" : "transition-transform"} />
 			</button>
 
-			{/*
-				⚠️ Il saldo compare SOLO quando è selezionato un conto singolo, e
-				l'asimmetria è deliberata.
-				Mostrarlo anche su "tutti i conti" significherebbe rimettere in home
-				la somma dei saldi, cioè esattamente il numero che questa fase ha
-				tolto perché entrava in contraddizione con la pagina conti. Il saldo
-				di UN conto è un'affermazione diversa: è attaccato al suo nome,
-				etichettato, e risponde alla domanda che l'utente ha appena posto
-				scegliendolo. Senza, filtrando un conto senza movimenti nel mese si
-				vedono solo zeri e la pagina non dice più niente di utile.
-			*/}
-			{selected && (
-				<p className="mt-1.5 ml-1 text-[11.5px] text-muted">
-					{t.accounts.balanceHeading} ·{" "}
-					<span className="font-semibold text-foreground">
-						{formatMoney(selected.balance, {
-							locale,
-							currency: DISPLAY_CURRENCY,
-							decimals: 2,
-						})}
-					</span>
-				</p>
-			)}
-
 			{open && (
 				<>
 					<button

@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ChevronRight } from "lucide-react";
-import FlowCard from "@/components/features/FlowCard";
+import HomeHero from "@/components/features/HomeHero";
 import AccountSelector from "@/components/features/AccountSelector";
 import { getDashboardTotals, getTransactions } from "./action";
 import { getAccounts } from "./conti/actions";
@@ -192,16 +192,18 @@ async function DashboardContent({ accountId }: { accountId: string | null }) {
 			)}
 
 			{/*
-				⚠️ `monthLabel` si calcola QUI, nel server component, non dentro
-				`FlowCard`. Non è una questione di idratazione: i confini dei bucket
-				li calcola `getDashboardTotals` col `new Date()` del server, quindi
-				l'etichetta deve nascere dallo stesso orologio dei numeri che
-				descrive. Calcolata sul client, nelle prime ore del mese potrebbe
-				scrivere "luglio" sopra i totali di giugno.
+				⚠️ `monthLabel` si calcola QUI, nel server component, non nella card.
+				Non è una questione di idratazione: i confini dei bucket li calcola
+				`getDashboardTotals` col `new Date()` del server, quindi l'etichetta
+				deve nascere dallo stesso orologio dei numeri che descrive. Calcolata
+				sul client, nelle prime ore del mese potrebbe scrivere "luglio" sopra
+				i totali di giugno.
 			*/}
-			<FlowCard
+			<HomeHero
 				flussoMese={result.flussoMese}
 				monthLabel={formatDate(new Date(), locale, { month: "long" })}
+				accounts={accounts}
+				selectedId={accountId}
 			/>
 
 			<div className="grid grid-cols-2 gap-3">

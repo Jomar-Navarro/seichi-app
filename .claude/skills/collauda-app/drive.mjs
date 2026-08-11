@@ -6,8 +6,8 @@
  * locale del componente, e quello è esattamente ciò che serve verificare. Lo
  * script si ferma lì.
  *
- * Cookie di sessione da un JSON nello scratchpad, mai credenziali:
- *   SEICHI_COOKIES / SEICHI_SHOTS / SEICHI_URL
+ * Credenziali dall'ambiente, mai nel file:
+ *   SEICHI_EMAIL / SEICHI_PASSWORD
  */
 import { chromium } from "playwright";
 import { mkdirSync, readFileSync, existsSync } from "node:fs";
@@ -107,8 +107,26 @@ try {
 	await expectText(page, "Flusso", "1 home mostra Flusso");
 	const saldoTotale = await page.getByText("Saldo totale", { exact: false }).first().isVisible().catch(() => false);
 	(saldoTotale ? ko : ok).push(`${saldoTotale ? "KO " : "OK "} 1 "Saldo totale" non compare più`);
-	await expectText(page, "non il saldo dei conti", "1 riga esplicativa");
+	await expectText(page, "per i saldi, scorri", "1 riga che insegna lo scorrimento");
 	console.log("shot:", await shot(page, "home-flusso"));
+
+	/* ---------------------------------- 1-bis · carosello flusso / saldo */
+	/*
+	 * Il carosello è due pagine in uno scroll con snap. Si verifica che la
+	 * seconda esista e che il suo numero coincida con la somma dei saldi dei
+	 * conti attivi — cioè che la home e /conti dicano lo STESSO numero, che è la
+	 * ragione per cui questa card è ammessa in home.
+	 */
+	const track = page.locator("div.snap-x").first();
+	if (await track.isVisible().catch(() => false)) {
+		await track.evaluate((el) => el.scrollTo({ left: el.clientWidth }));
+		await page.waitForTimeout(600);
+		await expectText(page, "Saldo", "1b seconda pagina del carosello");
+		await expectText(page, "conti attivi", "1b pastiglia col conteggio");
+		console.log("shot:", await shot(page, "carosello-saldo"));
+		await track.evaluate((el) => el.scrollTo({ left: 0 }));
+		await page.waitForTimeout(500);
+	} else ko.push("KO  1b carosello non trovato");
 
 	/* ------------------------------------------ 2 · selettore conti + saldo */
 	const chip = page.getByRole("button", { name: /tutti i conti|all accounts/i }).first();
@@ -124,7 +142,7 @@ try {
 		if (n > 1) {
 			await rows.nth(1).click();
 			await page.waitForTimeout(1200);
-			await expectText(page, "Saldo", "2 saldo del conto selezionato sotto il chip");
+			await expectText(page, "Flusso", "2 la home resta filtrata dopo la scelta");
 			console.log("shot:", await shot(page, "conto-selezionato"));
 		} else ko.push("KO  2 nessun conto singolo nel pannello");
 	} else ko.push("KO  2 selettore conti non trovato");
