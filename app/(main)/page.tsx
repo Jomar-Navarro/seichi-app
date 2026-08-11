@@ -45,7 +45,15 @@ async function DashboardContent({ accountId }: { accountId: string | null }) {
 	const [result, transaction, goalsResult, profile, unreadResult, accountsResult] =
 		await Promise.all([
 			getDashboardTotals(accountId),
-			getTransactions(undefined, undefined, 5),
+			/*
+			 * ⚠️ Il conto va passato anche QUI, non solo ai totali.
+			 * Senza, la home filtrata mostrava le somme di un conto e sotto i
+			 * movimenti recenti di TUTTI: il selettore dichiarava "stai guardando
+			 * Conto principale" mentre la lista lo smentiva tre centimetri più
+			 * giù. Trovato guardando uno screenshot, non da un controllo: i tipi
+			 * erano corretti e il parametro semplicemente mancava.
+			 */
+			getTransactions(undefined, undefined, 5, accountId ?? undefined),
 			getGoals(),
 			getProfileHeader(),
 			getUnreadCount(),
