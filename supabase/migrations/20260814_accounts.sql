@@ -485,7 +485,15 @@ alter policy recurring_rules_own on public.recurring_rules
 -- a "quanto ho" — quindi il bucket resta senza consumatori. Tenerlo significa
 -- una scansione dell'intero archivio a ogni vista della home per un valore che
 -- nessuno mostra: è anche la seconda scansione di `transactions` che il commento
--- della `20260808` dichiarava nota e accettata. Non serve più accettarla.
+-- della `20260808` dichiarava nota e accettata.
+--
+-- ⚠️ **Ma il conto totale non è un risparmio netto, e dirlo sarebbe falso.** La
+-- vista `account_balances` della sezione 9 aggrega anch'essa tutto l'archivio
+-- senza filtro di data, e la home la interroga per il selettore: la scansione
+-- non sparisce, cambia consumatore. Il guadagno vero è un altro, ed è
+-- qualitativo — prima quel giro serviva un numero che nessuno mostrava, ora
+-- serve i saldi che l'utente legge. Un costo uguale per qualcosa di utile
+-- invece che per niente.
 --
 -- ⚠️ I CAST ESPLICITI su ogni colonna restano, e non sono ridondanza. `RETURN
 -- QUERY` di plpgsql pretende i tipi ESATTI e fallisce **solo a esecuzione**, con

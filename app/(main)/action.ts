@@ -305,6 +305,33 @@ export async function setRecurringActive(id: string, active: boolean) {
 	return { success: true };
 }
 
+/**
+ * Che cosa conta come USCITA, in un posto solo.
+ *
+ * ⚠️ `spesa` e `abbonamento`, non "tutto ciò che non è entrata".
+ *
+ * Prima `/analisi` sommava come uscita ogni tipo diverso da `entrata`, quindi
+ * anche `risparmio` e `investimento`. Con i conti quel denaro è ancora tuo —
+ * solo altrove — e contarlo come uscita lo fa sembrare speso: è la premessa
+ * dell'intera Fase 20a, quella per cui `saldoTotale` è stato cancellato.
+ *
+ * ⚠️ Il difetto era invisibile finché la home non ha cambiato formula: da quel
+ * momento la home diceva "Flusso · agosto € 1.540" e `/analisi` — raggiungibile
+ * col collegamento due righe più sotto, e con l'etichetta **"Flusso netto"**,
+ * la stessa parola — ne diceva un altro per lo stesso mese. Due schermate, due
+ * risposte: esattamente ciò che la fase esisteva per chiudere, ricreato togliendo
+ * il numero da una schermata sola.
+ *
+ * Sta qui, come funzione condivisa, perché la definizione di "uscita" non può
+ * vivere in tre `filter` scritti a mano: il KPI, la variazione e il grafico
+ * mensile devono muoversi insieme o la pagina si contraddice da sé.
+ */
+function sommaUscite(rows: { type: string; amount: number }[]) {
+	return rows
+		.filter((t) => t.type === "spesa" || t.type === "abbonamento")
+		.reduce((acc, t) => acc + t.amount, 0);
+}
+
 export async function getDashboardTotals(accountId?: string | null) {
 	const { supabase, user, t } = await requireUser();
 
@@ -512,7 +539,7 @@ export async function getAnalyticsData(periodo: string = "mese") {
 		return {
 			mese: label,
 			entrate: pts.filter((t) => t.type === "entrata").reduce((acc, t) => acc + t.amount, 0),
-			uscite: pts.filter((t) => t.type !== "entrata").reduce((acc, t) => acc + t.amount, 0),
+			uscite: sommaUscite(pts),
 		};
 	});
 
@@ -522,7 +549,7 @@ export async function getAnalyticsData(periodo: string = "mese") {
 		return d >= rangeStart && d < rangeEnd;
 	}) ?? [];
 	const entrateCorrente = currentData.filter((t) => t.type === "entrata").reduce((acc, t) => acc + t.amount, 0);
-	const usciteCorrente = currentData.filter((t) => t.type !== "entrata").reduce((acc, t) => acc + t.amount, 0);
+	const usciteCorrente = sommaUscite(currentData);
 	const saldoMese = entrateCorrente - usciteCorrente;
 
 	// Variazione vs periodo precedente
@@ -531,7 +558,7 @@ export async function getAnalyticsData(periodo: string = "mese") {
 		return d >= prevStart && d < prevEnd;
 	}) ?? [];
 	const entratePrev = prevData.filter((t) => t.type === "entrata").reduce((acc, t) => acc + t.amount, 0);
-	const uscitePrev = prevData.filter((t) => t.type !== "entrata").reduce((acc, t) => acc + t.amount, 0);
+	const uscitePrev = sommaUscite(prevData);
 	const saldoPrecedente = entratePrev - uscitePrev;
 	const variazionePct = saldoPrecedente !== 0
 		? Math.round(((saldoMese - saldoPrecedente) / Math.abs(saldoPrecedente)) * 100)

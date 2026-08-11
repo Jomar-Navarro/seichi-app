@@ -100,11 +100,12 @@ export default function TransactionForm({
 			const { data } = await supabase
 				.from("accounts")
 				.select("*")
-				.eq("archived", false)
 				.order("created_at", { ascending: true });
 			if (!data) return;
 			setAccountList(data);
-			setAccountId((current) => current ?? data[0]?.id ?? null);
+			// Il default per un movimento NUOVO è il primo conto ATTIVO: proporre
+			// un archiviato significherebbe suggerire di scriverci sopra.
+			setAccountId((current) => current ?? data.find((a) => !a.archived)?.id ?? null);
 		}
 		loadAccounts();
 	}, []);
@@ -212,7 +213,23 @@ export default function TransactionForm({
 	 * chiamano uguale e contengono cose diverse — vale la pena saperlo prima di
 	 * unificarle.
 	 */
-	const accountOptions: Option[] = accountList.map((a) => {
+	/*
+	 * ⚠️ Un conto ARCHIVIATO collegato a una transazione esistente va aggiunto
+	 * alle opzioni, o il campo appare vuoto.
+	 *
+	 * `loadAccounts` filtra `archived = false`, quindi aprendo un vecchio
+	 * movimento su un conto poi archiviato il `Select` non trovava l'opzione
+	 * corrispondente e mostrava il segnaposto: un record CON un conto sembrava
+	 * non averne, e l'utente veniva spinto a sceglierne un altro — spostando in
+	 * silenzio un movimento storico. È lo stesso ripiego che
+	 * `effectiveCategoryList` fa dodici righe più su per la categoria; qui era
+	 * stato dimenticato.
+	 */
+	const effectiveAccountList: Account[] = accountList.filter(
+		(a) => !a.archived || a.id === accountId,
+	);
+
+	const accountOptions: Option[] = effectiveAccountList.map((a) => {
 		const Icon = (a.type && ACCOUNT_TYPE_ICON[a.type]) || ACCOUNT_ICON_FALLBACK;
 		const color = accountColor(a.type, a.color);
 		return {

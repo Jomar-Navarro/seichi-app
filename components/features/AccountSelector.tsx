@@ -41,7 +41,17 @@ export default function AccountSelector({ accounts, selectedId }: AccountSelecto
 	// movimenti, e proporli come filtro suggerirebbe il contrario. Restano
 	// leggibili nella pagina conti, dove la domanda è un'altra.
 	const selectable = accounts.filter((a) => !a.archived);
-	const selected = selectable.find((a) => a.id === selectedId) ?? null;
+	/*
+	 * ⚠️ Il conto selezionato si cerca fra TUTTI, non fra i selezionabili.
+	 *
+	 * Archiviando il conto su cui si è filtrati, `selectable` non lo contiene
+	 * più: il chip tornava a dire "Tutti i conti" e la spunta finiva su quella
+	 * riga, mentre la pagina restava filtrata su quel conto. Etichetta e dati che
+	 * si contraddicono — lo stesso difetto già corretto sui movimenti recenti.
+	 * Resta scegliibile solo ciò che è attivo; resta LEGGIBILE ciò che è
+	 * selezionato.
+	 */
+	const selected = accounts.find((a) => a.id === selectedId) ?? null;
 
 	function choose(id: string | null) {
 		setOpen(false);

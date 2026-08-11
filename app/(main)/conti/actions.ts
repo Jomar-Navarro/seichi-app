@@ -117,15 +117,27 @@ export async function updateAccount(id: string, input: AccountInput) {
 	const checked = validate(input, t);
 	if ("error" in checked) return checked;
 
+	/*
+	 * ⚠️ `icon` entra nella patch SOLO se il chiamante l'ha mandata.
+	 *
+	 * Con `icon: input.icon ?? null` un campo OPZIONALE e omesso diventava una
+	 * cancellazione: `AccountSheet` non manda l'icona (non c'è ancora un picker),
+	 * quindi ogni salvataggio azzerava la colonna. Oggi è latente perché nessuno
+	 * la popola — ma il giorno in cui un picker o un import la scrivessero,
+	 * rinominare un conto la cancellerebbe. Omesso significa "non toccare", non
+	 * "metti a NULL".
+	 */
+	const patch: Record<string, unknown> = {
+		name: checked.name,
+		type: input.type,
+		color: input.color ?? null,
+		initial_balance: input.initialBalance,
+	};
+	if (input.icon !== undefined) patch.icon = input.icon;
+
 	const { data, error } = await supabase
 		.from("accounts")
-		.update({
-			name: checked.name,
-			type: input.type,
-			icon: input.icon ?? null,
-			color: input.color ?? null,
-			initial_balance: input.initialBalance,
-		})
+		.update(patch)
 		.eq("id", id)
 		.eq("user_id", user.id)
 		.select("id")

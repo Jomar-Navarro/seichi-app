@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { isCurrency, normalizeLocale } from "@/lib/i18n/config";
-import { setLocaleCookie } from "@/lib/i18n/server";
+import { dictionaryFor, setLocaleCookie } from "@/lib/i18n/server";
+import type { Dictionary } from "@/lib/i18n/dictionaries/it";
 
 export async function savePreferences(currency: string, language: string) {
 	const { supabase, user, t } = await requireUser();
@@ -23,6 +24,32 @@ export async function savePreferences(currency: string, language: string) {
 	// invisibile; da ora in poi sarebbe l'intera app nella lingua sbagliata.
 	const locale = normalizeLocale(language);
 	if (!locale) return { error: t.errors.unsupportedLanguage };
+
+	/*
+	 * ⚠️ Il conto PRIMA del profilo, e non è pignoleria sull'ordine.
+	 *
+	 * `profiles.currency` è il GATE dell'onboarding (`if (!profile?.currency)
+	 * redirect("/start")`): nell'istante in cui viene scritta, l'utente è libero
+	 * di entrare nell'app. Ma il primo conto nasceva un passo dopo, in
+	 * `saveCategories`, e `transactions.account_id` è NOT NULL — quindi chi
+	 * abbandonava fra /preference e /category si ritrovava dentro l'app **senza
+	 * un conto**, col bottone di salvataggio spento per sempre e nessun messaggio
+	 * che spiegasse perché. Il backfill della `20260814` copre solo chi esisteva
+	 * quando è stata eseguita, non chi arriva dopo.
+	 *
+	 * Creandolo qui l'invariante diventa: *gate soddisfatto ⇒ almeno un conto*.
+	 * `saveCategories` continua a chiamarlo, ed è innocuo perché è idempotente:
+	 * serve a chi ha superato questo passo prima di questa correzione.
+	 *
+	 * ⚠️ Il nome arriva da `dictionaryFor(locale)`, NON da `t`.
+	 * `t` viene da `requireUser()`, che legge il cookie — cioè la lingua
+	 * PRECEDENTE, perché `setLocaleCookie` non è ancora stato chiamato. Chi
+	 * sceglie English qui si sarebbe visto creare "Conto principale". È la stessa
+	 * trappola della Fase 19 ("scrivere il cookie non basta a cambiare la lingua
+	 * resa"), in versione anticipata: qui il cookie non è nemmeno ancora scritto.
+	 */
+	const account = await ensureFirstAccount(supabase, user.id, dictionaryFor(locale));
+	if ("error" in account) return account;
 
 	const { error } = await supabase
 		.from("profiles")
@@ -148,7 +175,7 @@ export async function saveCategories(selected: string[]) {
 async function ensureFirstAccount(
 	supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
 	userId: string,
-	t: Awaited<ReturnType<typeof requireUser>>["t"],
+	dict: Dictionary,
 ) {
 	const { count, error: countError } = await supabase
 		.from("accounts")
@@ -160,7 +187,7 @@ async function ensureFirstAccount(
 
 	const { error } = await supabase.from("accounts").insert({
 		user_id: userId,
-		name: t.onboarding.firstAccountName,
+		name: dict.onboarding.firstAccountName,
 		type: "corrente",
 	});
 

@@ -48,7 +48,18 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 	const router = useRouter();
 
 	const [name, setName] = useState(() => account?.name ?? "");
-	const [type, setType] = useState<AccountTypeId | null>(() => account?.type ?? "corrente");
+	/*
+	 * ⚠️ "corrente" solo per un conto NUOVO. Su uno esistente si tiene il suo
+	 * tipo, `null` compreso: `accounts.type` è nullable per progetto, e il
+	 * ripiego (`ACCOUNT_ICON_FALLBACK`, `t.accounts.typeless`) esiste apposta.
+	 * Col default incondizionato, aprire un conto senza tipo per correggere un
+	 * refuso nel nome gli assegnava "Corrente" al salvataggio — cambiando icona
+	 * ed etichetta senza che l'utente avesse toccato quel campo, e senza un
+	 * comando per tornare indietro.
+	 */
+	const [type, setType] = useState<AccountTypeId | null>(() =>
+		account ? account.type : "corrente",
+	);
 	const [color, setColor] = useState<string | null>(() => account?.color ?? null);
 	const [initialBalance, setInitialBalance] = useState(() =>
 		account ? String(account.initial_balance) : "",

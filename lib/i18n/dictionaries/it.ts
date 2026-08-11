@@ -422,7 +422,6 @@ export const it = {
 		 * `flowTitle` si compone col mese: "Flusso · giugno".
 		 */
 		flowTitle: "Flusso",
-		flowPeriodChip: "Questo mese",
 		/**
 		 * ⚠️ "uscite" e non "spese". Il numero sottrae anche gli abbonamenti, che
 		 * nella tassonomia dell'app sono un tipo a sé e non hanno una card: dire
@@ -492,7 +491,6 @@ export const it = {
 		editTitle: "Modifica conto",
 		name: "Nome del conto",
 		namePlaceholder: "Es. Conto corrente, Contanti…",
-		icon: "Icona",
 		color: "Colore",
 		/**
 		 * ⚠️ I nomi servono all'`aria-label` delle pastiglie colore, che non hanno
@@ -539,7 +537,6 @@ export const it = {
 		archiveConfirm: "Conferma archiviazione",
 		archiveBody:
 			"Sparirà dai selettori, ma i suoi movimenti restano e il suo storico resta consultabile.",
-		unarchive: "Riattiva",
 
 		emptyTitle: "Ancora nessun conto",
 		emptyDescription: "Aggiungi un conto per sapere dove si trova il tuo denaro.",
@@ -548,13 +545,6 @@ export const it = {
 			nameRequired: "Dai un nome al conto.",
 			nameTooLong: "Il nome può avere al massimo 50 caratteri.",
 			notFound: "Conto non trovato.",
-			/**
-			 * ⚠️ Non è un vincolo dell'app ma della FK (`on delete no action`), e
-			 * l'utente non deve incontrarlo: la UI offre "archivia", non
-			 * "elimina". Resta per il caso in cui l'ultima difesa scatti davvero.
-			 */
-			hasTransactions:
-				"Questo conto ha dei movimenti collegati e non può essere eliminato. Archivialo.",
 			lastAccount:
 				"Questo è il tuo unico conto attivo: ogni movimento deve appartenere a un conto.",
 		},

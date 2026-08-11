@@ -31,6 +31,7 @@ export default function AccountsPageClient({ accounts }: AccountsPageClientProps
 	const router = useRouter();
 	const [sheetOpen, setSheetOpen] = useState(false);
 	const [editing, setEditing] = useState<AccountWithBalance | null>(null);
+	const [rowError, setRowError] = useState<string | null>(null);
 
 	const active = accounts.filter((a) => !a.archived);
 	const archived = accounts.filter((a) => a.archived);
@@ -58,8 +59,20 @@ export default function AccountsPageClient({ accounts }: AccountsPageClientProps
 		setSheetOpen(true);
 	}
 
+	/*
+	 * ⚠️ L'esito si guarda. Prima veniva scartato, quindi un fallimento —
+	 * conto rimosso in un'altra scheda, sessione scaduta, `notFound` — era
+	 * indistinguibile da un successo: l'utente toccava "riattiva", la riga
+	 * restava archiviata e nessun messaggio spiegava perché. Ogni altro
+	 * chiamante di questo file (`AccountSheet`) mostra `result.error`.
+	 */
 	async function reactivate(id: string) {
-		await setAccountArchived(id, false);
+		setRowError(null);
+		const result = await setAccountArchived(id, false);
+		if ("error" in result && result.error) {
+			setRowError(result.error);
+			return;
+		}
 		router.refresh();
 	}
 
@@ -114,6 +127,16 @@ export default function AccountsPageClient({ accounts }: AccountsPageClientProps
 							<p className="text-xs text-muted font-medium mt-1 mb-0.5 ml-1 tracking-wide">
 								{plural(t.accounts.archivedSection, archived.length, locale)}
 							</p>
+							{/*
+								L'errore di "riattiva" compare qui, sopra le righe a cui si
+								riferisce. Senza, un fallimento era indistinguibile da un
+								successo: la riga restava archiviata e nessuno diceva perché.
+							*/}
+							{rowError && (
+								<p className="text-xs ml-1" style={{ color: "var(--ink-aka)" }}>
+									{rowError}
+								</p>
+							)}
 							{archived.map((a) => (
 								<AccountRow
 									key={a.id}

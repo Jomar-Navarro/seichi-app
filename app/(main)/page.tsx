@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import FlowCard from "@/components/features/FlowCard";
 import AccountSelector from "@/components/features/AccountSelector";
@@ -31,12 +32,26 @@ export default async function MainPage({
 	// browser, disfacendo il lavoro di `dashboard_totals`.
 	const { conto } = await searchParams;
 
+	/*
+	 * ⚠️ La forma si valida PRIMA di passare il valore alla RPC.
+	 *
+	 * `dashboard_totals(p_account_id uuid)` riceve il parametro grezzo: con
+	 * `/?conto=abc` Postgres solleva `invalid input syntax for type uuid`
+	 * (22P02), `getDashboardTotals` torna `{error}` e il ramo d'errore sostituisce
+	 * **l'intera dashboard** con "Errore" — niente card, niente conti, nessuna via
+	 * d'uscita se non modificare l'URL a mano. Basta un link troncato o un
+	 * crawler. Un id ben formato ma non tuo non arriva qui: lo ferma la RLS, e il
+	 * controllo di appartenenza sta in `DashboardContent`.
+	 */
+	const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+	const accountId = conto && UUID.test(conto) ? conto : null;
+
 	return (
 		// ⚠️ La `key` rimonta il contenuto quando cambia il conto selezionato.
 		// Senza, il Suspense non si riattiva sulla navigazione soft e si vedrebbero
 		// i totali del conto precedente finché non arrivano i nuovi.
-		<Suspense key={conto ?? "all"} fallback={<HomeSkeleton />}>
-			<DashboardContent accountId={conto ?? null} />
+		<Suspense key={accountId ?? "all"} fallback={<HomeSkeleton />}>
+			<DashboardContent accountId={accountId} />
 		</Suspense>
 	);
 }
@@ -99,10 +114,34 @@ async function DashboardContent({ accountId }: { accountId: string | null }) {
 		console.error("[home] getAccounts:", accountsResult.error);
 	}
 
+	/*
+	 * ⚠️ Un conto ben formato ma non tuo (o cancellato altrove) NON deve produrre
+	 * una pagina che mente.
+	 *
+	 * La RLS fa già la sua parte — i totali tornerebbero vuoti — ma il chip
+	 * direbbe "Tutti i conti" sopra dei dati filtrati su un id fantasma: la
+	 * stessa contraddizione etichetta/dati corretta poco sopra per i movimenti
+	 * recenti. Si torna alla home non filtrata invece di mostrare zeri
+	 * inspiegabili.
+	 */
+	if (accountId && accounts.length > 0 && !accounts.some((a) => a.id === accountId)) {
+		redirect("/");
+	}
+
 	const goals = "error" in goalsResult ? [] : goalsResult.data;
 	const goalsWithTarget = goals.filter((g) => (g.target_amount ?? 0) > 0);
 	const totalTarget = goalsWithTarget.reduce((acc, g) => acc + (g.target_amount ?? 0), 0);
 	const totalSaved = goalsWithTarget.reduce((acc, g) => acc + g.saved_amount, 0);
+	/*
+	 * ⚠️ La percentuale si mostra SOLO senza filtro conto.
+	 *
+	 * `risparmiMese` è filtrato per conto, `getGoals()` no: gli obiettivi non
+	 * appartengono a un conto — un traguardo si finanzia da dove si vuole. Con
+	 * un conto selezionato la card accostava un importo "da questo conto, questo
+	 * mese" a una percentuale "su tutto, da sempre": due scope in una card, che è
+	 * proprio l'accostamento *luogo/traguardo* respinto progettando la fase.
+	 */
+	const showGoalProgress = accountId === null && totalTarget > 0;
 	const risparmiProgress = totalTarget > 0 ? Math.min(100, Math.round((totalSaved / totalTarget) * 100)) : 0;
 
 	return (
@@ -194,8 +233,8 @@ async function DashboardContent({ accountId }: { accountId: string | null }) {
 					amount={result.risparmiMese}
 					icon={risparmio.icon}
 					color={risparmio.color}
-					label={totalTarget > 0 ? fill(t.home.cards.savingsWithProgress, { pct: risparmiProgress }) : t.home.cards.savings}
-					progress={totalTarget > 0 ? risparmiProgress : undefined}
+					label={showGoalProgress ? fill(t.home.cards.savingsWithProgress, { pct: risparmiProgress }) : t.home.cards.savings}
+					progress={showGoalProgress ? risparmiProgress : undefined}
 					trend={result.risparmiTrend}
 				/>
 			</div>

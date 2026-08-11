@@ -4,6 +4,35 @@
 -- ⚠️ ESEGUIRE DOPO `20260809_job_runs.sql`: quel file crea `job_runs` e la
 -- versione di `run_daily_jobs()` che questa sostituisce.
 --
+-- ⚠️ E NON RIESEGUIRE se la `20260814_accounts.sql` è già passata.
+--
+-- Quella ridichiara `generate_recurring_transactions()` aggiungendo `account_id`
+-- all'insert. Questo file la riporterebbe alla versione senza, e da quella notte
+-- ogni regola violerebbe il NOT NULL di `transactions.account_id`: il gestore
+-- per-regola cattura l'eccezione, `run_daily_jobs()` registra l'errore in
+-- `job_runs` e **nessuna ricorrente viene più generata**, senza un solo segnale
+-- rivolto all'utente. Lo stesso silenzio durato cinque settimane che questo file
+-- esisteva per rompere.
+--
+-- La guardia riconosce il successore da un fatto del catalogo — la colonna
+-- `account_id` su `recurring_rules` — come le guardie di `20260727`, `20260728`
+-- e `20260809`. Vale la regola già scritta in CLAUDE.md: il file più recente
+-- dev'essere autosufficiente, così non c'è mai motivo di tornare indietro, e chi
+-- ci torna comunque viene fermato invece di rompere in silenzio.
+
+do $$
+begin
+	if exists (
+		select 1 from information_schema.columns
+		where table_schema = 'public'
+			and table_name = 'recurring_rules'
+			and column_name = 'account_id'
+	) then
+		raise exception
+			'20260810 già superata da 20260814_accounts.sql: rieseguirla toglierebbe account_id dall''insert delle ricorrenti e fermerebbe il job notturno in silenzio.';
+	end if;
+end $$;
+--
 -- ----------------------------------------------------------------------------
 -- Cosa diceva il database
 -- ----------------------------------------------------------------------------

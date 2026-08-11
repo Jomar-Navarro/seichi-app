@@ -289,7 +289,6 @@ export const en: Dictionary = {
 		greeting: "Welcome back",
 		error: "Something went wrong",
 		flowTitle: "Flow",
-		flowPeriodChip: "This month",
 		flowExplain: "money in minus money out this month — not your account balances",
 		flowBalancesHint: "Your real balances are on the accounts page",
 		cards: {
@@ -333,7 +332,6 @@ export const en: Dictionary = {
 		editTitle: "Edit account",
 		name: "Account name",
 		namePlaceholder: "e.g. Current account, Cash…",
-		icon: "Icon",
 		color: "Colour",
 		colors: {
 			blue: "Blue",
@@ -355,7 +353,6 @@ export const en: Dictionary = {
 		archiveConfirm: "Confirm archiving",
 		archiveBody:
 			"It disappears from the pickers, but its transactions stay and its history remains readable.",
-		unarchive: "Reactivate",
 
 		emptyTitle: "No accounts yet",
 		emptyDescription: "Add an account to know where your money actually is.",
@@ -364,8 +361,6 @@ export const en: Dictionary = {
 			nameRequired: "Give the account a name.",
 			nameTooLong: "The name can be at most 50 characters.",
 			notFound: "Account not found.",
-			hasTransactions:
-				"This account has transactions linked to it and cannot be deleted. Archive it instead.",
 			lastAccount:
 				"This is your only active account, and every transaction has to belong to one.",
 		},
