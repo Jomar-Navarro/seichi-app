@@ -530,10 +530,15 @@ export const it = {
 		 * speso.
 		 */
 		archive: "Archivia",
-		archiveTitle: "Archiviare questo conto?",
+		/**
+		 * ⚠️ DEVE essere diverso da `archive`, o il secondo passo è invisibile.
+		 * Prima erano entrambi "Archivia": il bottone non cambiava, e l'unico
+		 * segnale che la conferma fosse in attesa era un paragrafo comparso sotto.
+		 * Stesso schema di `GoalSheet` ("Elimina movimento" → "Conferma eliminazione").
+		 */
+		archiveConfirm: "Conferma archiviazione",
 		archiveBody:
 			"Sparirà dai selettori, ma i suoi movimenti restano e il suo storico resta consultabile.",
-		archiveConfirm: "Archivia",
 		unarchive: "Riattiva",
 
 		emptyTitle: "Ancora nessun conto",
@@ -579,6 +584,17 @@ export const it = {
 		emptyTitle: "Nessuna transazione ancora",
 		emptyDescription:
 			"Le tue entrate e uscite appariranno qui non appena registrerai il primo movimento.",
+		/**
+		 * ⚠️ Voci SEPARATE per la lista vuota CON i filtri attivi.
+		 * Riusare quelle sopra diceva "non hai ancora registrato nulla" a chi ha
+		 * centinaia di movimenti e ha solo scelto un conto senza spese nel
+		 * periodo: un'affermazione falsa che fa dubitare che i dati esistano
+		 * ancora. Il difetto c'era già coi filtri tipo/periodo, ma il filtro per
+		 * conto lo rende facile da incontrare.
+		 */
+		emptyFilteredTitle: "Nessun movimento con questi filtri",
+		emptyFilteredDescription:
+			"Prova ad allargare il periodo, o a scegliere un altro conto o tipo.",
 		addAction: "Aggiungi movimento",
 		searchPlaceholder: "Cerca movimenti",
 		filterAll: "Tutte",

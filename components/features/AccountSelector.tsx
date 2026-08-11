@@ -62,6 +62,30 @@ export default function AccountSelector({ accounts, selectedId }: AccountSelecto
 				<ChevronDown size={13} className={open ? "rotate-180 transition-transform" : "transition-transform"} />
 			</button>
 
+			{/*
+				⚠️ Il saldo compare SOLO quando è selezionato un conto singolo, e
+				l'asimmetria è deliberata.
+				Mostrarlo anche su "tutti i conti" significherebbe rimettere in home
+				la somma dei saldi, cioè esattamente il numero che questa fase ha
+				tolto perché entrava in contraddizione con la pagina conti. Il saldo
+				di UN conto è un'affermazione diversa: è attaccato al suo nome,
+				etichettato, e risponde alla domanda che l'utente ha appena posto
+				scegliendolo. Senza, filtrando un conto senza movimenti nel mese si
+				vedono solo zeri e la pagina non dice più niente di utile.
+			*/}
+			{selected && (
+				<p className="mt-1.5 ml-1 text-[11.5px] text-muted">
+					{t.accounts.balanceHeading} ·{" "}
+					<span className="font-semibold text-foreground">
+						{formatMoney(selected.balance, {
+							locale,
+							currency: DISPLAY_CURRENCY,
+							decimals: 2,
+						})}
+					</span>
+				</p>
+			)}
+
 			{open && (
 				<>
 					<button
@@ -70,7 +94,7 @@ export default function AccountSelector({ accounts, selectedId }: AccountSelecto
 						className="fixed inset-0 z-40 bg-black/35 backdrop-blur-[1.5px]"
 					/>
 					<div
-						className="absolute left-0 top-full mt-2 z-50 w-[min(20rem,calc(100vw-2.5rem))] rounded-[24px] border border-subtle modal-shadow backdrop-blur-2xl overflow-hidden"
+						className="absolute left-0 top-full mt-2 z-50 w-[min(20rem,calc(100vw-2.5rem))] rounded-3xl border border-subtle modal-shadow backdrop-blur-2xl overflow-hidden"
 						style={{ background: "color-mix(in srgb, var(--color-deep) 94%, transparent)" }}
 					>
 						<AccountRow

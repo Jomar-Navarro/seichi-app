@@ -10,6 +10,14 @@ import { useI18n } from "./I18nProvider";
 interface TransactionListProps {
 	transactions: Transaction[];
 	loading: boolean;
+	/**
+	 * Se è attivo almeno un filtro. Cambia il messaggio di lista vuota, e NON è
+	 * un dettaglio di stile: senza, la pagina dichiara "non hai ancora
+	 * registrato nulla" a chi ha centinaia di movimenti e ha semplicemente
+	 * scelto un conto senza spese nel periodo. Un'affermazione falsa fa dubitare
+	 * che i dati ci siano ancora.
+	 */
+	filtered?: boolean;
 }
 
 function Skeleton() {
@@ -29,9 +37,23 @@ function Skeleton() {
 	);
 }
 
-function TransactionsEmpty() {
+function TransactionsEmpty({ filtered }: { filtered: boolean }) {
 	const { openTransactionModal } = useUIStore();
 	const { t } = useI18n();
+
+	// Con i filtri attivi non si offre "aggiungi movimento": il problema non è
+	// che manchino i dati, è che questi filtri non li intercettano.
+	if (filtered) {
+		return (
+			<div className="py-16">
+				<EmptyState
+					title={t.transactions.emptyFilteredTitle}
+					description={t.transactions.emptyFilteredDescription}
+				/>
+			</div>
+		);
+	}
+
 	return (
 		<div className="py-16">
 			<EmptyState
@@ -44,12 +66,12 @@ function TransactionsEmpty() {
 	);
 }
 
-export default function TransactionList({ transactions, loading }: TransactionListProps) {
+export default function TransactionList({ transactions, loading, filtered = false }: TransactionListProps) {
 	const { openEditModal } = useUIStore();
 	const { locale, t } = useI18n();
 
 	if (loading) return <Skeleton />;
-	if (transactions.length === 0) return <TransactionsEmpty />;
+	if (transactions.length === 0) return <TransactionsEmpty filtered={filtered} />;
 
 	const groups = transactions.reduce<Record<string, Transaction[]>>((acc, tx) => {
 		const key = formatDate(tx.date, locale);

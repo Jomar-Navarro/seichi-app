@@ -352,10 +352,9 @@ export const en: Dictionary = {
 		saving: "Saving…",
 
 		archive: "Archive",
-		archiveTitle: "Archive this account?",
+		archiveConfirm: "Confirm archiving",
 		archiveBody:
 			"It disappears from the pickers, but its transactions stay and its history remains readable.",
-		archiveConfirm: "Archive",
 		unarchive: "Reactivate",
 
 		emptyTitle: "No accounts yet",
@@ -395,6 +394,9 @@ export const en: Dictionary = {
 		emptyTitle: "No transactions yet",
 		emptyDescription:
 			"Your income and spending will show up here as soon as you record your first one.",
+		emptyFilteredTitle: "No transactions match these filters",
+		emptyFilteredDescription:
+			"Try widening the period, or picking a different account or type.",
 		addAction: "Add transaction",
 		searchPlaceholder: "Search transactions",
 		filterAll: "All",

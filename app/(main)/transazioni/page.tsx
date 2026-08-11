@@ -88,7 +88,17 @@ export default function MovimentiPage() {
 			/>
 			<div className="mt-5">
 				{budgets && <BudgetCards overview={budgets} />}
-				<TransactionList transactions={filtered} loading={loading} />
+				{/*
+					`periodo` di default è "30d", quindi NON conta come filtro: se
+					contasse, la lista vuota di un utente nuovo direbbe "nessun
+					movimento con questi filtri" invece di invitarlo ad aggiungerne
+					il primo — cioè il difetto opposto.
+				*/}
+				<TransactionList
+					transactions={filtered}
+					loading={loading}
+					filtered={Boolean(tipo || conto || search.trim() || periodo !== "30d")}
+				/>
 			</div>
 		</div>
 	);

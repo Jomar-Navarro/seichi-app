@@ -297,20 +297,32 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 						appartenere a un conto, e il form movimento non avrebbe più
 						niente da proporre.
 					*/}
-					{account && !account.archived && canArchive && (
-						<button
-							onClick={handleArchive}
-							disabled={loading}
-							className="w-full flex items-center justify-center gap-2 py-3 text-[13px] font-medium text-muted disabled:opacity-60"
-						>
-							<Archive size={14} />
-							{confirmArchive ? t.accounts.archiveConfirm : t.accounts.archive}
-						</button>
-					)}
-					{confirmArchive && (
-						<p className="text-[11px] text-disabled -mt-3 text-center leading-relaxed">
-							{t.accounts.archiveBody}
-						</p>
+					{account && !account.archived && (
+						<>
+							{/*
+								⚠️ Sull'ULTIMO conto attivo il bottone resta VISIBILE e
+								disabilitato, non sparisce.
+								Nasconderlo era la prima stesura, ed è la scelta sbagliata:
+								un comando che non c'è è indistinguibile da un comando
+								rotto, e l'utente non ha modo di sapere che esiste una
+								regola. Disabilitato più la ragione scritta sotto dice
+								entrambe le cose — che si può fare, e perché adesso no.
+							*/}
+							<button
+								onClick={handleArchive}
+								disabled={loading || !canArchive}
+								className="w-full flex items-center justify-center gap-2 py-3 text-[13px] font-medium text-muted disabled:opacity-40"
+							>
+								<Archive size={14} />
+								{confirmArchive ? t.accounts.archiveConfirm : t.accounts.archive}
+							</button>
+
+							{(!canArchive || confirmArchive) && (
+								<p className="text-[11px] text-disabled -mt-3 text-center leading-relaxed">
+									{!canArchive ? t.accounts.errors.lastAccount : t.accounts.archiveBody}
+								</p>
+							)}
+						</>
 					)}
 				</div>
 			</div>
