@@ -1361,6 +1361,19 @@ dell'intero archivio a ogni vista della home. Falso — `account_balances` ne fa
 una identica. Il guadagno è qualitativo, non di costo: **stessa scansione, ma
 per numeri che l'utente legge invece che per uno che nessuno mostrava.**
 
+#### La 20a è verificata su tutti i rami (2026-08-11)
+
+Dieci controlli automatici col driver Playwright, zero errori console, più
+quattro prove a mano per i rami che un driver con sessione riusata non può
+raggiungere: **ultimo conto non archiviabile** (serve un utente con un conto
+solo — quello appena registrato), **percorso di login** (il driver lo salta per
+non far transitare la password), **tema scuro** e **lingua inglese**.
+
+⚠️ La prova che vale più delle altre è una sola: **home € 1.540,70 ==
+`/analisi` € 1.540,70**. Prima della correzione differivano di € 480, cioè
+esattamente risparmi + investimenti — e nessun controllo automatico l'avrebbe
+detto, perché entrambi i numeri erano "corretti" secondo il proprio codice.
+
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 
 Il guasto è emerso guardando a occhio una data in `/impostazioni/ricorrenti`: una
