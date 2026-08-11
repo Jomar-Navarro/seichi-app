@@ -1261,6 +1261,46 @@ saldo di un conto, che un target non ce l'ha. Accostarli metteva un *luogo* e un
 - **20b — trasferimenti**: tipo `trasferimento`, `to_account_id` e i quattro
   CHECK, destinazione su `risparmio`/`investimento`, form e resa nella lista.
 
+#### Il collaudo dello schema — `20260814_accounts.sql` eseguita il 2026-08-10
+
+Migration **eseguita e verificata**. Otto controlli strutturali (utenti/righe
+senza conto, quattro policy su `accounts`, zero policy con `auth.uid()` nudo,
+`security_invoker` sulla vista, **una sola** firma di `dashboard_totals`, due FK
+`NO ACTION`) più quattro prove di comportamento:
+
+| prova | esito |
+|---|---|
+| cancellare un conto con movimenti | `23503 … violates foreign key constraint` — **fallimento atteso** |
+| chiamare la vecchia `dashboard_totals(timestamptz[])` | `42883 … does not exist` — **fallimento atteso** |
+| `account_balances` come `authenticated` senza JWT | **0 righe** |
+| job con tre regole scadute | `saltate: 0`, `transazioni 20 → 23` |
+
+⚠️ **Le prime due sono le uniche che dimostrino qualcosa**, ed è la regola già
+scritta per la #47: *un registro di guasti non è collaudato finché non ha
+registrato un guasto*. Solo righe verdi non distinguono "funziona" da "non ha
+guardato".
+
+⚠️ **La prova RLS va eseguita cambiando ruolo**, con `set local role
+authenticated` dentro un blocco, non dal ruolo `postgres` del SQL Editor: quello
+ha `BYPASSRLS` e restituisce tutte le righe **anche se `security_invoker`
+mancasse**. Al primo tentativo è stata letta come superata mentre non aveva
+testato nulla.
+
+⚠️ **La prova del job dimostra la copia di `account_id` solo leggendo tre numeri
+insieme.** `transactions.account_id` è NOT NULL: se la funzione non copiasse
+`r.account_id`, ogni insert verrebbe rifiutato, il gestore per-regola della #47
+lo catturerebbe, e il risultato sarebbe `saltate: 3` con `delta 0`. Un
+`saltate: 0` da solo è compatibile con "nessuna regola è stata elaborata" — che è
+esattamente com'era andato il primo tentativo.
+
+⚠️ **E il primo tentativo era rotto per `now()` contro `clock_timestamp()`.**
+Contava le righe generate con `created_at >= clock_timestamp()` letto a inizio
+blocco; ma `created_at` ha default `now()`, che è `transaction_timestamp()` —
+**congelato per tutta la transazione**, quindi *precedente* a un
+`clock_timestamp()` valutato qualche istruzione dopo. Le righe appena scritte
+risultavano vecchie e il conteggio dava zero. Contare le righe prima e dopo non
+dipende da alcun orologio, e per questo è la forma giusta.
+
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 
 Il guasto è emerso guardando a occhio una data in `/impostazioni/ricorrenti`: una
