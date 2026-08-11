@@ -1301,6 +1301,66 @@ blocco; ma `created_at` ha default `now()`, che è `transaction_timestamp()` —
 risultavano vecchie e il conteggio dava zero. Contare le righe prima e dopo non
 dipende da alcun orologio, e per questo è la forma giusta.
 
+#### Emerso dal code-review della 20a (2026-08-11)
+
+Quindici rilievi, quattordici applicati. I quattro che valgono una regola:
+
+- ⚠️⚠️ **La 20a ha RICREATO ALTROVE il difetto che esisteva per chiudere.**
+  `saldoTotale` è stato cancellato dalla home perché due schermate non possono
+  rispondere diversamente a "quanto ho". Ma `/analisi` mostrava — e mostra
+  ancora — un KPI etichettato **"Flusso netto"**, la stessa parola, calcolato
+  come `entrate − (tutto ciò che non è entrata)`: quindi sottraeva anche
+  risparmi e investimenti. Home € 1.540,70, `/analisi` € 1.060,70 per lo stesso
+  mese, e il collegamento "Analisi" sta **due righe sotto la card**.
+
+  **La lezione: togliere un'affermazione da una schermata non basta se un'altra
+  la ripete.** Prima di cambiare che cosa significa una parola va cercata
+  *ovunque compaia*, non solo dove la si sta cambiando. La definizione ora vive
+  in `sommaUscite()` (`app/(main)/action.ts`), condivisa da KPI, variazione e
+  grafico mensile: tre `filter` scritti a mano erano tre occasioni di
+  divergere, e infatti divergevano già fra loro.
+
+- ⚠️ **Un gate autorizza l'ingresso, e presuppone invarianti che nessuno gli ha
+  detto.** `profiles.currency` è il flag dell'onboarding e viene scritto a
+  `/preference`; il primo conto nasceva a `/category`, un passo dopo. Chi
+  abbandonava in mezzo entrava nell'app **senza conti**, e con
+  `transactions.account_id` NOT NULL il bottone di salvataggio restava spento
+  per sempre, senza un messaggio. Il conto ora si crea in `savePreferences`,
+  *prima* dell'upsert che apre il cancello: **l'invariante va stabilita dove il
+  gate scatta, non dove sarebbe comodo scriverla.**
+
+- ⚠️ **Correggere un numero può rendere FALSA l'etichetta che lo descriveva.**
+  La legenda del grafico di `/analisi` diceva "Uscite totali", vero finché la
+  serie conteneva tutto. Rendendo il calcolo più corretto — via risparmi e
+  investimenti — quella parola è diventata una bugia: la stessa di "spese
+  totali" nella 17a, prodotta questa volta *da un miglioramento*. Ora è
+  "Uscite". Quando cambia una formula va riletto il testo che le sta accanto.
+
+- ⚠️ **Il collaudo va fatto nella lingua in cui il difetto è VISIBILE, che non
+  è quella di default.** Il primo conto prende il nome da un dizionario, e in
+  `savePreferences` il `t` di `requireUser()` viene dal cookie **precedente** —
+  `setLocaleCookie` non è ancora stato chiamato. In italiano il difetto è
+  invisibile (vecchio e nuovo danno entrambi "Conto principale"); solo
+  registrandosi in inglese si vede la differenza fra "Conto principale" e "Main
+  account". Verificato così il 2026-08-11: `dictionaryFor(locale)` risolve.
+  È il gemello della regola della Fase 19 — *una regressione che si vede solo
+  nella lingua di default* — con i ruoli invertiti.
+
+Il resto: guardia mancante sulla `20260810` (la regola dell'autosufficienza
+vale anche per i file che si superano); chip del selettore che mentiva su un
+conto archiviato mentre restava selezionato; `?conto=abc` che sostituiva
+l'intera home con "Errore"; conto archiviato che spariva dal form di un
+movimento esistente; tipo "corrente" assegnato in silenzio a un conto che non
+ne aveva; "Risparmi · N%" con importo filtrato e percentuale globale;
+`reactivate()` che ingoiava l'errore; `updateAccount` che azzerava `icon`; otto
+voci di dizionario mai usate.
+
+⚠️ **E una sopravvalutazione corretta nella migration**: il commento della
+sezione 8 diceva che togliere il bucket `null` eliminava la scansione
+dell'intero archivio a ogni vista della home. Falso — `account_balances` ne fa
+una identica. Il guadagno è qualitativo, non di costo: **stessa scansione, ma
+per numeri che l'utente legge invece che per uno che nessuno mostrava.**
+
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 
 Il guasto è emerso guardando a occhio una data in `/impostazioni/ricorrenti`: una
