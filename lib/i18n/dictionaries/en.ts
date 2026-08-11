@@ -466,7 +466,7 @@ export const en: Dictionary = {
 			anno: "Year",
 		},
 		legendIncome: "Income",
-		legendExpenses: "Total spending",
+		legendExpenses: "Money out",
 		spendingByCategory: "Spending by category",
 		noSpending: "No spending {window}",
 		windows: {

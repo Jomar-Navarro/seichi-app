@@ -668,7 +668,18 @@ export const it = {
 			anno: "Anno",
 		},
 		legendIncome: "Entrate",
-		legendExpenses: "Uscite totali",
+		/**
+		 * ⚠️ "Uscite", NON "Uscite totali".
+		 *
+		 * La serie contiene `spesa` + `abbonamento`, non tutto ciò che non è
+		 * entrata: risparmi e investimenti ne sono fuori, perché con i conti quel
+		 * denaro è spostato, non speso (Fase 20a). "Totali" era vero prima di
+		 * quella correzione e falso dopo — la stessa parola di troppo di "spese
+		 * totali" nella 17a, prodotta questa volta *rendendo il calcolo più
+		 * corretto*: correggere un numero può rendere falsa l'etichetta che lo
+		 * descriveva.
+		 */
+		legendExpenses: "Uscite",
 		spendingByCategory: "Spese per categoria",
 		/** Stato vuoto del donut: "Nessuna spesa questo mese". */
 		noSpending: "Nessuna spesa {window}",
