@@ -61,8 +61,9 @@ export default function HomeHero({
 	function goTo(i: number) {
 		const el = trackRef.current;
 		if (!el) return;
-		// Si misura il figlio invece di moltiplicare per la larghezza: col `gap`
-		// fra le pagine il punto di aggancio non è più un multiplo esatto.
+		// Si misura il figlio invece di moltiplicare per la larghezza: oggi le due
+		// coincidono, ma basterebbe un `gap` o una pagina di larghezza diversa per
+		// far divergere il calcolo aritmetico dalla posizione reale.
 		const child = el.children[i] as HTMLElement | undefined;
 		el.scrollTo({ left: child?.offsetLeft ?? i * el.clientWidth, behavior: "smooth" });
 	}
@@ -70,23 +71,30 @@ export default function HomeHero({
 	return (
 		<div>
 			{/*
-				⚠️ `py-4 -my-4` e `px-5 -mx-5` non sono spaziatura: sono **spazio per
-				l'ombra**.
+				⚠️ Il contenitore va A TUTTA LARGHEZZA e il padding sta sulle PAGINE,
+				non viceversa. Sono due difetti diversi risolti dalla stessa mossa.
 
-				`overflow-x-auto` RITAGLIA il `box-shadow`, che per definizione sborda
-				dal riquadro dell'elemento — e per specifica CSS se un asse non è
-				`visible` non può esserlo nemmeno l'altro, quindi il taglio avviene su
-				tutti e quattro i lati. Il risultato è una card che sembra piatta pur
-				avendo esattamente le stesse classi di prima: non ha perso l'ombra, ha
-				perso lo spazio dove disegnarla. Il padding lo restituisce e il margine
-				negativo riallinea il contenitore al resto della pagina.
+				1. `overflow-x-auto` ritaglia il `box-shadow`, che per definizione
+				   sborda dal riquadro — e per specifica CSS se un asse non è
+				   `visible` non lo è nemmeno l'altro, quindi il taglio avviene su
+				   tutti e quattro i lati. `card-shadow` è `0 8px 24px`: si estende
+				   **32px sotto**, 16 sopra, 24 ai lati. Da qui `pt-4 pb-8` (16 e 32)
+				   con i margini negativi che riallineano.
+				2. Col padding sul CONTENITORE ogni pagina era più stretta della vista,
+				   quindi si vedeva sbucare la card successiva e il bordo sembrava
+				   comunque tagliato. Ora la pagina è larga quanto la vista e il
+				   respiro laterale lo dà `px-5` su di essa — gli stessi 20px del
+				   resto della home, così la card è allineata alle quattro sotto.
+
+				`-mx-5` porta il contenitore ai bordi dello schermo: è il padding
+				della pagina, restituito alle pagine del carosello.
 			*/}
 			<div
 				ref={trackRef}
 				onScroll={onScroll}
-				className="flex gap-4 overflow-x-auto py-4 -my-4 px-5 -mx-5 snap-x snap-mandatory scrollbar-none"
+				className="flex overflow-x-auto -mx-5 pt-4 -mt-4 pb-8 -mb-8 snap-x snap-mandatory scrollbar-none"
 			>
-				<div className="snap-center shrink-0 w-full">
+				<div className="snap-center shrink-0 w-full px-5">
 					<FlowCard
 						flussoMese={flussoMese}
 						monthLabel={monthLabel}
@@ -94,7 +102,7 @@ export default function HomeHero({
 						onToggleHidden={() => setHidden((h) => !h)}
 					/>
 				</div>
-				<div className="snap-center shrink-0 w-full">
+				<div className="snap-center shrink-0 w-full px-5">
 					<AccountsBalanceCard
 						accounts={accounts}
 						selectedId={selectedId}
@@ -109,7 +117,7 @@ export default function HomeHero({
 				comandi, non solo indicatori — su desktop non c'è lo swipe, e un
 				carosello senza modo di girarlo col mouse nasconde metà del contenuto.
 			*/}
-			<div className="flex items-center justify-center gap-1.5 mt-2.5">
+			<div className="flex items-center justify-center gap-1.5 mt-3">
 				{[0, 1].map((i) => (
 					<button
 						key={i}

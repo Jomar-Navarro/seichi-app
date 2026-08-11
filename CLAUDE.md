@@ -1100,6 +1100,68 @@ rifatta a ogni vista della home. Togliendo il numero il bucket diventa morto e v
 rimosso nella stessa migration che tocca la funzione, o resta una scansione
 dell'intero storico per un valore che nessuno mostra.
 
+#### ⚠️ …e il saldo TORNA in home, in un carosello — deciso il 2026-08-11
+
+La sezione qui sopra dice che la home perde la giacenza. **Non è più vero, e la
+distinzione è precisa**: quello che è stato cancellato è `saldoTotale`, che dava
+un numero **diverso** da `/conti`; quello che torna è la **somma dei saldi**,
+cioè lo stesso identico numero, dalla stessa vista `account_balances`.
+
+**La regola fissata dalla fase vieta la CONTRADDIZIONE, non la ripetizione.**
+Due schermate non possono rispondere *diversamente* a "quanto ho". Rispondere
+allo stesso modo è un'altra cosa — e affiancare i due numeri, ciascuno con la
+propria spiegazione, è il modo più diretto di insegnare la differenza fra ciò
+che si è *mosso* e ciò che *c'è*. Erano già dovute convivere in due pagine
+diverse; il carosello le mette a confronto invece di sperare che l'utente le
+colleghi da sé.
+
+⚠️ **Va registrato che il primo tentativo era un'applicazione TROPPO LARGA della
+regola.** Aggiungendo la riga "Saldo · € …" sotto il selettore l'avevo mostrata
+solo con un conto singolo, motivando che "mostrarla su tutti i conti rimetterebbe
+in home il numero che la fase ha tolto". Sbagliato: confondeva *un numero
+sbagliato che contraddice* con *il numero giusto che concorda*. Una regola
+applicata senza rileggere il motivo per cui esiste diventa superstizione.
+
+Le decisioni del carosello:
+
+- **"Saldo · N conti attivi"**, mai "Saldo totale" — il mockup scriveva la
+  seconda, e sarebbe stata la parola falsa di sempre: gli archiviati restano
+  fuori. Stesso titolo della pagina conti, o lo stesso numero avrebbe due nomi.
+- **Con un conto selezionato la card mostra il saldo di QUEL conto**, non il
+  totale. Le due pagine devono parlare dello stesso insieme, o sarebbe un flusso
+  filtrato accanto a una giacenza globale — il difetto già corretto su
+  "Risparmi · N%".
+- ⚠️ **L'importo del saldo è NEUTRO** (`--color-yoru`), non verde come il flusso,
+  e il mockup ha ragione. Un flusso è positivo o negativo — hai guadagnato o
+  speso; **una giacenza semplicemente è**. Colorarla direbbe che avere 800 € è
+  "buono" e un conto in rosso un fallimento: affermazioni che la card non ha
+  titolo per fare.
+- **Lo stato dell'occhio sta in `HomeHero`**, non nelle card: restando in
+  `FlowCard` si poteva nascondere il flusso lasciando il saldo accanto in chiaro,
+  cioè non nascondere niente.
+- **Il link "i saldi reali sono nella pagina conti" è sparito dalla FlowCard.**
+  Mandava per la strada lunga a una cosa distante uno swipe, ed era diventato
+  incompleto al punto di sviare. La riga di spiegazione ne ha preso il posto e
+  ora fa due lavori: dice cosa il numero **non** è *e* insegna che si scorre —
+  che è il difetto tipico dei caroselli, metà del contenuto invisibile a chi non
+  sa del gesto.
+
+⚠️ **Due trappole di CSS, entrambe scoperte guardando lo schermo:**
+
+- **`overflow-x-auto` RITAGLIA il `box-shadow`.** Per specifica, se un asse non è
+  `visible` non lo è nemmeno l'altro: il taglio avviene su tutti e quattro i
+  lati, e la card sembra piatta pur avendo le stesse classi di prima. Non ha
+  perso l'ombra, ha perso lo spazio dove disegnarla. `card-shadow` è
+  `0 8px 24px`, quindi si estende **32px sotto**, 16 sopra e 24 ai lati: il
+  padding va dimensionato leggendo la definizione, non a occhio — il primo
+  tentativo con `py-4` dava metà dello spazio necessario proprio sotto, dove
+  quell'ombra si vede di più.
+- **Il padding va sulle PAGINE, non sul contenitore.** Messo sul track, ogni
+  pagina risultava più stretta della vista: si vedeva sbucare la card successiva
+  e il bordo sembrava tagliato comunque. Il contenitore va a tutta larghezza
+  (`-mx-5`, fino ai bordi dello schermo) e sono le pagine a portare `px-5`, gli
+  stessi 20px del resto della home — così la card è allineata alle quattro sotto.
+
 #### ⚠️ `accounts.type` è DECORATIVO, mai semantico — deciso il 2026-08-10
 
 La domanda che l'ha sollevato: un conto "Portafoglio investimenti" **collide con
