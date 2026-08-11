@@ -39,6 +39,7 @@ export const en: Dictionary = {
 		unknownError: "Unknown error",
 		required: "This field is required",
 		selectPlaceholder: "Select {field}",
+		toggleVisibility: "Show or hide amounts",
 	},
 
 	nav: {
@@ -208,6 +209,7 @@ export const en: Dictionary = {
 	},
 
 	onboarding: {
+		firstAccountName: "Main account",
 		start: {
 			eyebrow: "Welcome",
 			heading: "Let's start calmly.",
@@ -286,8 +288,8 @@ export const en: Dictionary = {
 	home: {
 		greeting: "Welcome back",
 		error: "Something went wrong",
-		balanceTotal: "Total balance",
-		balanceThisMonth: "this month",
+		flowTitle: "Flow",
+		flowExplain: "money in minus money out this month — swipe for your balances →",
 		cards: {
 			income: "Income",
 			expenses: "Spending",
@@ -301,6 +303,69 @@ export const en: Dictionary = {
 		seeAll: "See all →",
 		emptyTitle: "No transactions yet",
 		emptyDescription: "Add your first one to get started.",
+	},
+
+	accounts: {
+		title: "Accounts",
+		loadError: "Could not load your accounts.",
+
+		all: "All accounts",
+		manage: "Manage accounts",
+
+		balanceHeading: "Balance",
+		activeCount: { one: "{n} active account", other: "{n} active accounts" },
+		balanceExplainAll: "the sum of your active accounts — archived ones stay out",
+		balanceExplainOne: "what this account holds right now",
+		seeDetail: "See your accounts in detail",
+
+		archivedSection: { one: "Archived · {n}", other: "Archived · {n}" },
+		archivedNote: "archived · not counted in the balance",
+		reactivate: "reactivate",
+
+		types: {
+			corrente: "Current",
+			contanti: "Cash",
+			risparmio: "Savings",
+			investimento: "Investment",
+		},
+		typeless: "Account",
+
+		newTitle: "New account",
+		editTitle: "Edit account",
+		name: "Account name",
+		namePlaceholder: "e.g. Current account, Cash…",
+		color: "Colour",
+		colors: {
+			blue: "Blue",
+			green: "Green",
+			gold: "Gold",
+			purple: "Purple",
+			red: "Red",
+		},
+		type: "Type",
+		initialBalance: "Opening balance",
+		initialBalanceHint:
+			"Where this account starts — it is never counted as income or spending.",
+		initialBalanceEditHint:
+			"Changing it moves the balance; it creates no income and no spending.",
+		save: "Save account",
+		saving: "Saving…",
+
+		archive: "Archive",
+		archiveConfirm: "Confirm archiving",
+		archiveBody:
+			"It disappears from the pickers, but its transactions stay and its history remains readable.",
+
+		emptyTitle: "No accounts yet",
+		emptyDescription: "Add an account to know where your money actually is.",
+
+		errors: {
+			nameRequired: "Give the account a name.",
+			nameTooLong: "The name can be at most 50 characters.",
+			notFound: "Account not found.",
+			lastAccount:
+				"This is your only active account, and every transaction has to belong to one.",
+		},
 	},
 
 	transactions: {
@@ -326,6 +391,9 @@ export const en: Dictionary = {
 		emptyTitle: "No transactions yet",
 		emptyDescription:
 			"Your income and spending will show up here as soon as you record your first one.",
+		emptyFilteredTitle: "No transactions match these filters",
+		emptyFilteredDescription:
+			"Try widening the period, or picking a different account or type.",
 		addAction: "Add transaction",
 		searchPlaceholder: "Search transactions",
 		filterAll: "All",
@@ -400,7 +468,7 @@ export const en: Dictionary = {
 			anno: "Year",
 		},
 		legendIncome: "Income",
-		legendExpenses: "Total spending",
+		legendExpenses: "Money out",
 		spendingByCategory: "Spending by category",
 		noSpending: "No spending {window}",
 		windows: {

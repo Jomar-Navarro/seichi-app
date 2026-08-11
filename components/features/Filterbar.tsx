@@ -1,16 +1,20 @@
 "use client";
 import { Search, ChevronDown, Check } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
-import { TRANSACTION_TYPES } from "@/types";
+import { TRANSACTION_TYPES, type Account } from "@/types";
 import { useI18n } from "./I18nProvider";
 
 interface FilterBarProps {
 	search: string;
 	tipo: string;
 	periodo: string;
+	/** "" = tutti i conti. Vuoto anche quando l'utente ne ha uno solo (vedi sotto). */
+	conto: string;
+	accounts: Account[];
 	onSearchChange: (v: string) => void;
 	onTipoChange: (v: string) => void;
 	onPeriodoChange: (v: string) => void;
+	onContoChange: (v: string) => void;
 }
 
 /**
@@ -22,9 +26,19 @@ interface FilterBarProps {
  */
 const PERIOD_IDS = ["7d", "30d", "3m", "tutto"] as const;
 
-export default function FilterBar({ search, tipo, periodo, onSearchChange, onTipoChange, onPeriodoChange }: FilterBarProps) {
+export default function FilterBar({
+	search,
+	tipo,
+	periodo,
+	conto,
+	accounts,
+	onSearchChange,
+	onTipoChange,
+	onPeriodoChange,
+	onContoChange,
+}: FilterBarProps) {
 	const { t } = useI18n();
-	const [open, setOpen] = useState<"periodo" | "tipo" | null>(null);
+	const [open, setOpen] = useState<"periodo" | "tipo" | "conto" | null>(null);
 	const ref = useRef<HTMLDivElement>(null);
 
 	const tipoOptions = [
@@ -48,7 +62,13 @@ export default function FilterBar({ search, tipo, periodo, onSearchChange, onTip
 		return () => document.removeEventListener("pointerdown", handleClick);
 	}, []);
 
+	const contoOptions = [
+		{ value: "", label: t.accounts.all },
+		...accounts.map((a) => ({ value: a.id, label: a.name })),
+	];
+
 	const tipoLabel = tipoOptions.find((o) => o.value === tipo)?.label ?? t.transactions.filterAll;
+	const contoLabel = contoOptions.find((o) => o.value === conto)?.label ?? t.accounts.all;
 	const periodoLabel = periodoOptions.find((o) => o.value === periodo)?.label ?? t.transactions.periods["30d"];
 
 	return (
@@ -116,6 +136,38 @@ export default function FilterBar({ search, tipo, periodo, onSearchChange, onTip
 						</div>
 					)}
 				</div>
+
+				{/*
+					Conto — compare solo con più di un conto. Con uno solo il filtro
+					avrebbe una sola scelta oltre a "tutti", cioè un comando che non
+					può cambiare niente: sarebbe rumore per la stragrande maggioranza
+					degli utenti, che di conti ne hanno uno.
+				*/}
+				{accounts.length > 1 && (
+					<div className="relative">
+						<button
+							onClick={() => setOpen(open === "conto" ? null : "conto")}
+							className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-card border border-subtle text-sm font-medium"
+						>
+							{contoLabel}
+							<ChevronDown size={13} className={`text-muted transition-transform ${open === "conto" ? "rotate-180" : ""}`} />
+						</button>
+						{open === "conto" && (
+							<div className="absolute top-full mt-1.5 right-0 z-20 min-w-44 rounded-2xl bg-deep border border-subtle overflow-hidden card-shadow">
+								{contoOptions.map((opt) => (
+									<button
+										key={opt.value}
+										onClick={() => { onContoChange(opt.value); setOpen(null); }}
+										className="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-sm hover:bg-card"
+									>
+										<span className="truncate">{opt.label}</span>
+										{conto === opt.value && <Check size={13} className="text-midori shrink-0" />}
+									</button>
+								))}
+							</div>
+						)}
+					</div>
+				)}
 
 			</div>
 		</div>

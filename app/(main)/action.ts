@@ -6,16 +6,53 @@ import { requireUser } from "@/lib/auth";
 import { firstRunFrom, rollForwardPastToday } from "@/lib/recurring";
 import type { Frequency } from "@/types";
 
+/**
+ * Il conto indicato appartiene davvero a chi scrive?
+ *
+ * ⚠️ Serve, e la RLS da sola NON lo copre. Le policy di `transactions` filtrano
+ * su `user_id = auth.uid()`, e `user_id` lo scrive il server: una richiesta
+ * costruita a mano con l'`account_id` di un altro utente passerebbe la RLS,
+ * perché nessuna policy guarda quella colonna. Il danno è modesto — la riga
+ * resterebbe invisibile nel saldo altrui, che legge attraverso la propria RLS —
+ * ma è uno stato incoerente che il database oggi permette.
+ *
+ * ⚠️ Il controllo giusto sarebbe una FK COMPOSITA `(account_id, user_id) →
+ * accounts (id, user_id)`, che renderebbe lo stato illegale irrappresentabile
+ * invece di vietato per attenzione di chi scrive. Non è nella `20260814`: va
+ * aggiunta con una migration dedicata (vedi la nota consegnata con questa fase).
+ * Fino ad allora, questa funzione è l'unica difesa.
+ */
+async function assertOwnAccount(
+	supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
+	userId: string,
+	accountId: string,
+) {
+	const { data, error } = await supabase
+		.from("accounts")
+		.select("id")
+		.eq("id", accountId)
+		.eq("user_id", userId)
+		.maybeSingle();
+
+	if (error) return { error: error.message };
+	if (!data) return { error: "account_not_found" as const };
+	return { ok: true as const };
+}
+
 export async function saveTransaction(
 	importo: number,
 	tipo: string,
 	categoria_id: string | null,
 	nota: string | null,
 	data: string,
+	conto_id: string,
 ) {
 	const { supabase, user, t } = await requireUser();
 
 	if (!user) return { error: t.errors.notAuthenticated };
+
+	const owned = await assertOwnAccount(supabase, user.id, conto_id);
+	if ("error" in owned) return { error: t.accounts.errors.notFound };
 
 	const { error } = await supabase.from("transactions").insert({
 		user_id: user.id,
@@ -24,6 +61,7 @@ export async function saveTransaction(
 		category_id: categoria_id,
 		notes: nota,
 		date: data,
+		account_id: conto_id,
 	});
 
 	if (error) return { error: error.message };
@@ -35,6 +73,7 @@ export async function getTransactions(
 	tipo?: string,
 	periodo?: string,
 	limit?: number,
+	conto?: string,
 ) {
 	const { supabase, user, t } = await requireUser();
 
@@ -47,6 +86,17 @@ export async function getTransactions(
 		.order("date", { ascending: false });
 
 	if (tipo) query = query.eq("type", tipo);
+
+	/*
+	 * ⚠️ Il filtro agisce su `account_id`, cioè l'ORIGINE del movimento.
+	 *
+	 * Non è una scelta di comodo: un `risparmio` fatto dal conto corrente verso
+	 * il Fondo è un atto compiuto DAL corrente, e chi filtra "conto corrente" si
+	 * aspetta di vederlo. Quando la 20b introdurrà `to_account_id` la domanda si
+	 * riaprirà — un trasferimento appartiene a due conti — e la risposta dovrà
+	 * essere decisa allora, non ereditata da qui per inerzia.
+	 */
+	if (conto) query = query.eq("account_id", conto);
 
 	if (periodo && periodo !== "tutto") {
 		const from = new Date();
@@ -70,10 +120,14 @@ export async function updateTransaction(
 	categoria_id: string | null,
 	nota: string | null,
 	data: string,
+	conto_id: string,
 ) {
 	const { supabase, user, t } = await requireUser();
 
 	if (!user) return { error: t.errors.notAuthenticated };
+
+	const owned = await assertOwnAccount(supabase, user.id, conto_id);
+	if ("error" in owned) return { error: t.accounts.errors.notFound };
 
 	const { error } = await supabase
 		.from("transactions")
@@ -83,6 +137,7 @@ export async function updateTransaction(
 			category_id: categoria_id,
 			notes: nota,
 			date: data,
+			account_id: conto_id,
 		})
 		.eq("id", id)
 		.eq("user_id", user.id);
@@ -117,10 +172,14 @@ export async function createRecurringRule(
 	nota: string | null,
 	start_date: string, // YYYY-MM-DD
 	frequency: string,
+	conto_id: string,
 ) {
 	const { supabase, user, t } = await requireUser();
 
 	if (!user) return { error: t.errors.notAuthenticated };
+
+	const owned = await assertOwnAccount(supabase, user.id, conto_id);
+	if ("error" in owned) return { error: t.accounts.errors.notFound };
 
 	const { error } = await supabase.from("recurring_rules").insert({
 		user_id: user.id,
@@ -130,6 +189,12 @@ export async function createRecurringRule(
 		notes: nota,
 		frequency,
 		start_date,
+		// ⚠️ Il conto viaggia sulla REGOLA, e `generate_recurring_transactions()`
+		// lo copia sulla transazione generata. Senza, il job notturno
+		// violerebbe il NOT NULL e la regola verrebbe saltata in silenzio —
+		// per-utente, grazie all'isolamento della #47, ma comunque senza
+		// che nessuno se ne accorga finché non guarda `job_runs`.
+		account_id: conto_id,
 		// La generazione parte al più da oggi: evita il burst di movimenti
 		// retroattivi se start_date è nel passato.
 		next_run: firstRunFrom(start_date),
@@ -240,7 +305,34 @@ export async function setRecurringActive(id: string, active: boolean) {
 	return { success: true };
 }
 
-export async function getDashboardTotals() {
+/**
+ * Che cosa conta come USCITA, in un posto solo.
+ *
+ * ⚠️ `spesa` e `abbonamento`, non "tutto ciò che non è entrata".
+ *
+ * Prima `/analisi` sommava come uscita ogni tipo diverso da `entrata`, quindi
+ * anche `risparmio` e `investimento`. Con i conti quel denaro è ancora tuo —
+ * solo altrove — e contarlo come uscita lo fa sembrare speso: è la premessa
+ * dell'intera Fase 20a, quella per cui `saldoTotale` è stato cancellato.
+ *
+ * ⚠️ Il difetto era invisibile finché la home non ha cambiato formula: da quel
+ * momento la home diceva "Flusso · agosto € 1.540" e `/analisi` — raggiungibile
+ * col collegamento due righe più sotto, e con l'etichetta **"Flusso netto"**,
+ * la stessa parola — ne diceva un altro per lo stesso mese. Due schermate, due
+ * risposte: esattamente ciò che la fase esisteva per chiudere, ricreato togliendo
+ * il numero da una schermata sola.
+ *
+ * Sta qui, come funzione condivisa, perché la definizione di "uscita" non può
+ * vivere in tre `filter` scritti a mano: il KPI, la variazione e il grafico
+ * mensile devono muoversi insieme o la pagina si contraddice da sé.
+ */
+function sommaUscite(rows: { type: string; amount: number }[]) {
+	return rows
+		.filter((t) => t.type === "spesa" || t.type === "abbonamento")
+		.reduce((acc, t) => acc + t.amount, 0);
+}
+
+export async function getDashboardTotals(accountId?: string | null) {
 	const { supabase, user, t } = await requireUser();
 
 	if (!user) return { error: t.errors.notAuthenticated };
@@ -270,7 +362,17 @@ export async function getDashboardTotals() {
 		new Date(now.getFullYear(), now.getMonth() - (TREND_MONTHS - 1) + i, 1).toISOString(),
 	);
 
-	const { data, error } = await supabase.rpc("dashboard_totals", { p_bounds: bounds });
+	/*
+	 * ⚠️ `p_account_id` è OBBLIGATORIO nella firma SQL, anche quando è null.
+	 * La funzione non ha un valore di default apposta (migration 20260814): con
+	 * uno, un chiamante non aggiornato avrebbe continuato a girare leggendo un
+	 * risultato dal significato cambiato invece di fallire. Qui `?? null` rende
+	 * esplicito che "nessun filtro" è un valore, non un'omissione.
+	 */
+	const { data, error } = await supabase.rpc("dashboard_totals", {
+		p_bounds: bounds,
+		p_account_id: accountId ?? null,
+	});
 
 	if (error) return { error: error.message };
 
@@ -279,7 +381,7 @@ export async function getDashboardTotals() {
 
 	// `numeric` può arrivare come stringa a seconda di come PostgREST serializza:
 	// `Number()` al confine, una volta, invece di sperare che sia già un numero.
-	const somma = (bucket: number | null, tipo: string) =>
+	const somma = (bucket: number, tipo: string) =>
 		Number(totals.find((r) => r.bucket_index === bucket && r.type === tipo)?.total ?? 0);
 
 	const entrateMese = somma(MESE_CORRENTE, "entrata");
@@ -288,15 +390,30 @@ export async function getDashboardTotals() {
 	const risparmiMese = somma(MESE_CORRENTE, "risparmio");
 	const abbonaMese = somma(MESE_CORRENTE, "abbonamento");
 
-	const saldoMese = entrateMese - speseMese - risparmiMese - investimentiMese - abbonaMese;
-
-	// bucket NULL = nessuna finestra, cioè tutta la storia dell'account.
-	const saldoTotale =
-		somma(null, "entrata") -
-		somma(null, "spesa") -
-		somma(null, "risparmio") -
-		somma(null, "investimento") -
-		somma(null, "abbonamento");
+	/*
+	 * FLUSSO del mese = entrate − uscite reali. Non è la vecchia `saldoMese`, e
+	 * le due sottrazioni che sono cambiate hanno ragioni opposte (Fase 20a):
+	 *
+	 *   · risparmi e investimenti NON si sottraggono più. Con i conti quel
+	 *     denaro è ancora tuo, solo altrove: investire e risparmiare non è
+	 *     consumare, è SPOSTARE. Sottrarlo lo farebbe sembrare speso, cioè
+	 *     negherebbe la premessa dell'intera fase.
+	 *   · ⚠️ gli abbonamenti SÌ, ed è la correzione al mockup. `abbonaMese` non
+	 *     ha una card in home: senza questa sottrazione l'affitto sarebbe
+	 *     invisibile E non conteggiato, e il numero direbbe "ti resta X" mentre
+	 *     deve ancora uscire. È la trappola della 17a — "spese variabili", mai
+	 *     "spese totali". Per lo stesso motivo il sottotitolo dice "uscite" e
+	 *     non "spese": gli abbonamenti sono un tipo a sé nella tassonomia.
+	 *
+	 * ⚠️ `saldoTotale` è SPARITO, non rinominato. Era entrate meno tutto il resto
+	 * su tutta la storia, e con i conti entrava in contraddizione con la pagina
+	 * conti, che alla stessa domanda ("quanto ho") risponde con la somma dei
+	 * saldi — diversa, perché sottraeva i risparmi e ignorava `initial_balance`.
+	 * Due schermate con due risposte sono la configurazione peggiore, quindi la
+	 * 20a ne toglie una. Con lui è sparito il bucket `null` della RPC, di cui era
+	 * l'unico consumatore.
+	 */
+	const flussoMese = entrateMese - speseMese - abbonaMese;
 
 	// Trend ultimi 6 mesi per sparkline
 	function monthlyTrend(tipo: string): number[] {
@@ -309,8 +426,7 @@ export async function getDashboardTotals() {
 		investimentiMese,
 		risparmiMese,
 		abbonaMese,
-		saldoMese,
-		saldoTotale,
+		flussoMese,
 		entrateTrend: monthlyTrend("entrata"),
 		speseTrend: monthlyTrend("spesa"),
 		investimentiTrend: monthlyTrend("investimento"),
@@ -423,7 +539,7 @@ export async function getAnalyticsData(periodo: string = "mese") {
 		return {
 			mese: label,
 			entrate: pts.filter((t) => t.type === "entrata").reduce((acc, t) => acc + t.amount, 0),
-			uscite: pts.filter((t) => t.type !== "entrata").reduce((acc, t) => acc + t.amount, 0),
+			uscite: sommaUscite(pts),
 		};
 	});
 
@@ -433,7 +549,7 @@ export async function getAnalyticsData(periodo: string = "mese") {
 		return d >= rangeStart && d < rangeEnd;
 	}) ?? [];
 	const entrateCorrente = currentData.filter((t) => t.type === "entrata").reduce((acc, t) => acc + t.amount, 0);
-	const usciteCorrente = currentData.filter((t) => t.type !== "entrata").reduce((acc, t) => acc + t.amount, 0);
+	const usciteCorrente = sommaUscite(currentData);
 	const saldoMese = entrateCorrente - usciteCorrente;
 
 	// Variazione vs periodo precedente
@@ -442,7 +558,7 @@ export async function getAnalyticsData(periodo: string = "mese") {
 		return d >= prevStart && d < prevEnd;
 	}) ?? [];
 	const entratePrev = prevData.filter((t) => t.type === "entrata").reduce((acc, t) => acc + t.amount, 0);
-	const uscitePrev = prevData.filter((t) => t.type !== "entrata").reduce((acc, t) => acc + t.amount, 0);
+	const uscitePrev = sommaUscite(prevData);
 	const saldoPrecedente = entratePrev - uscitePrev;
 	const variazionePct = saldoPrecedente !== 0
 		? Math.round(((saldoMese - saldoPrecedente) / Math.abs(saldoPrecedente)) * 100)

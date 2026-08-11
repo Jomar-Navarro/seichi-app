@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { getTransactions } from "@/app/(main)/action";
+import { getAccounts } from "@/app/(main)/conti/actions";
 import { getBudgetOverview } from "@/app/(main)/budget-actions";
 import FilterBar from "@/components/features/Filterbar";
 import TransactionList from "@/components/features/TransactionList";
@@ -8,13 +9,15 @@ import BudgetCards from "@/components/features/BudgetCards";
 import { useUIStore } from "@/store/useUIStore";
 import { clientClock } from "@/lib/dates";
 import { useI18n } from "@/components/features/I18nProvider";
-import type { BudgetOverview, Transaction } from "@/types";
+import type { Account, BudgetOverview, Transaction } from "@/types";
 
 export default function MovimentiPage() {
 	const { t } = useI18n();
 	const [search, setSearch] = useState("");
 	const [tipo, setTipo] = useState("");
 	const [periodo, setPeriodo] = useState("30d");
+	const [conto, setConto] = useState("");
+	const [accounts, setAccounts] = useState<Account[]>([]);
 	const [transactions, setTransactions] = useState<Transaction[]>([]);
 	const [budgets, setBudgets] = useState<BudgetOverview | null>(null);
 	const [loading, setLoading] = useState(true);
@@ -23,12 +26,27 @@ export default function MovimentiPage() {
 	const loadTransactions = useCallback(async () => {
 		setLoading(true);
 		try {
-			const result = await getTransactions(tipo || undefined, periodo);
+			const result = await getTransactions(tipo || undefined, periodo, undefined, conto || undefined);
 			setTransactions("data" in result ? ((result.data as Transaction[]) ?? []) : []);
 		} finally {
 			setLoading(false);
 		}
-	}, [tipo, periodo]);
+	}, [tipo, periodo, conto]);
+
+	/*
+	 * I conti servono solo a popolare il filtro, quindi si caricano una volta e
+	 * non dipendono da nulla. Gli ARCHIVIATI restano fuori dal selettore, ma i
+	 * loro movimenti continuano a comparire in "tutti i conti": archiviare un
+	 * conto non nasconde la sua storia, la toglie dai comandi.
+	 */
+	useEffect(() => {
+		let cancelled = false;
+		getAccounts().then((res) => {
+			if (cancelled || !("data" in res)) return;
+			setAccounts(res.data.filter((a) => !a.archived));
+		});
+		return () => { cancelled = true; };
+	}, []);
 
 	// eslint-disable-next-line react-hooks/set-state-in-effect
 	useEffect(() => { loadTransactions(); }, [loadTransactions, transactionSavedAt]);
@@ -61,13 +79,26 @@ export default function MovimentiPage() {
 				search={search}
 				tipo={tipo}
 				periodo={periodo}
+				conto={conto}
+				accounts={accounts}
 				onSearchChange={setSearch}
 				onTipoChange={setTipo}
 				onPeriodoChange={setPeriodo}
+				onContoChange={setConto}
 			/>
 			<div className="mt-5">
 				{budgets && <BudgetCards overview={budgets} />}
-				<TransactionList transactions={filtered} loading={loading} />
+				{/*
+					`periodo` di default è "30d", quindi NON conta come filtro: se
+					contasse, la lista vuota di un utente nuovo direbbe "nessun
+					movimento con questi filtri" invece di invitarlo ad aggiungerne
+					il primo — cioè il difetto opposto.
+				*/}
+				<TransactionList
+					transactions={filtered}
+					loading={loading}
+					filtered={Boolean(tipo || conto || search.trim() || periodo !== "30d")}
+				/>
 			</div>
 		</div>
 	);
