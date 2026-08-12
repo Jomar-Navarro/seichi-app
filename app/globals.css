@@ -305,6 +305,24 @@ body {
 }
 
 
+/*
+ * Nasconde la barra di scorrimento lasciando lo scorrimento attivo — serve al
+ * carosello della home, dove la barra taglierebbe lo spazio riservato all'ombra.
+ *
+ * ⚠️ Esiste perché `scrollbar-none` NON è una utility di Tailwind: la v4 non ne
+ * spedisce nessuna per le scrollbar, e qui non c'è alcun plugin. Era stata
+ * scritta seguendo un suggerimento dell'editor e non applicava nulla — la
+ * classe inesistente che non dà errori, esattamente la trappola documentata
+ * nella Fase 18. Definirla qui la rende vera e riusabile.
+ */
+@utility scrollbar-none {
+	scrollbar-width: none;
+	-ms-overflow-style: none;
+	&::-webkit-scrollbar {
+		display: none;
+	}
+}
+
 @utility card-shadow {
 	box-shadow:
 		var(--shadow-drop) 0px 8px 24px,

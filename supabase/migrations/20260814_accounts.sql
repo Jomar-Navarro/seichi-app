@@ -47,6 +47,42 @@
 
 
 -- ----------------------------------------------------------------------------
+-- ⚠️ GUARDIA — questo file NON va più rieseguito
+-- ----------------------------------------------------------------------------
+-- La `20260815_transfers.sql` lo supera in due punti, e rieseguirlo non darebbe
+-- un errore: farebbe il danno in silenzio.
+--
+--   · la sezione 9 rifà `create or replace view account_balances` nella versione
+--     SENZA il termine `+ Σ amount dove to_account_id = X`. I saldi tornerebbero
+--     a ignorare tutto il denaro ricevuto per trasferimento, e la vista
+--     continuerebbe a rispondere senza lamentarsi.
+--   · la sezione 3 ricrea `transactions_account_id_fkey`, la FK a una sola
+--     colonna che la 20b sostituisce con quella composita `(account_id,
+--     user_id)`. Il vincolo di PROPRIETÀ sparirebbe, lasciando in piedi solo
+--     quello di esistenza.
+--
+-- Riconosce il successore da un fatto del catalogo, non da una convenzione sui
+-- nomi dei file: la colonna `to_account_id`. È la stessa forma delle guardie in
+-- testa alla `20260727`, `20260728`, `20260808` e `20260809`, e discende dalla
+-- regola che le genera — **il file più recente dev'essere autosufficiente**, così
+-- non c'è mai motivo di tornare indietro; e se qualcuno ci torna comunque, viene
+-- fermato invece di rompere senza traccia.
+
+do $$
+begin
+	if exists (
+		select 1 from information_schema.columns
+		where table_schema = 'public'
+		  and table_name   = 'transactions'
+		  and column_name  = 'to_account_id'
+	) then
+		raise exception
+			'20260814_accounts.sql è SUPERATA da 20260815_transfers.sql (transactions.to_account_id esiste già). Rieseguirla riporterebbe account_balances alla formula senza trasferimenti e sostituirebbe la FK composita con quella a una colonna. Non eseguire.';
+	end if;
+end $$;
+
+
+-- ----------------------------------------------------------------------------
 -- 1. TABELLA accounts
 -- ----------------------------------------------------------------------------
 -- ⚠️ `type` è DECORATIVO: sceglie icona ed etichetta, e NIENT'ALTRO. La natura

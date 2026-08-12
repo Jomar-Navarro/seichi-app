@@ -6,15 +6,38 @@
  * locale del componente, e quello è esattamente ciò che serve verificare. Lo
  * script si ferma lì.
  *
- * Credenziali dall'ambiente, mai nel file:
- *   SEICHI_EMAIL / SEICHI_PASSWORD
+ * Nessuna credenziale: si riusa una sessione esistente via cookie.
+ *   SEICHI_COOKIES  percorso del JSON coi cookie `sb-*` — FUORI dal repo
+ *   SEICHI_SHOTS    cartella degli screenshot — FUORI dal repo
+ *   SEICHI_URL      opzionale, default http://localhost:3000
  */
 import { chromium } from "playwright";
 import { mkdirSync, readFileSync, existsSync } from "node:fs";
 
 const BASE = process.env.SEICHI_URL ?? "http://localhost:3000";
-const OUT = process.env.SEICHI_SHOTS ?? "./shots";
-const COOKIE_FILE = process.env.SEICHI_COOKIES ?? "./cookies.json";
+
+/*
+ * ⚠️ NESSUN default dentro il repository.
+ *
+ * La prima versione aveva `?? "./cookies.json"`, che si risolve contro la CWD —
+ * cioè la radice del progetto. Chi avesse lanciato lo script senza esportare le
+ * variabili avrebbe scritto i cookie di sessione Supabase VIVI in un percorso
+ * tracciato da git, a un `git add -A` dalla pubblicazione. E lo SKILL.md accanto
+ * dice "nello scratchpad, mai nel repo": il default faceva l'opposto di ciò che
+ * la sua stessa documentazione prescrive.
+ *
+ * Ora il percorso è obbligatorio e lo script si rifiuta di partire senza.
+ */
+const OUT = process.env.SEICHI_SHOTS;
+const COOKIE_FILE = process.env.SEICHI_COOKIES;
+
+if (!COOKIE_FILE || !OUT) {
+	console.error(
+		"Servono SEICHI_COOKIES e SEICHI_SHOTS, con percorsi FUORI dal repository " +
+			"(lo scratchpad della sessione). Nessun default: i cookie sono una sessione viva.",
+	);
+	process.exit(2);
+}
 
 /*
  * ⚠️ Si riusa la SESSIONE ESISTENTE invece di fare il login dal form: così la
@@ -187,22 +210,38 @@ try {
 	/* ------------------------- 6 · il numero della home == quello di /analisi */
 	/*
 	 * ⚠️ È la verifica che conta più di tutte le altre messe insieme.
-	 * `/analisi` mostra "Flusso netto" — la STESSA parola della home — e prima
+	 * `/analisi` mostra "Flusso" — la STESSA parola della home, e non per caso: dalla
 	 * della correzione ne dava un valore diverso, perché contava come uscita
 	 * anche risparmi e investimenti. Due schermate a un tap di distanza, due
 	 * risposte per lo stesso mese: il difetto che l'intera fase esiste per
 	 * chiudere, ricreato dopo averlo chiuso altrove.
 	 */
-	await page.goto(`${BASE}/`, { waitUntil: "domcontentloaded" });
+	/*
+	 * ⚠️⚠️ `?conto=` VUOTO, non `/` nudo — e questa riga esiste per un difetto del
+	 * collaudo stesso, scoperto il 2026-08-12.
+	 *
+	 * Dalla 20b il conto scelto si RICORDA in un cookie. Il passo 2 qui sopra ne
+	 * sceglie uno, quindi da lì in poi un `goto("/")` non è più "la home non
+	 * filtrata": è la home filtrata su quel conto. Il confronto 6 ha continuato a
+	 * passare — misurando però due numeri FILTRATI invece dei totali, cioè non più
+	 * ciò che il commento qui sopra dichiara. **Un controllo che passa per il
+	 * motivo sbagliato è peggio di un controllo che manca**, perché nessuno torna
+	 * a guardarlo.
+	 *
+	 * Un parametro presente ma vuoto è un'ISTRUZIONE ("nessun conto") e batte la
+	 * memoria: vedi `getSelectedAccount`. È l'unico modo di chiedere "tutti i
+	 * conti" senza dover prima toccare l'interfaccia.
+	 */
+	await page.goto(`${BASE}/?conto=`, { waitUntil: "domcontentloaded" });
 	await page.waitForLoadState("networkidle").catch(() => {});
 	const homeFlow = toNumber(
 		await page.locator("p").filter({ hasText: /€/ }).first().innerText(),
 	);
 
-	await page.goto(`${BASE}/analisi`, { waitUntil: "domcontentloaded" });
+	await page.goto(`${BASE}/analisi?conto=`, { waitUntil: "domcontentloaded" });
 	await page.waitForLoadState("networkidle").catch(() => {});
 	const analisiFlow = toNumber(
-		await page.getByText(/Flusso netto|Net flow/i).first().locator("..").innerText(),
+		await page.getByText(/^(Flusso|Flow)$/).first().locator("..").innerText(),
 	);
 	console.log("shot:", await shot(page, "analisi"));
 
@@ -213,10 +252,211 @@ try {
 		`${coincidono ? "OK " : "KO "} 6 home (${homeFlow}) == /analisi (${analisiFlow})`,
 	);
 
+	/* ------------- 7 · /analisi FILTRATA coincide con la home filtrata */
+	/*
+	 * ⚠️ È il controllo che il giro precedente non aveva, e che copre il difetto
+	 * più grave della review: la home era filtrabile per conto e `/analisi` no,
+	 * quindi selezionando un conto le due tornavano a dire numeri diversi sotto
+	 * la stessa parola — la correzione e la sua riapertura nella stessa PR.
+	 */
+	const accountsForFilter = await page.evaluate(async () => {
+		const r = await fetch("/conti");
+		return r.ok;
+	}).catch(() => false);
+	if (accountsForFilter) {
+		/*
+		 * Si prende il primo conto dal pannello e si confrontano le due pagine.
+		 *
+		 * ⚠️ `?conto=` vuoto, per lo stesso motivo del confronto 6: con la memoria
+		 * attiva il chip porta il NOME del conto scelto al passo 2, quindi la
+		 * ricerca per "tutti i conti" non lo aggancia e l'intero blocco veniva
+		 * saltato **in silenzio** — il controllo spariva dal referto e nessuno se
+		 * ne accorgeva, perché un elenco di soli OK non distingue "passato" da
+		 * "non eseguito".
+		 */
+		await page.goto(`${BASE}/?conto=`, { waitUntil: "domcontentloaded" });
+		await page.waitForLoadState("networkidle").catch(() => {});
+		const chip2 = page.getByRole("button", { name: /tutti i conti|all accounts/i }).first();
+		if (await chip2.isVisible().catch(() => false)) {
+			await chip2.click();
+			await page.waitForTimeout(300);
+			const rows2 = page.locator("div.absolute button");
+			if ((await rows2.count()) > 1) {
+				await rows2.nth(1).click();
+				await page.waitForTimeout(1500);
+				const url = new URL(page.url());
+				const conto = url.searchParams.get("conto");
+				const homeFiltrato = toNumber(
+					await page.locator("p").filter({ hasText: /€/ }).first().innerText(),
+				);
+				await page.goto(`${BASE}/analisi?conto=${conto}`, { waitUntil: "domcontentloaded" });
+				await page.waitForLoadState("networkidle").catch(() => {});
+				const analisiFiltrato = toNumber(
+					await page.getByText(/^(Flusso|Flow)$/).first().locator("..").innerText(),
+				);
+				console.log("shot:", await shot(page, "analisi-filtrata"));
+				const coincidonoF =
+					Number.isFinite(homeFiltrato) && Number.isFinite(analisiFiltrato) &&
+					Math.abs(homeFiltrato - analisiFiltrato) < 0.005;
+				(coincidonoF ? ok : ko).push(
+					`${coincidonoF ? "OK " : "KO "} 7 FILTRATO: home (${homeFiltrato}) == /analisi (${analisiFiltrato})`,
+				);
+			} else {
+				ko.push("KO  7 nessun conto nel pannello: confronto filtrato NON eseguito");
+			}
+		} else {
+			ko.push("KO  7 chip 'Tutti i conti' non trovato: confronto filtrato NON eseguito");
+		}
+	} else {
+		ko.push("KO  7 /conti irraggiungibile: confronto filtrato NON eseguito");
+	}
+
 	/* ---------------------------------------- 5 · lista filtrata senza risultati */
 	await page.goto(`${BASE}/transazioni`, { waitUntil: "domcontentloaded" });
 	await page.waitForLoadState("networkidle").catch(() => {});
 	console.log("shot:", await shot(page, "movimenti"));
+
+	// Filtrando per conto i budget NON si filtrano — restano su tutti i conti,
+	// perché un budget è un limite su una CATEGORIA. La nota deve dirlo.
+	const contoChip = page.getByRole("button", { name: /tutti i conti|all accounts/i }).first();
+	if (await contoChip.isVisible().catch(() => false)) {
+		await contoChip.click();
+		await page.waitForTimeout(300);
+		const voci = page.locator("div.absolute button");
+		if ((await voci.count()) > 1) {
+			await voci.nth(1).click();
+			await page.waitForTimeout(900);
+			await expectText(page, "budget valgono su tutti i conti", "5 i budget dichiarano il proprio ambito");
+			console.log("shot:", await shot(page, "movimenti-filtrati"));
+		}
+	}
+
+	/* ======================================================= Fase 20b · trasferimenti */
+
+	/* ------------------------ 8 · la griglia dei tipi non sfonda il riquadro */
+	// ⚠️ La prova esiste per un difetto che né `tsc` né il lint vedono: la card
+	// dell'ultimo tipo occupava DUE colonne per riempire una griglia dispari, e
+	// col sesto tipo (`trasferimento`) la griglia 2×3 è esatta — quella regola
+	// avrebbe spinto l'ultima card su una quarta riga inesistente, dentro un
+	// contenitore `flex-1 min-h-0` che non può crescere. Si vede solo aprendo il
+	// modale, e solo dopo aver aggiunto un tipo: cioè una volta ogni due anni.
+	await page.goto(`${BASE}/`, { waitUntil: "domcontentloaded" });
+	await page.waitForLoadState("networkidle").catch(() => {});
+	await page.locator(".fab").first().click();
+	await page.waitForTimeout(700);
+	await expectText(page, "Trasferimento", "8 il sesto tipo c'è");
+
+	const griglia = page.locator(".grid.grid-cols-2.grid-rows-3").first();
+	const gb = await griglia.boundingBox();
+	const cardTrasf = page.getByText("Trasferimento", { exact: true }).first();
+	const cb = await cardTrasf.boundingBox();
+	const dentro = gb && cb && cb.y + cb.height <= gb.y + gb.height + 2;
+	(dentro ? ok : ko).push(
+		`${dentro ? "OK " : "KO "} 8 la card 'Trasferimento' sta DENTRO la griglia ` +
+		`(griglia fino a ${gb ? Math.round(gb.y + gb.height) : "?"}, card fino a ${cb ? Math.round(cb.y + cb.height) : "?"})`,
+	);
+	console.log("shot:", await shot(page, "tipi-sei-card"));
+
+	/* --------------- 9 · il form trasferimento: due conti, nessuna categoria */
+	await cardTrasf.click();
+	// ⚠️ 2500ms e non 800: i conti arrivano da una query Supabase e alla PRIMA
+	// apertura c'è anche la compilazione del chunk. Con l'attesa corta lo scatto
+	// mostrava il form senza conti e con l'avviso rosso "serve un conto" — un
+	// falso allarme che somiglia moltissimo a un difetto vero.
+	await page.waitForTimeout(2500);
+	await expectText(page, "Conto di partenza", "9 origine");
+	await expectText(page, "Conto di arrivo", "9 destinazione");
+	for (const [testo, etichetta] of [
+		["Categoria", "9 la categoria lascia il posto alla destinazione"],
+		["Ripeti", "9 niente ricorrenza sui trasferimenti"],
+	]) {
+		const c = await page.getByText(testo, { exact: false }).first().isVisible().catch(() => false);
+		(c ? ko : ok).push(`${c ? "KO " : "OK "} ${etichetta} — "${testo}" NON deve esserci`);
+	}
+	console.log("shot:", await shot(page, "form-trasferimento"));
+
+	/* -------- 10 · risparmio: categoria E destinazione facoltativa, spiegata */
+	await page.goto(`${BASE}/`, { waitUntil: "domcontentloaded" });
+	await page.waitForLoadState("networkidle").catch(() => {});
+	await page.locator(".fab").first().click();
+	await page.waitForTimeout(700);
+	await page.getByText("Risparmio", { exact: true }).first().click();
+	await page.waitForTimeout(2000);
+	await expectText(page, "Categoria", "10 il risparmio tiene la categoria");
+	await expectText(page, "Conto di arrivo", "10 e guadagna la destinazione facoltativa");
+	// La riga che rende impossibile il doppio conteggio: senza, l'utente
+	// registra il risparmio E il trasferimento.
+	await expectText(page, "il denaro si sposta davvero", "10 con la riga che dice cosa cambia");
+	console.log("shot:", await shot(page, "form-risparmio-destinazione"));
+
+	/* ------------- 11 · il conto di una ricorrente è modificabile (debito 20a) */
+	// ⚠️ Il selettore punta a "modifica", NON a un bottone che contenga "€":
+	// l'importo sta in un FRATELLO della riga, la stessa trappola già annotata
+	// per le righe conto. Un `button` con dentro `€` non aggancia niente.
+	await page.goto(`${BASE}/impostazioni/ricorrenti`, { waitUntil: "domcontentloaded" });
+	await page.waitForLoadState("networkidle").catch(() => {});
+	const modifica = page.getByText("modifica", { exact: true }).first();
+	if (await modifica.isVisible().catch(() => false)) {
+		await modifica.click();
+		await page.waitForTimeout(2000);
+		await expectText(page, "Modifica ricorrenza", "11 sheet aperto");
+		await expectText(page, "Conto", "11 il conto della regola è modificabile");
+		console.log("shot:", await shot(page, "ricorrente-conto"));
+	} else {
+		ok.push("OK  11 saltata — nessuna regola ricorrente da aprire");
+	}
+
+	/* ------- 12 · il conto scelto SOPRAVVIVE a un giro fuori e ritorno */
+	// ⚠️ È il difetto segnalato usando l'app: "Home" nella bottom nav punta a `/`,
+	// e finché la selezione viveva solo in `?conto=` ogni ritorno la azzerava.
+	// La prova deve passare da una navigazione VERA — andare su un'altra pagina e
+	// tornare — perché un `goto` diretto su `/?conto=…` non dimostrerebbe nulla:
+	// riporterebbe il parametro con sé.
+	// ⚠️ Si parte da uno stato NOTO (`?conto=` vuoto = tutti i conti), o il chip
+	// porterebbe il nome del conto lasciato dai passi precedenti e il selettore
+	// per testo non lo aggancerebbe. Lo stesso motivo per cui il confronto 6 va
+	// forzato: da quando esiste la memoria, "aprire la home" non è più uno stato
+	// determinato.
+	await page.goto(`${BASE}/?conto=`, { waitUntil: "domcontentloaded" });
+	await page.waitForLoadState("networkidle").catch(() => {});
+	await page.getByText("Tutti i conti", { exact: false }).first().click().catch(() => {});
+	await page.waitForTimeout(700);
+	const vociConto = page.locator("div.absolute button");
+	if ((await vociConto.count()) > 1) {
+		const nomeConto = (await vociConto.nth(1).innerText()).split("\n")[0].trim();
+		await vociConto.nth(1).click();
+		await page.waitForTimeout(1500);
+
+		// Giro fuori e ritorno, come farebbe la bottom nav.
+		await page.goto(`${BASE}/transazioni`, { waitUntil: "domcontentloaded" });
+		await page.waitForLoadState("networkidle").catch(() => {});
+		await page.goto(`${BASE}/`, { waitUntil: "domcontentloaded" });
+		await page.waitForLoadState("networkidle").catch(() => {});
+		await expectText(page, nomeConto, `12 il conto "${nomeConto}" è ricordato dopo il ritorno in home`);
+		console.log("shot:", await shot(page, "conto-ricordato"));
+
+		/* ---- 13 · /analisi eredita la memoria e ha il proprio selettore ---- */
+		await page.goto(`${BASE}/analisi?periodo=anno`, { waitUntil: "domcontentloaded" });
+		await page.waitForLoadState("networkidle").catch(() => {});
+		await expectText(page, nomeConto, "13 /analisi eredita il conto senza passare dalla home");
+		// ⚠️ Il periodo NON deve essere cambiato dal selettore: `keepParams` esiste
+		// per questo, o un tocco cambierebbe DUE variabili e una in silenzio.
+		const annoOk = page.url().includes("periodo=anno") || (await page.getByText(String(new Date().getFullYear()), { exact: false }).first().isVisible().catch(() => false));
+		(annoOk ? ok : ko).push(`${annoOk ? "OK " : "KO "} 13 il periodo sopravvive al selettore conti`);
+		console.log("shot:", await shot(page, "analisi-selettore"));
+
+		// Si rimette "Tutti i conti", o il giro successivo partirebbe filtrato.
+		await page.goto(`${BASE}/`, { waitUntil: "domcontentloaded" });
+		await page.waitForLoadState("networkidle").catch(() => {});
+		await page.locator("button").filter({ hasText: new RegExp(nomeConto) }).first().click().catch(() => {});
+		await page.waitForTimeout(700);
+		await page.locator("div.absolute button").first().click().catch(() => {});
+		await page.waitForTimeout(1200);
+		const pulito = await page.getByText("Tutti i conti", { exact: false }).first().isVisible().catch(() => false);
+		(pulito ? ok : ko).push(`${pulito ? "OK " : "KO "} 12b "Tutti i conti" cancella la memoria`);
+	} else {
+		ko.push("KO  12 pannello conti non apribile: memoria non verificata");
+	}
 } catch (e) {
 	ko.push(`KO  eccezione: ${e.message.split("\n")[0]}`);
 	await shot(page, "errore").catch(() => {});

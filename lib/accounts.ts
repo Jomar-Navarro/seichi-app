@@ -60,6 +60,76 @@ export const ACCOUNT_TYPE_COLOR: Record<AccountTypeId, string> = {
 export const ACCOUNT_ICON_FALLBACK: ElementType = WalletIcon;
 const FALLBACK_COLOR = "var(--color-kiri)";
 
+/**
+ * L'id di un conto ha la forma di un UUID?
+ *
+ * ⚠️ Serve in DUE punti che sembrano non avere niente in comune, e in entrambi
+ * l'assenza del controllo produce un guasto diverso:
+ *
+ * - la **home** (`app/(main)/page.tsx`) passa `?conto=` a `dashboard_totals()`,
+ *   che con `abc` solleva `22P02 invalid input syntax for type uuid`: il ramo
+ *   d'errore sostituisce l'intera dashboard con "Errore", senza via d'uscita se
+ *   non modificare l'URL a mano. Basta un link troncato.
+ * - `getTransactions()` (Fase 20b) interpola il conto in una **stringa** di
+ *   filtro PostgREST — `.or("account_id.eq.X,to_account_id.eq.X")` — e lì `.eq()`
+ *   non fa da parametro: una virgola o un punto dentro il valore aggiunge
+ *   condizioni al gruppo OR. Il danno è limitato (la RLS e il `.eq("user_id")`
+ *   restano ANDed sopra, quindi si vedrebbero al più righe proprie filtrate
+ *   male), ma è l'unico punto dell'app dove un valore dell'utente diventa
+ *   SINTASSI invece che dato, e merita di essere chiuso dove nasce.
+ *
+ * Era una regex copiata dentro `page.tsx`: qui è una sola, e il secondo
+ * chiamante non ha dovuto reinventarla — che è il modo in cui la prima volta si
+ * dimentica.
+ */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isAccountId(value: string | null | undefined): value is string {
+	return typeof value === "string" && UUID_RE.test(value);
+}
+
+/**
+ * Il conto selezionato si RICORDA, in un cookie.
+ *
+ * ⚠️ Fino alla 20b viveva solo in `?conto=`, e questo lo rendeva **effimero per
+ * costruzione**: la voce "Home" della bottom nav punta a `/`, quindi ogni giro
+ * fuori e ritorno azzerava il filtro e costringeva a riselezionare il conto. Su
+ * un'app che si usa dieci volte al giorno è la differenza fra uno strumento e
+ * un fastidio.
+ *
+ * Stesso meccanismo di tema (Fase 18) e lingua (Fase 19), per le stesse ragioni:
+ * il cookie viaggia con la richiesta, quindi un server component sa già cosa
+ * rendere e **il primo byte è quello giusto** — niente lampo, niente
+ * round-trip. Il costo abituale (leggere i cookie rinuncia allo static) qui era
+ * già pagato: la home è dinamica da sempre.
+ *
+ * ⚠️ **Perché un filtro appiccicoso qui NON è la solita trappola.** Di norma uno
+ * stato di filtro che sopravvive alle sessioni è un difetto: l'utente vede dati
+ * parziali e non sa perché. Regge solo perché la selezione è **sempre visibile e
+ * sempre annullabile** — il chip in cima porta scritto il nome del conto e la
+ * prima voce del pannello è "Tutti i conti". Nel momento in cui quel chip
+ * sparisse da una pagina che legge questo cookie, il cookie andrebbe tolto con
+ * lui.
+ */
+export const ACCOUNT_COOKIE = "seichi-account";
+
+/** Un anno: è una preferenza, non una sessione. */
+const ACCOUNT_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+
+/**
+ * Scrive (o cancella) la memoria del conto. Lato client, come `setThemeCookie`.
+ *
+ * ⚠️ Cancellare è un caso a sé e non un valore vuoto: `conto=` verrebbe letto
+ * come una stringa vuota, e `isAccountId("")` è falso — funzionerebbe per caso.
+ * `max-age=0` rimuove davvero la riga.
+ */
+export function rememberAccount(id: string | null) {
+	if (typeof document === "undefined") return;
+	document.cookie = id
+		? `${ACCOUNT_COOKIE}=${id}; path=/; max-age=${ACCOUNT_COOKIE_MAX_AGE}; samesite=lax`
+		: `${ACCOUNT_COOKIE}=; path=/; max-age=0; samesite=lax`;
+}
+
 export function accountColor(type: string | null, custom?: string | null): string {
 	if (custom) return custom;
 	if (!type) return FALLBACK_COLOR;

@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { getTransactions } from "@/app/(main)/action";
-import { getAccounts } from "@/app/(main)/conti/actions";
+import { getAccountOptions } from "@/app/(main)/conti/actions";
 import { getBudgetOverview } from "@/app/(main)/budget-actions";
 import FilterBar from "@/components/features/Filterbar";
 import TransactionList from "@/components/features/TransactionList";
@@ -11,13 +11,16 @@ import { clientClock } from "@/lib/dates";
 import { useI18n } from "@/components/features/I18nProvider";
 import type { Account, BudgetOverview, Transaction } from "@/types";
 
+/** Quel poco che serve al filtro: vedi `getAccountOptions`. */
+type AccountOption = Pick<Account, "id" | "name" | "archived">;
+
 export default function MovimentiPage() {
 	const { t } = useI18n();
 	const [search, setSearch] = useState("");
 	const [tipo, setTipo] = useState("");
 	const [periodo, setPeriodo] = useState("30d");
 	const [conto, setConto] = useState("");
-	const [accounts, setAccounts] = useState<Account[]>([]);
+	const [accounts, setAccounts] = useState<AccountOption[]>([]);
 	const [transactions, setTransactions] = useState<Transaction[]>([]);
 	const [budgets, setBudgets] = useState<BudgetOverview | null>(null);
 	const [loading, setLoading] = useState(true);
@@ -41,12 +44,17 @@ export default function MovimentiPage() {
 	 */
 	useEffect(() => {
 		let cancelled = false;
-		getAccounts().then((res) => {
+		getAccountOptions().then((res) => {
 			if (cancelled || !("data" in res)) return;
-			setAccounts(res.data.filter((a) => !a.archived));
+			// ⚠️ Si tengono TUTTI, archiviati compresi: il filtro deve poter
+			// nominare il conto su cui è puntato anche se nel frattempo è stato
+			// archiviato. La selezione dei *proponibili* avviene in FilterBar.
+			setAccounts(res.data);
 		});
 		return () => { cancelled = true; };
-	}, []);
+		// ⚠️ Dipende da `transactionSavedAt`: senza, un conto creato altrove non
+		// compariva nel filtro fino a un ricaricamento completo della pagina.
+	}, [transactionSavedAt]);
 
 	// eslint-disable-next-line react-hooks/set-state-in-effect
 	useEffect(() => { loadTransactions(); }, [loadTransactions, transactionSavedAt]);
@@ -65,11 +73,24 @@ export default function MovimentiPage() {
 		return () => { cancelled = true; };
 	}, [transactionSavedAt]);
 
+	/*
+	 * ⚠️ La ricerca guarda anche i NOMI DEI CONTI, e solo dalla 20b serve.
+	 *
+	 * Un trasferimento non ha categoria: cercando "Revolut" la riga
+	 * "Corrente → Revolut" — che è ciò che l'utente vede scritto — non
+	 * comparirebbe, e l'unico appiglio resterebbe la nota, se c'è. Una ricerca
+	 * che non trova ciò che è scritto a schermo fa concludere che il dato non
+	 * esista.
+	 */
+	const accountNames = new Map(accounts.map((a) => [a.id, a.name.toLowerCase()]));
+	const matches = (tx: Transaction, needle: string) =>
+		tx.categories?.name.toLowerCase().includes(needle) ||
+		tx.notes?.toLowerCase().includes(needle) ||
+		accountNames.get(tx.account_id)?.includes(needle) ||
+		(tx.to_account_id ? accountNames.get(tx.to_account_id)?.includes(needle) : false);
+
 	const filtered = search.trim()
-		? transactions.filter((t) =>
-			t.categories?.name.toLowerCase().includes(search.toLowerCase()) ||
-			t.notes?.toLowerCase().includes(search.toLowerCase())
-		)
+		? transactions.filter((tx) => matches(tx, search.toLowerCase()))
 		: transactions;
 
 	return (
@@ -89,6 +110,20 @@ export default function MovimentiPage() {
 			<div className="mt-5">
 				{budgets && <BudgetCards overview={budgets} />}
 				{/*
+					⚠️ I budget NON si filtrano per conto, e con un filtro attivo lo
+					dicono. Sono limiti su una CATEGORIA: "€ 400 per la spesa" non si
+					divide fra contanti e carta, quindi filtrarli inventerebbe budget
+					per-conto che nessuno ha impostato. Nasconderli toglierebbe di
+					vista i budget proprio a chi sta guardando le sue uscite. Resta la
+					terza via, già usata due volte in questa fase: quando due numeri
+					hanno ambiti diversi, si DICE.
+				*/}
+				{budgets && conto && (
+					<p className="-mt-1 mb-4 ml-1 text-[11px] text-disabled leading-relaxed">
+						{t.budget.acrossAllAccounts}
+					</p>
+				)}
+				{/*
 					`periodo` di default è "30d", quindi NON conta come filtro: se
 					contasse, la lista vuota di un utente nuovo direbbe "nessun
 					movimento con questi filtri" invece di invitarlo ad aggiungerne
@@ -98,6 +133,17 @@ export default function MovimentiPage() {
 					transactions={filtered}
 					loading={loading}
 					filtered={Boolean(tipo || conto || search.trim() || periodo !== "30d")}
+					accounts={accounts}
+					/*
+						⚠️ `conto || null` e non `conto`: la stringa vuota significa
+						"tutti i conti", e passata così com'è farebbe credere ad
+						`amountSign()` che un conto sia selezionato. Nessun
+						`to_account_id` è mai uguale a "", quindi il difetto non
+						sarebbe esploso — avrebbe solo dato il segno sbagliato ai
+						trasferimenti, che è precisamente il tipo di guasto che non si
+						nota finché qualcuno non somma a mano.
+					*/
+					viewedAccountId={conto || null}
 				/>
 			</div>
 		</div>

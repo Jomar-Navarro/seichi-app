@@ -21,11 +21,27 @@ export default function HomeSkeleton() {
 				<div className="w-10.5 h-10.5 rounded-[14px] zg-pulse shrink-0" style={{ background: "var(--surface-elevated)" }} />
 			</div>
 
-			{/* Balance card */}
+			{/*
+				Selettore conti — la pastiglia "Tutti i conti".
+				⚠️ Mancava, e dalla 20a la sua assenza si vede a ogni caricamento:
+				`page.tsx` ha una `key` sul Suspense legata al conto, quindi questo
+				skeleton riappare **a ogni cambio di conto**, non solo a freddo. Ogni
+				divergenza dal layout reale diventa un salto verticale che l'utente
+				vede molte volte al giorno.
+			*/}
 			<div
-				className="rounded-3xl h-34.5 zg-pulse"
-				style={{ background: "var(--card)" }}
+				className="h-9 w-32 rounded-2xl zg-pulse"
+				style={{ background: "var(--surface-elevated)" }}
 			/>
+
+			{/* Carosello flusso/saldo — una card sola più i puntini sotto. */}
+			<div>
+				<div className="rounded-3xl h-40 zg-pulse" style={{ background: "var(--card)" }} />
+				<div className="flex items-center justify-center gap-1.5 mt-3">
+					<span className="h-1.5 w-5.5 rounded-full" style={{ background: "var(--border)" }} />
+					<span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--border)" }} />
+				</div>
+			</div>
 
 			{/* Summary grid */}
 			<div className="grid grid-cols-2 gap-3">

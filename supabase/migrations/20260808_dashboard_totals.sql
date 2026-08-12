@@ -3,7 +3,38 @@
 -- ============================================================================
 -- Eseguita a mano nel SQL Editor di Supabase il 2026-08-08.
 --
--- ⚠️⚠️ **VA RIESEGUITA.** La funzione è cambiata due volte dopo la prima
+-- ⚠️⚠️ **NON RIESEGUIRE se la `20260814_accounts.sql` è già passata.**
+--
+-- Quella CANCELLA questa firma (`drop function … dashboard_totals(timestamptz[])`)
+-- e crea la versione a due argomenti, con il parametro conto e senza il bucket
+-- `null`. Rieseguire questo file non darebbe alcun errore: ricreerebbe
+-- l'overload a un argomento ACCANTO a quello nuovo, resuscitando la scansione
+-- dell'intero archivio che la fase ha deliberatamente rimosso — e lasciando due
+-- funzioni omonime fra cui una chiamata può risolvere in modo ambiguo.
+--
+-- La guardia qui sotto lo impedisce, riconoscendo il successore dal fatto che
+-- `dashboard_totals` ha due parametri. Vale la regola di CLAUDE.md: il file più
+-- recente dev'essere autosufficiente, e chi torna indietro comunque viene
+-- fermato invece di rompere in silenzio.
+
+do $$
+begin
+	if exists (
+		select 1
+		from pg_proc p
+		join pg_namespace n on n.oid = p.pronamespace
+		where n.nspname = 'public'
+			and p.proname = 'dashboard_totals'
+			and p.pronargs = 2
+	) then
+		raise exception
+			'20260808 già superata da 20260814_accounts.sql: rieseguirla ricreerebbe l''overload a un argomento e la scansione dell''intero archivio.';
+	end if;
+end $$;
+
+-- ⚠️ Nota storica, valida solo PRIMA della 20260814: allora questo file andava
+-- rieseguito, perché la funzione era cambiata due volte dopo la prima
+-- esecuzione. La funzione è cambiata due volte dopo la prima
 -- esecuzione: prima per il tetto su `p_bounds` (passando da `language sql` a
 -- `plpgsql`), poi per i cast espliciti sulle colonne restituite — senza i quali
 -- la versione plpgsql fallisce a runtime con "structure of query does not match

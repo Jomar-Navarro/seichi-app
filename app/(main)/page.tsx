@@ -17,6 +17,7 @@ import NotificationBell from "@/components/features/NotificationBell";
 import { getUnreadCount } from "@/app/(main)/notification-actions";
 import Sparkline from "@/components/UI/Sparkline";
 import { getProfileHeader } from "@/lib/account";
+import { getSelectedAccount } from "@/lib/accounts-server";
 import { getI18n } from "@/lib/i18n/server";
 import { fill, formatDate } from "@/lib/i18n/format";
 import { ChartNoAxesCombinedIcon } from "@/lib/seichi-icons";
@@ -26,37 +27,43 @@ export default async function MainPage({
 }: {
 	searchParams: Promise<{ conto?: string }>;
 }) {
-	// ⚠️ Il filtro sta nell'URL e non in uno stato del client: i totali li somma
-	// Postgres dentro un server component, quindi cambiare conto deve rendere di
-	// nuovo dal server. Con uno stato locale il fetch sarebbe dovuto tornare nel
-	// browser, disfacendo il lavoro di `dashboard_totals`.
-	const { conto } = await searchParams;
-
 	/*
-	 * ⚠️ La forma si valida PRIMA di passare il valore alla RPC.
+	 * ⚠️ Il filtro sta nell'URL e non in uno stato del client: i totali li somma
+	 * Postgres dentro un server component, quindi cambiare conto deve rendere di
+	 * nuovo dal server. Con uno stato locale il fetch sarebbe dovuto tornare nel
+	 * browser, disfacendo il lavoro di `dashboard_totals`.
 	 *
-	 * `dashboard_totals(p_account_id uuid)` riceve il parametro grezzo: con
-	 * `/?conto=abc` Postgres solleva `invalid input syntax for type uuid`
-	 * (22P02), `getDashboardTotals` torna `{error}` e il ramo d'errore sostituisce
-	 * **l'intera dashboard** con "Errore" — niente card, niente conti, nessuna via
-	 * d'uscita se non modificare l'URL a mano. Basta un link troncato o un
-	 * crawler. Un id ben formato ma non tuo non arriva qui: lo ferma la RLS, e il
-	 * controllo di appartenenza sta in `DashboardContent`.
+	 * ⚠️ Ma l'URL da solo rendeva la scelta EFFIMERA: "Home" nella bottom nav
+	 * punta a `/`, quindi ogni giro fuori e ritorno azzerava il filtro. Dalla 20b
+	 * c'è anche una memoria in cookie — vedi `getSelectedAccount`, che spiega
+	 * anche perché URL e cookie non vanno trattati allo stesso modo quando il
+	 * conto non esiste più.
+	 *
+	 * La forma dell'id si valida là dentro, PRIMA che il valore arrivi alla RPC:
+	 * `dashboard_totals(p_account_id uuid)` con `/?conto=abc` solleva `22P02` e il
+	 * ramo d'errore sostituirebbe **l'intera dashboard** con "Errore" — niente
+	 * card, niente conti, nessuna via d'uscita se non modificare l'URL a mano.
 	 */
-	const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-	const accountId = conto && UUID.test(conto) ? conto : null;
+	const { conto } = await searchParams;
+	const { id: accountId, fromUrl } = await getSelectedAccount(conto);
 
 	return (
 		// ⚠️ La `key` rimonta il contenuto quando cambia il conto selezionato.
 		// Senza, il Suspense non si riattiva sulla navigazione soft e si vedrebbero
 		// i totali del conto precedente finché non arrivano i nuovi.
 		<Suspense key={accountId ?? "all"} fallback={<HomeSkeleton />}>
-			<DashboardContent accountId={accountId} />
+			<DashboardContent accountId={accountId} fromUrl={fromUrl} />
 		</Suspense>
 	);
 }
 
-async function DashboardContent({ accountId }: { accountId: string | null }) {
+async function DashboardContent({
+	accountId,
+	fromUrl,
+}: {
+	accountId: string | null;
+	fromUrl: boolean;
+}) {
 	const [result, transaction, goalsResult, profile, unreadResult, accountsResult] =
 		await Promise.all([
 			getDashboardTotals(accountId),
@@ -121,11 +128,28 @@ async function DashboardContent({ accountId }: { accountId: string | null }) {
 	 * La RLS fa già la sua parte — i totali tornerebbero vuoti — ma il chip
 	 * direbbe "Tutti i conti" sopra dei dati filtrati su un id fantasma: la
 	 * stessa contraddizione etichetta/dati corretta poco sopra per i movimenti
-	 * recenti. Si torna alla home non filtrata invece di mostrare zeri
-	 * inspiegabili.
+	 * recenti.
+	 *
+	 * ⚠️ **Le due provenienze si correggono in modo DIVERSO**, e il primo tentativo
+	 * aveva chiuso solo metà del problema.
+	 *
+	 * Dall'URL si torna su `/`: è un'istruzione sbagliata, si annulla.
+	 *
+	 * Dal cookie NON si può fare lo stesso — `/` rileggerebbe lo stesso cookie e
+	 * rimanderebbe su `/`, all'infinito. Ma nemmeno si può *lasciar correre*, ed
+	 * è il difetto trovato in review: senza redirect la pagina resta **filtrata
+	 * su un id fantasma** (totali a zero) mentre il chip, non trovandolo fra i
+	 * conti, scrive "Tutti i conti". Etichetta e dati che si contraddicono — cioè
+	 * proprio ciò che questo blocco esiste per impedire, riaperto dalla memoria.
+	 *
+	 * La via d'uscita è `?conto=` vuoto: un parametro PRESENTE ma vuoto è
+	 * un'istruzione ("nessun conto") e batte il cookie, quindi la destinazione non
+	 * può rimbalzare indietro. Un salto solo, e solo in un caso che oggi non è
+	 * raggiungibile dall'interfaccia — i conti non si cancellano, si archiviano, e
+	 * gli archiviati restano nella vista.
 	 */
 	if (accountId && accounts.length > 0 && !accounts.some((a) => a.id === accountId)) {
-		redirect("/");
+		redirect(fromUrl ? "/" : "/?conto=");
 	}
 
 	const goals = "error" in goalsResult ? [] : goalsResult.data;
@@ -241,9 +265,16 @@ async function DashboardContent({ accountId }: { accountId: string | null }) {
 				/>
 			</div>
 
-			{/* Analisi shortcut */}
+			{/*
+				Analisi shortcut.
+				⚠️ Il conto selezionato viaggia nel link. Senza, questa scorciatoia
+				portava da un "Flusso · € 120" filtrato a un "Flusso netto · € 1.540"
+				su tutti i conti — la stessa parola, due numeri, a un tap di distanza:
+				esattamente il difetto che `sommaUscite()` era stata scritta per
+				chiudere, riaperto dal filtro introdotto nella stessa fase.
+			*/}
 			<Link
-				href="/analisi"
+				href={accountId ? `/analisi?conto=${accountId}` : "/analisi"}
 				className="flex items-center justify-between px-4 py-3.5 rounded-2xl border border-subtle card-shadow"
 				style={{ background: "var(--surface)" }}
 			>
@@ -272,7 +303,11 @@ async function DashboardContent({ accountId }: { accountId: string | null }) {
 				</div>
 			</Link>
 
-			<RecentTransaction transactions={transaction.data} />
+			<RecentTransaction
+				transactions={transaction.data}
+				accounts={accounts}
+				viewedAccountId={accountId}
+			/>
 			<DashboardRefresher />
 			</div>
 		</div>

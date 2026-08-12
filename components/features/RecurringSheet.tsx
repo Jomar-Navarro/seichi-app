@@ -4,15 +4,16 @@ import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import Select from "@/components/UI/Select";
+import Select, { type Option } from "@/components/UI/Select";
 import FrequencySelector from "@/components/UI/FrequencySelector";
 import { buildCategoryOptions } from "@/lib/category-options";
+import { ACCOUNT_ICON_FALLBACK, ACCOUNT_TYPE_ICON, accountColor } from "@/lib/accounts";
 import { TIPO_COLOR } from "@/lib/transaction-utils";
 import { updateRecurringRule } from "@/app/(main)/action";
 import { useI18n } from "./I18nProvider";
 import { DISPLAY_CURRENCY, currencySymbol } from "@/lib/i18n/format";
 import DatePicker from "@/components/UI/DatePicker";
-import type { RecurringRule, Category, Frequency } from "@/types";
+import type { RecurringRule, Account, Category, Frequency } from "@/types";
 
 /**
  * ⚠️ Niente prop `isOpen`, e qui era anche **ridondante**: il chiamante passava
@@ -38,7 +39,9 @@ export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 	const [notes, setNotes] = useState(rule.notes ?? "");
 	const [frequency, setFrequency] = useState<Frequency>(rule.frequency);
 	const [nextRun, setNextRun] = useState(rule.next_run);
+	const [accountId, setAccountId] = useState(rule.account_id);
 	const [categoryList, setCategoryList] = useState<Category[]>([]);
+	const [accountList, setAccountList] = useState<Account[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [serverError, setServerError] = useState<string | null>(null);
 
@@ -51,11 +54,42 @@ export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 		loadCategories();
 	}, [rule.type]);
 
+	useEffect(() => {
+		async function loadAccounts() {
+			const supabase = createClient();
+			const { data } = await supabase
+				.from("accounts")
+				.select("*")
+				.order("created_at", { ascending: true });
+			if (data) setAccountList(data);
+		}
+		loadAccounts();
+	}, []);
+
 	const color = TIPO_COLOR[rule.type] ?? "var(--color-kiri)";
 	const todayISO = new Date().toLocaleDateString("sv-SE");
 	const importoValido = amount !== "" && parseFloat(amount.replace(",", ".")) > 0;
 
 	const categoryOptions = buildCategoryOptions(categoryList, t.recurring.noCategory);
+
+	/*
+	 * ⚠️ Il conto ARCHIVIATO su cui la regola punta resta fra le opzioni, ed è il
+	 * caso per cui questo campo esiste. Filtrandolo via, una regola già puntata su
+	 * un conto chiuso mostrerebbe il segnaposto — un record CON un conto sembrerebbe
+	 * non averne — e per giunta proprio nella schermata da cui la si deve spostare.
+	 * Gli altri archiviati restano fuori: proporli significherebbe suggerire di
+	 * spedire denaro dove nessun totale lo somma.
+	 */
+	const accountOptions: Option[] = accountList
+		.filter((a) => !a.archived || a.id === accountId)
+		.map((a) => {
+			const Icon = (a.type && ACCOUNT_TYPE_ICON[a.type]) || ACCOUNT_ICON_FALLBACK;
+			return {
+				value: a.id,
+				label: a.name,
+				icon: <Icon size={14} style={{ color: accountColor(a.type, a.color) }} />,
+			};
+		});
 
 	async function handleSubmit() {
 		// `!rule` non serve più: la prop non è nullable, il montaggio lo garantisce.
@@ -70,6 +104,7 @@ export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 				notes.trim() || null,
 				frequency,
 				nextRun,
+				accountId,
 			);
 			if (result.error) {
 				setServerError(result.error);
@@ -125,6 +160,22 @@ export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 						options={categoryOptions}
 						selected={categoryId ?? ""}
 						onChange={(val) => setCategoryId(val || null)}
+					/>
+
+					{/*
+						Conto. ⚠️ Non c'era, e la sua assenza faceva più danno di un campo
+						mancante: `generate_recurring_transactions()` copia `account_id`
+						sulla transazione generata, quindi una regola nata sul conto
+						sbagliato ci scriveva sopra ogni mese senza che ci fosse modo di
+						correggerla. È anche ciò che rende praticabile il rifiuto di
+						archiviare un conto con regole attive.
+					*/}
+					<Select
+						title={t.accounts.fieldLabel}
+						variant="compact"
+						options={accountOptions}
+						selected={accountId}
+						onChange={setAccountId}
 					/>
 
 					{/* Frequenza */}
