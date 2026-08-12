@@ -73,11 +73,24 @@ export default function MovimentiPage() {
 		return () => { cancelled = true; };
 	}, [transactionSavedAt]);
 
+	/*
+	 * ⚠️ La ricerca guarda anche i NOMI DEI CONTI, e solo dalla 20b serve.
+	 *
+	 * Un trasferimento non ha categoria: cercando "Revolut" la riga
+	 * "Corrente → Revolut" — che è ciò che l'utente vede scritto — non
+	 * comparirebbe, e l'unico appiglio resterebbe la nota, se c'è. Una ricerca
+	 * che non trova ciò che è scritto a schermo fa concludere che il dato non
+	 * esista.
+	 */
+	const accountNames = new Map(accounts.map((a) => [a.id, a.name.toLowerCase()]));
+	const matches = (tx: Transaction, needle: string) =>
+		tx.categories?.name.toLowerCase().includes(needle) ||
+		tx.notes?.toLowerCase().includes(needle) ||
+		accountNames.get(tx.account_id)?.includes(needle) ||
+		(tx.to_account_id ? accountNames.get(tx.to_account_id)?.includes(needle) : false);
+
 	const filtered = search.trim()
-		? transactions.filter((t) =>
-			t.categories?.name.toLowerCase().includes(search.toLowerCase()) ||
-			t.notes?.toLowerCase().includes(search.toLowerCase())
-		)
+		? transactions.filter((tx) => matches(tx, search.toLowerCase()))
 		: transactions;
 
 	return (
@@ -120,6 +133,17 @@ export default function MovimentiPage() {
 					transactions={filtered}
 					loading={loading}
 					filtered={Boolean(tipo || conto || search.trim() || periodo !== "30d")}
+					accounts={accounts}
+					/*
+						⚠️ `conto || null` e non `conto`: la stringa vuota significa
+						"tutti i conti", e passata così com'è farebbe credere ad
+						`amountSign()` che un conto sia selezionato. Nessun
+						`to_account_id` è mai uguale a "", quindi il difetto non
+						sarebbe esploso — avrebbe solo dato il segno sbagliato ai
+						trasferimenti, che è precisamente il tipo di guasto che non si
+						nota finché qualcuno non somma a mano.
+					*/
+					viewedAccountId={conto || null}
 				/>
 			</div>
 		</div>

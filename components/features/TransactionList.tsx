@@ -4,7 +4,15 @@ import { GOAL_ICON_MAP } from "@/lib/goal-icons";
 import { useUIStore } from "@/store/useUIStore";
 import EmptyState from "@/components/UI/EmptyState";
 import type { Transaction } from "@/types";
-import { TIPO_INK, formatDate, formatAmount } from "@/lib/transaction-utils";
+import {
+	DIRECTION_ARROW,
+	TIPO_COLOR,
+	TIPO_INK,
+	amountSign,
+	formatDate,
+	formatAmount,
+} from "@/lib/transaction-utils";
+import { ArrowLeftRightIcon } from "@/lib/seichi-icons";
 import { useI18n } from "./I18nProvider";
 
 interface TransactionListProps {
@@ -18,6 +26,29 @@ interface TransactionListProps {
 	 * che i dati ci siano ancora.
 	 */
 	filtered?: boolean;
+	/**
+	 * Serve a NOMINARE i conti di un trasferimento: un movimento che sposta
+	 * denaro non ha una categoria da mostrare, e "—" al suo posto sarebbe una
+	 * riga che non dice cosa è successo.
+	 *
+	 * ⚠️ Il nome si risolve qui e non con una join in `getTransactions()`. Il
+	 * chiamante i conti li ha già — gli servono per il filtro — e imbarcarli
+	 * nella query costerebbe due embed per riga; ma il motivo vero è un altro:
+	 * PostgREST deriva il nome della relazione dal nome del VINCOLO, quindi la
+	 * `select` andrebbe scritta `accounts!transactions_account_owner_fkey(name)`
+	 * e si romperebbe in silenzio il giorno in cui una migration rinomina quella
+	 * FK — cosa che la `20260815` ha appena fatto.
+	 */
+	accounts?: { id: string; name: string }[];
+	/**
+	 * Il conto attualmente selezionato, se uno solo.
+	 *
+	 * ⚠️ Decide il SEGNO degli importi, non solo quali righe compaiono. Con un
+	 * conto davanti la lista è il suo estratto conto e il denaro che arriva è
+	 * `+`; senza, è il diario di ciò che hai fatto e un trasferimento resta
+	 * senza segno. Vedi `amountSign()`.
+	 */
+	viewedAccountId?: string | null;
 }
 
 function Skeleton() {
@@ -66,9 +97,17 @@ function TransactionsEmpty({ filtered }: { filtered: boolean }) {
 	);
 }
 
-export default function TransactionList({ transactions, loading, filtered = false }: TransactionListProps) {
+export default function TransactionList({
+	transactions,
+	loading,
+	filtered = false,
+	accounts = [],
+	viewedAccountId = null,
+}: TransactionListProps) {
 	const { openEditModal } = useUIStore();
 	const { locale, t } = useI18n();
+
+	const accountName = new Map(accounts.map((a) => [a.id, a.name]));
 
 	if (loading) return <Skeleton />;
 	if (transactions.length === 0) return <TransactionsEmpty filtered={filtered} />;
@@ -87,10 +126,34 @@ export default function TransactionList({ transactions, loading, filtered = fals
 					<p className="text-xs font-medium tracking-[1.6px] text-muted mb-2.5 ms-1">{date}</p>
 					<div className="space-y-2">
 						{items.map((tx) => {
+							const isTransfer = tx.type === "trasferimento";
 							const cat = tx.categories;
-							const Icon = cat ? (ICON_MAP[cat.icon] ?? GOAL_ICON_MAP[cat.icon]) : null;
-							const color = `var(--color-${cat?.color ?? "kiri"})`;
+							/*
+								Un trasferimento non ha categoria — è un CHECK del database,
+								non un caso limite — quindi non ha nemmeno l'icona e il
+								colore che da lei derivano. Prende i propri: due frecce
+								opposte e il neutro, perché non è né un'entrata né un'uscita.
+							*/
+							const Icon = isTransfer
+								? ArrowLeftRightIcon
+								: cat
+									? (ICON_MAP[cat.icon] ?? GOAL_ICON_MAP[cat.icon])
+									: null;
+							const color = isTransfer
+								? TIPO_COLOR.trasferimento
+								: `var(--color-${cat?.color ?? "kiri"})`;
 							const amountColor = TIPO_INK[tx.type] ?? "var(--text-primary)";
+
+							const toName = tx.to_account_id ? accountName.get(tx.to_account_id) : null;
+							/*
+								Il titolo di un trasferimento è la DIREZIONE: senza, due
+								trasferimenti dello stesso importo nello stesso giorno sono
+								righe identiche, e la lista non permette di distinguere quello
+								sbagliato da correggere.
+							*/
+							const title = isTransfer
+								? `${accountName.get(tx.account_id) ?? "—"} ${DIRECTION_ARROW} ${toName ?? "—"}`
+								: (cat?.name ?? "—");
 
 							return (
 								<button
@@ -108,13 +171,21 @@ export default function TransactionList({ transactions, loading, filtered = fals
 										}
 									</div>
 									<div className="flex-1 min-w-0">
-										<p className="text-sm font-semibold truncate">{cat?.name ?? "—"}</p>
-										<p className="text-xs text-muted mt-0.5">
+										<p className="text-sm font-semibold truncate">{title}</p>
+										<p className="text-xs text-muted mt-0.5 truncate">
 											{tx.notes ? tx.notes : t.types[tx.type as keyof typeof t.types]}
+											{/*
+												⚠️ La destinazione di un risparmio o di un investimento
+												si dice, e non è un vezzo: quel movimento SPOSTA denaro
+												— è ciò che la 20b ha aggiunto — e senza scriverlo la
+												riga sembra identica a un risparmio che non lo sposta,
+												mentre i due lasciano saldi diversi.
+											*/}
+											{!isTransfer && toName && ` · ${DIRECTION_ARROW} ${toName}`}
 										</p>
 									</div>
 									<p className="text-sm font-semibold shrink-0" style={{ color: amountColor }}>
-										{formatAmount(tx.amount, tx.type, locale)}
+										{formatAmount(tx.amount, amountSign(tx, viewedAccountId), locale)}
 									</p>
 								</button>
 							);

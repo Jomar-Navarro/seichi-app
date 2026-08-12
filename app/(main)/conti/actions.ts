@@ -2,6 +2,7 @@
 
 import { requireUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { plural } from "@/lib/i18n/format";
 import { ACCOUNT_TYPES, type Account, type AccountWithBalance } from "@/types";
 
 /** Il limite è quello della colonna (`varchar(50)`): tagliarlo qui dà un messaggio. */
@@ -231,7 +232,7 @@ export async function updateAccount(id: string, input: AccountInput) {
  * tabella senza un trigger.
  */
 export async function setAccountArchived(id: string, archived: boolean) {
-	const { supabase, user, t } = await requireUser();
+	const { supabase, user, t, locale } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	if (archived) {
@@ -243,6 +244,45 @@ export async function setAccountArchived(id: string, archived: boolean) {
 
 		if (countError) return { error: countError.message };
 		if ((count ?? 0) <= 1) return { error: t.accounts.errors.lastAccount };
+
+		/*
+		 * ⚠️ Le regole ricorrenti ATTIVE su questo conto impediscono
+		 * l'archiviazione — debito lasciato aperto dalla 20a e chiuso qui.
+		 *
+		 * Lo scenario: regola "Netflix € 12" mensile sul conto *Contanti*.
+		 * L'utente archivia Contanti. Ogni notte `generate_recurring_transactions()`
+		 * copia `r.account_id` e scrive la transazione **su quel conto archiviato**.
+		 * Il suo saldo scende ogni mese, ma gli archiviati sono esclusi dal "Saldo ·
+		 * N conti attivi" della home e di `/conti`: **quel denaro sparisce da ogni
+		 * numero che l'app mostra**, senza errori e senza segnali.
+		 *
+		 * È la stessa famiglia del difetto della #47 — un guasto isolato ma non
+		 * registrato è invisibile — con l'aggravante che qui non c'è nemmeno un
+		 * guasto: le transazioni si scrivono benissimo, solo in un posto che
+		 * nessuna schermata somma.
+		 *
+		 * ⚠️ **Rifiutare, non avvisare**, e solo perché ora esiste una via
+		 * d'uscita: `RecurringSheet` espone il conto, quindi la regola si può
+		 * spostare. Fino a un momento fa non si poteva, e allora questo divieto
+		 * sarebbe stato un vicolo cieco — per questo i due pezzi vanno insieme.
+		 * Un avviso ignorabile lascerebbe accadere esattamente ciò che il
+		 * controllo esiste per impedire.
+		 *
+		 * Solo le regole ATTIVE: una in pausa non genera nulla, quindi non c'è
+		 * niente da impedire — e obbligare a cancellarla farebbe perdere una
+		 * configurazione che l'utente potrebbe voler riprendere altrove.
+		 */
+		const { count: rules, error: rulesError } = await supabase
+			.from("recurring_rules")
+			.select("id", { count: "exact", head: true })
+			.eq("user_id", user.id)
+			.eq("account_id", id)
+			.eq("active", true);
+
+		if (rulesError) return { error: rulesError.message };
+		if ((rules ?? 0) > 0) {
+			return { error: plural(t.accounts.errors.hasRecurring, rules ?? 0, locale) };
+		}
 	}
 
 	const { data, error } = await supabase

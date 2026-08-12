@@ -3,49 +3,53 @@ import { revalidatePath } from "next/cache";
 import { getI18n } from "@/lib/i18n/server";
 import { formatDate, shortMonth } from "@/lib/i18n/format";
 import { requireUser } from "@/lib/auth";
+import { isAccountId } from "@/lib/accounts";
 import { firstRunFrom, rollForwardPastToday } from "@/lib/recurring";
 import type { Frequency } from "@/types";
 
 /**
- * Il conto indicato appartiene davvero a chi scrive?
+ * ⚠️ `assertOwnAccount()` NON esiste più, e vale sapere cosa l'ha sostituita.
  *
- * ⚠️ Serve, e la RLS da sola NON lo copre. Le policy di `transactions` filtrano
- * su `user_id = auth.uid()`, e `user_id` lo scrive il server: una richiesta
- * costruita a mano con l'`account_id` di un altro utente passerebbe la RLS,
- * perché nessuna policy guarda quella colonna. Il danno è modesto — la riga
- * resterebbe invisibile nel saldo altrui, che legge attraverso la propria RLS —
- * ma è uno stato incoerente che il database oggi permette.
+ * Fino alla 20a una query precedeva ogni salvataggio per verificare che il conto
+ * appartenesse a chi scrive: le policy RLS non lo coprono — filtrano su
+ * `user_id`, che lo scrive il server, e nessuna guarda `account_id` — quindi una
+ * POST costruita a mano poteva attaccare un movimento al conto di un altro
+ * utente.
  *
- * ⚠️ Il controllo giusto sarebbe una FK COMPOSITA `(account_id, user_id) →
- * accounts (id, user_id)`, che renderebbe lo stato illegale irrappresentabile
- * invece di vietato per attenzione di chi scrive. Non è nella `20260814`: va
- * aggiunta con una migration dedicata (vedi la nota consegnata con questa fase).
- * Fino ad allora, questa funzione è l'unica difesa.
+ * Il difetto di quella difesa non era il costo: era che **ogni futuro scrittore
+ * di `transactions` doveva ricordarsi di chiamarla**, e `updateRecurringRule`
+ * già non lo faceva. Dalla `20260815` la proprietà è una FK COMPOSITA
+ * `(account_id, user_id) → accounts (id, user_id)`, più la gemella su
+ * `to_account_id`: lo stato illegale non è più vietato per attenzione, è
+ * irrappresentabile — e la query in meno è un effetto collaterale, non lo scopo.
+ *
+ * Resta da tradurre il rifiuto del database in una frase leggibile, ed è ciò che
+ * fa `contoError()`.
  */
-async function assertOwnAccount(
-	supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
-	userId: string,
-	accountId: string,
-) {
-	const { data, error } = await supabase
-		.from("accounts")
-		.select("id")
-		.eq("id", accountId)
-		.eq("user_id", userId)
-		.maybeSingle();
 
-	if (error) {
-		// ⚠️ Un guasto di rete NON è "conto non trovato". Prima i chiamanti
-		// mappavano entrambi su `notFound`, quindi un 5xx transitorio diceva
-		// all'utente "Conto non trovato" per un conto che aveva appena scelto dal
-		// selettore: un messaggio che fa sembrare inutile riprovare, mentre
-		// riprovare è esattamente la cosa giusta. Il motivo vero finiva scartato
-		// prima di qualsiasi log.
-		console.error("[transactions] assertOwnAccount:", error.message);
-		return { failure: "unavailable" as const };
+/** Codici Postgres che qui significano "il conto non va bene". */
+const FK_VIOLATION = "23503";
+const CHECK_VIOLATION = "23514";
+
+/**
+ * Il messaggio da mostrare quando un salvataggio viene rifiutato.
+ *
+ * ⚠️ Il testo grezzo di Postgres NON si mostra: `insert or update on table
+ * "transactions" violates foreign key constraint
+ * "transactions_to_account_owner_fkey"` non è una frase per un utente, ed è
+ * anche in inglese in un'app tradotta. Ma non si scarta nemmeno — finisce nei
+ * log, perché è l'unica cosa che dice quale vincolo ha parlato.
+ */
+function contoError(
+	error: { code?: string; message: string },
+	t: Awaited<ReturnType<typeof requireUser>>["t"],
+) {
+	if (error.code === FK_VIOLATION || error.code === CHECK_VIOLATION) {
+		console.error("[transactions] vincolo violato:", error.code, error.message);
+		return t.accounts.errors.notFound;
 	}
-	if (!data) return { failure: "not_found" as const };
-	return { ok: true as const };
+	console.error("[transactions]", error.message);
+	return t.common.genericError;
 }
 
 export async function saveTransaction(
@@ -55,20 +59,11 @@ export async function saveTransaction(
 	nota: string | null,
 	data: string,
 	conto_id: string,
+	a_conto_id: string | null = null,
 ) {
 	const { supabase, user, t } = await requireUser();
 
 	if (!user) return { error: t.errors.notAuthenticated };
-
-	const owned = await assertOwnAccount(supabase, user.id, conto_id);
-	if ("failure" in owned) {
-		return {
-			error:
-				owned.failure === "not_found"
-					? t.accounts.errors.notFound
-					: t.common.genericError,
-		};
-	}
 
 	const { error } = await supabase.from("transactions").insert({
 		user_id: user.id,
@@ -78,9 +73,10 @@ export async function saveTransaction(
 		notes: nota,
 		date: data,
 		account_id: conto_id,
+		to_account_id: a_conto_id,
 	});
 
-	if (error) return { error: error.message };
+	if (error) return { error: contoError(error, t) };
 	revalidatePath("/", "layout");
 	return { success: true };
 }
@@ -104,15 +100,35 @@ export async function getTransactions(
 	if (tipo) query = query.eq("type", tipo);
 
 	/*
-	 * ⚠️ Il filtro agisce su `account_id`, cioè l'ORIGINE del movimento.
+	 * ⚠️ Il filtro prende ORIGINE **o** DESTINAZIONE, e nella 20a prendeva solo
+	 * l'origine. La domanda era stata lasciata aperta qui apposta: con
+	 * `to_account_id` un movimento appartiene a due conti, e la risposta non
+	 * doveva essere ereditata per inerzia.
 	 *
-	 * Non è una scelta di comodo: un `risparmio` fatto dal conto corrente verso
-	 * il Fondo è un atto compiuto DAL corrente, e chi filtra "conto corrente" si
-	 * aspetta di vederlo. Quando la 20b introdurrà `to_account_id` la domanda si
-	 * riaprirà — un trasferimento appartiene a due conti — e la risposta dovrà
-	 * essere decisa allora, non ereditata da qui per inerzia.
+	 * Con un conto selezionato questa lista è il suo **estratto conto**, e deve
+	 * riconciliare col saldo che `/conti` mostra tre tap più in là. Fermarsi
+	 * all'origine significherebbe che i 200 € arrivati sul Libretto non compaiono
+	 * in nessuna riga del Libretto pur essendo dentro al suo saldo: una lista che
+	 * non sa spiegare il numero scritto sopra di essa.
+	 *
+	 * ⚠️ La HOME resta all'origine soltanto, ed è coerente invece che
+	 * contraddittorio: là si guarda il FLUSSO — quanto è entrato e quanto è
+	 * uscito — e i trasferimenti non ci entrano affatto, perché spostare denaro
+	 * non è né guadagnarlo né spenderlo. Due domande diverse, due insiemi
+	 * diversi. Il segno delle righe segue la stessa distinzione: vedi
+	 * `amountSign()` in `lib/transaction-utils.ts`.
 	 */
-	if (conto) query = query.eq("account_id", conto);
+	/*
+	 * ⚠️ `isAccountId()` non è cerimonia: qui il conto finisce dentro una STRINGA
+	 * di filtro, dove `.eq()` non fa da parametro come altrove. Un valore con una
+	 * virgola aggiungerebbe condizioni al gruppo OR. Un id malformato viene
+	 * ignorato invece di fare errore — questa è una lista, e "nessun filtro" è una
+	 * degradazione onesta; è la home a non potersi permettere lo stesso, perché lì
+	 * il valore arriva a Postgres come uuid e la pagina intera morirebbe.
+	 */
+	if (isAccountId(conto)) {
+		query = query.or(`account_id.eq.${conto},to_account_id.eq.${conto}`);
+	}
 
 	if (periodo && periodo !== "tutto") {
 		const from = new Date();
@@ -137,20 +153,11 @@ export async function updateTransaction(
 	nota: string | null,
 	data: string,
 	conto_id: string,
+	a_conto_id: string | null = null,
 ) {
 	const { supabase, user, t } = await requireUser();
 
 	if (!user) return { error: t.errors.notAuthenticated };
-
-	const owned = await assertOwnAccount(supabase, user.id, conto_id);
-	if ("failure" in owned) {
-		return {
-			error:
-				owned.failure === "not_found"
-					? t.accounts.errors.notFound
-					: t.common.genericError,
-		};
-	}
 
 	const { error } = await supabase
 		.from("transactions")
@@ -161,11 +168,17 @@ export async function updateTransaction(
 			notes: nota,
 			date: data,
 			account_id: conto_id,
+			// ⚠️ Sempre scritta, anche quando è `null`. Omettere il campo su un
+			// update PostgREST significa "non toccarlo": cambiando il tipo di un
+			// movimento da `risparmio` a `spesa` la vecchia destinazione
+			// resterebbe attaccata, e `transactions_dest_type_check` rifiuterebbe
+			// l'intero salvataggio con un messaggio che parla di vincoli.
+			to_account_id: a_conto_id,
 		})
 		.eq("id", id)
 		.eq("user_id", user.id);
 
-	if (error) return { error: error.message };
+	if (error) return { error: contoError(error, t) };
 	revalidatePath("/", "layout");
 	return { success: true };
 }
@@ -201,16 +214,6 @@ export async function createRecurringRule(
 
 	if (!user) return { error: t.errors.notAuthenticated };
 
-	const owned = await assertOwnAccount(supabase, user.id, conto_id);
-	if ("failure" in owned) {
-		return {
-			error:
-				owned.failure === "not_found"
-					? t.accounts.errors.notFound
-					: t.common.genericError,
-		};
-	}
-
 	const { error } = await supabase.from("recurring_rules").insert({
 		user_id: user.id,
 		amount: importo,
@@ -230,7 +233,7 @@ export async function createRecurringRule(
 		next_run: firstRunFrom(start_date),
 	});
 
-	if (error) return { error: error.message };
+	if (error) return { error: contoError(error, t) };
 
 	// Materializza subito le occorrenze già dovute — best-effort:
 	// se l'RPC fallisce, la regola è comunque salvata e il cron genererà le occorrenze.
@@ -278,6 +281,7 @@ export async function updateRecurringRule(
 	nota: string | null,
 	frequency: string,
 	next_run: string, // YYYY-MM-DD
+	conto_id: string,
 ) {
 	const { supabase, user, t } = await requireUser();
 
@@ -292,11 +296,27 @@ export async function updateRecurringRule(
 			frequency,
 			// "Prossima data" mai nel passato: evita back-fill al prossimo cron.
 			next_run: firstRunFrom(next_run),
+			/*
+			 * ⚠️ Il conto era a SCRITTURA UNICA fino alla 20b, e non per scelta:
+			 * `createRecurringRule` lo prendeva, questa no, e `RecurringSheet` non
+			 * mostrava il campo. Una regola nata sul conto sbagliato non si poteva
+			 * più spostare — l'unico rimedio era cancellarla e rifarla.
+			 *
+			 * Serve anche a rendere praticabile il divieto di archiviare un conto
+			 * con regole attive (`setAccountArchived`): senza una via per spostarle,
+			 * quel divieto sarebbe un vicolo cieco.
+			 *
+			 * La proprietà del conto la garantisce la FK composita della
+			 * `20260815`, non un controllo qui: questa action non ha MAI chiamato
+			 * `assertOwnAccount`, ed è precisamente il buco che un vincolo chiude e
+			 * una convenzione no.
+			 */
+			account_id: conto_id,
 		})
 		.eq("id", id)
 		.eq("user_id", user.id);
 
-	if (error) return { error: error.message };
+	if (error) return { error: contoError(error, t) };
 	revalidatePath("/", "layout");
 	return { success: true };
 }
@@ -552,8 +572,18 @@ export async function getAnalyticsData(periodo: string = "mese", accountId?: str
 		});
 	}
 
-	// Il filtro conto si applica a ENTRAMBE le query: il KPI e la torta devono
-	// parlare dello stesso insieme, o la pagina si contraddice al proprio interno.
+	/*
+	 * Il filtro conto si applica a ENTRAMBE le query: il KPI e la torta devono
+	 * parlare dello stesso insieme, o la pagina si contraddice al proprio interno.
+	 *
+	 * ⚠️ Solo `account_id`, cioè l'ORIGINE — e la differenza con
+	 * `getTransactions()`, che dalla 20b prende origine **o** destinazione, è
+	 * deliberata. Non allinearle per simmetria: rispondono a domande diverse.
+	 * Qui si guarda il FLUSSO di un conto (quanto è entrato, quanto è uscito) e i
+	 * trasferimenti non ci entrano affatto, perché spostare denaro non è né
+	 * guadagnarlo né spenderlo; là si guarda il suo ESTRATTO CONTO, che deve
+	 * riconciliare col saldo e quindi include ciò che è arrivato.
+	 */
 	const byAccount = <T>(q: T): T =>
 		accountId ? ((q as { eq: (c: string, v: string) => T }).eq("account_id", accountId)) : q;
 

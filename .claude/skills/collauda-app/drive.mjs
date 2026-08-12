@@ -299,6 +299,81 @@ try {
 			console.log("shot:", await shot(page, "movimenti-filtrati"));
 		}
 	}
+
+	/* ======================================================= Fase 20b · trasferimenti */
+
+	/* ------------------------ 8 · la griglia dei tipi non sfonda il riquadro */
+	// ⚠️ La prova esiste per un difetto che né `tsc` né il lint vedono: la card
+	// dell'ultimo tipo occupava DUE colonne per riempire una griglia dispari, e
+	// col sesto tipo (`trasferimento`) la griglia 2×3 è esatta — quella regola
+	// avrebbe spinto l'ultima card su una quarta riga inesistente, dentro un
+	// contenitore `flex-1 min-h-0` che non può crescere. Si vede solo aprendo il
+	// modale, e solo dopo aver aggiunto un tipo: cioè una volta ogni due anni.
+	await page.goto(`${BASE}/`, { waitUntil: "domcontentloaded" });
+	await page.waitForLoadState("networkidle").catch(() => {});
+	await page.locator(".fab").first().click();
+	await page.waitForTimeout(700);
+	await expectText(page, "Trasferimento", "8 il sesto tipo c'è");
+
+	const griglia = page.locator(".grid.grid-cols-2.grid-rows-3").first();
+	const gb = await griglia.boundingBox();
+	const cardTrasf = page.getByText("Trasferimento", { exact: true }).first();
+	const cb = await cardTrasf.boundingBox();
+	const dentro = gb && cb && cb.y + cb.height <= gb.y + gb.height + 2;
+	(dentro ? ok : ko).push(
+		`${dentro ? "OK " : "KO "} 8 la card 'Trasferimento' sta DENTRO la griglia ` +
+		`(griglia fino a ${gb ? Math.round(gb.y + gb.height) : "?"}, card fino a ${cb ? Math.round(cb.y + cb.height) : "?"})`,
+	);
+	console.log("shot:", await shot(page, "tipi-sei-card"));
+
+	/* --------------- 9 · il form trasferimento: due conti, nessuna categoria */
+	await cardTrasf.click();
+	// ⚠️ 2500ms e non 800: i conti arrivano da una query Supabase e alla PRIMA
+	// apertura c'è anche la compilazione del chunk. Con l'attesa corta lo scatto
+	// mostrava il form senza conti e con l'avviso rosso "serve un conto" — un
+	// falso allarme che somiglia moltissimo a un difetto vero.
+	await page.waitForTimeout(2500);
+	await expectText(page, "Conto di partenza", "9 origine");
+	await expectText(page, "Conto di arrivo", "9 destinazione");
+	for (const [testo, etichetta] of [
+		["Categoria", "9 la categoria lascia il posto alla destinazione"],
+		["Ripeti", "9 niente ricorrenza sui trasferimenti"],
+	]) {
+		const c = await page.getByText(testo, { exact: false }).first().isVisible().catch(() => false);
+		(c ? ko : ok).push(`${c ? "KO " : "OK "} ${etichetta} — "${testo}" NON deve esserci`);
+	}
+	console.log("shot:", await shot(page, "form-trasferimento"));
+
+	/* -------- 10 · risparmio: categoria E destinazione facoltativa, spiegata */
+	await page.goto(`${BASE}/`, { waitUntil: "domcontentloaded" });
+	await page.waitForLoadState("networkidle").catch(() => {});
+	await page.locator(".fab").first().click();
+	await page.waitForTimeout(700);
+	await page.getByText("Risparmio", { exact: true }).first().click();
+	await page.waitForTimeout(2000);
+	await expectText(page, "Categoria", "10 il risparmio tiene la categoria");
+	await expectText(page, "Conto di arrivo", "10 e guadagna la destinazione facoltativa");
+	// La riga che rende impossibile il doppio conteggio: senza, l'utente
+	// registra il risparmio E il trasferimento.
+	await expectText(page, "il denaro si sposta davvero", "10 con la riga che dice cosa cambia");
+	console.log("shot:", await shot(page, "form-risparmio-destinazione"));
+
+	/* ------------- 11 · il conto di una ricorrente è modificabile (debito 20a) */
+	// ⚠️ Il selettore punta a "modifica", NON a un bottone che contenga "€":
+	// l'importo sta in un FRATELLO della riga, la stessa trappola già annotata
+	// per le righe conto. Un `button` con dentro `€` non aggancia niente.
+	await page.goto(`${BASE}/impostazioni/ricorrenti`, { waitUntil: "domcontentloaded" });
+	await page.waitForLoadState("networkidle").catch(() => {});
+	const modifica = page.getByText("modifica", { exact: true }).first();
+	if (await modifica.isVisible().catch(() => false)) {
+		await modifica.click();
+		await page.waitForTimeout(2000);
+		await expectText(page, "Modifica ricorrenza", "11 sheet aperto");
+		await expectText(page, "Conto", "11 il conto della regola è modificabile");
+		console.log("shot:", await shot(page, "ricorrente-conto"));
+	} else {
+		ok.push("OK  11 saltata — nessuna regola ricorrente da aprire");
+	}
 } catch (e) {
 	ko.push(`KO  eccezione: ${e.message.split("\n")[0]}`);
 	await shot(page, "errore").catch(() => {});

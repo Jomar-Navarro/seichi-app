@@ -57,6 +57,7 @@ export const en: Dictionary = {
 		risparmio: "Savings",
 		investimento: "Investments",
 		abbonamento: "Subscriptions",
+		trasferimento: "Transfers",
 	},
 
 	typesSingular: {
@@ -65,6 +66,7 @@ export const en: Dictionary = {
 		risparmio: "Saving",
 		investimento: "Investment",
 		abbonamento: "Subscription",
+		/* No `trasferimento` here, nor in `newByType`/`typesShort`: see it.ts. */
 	},
 
 	newByType: {
@@ -283,6 +285,7 @@ export const en: Dictionary = {
 		risparmio: { label: "Saving", description: "Set-asides and goals" },
 		investimento: { label: "Investment", description: "Markets, funds, portfolio" },
 		abbonamento: { label: "Recurring", description: "Subscriptions and fixed payments" },
+		trasferimento: { label: "Transfer", description: "Move money between your accounts" },
 	},
 
 	home: {
@@ -369,6 +372,10 @@ export const en: Dictionary = {
 			notFound: "Account not found.",
 			lastAccount:
 				"This is your only active account, and every transaction has to belong to one.",
+			hasRecurring: {
+				one: "There is {n} active recurring rule on this account. Move it to another account or pause it, then try again.",
+				other: "There are {n} active recurring rules on this account. Move them to another account or pause them, then try again.",
+			},
 		},
 	},
 
@@ -384,6 +391,12 @@ export const en: Dictionary = {
 			description: "Description",
 			descriptionPlaceholder: "e.g. Trainline, Tesco...",
 			date: "Date",
+			// "Source/Destination account", not "From/To account": the placeholder is
+			// `Select {field}`, so "To account" produced "Select to account". See it.ts.
+			fromAccount: "Source account",
+			toAccount: "Destination account",
+			noDestination: "None",
+			destinationHint: "the money really moves to that account, and the goal still moves forward",
 			recurringSection: "Recurring",
 			repeat: "Repeat",
 			saveChanges: "Save changes",

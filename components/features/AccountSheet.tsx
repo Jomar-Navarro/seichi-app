@@ -119,6 +119,15 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 			const result = await setAccountArchived(account.id, true);
 			if ("error" in result && result.error) {
 				setServerError(result.error);
+				/*
+				 * ⚠️ Si torna a "Archivia": la conferma è stata data e RESPINTA, e
+				 * lasciarla accesa mostrerebbe due messaggi contraddittori insieme —
+				 * l'errore che dice "non si può" sopra la riga che spiega cosa
+				 * succede archiviando. Il rifiuto ha una causa rimediabile (spostare
+				 * o mettere in pausa le ricorrenti), quindi il gesto va ricominciato
+				 * dopo averla rimossa, non riconfermato a vuoto.
+				 */
+				setConfirmArchive(false);
 				return;
 			}
 			router.refresh();

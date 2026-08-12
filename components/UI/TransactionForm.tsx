@@ -65,6 +65,9 @@ export default function TransactionForm({
 	const [accountId, setAccountId] = useState<string | null>(
 		transaction?.account_id ?? null,
 	);
+	const [toAccountId, setToAccountId] = useState<string | null>(
+		transaction?.to_account_id ?? null,
+	);
 	const [isDeleteConfirm, setIsDeleteConfirm] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
 	const { closeTransactionModal, notifyTransactionSaved, recurringDefault } =
@@ -72,7 +75,41 @@ export default function TransactionForm({
 	const [isRecurring, setIsRecurring] = useState(recurringDefault);
 	const [frequency, setFrequency] = useState<Frequency>("mensile");
 
+	/**
+	 * Un trasferimento non ha categoria, un `risparmio` può avere una
+	 * destinazione (Fase 20b).
+	 *
+	 * ⚠️ `isTransfer` è il punto in cui si rompe l'accoppiamento 1:1 fra tipo di
+	 * transazione e tipo di categoria su cui questo form si è retto fino alla
+	 * 20a. Non è una svista da sanare: è un CHECK del database
+	 * (`transactions_transfer_category_check`), quindi mandare una categoria su
+	 * un trasferimento non produce un dato strano, produce un errore.
+	 */
+	const isTransfer = selectedType.id === "trasferimento";
+	/*
+	 * ⚠️ La destinazione FACOLTATIVA su risparmio e investimento è ciò che rende
+	 * il doppio conteggio impossibile invece che sconsigliato. Senza, mettere
+	 * 200 € da parte sarebbe esprimibile due volte — un `risparmio` verso un
+	 * obiettivo oppure un trasferimento verso il "Libretto" — e chi facesse
+	 * entrambi vedrebbe uscire 400 € dal conto corrente.
+	 */
+	const canHaveDestination =
+		isTransfer || selectedType.id === "risparmio" || selectedType.id === "investimento";
+
 	useEffect(() => {
+		/*
+		 * Un trasferimento non ha categoria: la query non si fa proprio.
+		 * `categories_type_check` non ammette `trasferimento`, quindi tornerebbe
+		 * comunque vuota.
+		 *
+		 * ⚠️ Si esce SENZA azzerare `categoryList`: un `setState` sincrono nel
+		 * corpo di un effetto è un render a cascata (`react-hooks/
+		 * set-state-in-effect`). La lista resta quella del tipo precedente e non
+		 * fa danno, perché il selettore categoria non viene renderizzato e
+		 * `handleSave` manda `null` — la scelta di cosa scrivere non si appoggia a
+		 * ciò che è rimasto in memoria.
+		 */
+		if (isTransfer) return;
 		async function loadCategories() {
 			const supabase = createClient();
 			const { data } = await supabase
@@ -82,7 +119,7 @@ export default function TransactionForm({
 			if (data) setCategoryList(data);
 		}
 		loadCategories();
-	}, [selectedType.id]);
+	}, [selectedType.id, isTransfer]);
 
 	/*
 	 * I conti non dipendono dal tipo di movimento, quindi si caricano una volta
@@ -123,11 +160,39 @@ export default function TransactionForm({
 		setAmount((prev) => prev + key);
 	};
 
+	/*
+	 * ⚠️ Le regole ricorrenti NON possono essere trasferimenti, e non basta
+	 * ometterne il comando: `isRecurring` è uno stato che sopravvive al cambio di
+	 * tipo (il form non si rimonta), quindi chi accende "Ripeti" su una spesa e
+	 * poi passa a trasferimento salverebbe una regola che
+	 * `recurring_rules_type_check` rifiuta. La riga sotto rende quella
+	 * combinazione inesprimibile invece che vietata.
+	 */
+	const recurring = isRecurring && !isTransfer;
+
+	/*
+	 * Ciò che finisce davvero nel database, indipendentemente da cosa è rimasto
+	 * negli stati dopo un cambio di tipo. I quattro CHECK della `20260815` non
+	 * ammettono una categoria su un trasferimento né una destinazione su una
+	 * spesa: derivare qui invece di sperare che gli stati siano coerenti è la
+	 * differenza fra un form che non può sbagliare e uno che di solito non
+	 * sbaglia.
+	 */
+	const effectiveCategoryId = isTransfer ? null : categoryId;
+	const effectiveToAccountId = canHaveDestination ? toAccountId : null;
+
 	// ⚠️ Il conto entra nella validità: `account_id` è NOT NULL, quindi senza un
 	// conto il salvataggio fallirebbe comunque, ma dal database e con un
 	// messaggio che parla di vincoli. Meglio un bottone spento.
+	//
+	// Per un trasferimento serve anche la destinazione, e diversa dall'origine:
+	// sono i due CHECK `transactions_transfer_dest_check` e
+	// `transactions_dest_distinct_check`.
 	const isValid =
-		amount !== "" && parseFloat(amount.replace(",", ".")) > 0 && accountId !== null;
+		amount !== "" &&
+		parseFloat(amount.replace(",", ".")) > 0 &&
+		accountId !== null &&
+		(!isTransfer || (toAccountId !== null && toAccountId !== accountId));
 
 	async function handleSave() {
 		if (!isValid || isSaving || !accountId) return;
@@ -139,16 +204,17 @@ export default function TransactionForm({
 						transaction.id,
 						importo,
 						selectedType.id,
-						categoryId,
+						effectiveCategoryId,
 						description,
 						date.toISOString(),
 						accountId,
+						effectiveToAccountId,
 					)
-				: isRecurring
+				: recurring
 					? await createRecurringRule(
 							importo,
 							selectedType.id,
-							categoryId,
+							effectiveCategoryId,
 							description,
 							date.toLocaleDateString("sv-SE"), // YYYY-MM-DD in locale, no shift UTC
 							frequency,
@@ -157,10 +223,11 @@ export default function TransactionForm({
 					: await saveTransaction(
 							importo,
 							selectedType.id,
-							categoryId,
+							effectiveCategoryId,
 							description,
 							date.toISOString(),
 							accountId,
+							effectiveToAccountId,
 						);
 
 			if (!result?.error) {
@@ -228,7 +295,7 @@ export default function TransactionForm({
 		(a) => !a.archived || a.id === accountId,
 	);
 
-	const accountOptions: Option[] = effectiveAccountList.map((a) => {
+	const toOption = (a: Account): Option => {
 		const Icon = (a.type && ACCOUNT_TYPE_ICON[a.type]) || ACCOUNT_ICON_FALLBACK;
 		const color = accountColor(a.type, a.color);
 		return {
@@ -236,7 +303,43 @@ export default function TransactionForm({
 			label: a.name,
 			icon: <Icon size={14} style={{ color }} />,
 		};
-	});
+	};
+
+	const accountOptions: Option[] = effectiveAccountList.map(toOption);
+
+	/*
+	 * Le destinazioni proponibili.
+	 *
+	 * ⚠️ L'origine è esclusa, e non è cortesia: `transactions_dest_distinct_check`
+	 * rifiuta un movimento verso se stesso. Toglierla dall'elenco è la forma
+	 * corretta di quel vincolo per un umano — un'opzione che, scelta, produce un
+	 * errore è un'opzione che non doveva esserci.
+	 *
+	 * ⚠️ Gli ARCHIVIATI restano fuori anche quando sono il valore corrente, al
+	 * contrario dell'origine. La ragione è che le due colonne rispondono a domande
+	 * diverse nel tempo: `account_id` racconta dove il movimento è AVVENUTO — un
+	 * fatto storico che resta vero anche se il conto è stato chiuso — mentre
+	 * scegliere una destinazione archiviata significa spedirci denaro adesso, in un
+	 * conto che l'utente ha dichiarato di non usare più e che è escluso da "Saldo ·
+	 * N conti attivi". Sarebbe denaro che sparisce da ogni numero mostrato.
+	 */
+	const destinationOptions: Option[] = accountList
+		.filter((a) => a.id !== accountId && (!a.archived || a.id === toAccountId))
+		.map(toOption);
+
+	/*
+	 * La voce "nessuna destinazione", solo dove la destinazione è facoltativa.
+	 *
+	 * ⚠️ Senza, la scelta sarebbe IRREVERSIBILE: `Select` non ha un comando per
+	 * svuotarsi, quindi un risparmio a cui si assegna per sbaglio un conto non
+	 * potrebbe più tornare senza. È lo stesso difetto già pagato nella Fase 19,
+	 * quando il `DatePicker` custom aveva tolto lo svuotamento che
+	 * `<input type="date">` aveva di serie.
+	 */
+	const destinationOptionsWithNone: Option[] = [
+		{ value: "", label: t.transactions.form.noDestination, icon: null },
+		...destinationOptions,
+	];
 
 	return (
 		<div className="flex flex-col flex-1 min-h-0 overflow-y-auto overscroll-contain">
@@ -250,21 +353,22 @@ export default function TransactionForm({
 			</div>
 
 			<div className="flex flex-col gap-2 mb-3">
-				{/* Categoria */}
-				<Select
-					title={t.transactions.form.category}
-					variant="compact"
-					options={categoryOptions}
-					selected={categoryId ?? ""}
-					onChange={(val) => setCategoryId(val)}
-				/>
-
 				{/*
-					Conto. Sta subito sotto la categoria perché rispondono a due
-					domande vicine — "che cosa" e "da dove" — e nella 20b sarà proprio
-					questa posizione a ospitare il conto di destinazione quando il
-					tipo è `trasferimento`, che una categoria non ce l'ha.
+					Categoria — assente sui trasferimenti, dove la posizione la prende
+					il conto di destinazione. Era previsto fin dalla 20a: "che cosa" e
+					"da dove" sono due domande vicine, e un trasferimento la prima non
+					se la pone.
 				*/}
+				{!isTransfer && (
+					<Select
+						title={t.transactions.form.category}
+						variant="compact"
+						options={categoryOptions}
+						selected={categoryId ?? ""}
+						onChange={(val) => setCategoryId(val)}
+					/>
+				)}
+
 				{/*
 					⚠️ `fieldLabel` ("Conto"), NON `title` ("Conti").
 					`Select` costruisce il segnaposto come `Seleziona {title minuscolo}`,
@@ -272,14 +376,53 @@ export default function TransactionForm({
 					un campo a scelta singola — la trappola della Fase 19 ("Seleziona
 					category", "Nuova investimento") reintrodotta riusando un titolo di
 					pagina dove serve un'etichetta di campo.
+
+					Su un trasferimento diventa "Dal conto": accanto a "Al conto" la
+					parola "Conto" da sola non direbbe quale dei due.
 				*/}
 				<Select
-					title={t.accounts.fieldLabel}
+					title={isTransfer ? t.transactions.form.fromAccount : t.accounts.fieldLabel}
 					variant="compact"
 					options={accountOptions}
 					selected={accountId ?? ""}
-					onChange={(val) => setAccountId(val)}
+					onChange={(val) => {
+						setAccountId(val);
+						// ⚠️ Cambiando origine, una destinazione ora identica va tolta.
+						// Non in un effetto: sarebbe un render a cascata, e qui il punto
+						// esatto in cui la collisione nasce è questo handler.
+						if (val === toAccountId) setToAccountId(null);
+					}}
 				/>
+
+				{/*
+					Destinazione. Obbligatoria sui trasferimenti, facoltativa su
+					risparmi e investimenti, assente altrove.
+				*/}
+				{canHaveDestination && (
+					<div>
+						<Select
+							title={t.transactions.form.toAccount}
+							variant="compact"
+							options={isTransfer ? destinationOptions : destinationOptionsWithNone}
+							selected={toAccountId ?? ""}
+							onChange={(val) => setToAccountId(val || null)}
+						/>
+						{/*
+							⚠️ La riga di spiegazione c'è solo dove la destinazione è
+							FACOLTATIVA, ed è lì che serve: su un trasferimento il campo si
+							spiega da sé, mentre su un risparmio "Al conto" non dice cosa
+							cambia — e ciò che cambia è precisamente il motivo per cui il
+							campo esiste. Senza, l'utente registrerebbe il risparmio E il
+							trasferimento, cioè il doppio conteggio che la 20b esiste per
+							rendere impossibile.
+						*/}
+						{!isTransfer && (
+							<p className="mt-1.5 ml-1 text-[11px] text-disabled leading-relaxed">
+								{t.transactions.form.destinationHint}
+							</p>
+						)}
+					</div>
+				)}
 
 				{/* Descrizione */}
 				<div>
@@ -310,8 +453,16 @@ export default function TransactionForm({
 				</div>
 			</div>
 
-			{/* Ripeti (solo nuovi movimenti) */}
-			{!isEditing && (
+			{/*
+				Ripeti — solo nuovi movimenti, e mai sui trasferimenti.
+				⚠️ `recurring_rules_type_check` non ammette `trasferimento`, e la
+				divergenza con `transactions_type_check` è deliberata (vedi la
+				`20260815`): una ricorrente di trasferimento è una funzionalità nuova,
+				non un allineamento dimenticato. Finché non c'è, il comando non deve
+				esserci — offrirlo e poi far fallire il salvataggio sarebbe peggio che
+				non offrirlo.
+			*/}
+			{!isEditing && !isTransfer && (
 				<div className="mb-3">
 					<p className="text-xs text-muted mb-1.5">{t.transactions.form.recurringSection}</p>
 					<button
@@ -357,7 +508,7 @@ export default function TransactionForm({
 							e.preventDefault();
 							handleKey(key);
 						}}
-						className={`flex items-center justify-center rounded-2xl bg-card border border-subtle text-lg font-medium ${isRecurring ? "h-12" : "h-14"}`}
+						className={`flex items-center justify-center rounded-2xl bg-card border border-subtle text-lg font-medium ${recurring ? "h-12" : "h-14"}`}
 					>
 						{key === "⌫" ? <Delete size={18} /> : key}
 					</button>
@@ -372,7 +523,7 @@ export default function TransactionForm({
 				<Check size={18} />
 				{isEditing
 					? t.transactions.form.saveChanges
-					: isRecurring
+					: recurring
 						? t.transactions.form.createRecurring
 						: t.transactions.form.save}
 			</button>

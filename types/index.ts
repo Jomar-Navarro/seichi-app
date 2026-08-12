@@ -5,9 +5,16 @@ import {
 	PiggyBankIcon,
 	RepeatIcon,
 	TrendingUpIcon,
+	ArrowLeftRightIcon,
 } from "@/lib/seichi-icons";
 
-export type TransactionTypeId = "spesa" | "entrata" | "risparmio" | "investimento" | "abbonamento";
+export type TransactionTypeId =
+	| "spesa"
+	| "entrata"
+	| "risparmio"
+	| "investimento"
+	| "abbonamento"
+	| "trasferimento";
 
 /**
  * Un tipo di transazione: identità, colore e icona.
@@ -126,6 +133,16 @@ export interface Transaction {
 	recurring_rule_id: string | null;
 	/** NOT NULL nel database dalla Fase 20a: ogni movimento appartiene a un conto. */
 	account_id: string;
+	/**
+	 * Il conto di DESTINAZIONE (Fase 20b) — dove il denaro arriva.
+	 *
+	 * ⚠️ Nullable e valorizzato solo su tre tipi: obbligatorio su
+	 * `trasferimento`, facoltativo su `risparmio` e `investimento`, vietato su
+	 * tutti gli altri. Non è una convenzione applicativa: sono quattro CHECK in
+	 * `20260815_transfers.sql`, quindi lo stato illegale non è rappresentabile
+	 * nemmeno da un insert scritto a mano nel SQL Editor.
+	 */
+	to_account_id: string | null;
 	categories: {
 		name: string;
 		icon: string;
@@ -148,6 +165,17 @@ export interface RecurringRule {
 	end_date: string | null;
 	active: boolean;
 	created_at: string;
+	/**
+	 * Il conto su cui la regola scrive.
+	 *
+	 * ⚠️ NOT NULL nel database dalla 20a, ma **mancava da questo tipo** — e
+	 * l'omissione non era innocua: senza il campo, `RecurringSheet` non poteva
+	 * nemmeno leggerlo, quindi il conto di una regola era di fatto a scrittura
+	 * unica e una regola nata sul conto sbagliato ci scriveva sopra per sempre.
+	 * Un tipo incompleto non produce un errore, produce una funzionalità che non
+	 * viene scritta perché il dato sembra non esserci.
+	 */
+	account_id: string;
 	categories?: {
 		name: string;
 		icon: string;
@@ -321,5 +349,23 @@ export const TRANSACTION_TYPES: TransactionType[] = [
 		id: "abbonamento",
 		color: "var(--color-murasaki)",
 		icon: RepeatIcon,
+	},
+	/**
+	 * ⚠️ Ultimo, e NEUTRO — le due cose sono deliberate.
+	 *
+	 * Ultimo perché è il tipo che si sceglie meno spesso, e la griglia del
+	 * `TransactionModal` si legge dall'alto.
+	 *
+	 * Neutro perché gli altri cinque accenti dicono ciascuno una cosa sul denaro
+	 * — verde entra, rosso esce, oro da parte, blu investito, viola ricorre — e
+	 * un trasferimento non ne dice nessuna: il denaro non è cresciuto né
+	 * diminuito, si è spostato. Prestargli uno di quei colori sarebbe
+	 * un'affermazione che il tipo non ha titolo per fare, come colorare di verde
+	 * la giacenza di un conto.
+	 */
+	{
+		id: "trasferimento",
+		color: "var(--color-kiri)",
+		icon: ArrowLeftRightIcon,
 	},
 ];

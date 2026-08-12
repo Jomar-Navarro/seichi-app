@@ -127,7 +127,22 @@ function TransactionModalContent() {
 					<div className="flex-1 min-h-0 grid grid-cols-2 grid-rows-3 gap-2.25">
 						{TRANSACTION_TYPES.map((type, i) => {
 							const Icon = type.icon;
-							const isLast = i === TRANSACTION_TYPES.length - 1;
+							/*
+								⚠️ La card a tutta larghezza serve a RIEMPIRE una griglia
+								dispari, non a dare risalto all'ultimo tipo.
+								Era `i === length - 1`, e con cinque tipi coincideva: la
+								quinta card chiudeva la terza riga da sola. Aggiungendo
+								`trasferimento` i tipi sono sei — la griglia 2×3 è esatta — e
+								quella stessa riga avrebbe messo la sesta card su una quarta
+								riga inesistente, dentro un contenitore `flex-1 min-h-0` che
+								non può crescere: le card si sarebbero schiacciate e l'ultima
+								sarebbe uscita dal riquadro.
+								Il difetto non lo vede né `tsc` né il lint. Si vede aprendo
+								il modale — e solo dopo aver aggiunto un tipo, cioè una volta
+								ogni due anni.
+							*/
+							const spansFullRow =
+								TRANSACTION_TYPES.length % 2 === 1 && i === TRANSACTION_TYPES.length - 1;
 							const isSelected = selectedTransactionType === type.id;
 
 							const card = (
@@ -176,7 +191,7 @@ function TransactionModalContent() {
 								</button>
 							);
 
-							if (isLast) {
+							if (spansFullRow) {
 								return (
 									<div key={type.id} className="col-span-2">
 										{card}

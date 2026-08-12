@@ -17,6 +17,7 @@ import NotificationBell from "@/components/features/NotificationBell";
 import { getUnreadCount } from "@/app/(main)/notification-actions";
 import Sparkline from "@/components/UI/Sparkline";
 import { getProfileHeader } from "@/lib/account";
+import { isAccountId } from "@/lib/accounts";
 import { getI18n } from "@/lib/i18n/server";
 import { fill, formatDate } from "@/lib/i18n/format";
 import { ChartNoAxesCombinedIcon } from "@/lib/seichi-icons";
@@ -43,8 +44,7 @@ export default async function MainPage({
 	 * crawler. Un id ben formato ma non tuo non arriva qui: lo ferma la RLS, e il
 	 * controllo di appartenenza sta in `DashboardContent`.
 	 */
-	const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-	const accountId = conto && UUID.test(conto) ? conto : null;
+	const accountId = isAccountId(conto) ? conto : null;
 
 	return (
 		// ⚠️ La `key` rimonta il contenuto quando cambia il conto selezionato.
@@ -279,7 +279,11 @@ async function DashboardContent({ accountId }: { accountId: string | null }) {
 				</div>
 			</Link>
 
-			<RecentTransaction transactions={transaction.data} />
+			<RecentTransaction
+				transactions={transaction.data}
+				accounts={accounts}
+				viewedAccountId={accountId}
+			/>
 			<DashboardRefresher />
 			</div>
 		</div>

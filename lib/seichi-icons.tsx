@@ -115,6 +115,25 @@ export function RepeatIcon(p: SeichiIconProps) {
 	);
 }
 
+/**
+ * Trasferimento fra conti (Fase 20b).
+ *
+ * Due frecce opposte e nessuna direzione dominante: un trasferimento non è né
+ * un'entrata né un'uscita, e l'icona non deve suggerire il contrario. Per la
+ * stessa ragione non riusa `ArrowDownLeftIcon`, che nell'app significa
+ * "in arrivo".
+ */
+export function ArrowLeftRightIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.6)}>
+			<path d="M16 3l4 4-4 4" />
+			<path d="M20 7H4" />
+			<path d="M8 21l-4-4 4-4" />
+			<path d="M4 17h16" />
+		</svg>
+	);
+}
+
 // ─── Category icons (keys match DB values from onboarding) ────────────────────
 
 export function BanknoteIcon(p: SeichiIconProps) {

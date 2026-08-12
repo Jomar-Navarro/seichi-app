@@ -60,6 +60,34 @@ export const ACCOUNT_TYPE_COLOR: Record<AccountTypeId, string> = {
 export const ACCOUNT_ICON_FALLBACK: ElementType = WalletIcon;
 const FALLBACK_COLOR = "var(--color-kiri)";
 
+/**
+ * L'id di un conto ha la forma di un UUID?
+ *
+ * ⚠️ Serve in DUE punti che sembrano non avere niente in comune, e in entrambi
+ * l'assenza del controllo produce un guasto diverso:
+ *
+ * - la **home** (`app/(main)/page.tsx`) passa `?conto=` a `dashboard_totals()`,
+ *   che con `abc` solleva `22P02 invalid input syntax for type uuid`: il ramo
+ *   d'errore sostituisce l'intera dashboard con "Errore", senza via d'uscita se
+ *   non modificare l'URL a mano. Basta un link troncato.
+ * - `getTransactions()` (Fase 20b) interpola il conto in una **stringa** di
+ *   filtro PostgREST — `.or("account_id.eq.X,to_account_id.eq.X")` — e lì `.eq()`
+ *   non fa da parametro: una virgola o un punto dentro il valore aggiunge
+ *   condizioni al gruppo OR. Il danno è limitato (la RLS e il `.eq("user_id")`
+ *   restano ANDed sopra, quindi si vedrebbero al più righe proprie filtrate
+ *   male), ma è l'unico punto dell'app dove un valore dell'utente diventa
+ *   SINTASSI invece che dato, e merita di essere chiuso dove nasce.
+ *
+ * Era una regex copiata dentro `page.tsx`: qui è una sola, e il secondo
+ * chiamante non ha dovuto reinventarla — che è il modo in cui la prima volta si
+ * dimentica.
+ */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isAccountId(value: string | null | undefined): value is string {
+	return typeof value === "string" && UUID_RE.test(value);
+}
+
 export function accountColor(type: string | null, custom?: string | null): string {
 	if (custom) return custom;
 	if (!type) return FALLBACK_COLOR;

@@ -84,6 +84,7 @@ export const it = {
 		risparmio: "Risparmi",
 		investimento: "Investimenti",
 		abbonamento: "Abbonamenti",
+		trasferimento: "Trasferimenti",
 	},
 
 	/**
@@ -97,6 +98,21 @@ export const it = {
 		risparmio: "Risparmio",
 		investimento: "Investimento",
 		abbonamento: "Abbonamento",
+		/*
+		 * ⚠️ NIENTE `trasferimento` qui, né in `newByType` e `typesShort`, e non è
+		 * una dimenticanza.
+		 *
+		 * Questi tre elenchi servono SOLO alla UI delle categorie
+		 * (`CategoryManager`, `CategorySheet`), e una categoria di tipo
+		 * `trasferimento` non può esistere: `categories_type_check` non lo ammette,
+		 * e un trasferimento non ha categoria per costruzione. Le voci sarebbero
+		 * codice morto in due lingue — il difetto che il code-review della 20a ha
+		 * trovato otto volte.
+		 *
+		 * `t.types` (plurale) e `t.transactionTypes` invece ce l'hanno, perché
+		 * quelli descrivono i TIPI DI MOVIMENTO e vengono resi davvero: il filtro
+		 * dei movimenti, il sottotitolo delle righe, le card del modale.
+		 */
 	},
 
 	/**
@@ -116,6 +132,7 @@ export const it = {
 		risparmio: "nuovo risparmio",
 		investimento: "nuovo investimento",
 		abbonamento: "nuovo abbonamento",
+		/* Niente `trasferimento`: vedi la nota in `typesSingular`. */
 	},
 
 	/** Tema chiaro/scuro (Fase 18). */
@@ -406,6 +423,12 @@ export const it = {
 		risparmio: { label: "Risparmio", description: "Accantonamenti e obiettivi" },
 		investimento: { label: "Investimento", description: "Mercati, fondi, portafoglio" },
 		abbonamento: { label: "Ricorrente", description: "Abbonamenti e pagamenti fissi" },
+		/**
+		 * ⚠️ "fra i tuoi conti" e non "sposta denaro": la descrizione deve dire
+		 * anche ciò che il tipo NON fa. Un trasferimento non è una spesa, e
+		 * l'unico modo di comunicarlo in una riga è nominare i due estremi.
+		 */
+		trasferimento: { label: "Trasferimento", description: "Sposta denaro fra i tuoi conti" },
 	},
 
 	home: {
@@ -556,6 +579,19 @@ export const it = {
 			notFound: "Conto non trovato.",
 			lastAccount:
 				"Questo è il tuo unico conto attivo: ogni movimento deve appartenere a un conto.",
+			/**
+			 * Archiviazione rifiutata perché ci sono regole ricorrenti attive.
+			 *
+			 * ⚠️ Il messaggio dice cosa FARE, e non è cortesia: senza le due vie
+			 * d'uscita nominate, l'utente si trova davanti a un divieto senza
+			 * rimedio. È la stessa correzione fatta all'avviso del job giornaliero,
+			 * il cui `hint` diceva "Controlla lo stato del database" a chi un
+			 * database non ce l'ha.
+			 */
+			hasRecurring: {
+				one: "C'è {n} regola ricorrente attiva su questo conto. Spostala su un altro conto o mettila in pausa, poi riprova.",
+				other: "Ci sono {n} regole ricorrenti attive su questo conto. Spostale su un altro conto o mettile in pausa, poi riprova.",
+			},
 		},
 	},
 
@@ -572,6 +608,36 @@ export const it = {
 			description: "Descrizione",
 			descriptionPlaceholder: "Es. Trenord, Esselunga...",
 			date: "Data",
+			/**
+			 * Le due estremità di un trasferimento (Fase 20b). Dove il conto è uno
+			 * solo, `t.accounts.fieldLabel` ("Conto") basta; qui no, perché accanto
+			 * a un secondo campo non direbbe quale dei due.
+			 *
+			 * ⚠️ **"Conto di partenza", non "Dal conto"** — ed è una correzione
+			 * fatta guardando lo schermo, non ragionando. `Select` compone il
+			 * segnaposto come `Seleziona {etichetta minuscola}`, quindi "Dal conto"
+			 * dava **"Seleziona dal conto"** e "Al conto" **"Seleziona al conto"**:
+			 * due mezze frasi. In inglese era identico — *"Select to account"*.
+			 *
+			 * È letteralmente la trappola già documentata per la Fase 19
+			 * ("Seleziona category", "Nuova investimento"), reintrodotta da chi
+			 * l'aveva scritta. La regola che ne discende: **un'etichetta di campo
+			 * non si sceglie da sola, si sceglie insieme alla frase che la
+			 * conterrà** — e in questo progetto quella frase esiste sempre, perché
+			 * `Select` la costruisce.
+			 */
+			fromAccount: "Conto di partenza",
+			toAccount: "Conto di arrivo",
+			/** La voce che RIMUOVE la destinazione: senza, la scelta è irreversibile. */
+			noDestination: "Nessuno",
+			/**
+			 * ⚠️ Compare solo dove la destinazione è FACOLTATIVA (risparmio,
+			 * investimento). Su un trasferimento il campo si spiega da sé; qui no,
+			 * e ciò che non si spiega è esattamente il motivo per cui esiste —
+			 * senza questa riga l'utente registra il risparmio E il trasferimento,
+			 * cioè il doppio conteggio.
+			 */
+			destinationHint: "il denaro si sposta davvero su quel conto, e l'obiettivo avanza lo stesso",
 			recurringSection: "Ricorrenti",
 			repeat: "Ripeti",
 			saveChanges: "Salva modifiche",
@@ -903,6 +969,7 @@ export const it = {
 		investimento: "investim.",
 		risparmio: "risparmio",
 		abbonamento: "abbon.",
+		/* Niente `trasferimento`: vedi la nota in `typesSingular`. */
 	},
 
 	/** Gestione delle categorie (Fase 13). */

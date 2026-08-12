@@ -68,7 +68,8 @@ lib/
 ├── goal-icons.ts         # GOAL_ICON_MAP + GOAL_ICONS
 ├── category-icons.ts     # CATEGORY_LIBRARY — SOLO id icona per tipo (etichette nel dizionario)
 ├── investment-types.ts   # INVESTMENT_TYPE_COLOR + FALLBACK (le etichette nel dizionario)
-├── transaction-utils.ts  # TIPO_COLOR/TIPO_INK, formatDate, formatAmount
+├── transaction-utils.ts  # TIPO_COLOR/TIPO_INK, formatDate, formatAmount,
+│                         #   amountSign() — il segno dipende da QUALE conto guardi (20b)
 ├── budget.ts             # BUDGET_PERIODS (id), soglia, budgetStatus/Color/Ink
 ├── recurring.ts          # FREQUENCIES (id) + aritmetica delle date
 ├── jobs.ts               # getDailyJobHealth() + DAILY_JOB_STALE_HOURS (issue #47)
@@ -139,10 +140,21 @@ categories: id (UUID), user_id (UUID, nullable), name (VARCHAR 50),
 --   type='risparmio' + target_amount/target_date. saved_amount è calcolato
 --   sommando le transazioni risparmio della categoria (vedi getGoals).
 
-transactions: id (UUID), user_id (UUID, nullable), amount (DECIMAL 10,2),
+transactions: id (UUID), user_id (UUID NOT NULL), amount (DECIMAL 10,2),
               type (VARCHAR 20), category_id (UUID), investment_type (VARCHAR 50,
               nullable), date (TIMESTAMP senza fuso), notes (VARCHAR 255),
-              created_at (TIMESTAMP), recurring_rule_id (UUID, nullable)
+              created_at (TIMESTAMP), recurring_rule_id (UUID, nullable),
+              account_id (UUID NOT NULL), to_account_id (UUID, nullable)
+-- type: 'entrata' | 'spesa' | 'investimento' | 'risparmio' | 'abbonamento'
+--     | 'trasferimento'  (l'ultimo dalla Fase 20b)
+-- to_account_id: il conto di DESTINAZIONE. Obbligatorio su 'trasferimento',
+--   facoltativo su 'risparmio' e 'investimento', vietato altrove — quattro CHECK
+--   nella 20260815, non una convenzione applicativa.
+-- ⚠️ user_id NON è più nullable (Fase 20b): era il prerequisito della FK
+--   composita `(account_id, user_id) → accounts (id, user_id)`. Con MATCH SIMPLE
+--   basta una colonna NULL perché l'intero vincolo non venga verificato, quindi
+--   un user_id NULL avrebbe reso account_id libero di puntare ovunque — una
+--   garanzia PIÙ DEBOLE della FK a una colonna che sostituiva.
 -- recurring_rule_id: se valorizzato, la transazione è stata generata da una regola ricorrente
 -- FK category_id: ON DELETE CASCADE — cancellare una categoria cancella le sue
 --   transazioni. È ciò su cui poggia l'eliminazione di un obiettivo.
@@ -296,10 +308,14 @@ sostituisca una funzione o una struttura definita in un file precedente.
 
 - **`transactions.date` è `timestamp WITHOUT time zone`** — vedi la nota nello
   schema qui sopra. Cambiare il tipo cambia il significato dei dati già scritti.
-- **`categories.user_id` e `transactions.user_id` sono NULLABLE**, mentre le
-  policy filtrano su `user_id = auth.uid()`: una riga con `user_id` NULL non
-  sarebbe visibile né cancellabile da nessuno. Impossibile oggi (ogni insert
-  passa da una server action), ma il DB non lo impedisce.
+- ~~**`categories.user_id` e `transactions.user_id` sono NULLABLE**~~ — chiuso a
+  metà dalla **Fase 20b**: `transactions.user_id` e `recurring_rules.user_id`
+  sono ora NOT NULL, perché senza non si poteva costruire la FK composita che
+  lega il conto al suo proprietario (vedi lo schema). **`categories.user_id`
+  resta nullable**, e vale la pena registrare *perché* è stato chiuso solo uno
+  dei due: non per completezza, ma perché su `transactions` quel NULL era
+  diventato un buco di sicurezza invece che un'anomalia teorica. Un debito si
+  paga quando qualcosa comincia a dipenderne.
 - **`anon` ha DML su tutte e tre**, per default di Supabase. Innocuo *solo*
   grazie alla RLS — ogni policy è `to authenticated` — quindi è difesa singola.
 
@@ -1436,6 +1452,133 @@ non far transitare la password), **tema scuro** e **lingua inglese**.
 esattamente risparmi + investimenti — e nessun controllo automatico l'avrebbe
 detto, perché entrambi i numeri erano "corretti" secondo il proprio codice.
 
+#### Emerso implementando la 20b — migration `20260815_transfers.sql`
+
+Migration **eseguita e collaudata il 2026-08-12**. Sei prove che dovevano
+fallire, tutte fallite; il saldo si sposta di 100 fra due conti e il **totale non
+si muove**; 23 righe prima, 23 dopo.
+
+⚠️ **Le due prove che valgono sono b5 e b6** — un movimento verso, o da, il conto
+di un ALTRO utente. Prima delle FK composite quegli insert **passavano**: nessuna
+policy RLS guarda `account_id`. Sono anche le uniche che richiedono un secondo
+utente nel database, quindi il collaudo dice esplicitamente `SALTATA` quando non
+c'è: un test che si autoesclude in silenzio è peggio di un test assente.
+
+- ⚠️ **`drop … if exists` NON è idempotenza.** Il file falliva alla *seconda*
+  esecuzione con `2BP01: cannot drop constraint accounts_id_user_key … other
+  objects depend on it`. Un vincolo con dipendenti **non si può droppare
+  affatto**: la clausola `if exists` protegge solo l'esecuzione in cui il vincolo
+  non c'è, cioè l'unica che non ne ha bisogno. E il guasto arriva **a metà file**,
+  dopo che le sezioni precedenti hanno già scritto — esattamente ciò che le
+  guardie in testa agli altri file esistono per impedire, solo che qui a rompersi
+  era il file nuovo contro se stesso. Si chiude togliendo i dipendenti **per
+  nome** prima del vincolo, non con `drop … cascade`: quello li rimuoverebbe
+  senza ricrearli se il file si fermasse subito dopo, lasciando il database privo
+  del vincolo di proprietà e senza che nulla lo segnali.
+- ⚠️ **`user_id` NOT NULL era un prerequisito, non un extra.** Vedi lo schema: con
+  `MATCH SIMPLE` una colonna NULL disattiva l'intero vincolo composito.
+- **La FK ha un nome nuovo, e PostgREST se ne accorge.** Le relazioni embedded si
+  chiamano come il VINCOLO (`accounts!transactions_account_owner_fkey(name)`):
+  per questo i nomi dei conti nella lista si risolvono lato client da una mappa
+  che il chiamante ha già, invece che con una join che si romperebbe in silenzio
+  alla prossima rinomina.
+
+**Il segno di un movimento dipende da CHI lo guarda** (`amountSign()` in
+`lib/transaction-utils.ts`). Fino alla 20a stava in una riga — `type === "entrata"
+? "+" : "−"` — perché ogni movimento aveva un conto solo e quindi un solo punto
+di vista. Con i trasferimenti la stessa riga toglie denaro a un conto e lo dà a
+un altro:
+
+| vista | righe | segno |
+|---|---|---|
+| **un conto selezionato** | origine **o** destinazione | relativo a *quel* conto |
+| **tutti i conti** | tutte | assoluto; il trasferimento è neutro, con la freccia |
+
+Con un conto davanti la lista è il suo **estratto conto** e deve riconciliare col
+saldo che `/conti` mostra tre tap più in là; senza filtro è il **diario di ciò che
+hai fatto**, e lì il segno di un trasferimento non ha riferimento. ⚠️ Nella
+funzione il ramo della destinazione viene **prima** del tipo: invertendoli, il
+Libretto mostrerebbe "− € 200" per denaro appena arrivato.
+
+⚠️ **La home e `/analisi` restano all'ORIGINE soltanto, e non vanno allineate per
+simmetria.** Sono viste di FLUSSO: i trasferimenti non ci entrano affatto, perché
+spostare denaro non è né guadagnarlo né spenderlo.
+
+- **L'audit dei consumatori rifatto**, ed è la verifica che dice se la premessa
+  della fase regge: `getGoals` (`risparmio`), `getInvestments` (`investimento`),
+  trend di `/analisi` (`.in` su cinque nomi), torta (`spesa`), budget (`spesa`),
+  uscite fisse (`abbonamento`), `deleteCategory` (per `category_id`, e un
+  trasferimento non ne ha), `dashboard_totals()` (raggruppa per tipo, l'app legge
+  per nome). **Nessuno somma "tutto ciò che c'è": nessun totale si muove.**
+- ⚠️ **Un difetto che né `tsc` né il lint vedono**: la griglia dei tipi nel
+  `TransactionModal` è `2×3` e la quinta card occupava **due colonne** per
+  riempire la terza riga, con la condizione `i === length - 1`. Con sei tipi la
+  griglia è esatta e quella riga avrebbe spinto il trasferimento su una quarta
+  riga inesistente, dentro un `flex-1 min-h-0` che non può crescere. Ora la card
+  larga esiste solo se il numero di tipi è **dispari** — che è ciò che ha sempre
+  significato. Si vede solo aprendo il modale, e solo dopo aver aggiunto un tipo.
+- **Tre voci di dizionario aggiunte e poi TOLTE.** `typesSingular`, `newByType` e
+  `typesShort` servono solo alla UI delle categorie, e una categoria
+  `trasferimento` non può esistere: sarebbero state codice morto in due lingue —
+  il difetto che il code-review della 20a ha trovato otto volte. Al loro posto c'è
+  scritto *perché* mancano, o la prossima persona le rimette per simmetria.
+  `t.types` e `t.transactionTypes` invece ce l'hanno, perché descrivono i tipi di
+  MOVIMENTO e vengono resi davvero.
+- ⚠️ **`isAccountId()` (`lib/accounts.ts`) perché `.or()` è SINTASSI, non un
+  parametro.** `getTransactions` interpola il conto in
+  `` `account_id.eq.${conto},to_account_id.eq.${conto}` ``: lì `.eq()` non fa da
+  parametro, e una virgola dentro il valore aggiungerebbe condizioni al gruppo OR.
+  È l'unico punto dell'app dove un valore dell'utente diventa sintassi. La regex
+  era già in `page.tsx` per un motivo diverso (`?conto=abc` uccideva la home con
+  `22P02`): ora è una sola, ed è il modo in cui il secondo chiamante non se la
+  dimentica.
+- **I due debiti della 20a sono chiusi entrambi.** La FK composita ha eliminato
+  `assertOwnAccount()`; le ricorrenti su conto archiviato sono chiuse in tre pezzi
+  che dovevano andare **insieme**: `setAccountArchived()` rifiuta se ci sono
+  regole attive, `updateRecurringRule()` accetta il conto, `RecurringSheet` espone
+  il campo. ⚠️ Rifiutare **senza** la via d'uscita sarebbe stato un vicolo cieco —
+  `recurring_rules.account_id` era a scrittura unica, quindi l'unico rimedio
+  sarebbe stato cancellare la regola. Un avviso ignorabile invece lascerebbe
+  accadere proprio ciò che il controllo esiste per impedire: pg_cron continua a
+  scrivere su un conto escluso da ogni totale mostrato, senza errori e senza
+  segnali.
+- **`RecurringRule` non aveva `account_id` nel tipo TypeScript**, pur essendo NOT
+  NULL dalla 20a. Un tipo incompleto non produce un errore: produce una
+  funzionalità che non viene scritta perché il dato **sembra non esserci**.
+
+#### La verifica visiva — 25 controlli, e due cose che solo lo schermo dice
+
+- ⚠️⚠️ **"Seleziona dal conto".** Le due estremità del trasferimento si
+  chiamavano "Dal conto" e "Al conto", che lette da sole sono le parole giuste.
+  Ma `Select` compone il segnaposto come `` `Seleziona {etichetta minuscola}` ``,
+  quindi i campi vuoti dicevano **"Seleziona dal conto"** e **"Seleziona al
+  conto"** — due mezze frasi. In inglese identico: *"Select to account"*.
+
+  **È letteralmente la trappola documentata per la Fase 19** ("Seleziona
+  category", "Nuova investimento"), reintrodotta da chi l'aveva scritta, in un
+  file che la descrive dodici righe più su. Non l'ha vista `tsc`, non l'ha vista
+  il lint, non l'ha vista la rilettura del codice: si è vista **aprendo il
+  form**. Ora sono "Conto di partenza" / "Conto di arrivo" (EN "Source account" /
+  "Destination account"). La regola: **un'etichetta di campo non si sceglie da
+  sola, si sceglie insieme alla frase che la conterrà** — e in questo progetto
+  quella frase esiste sempre, perché la costruisce `Select`.
+- ⚠️ **Un falso allarme che somigliava moltissimo a un difetto vero**: al primo
+  scatto il form trasferimento mostrava i conti vuoti, il bottone spento e
+  l'avviso rosso *"serve un conto per registrare un movimento"* — su un utente
+  che i conti ce li ha. Era l'attesa troppo corta: i conti arrivano da una query
+  Supabase e alla prima apertura c'è anche la compilazione del chunk. Nel driver
+  l'attesa dei form è ora 2500ms, con scritto perché.
+- Il selettore delle ricorrenti punta a **"modifica"**, non a un bottone che
+  contenga `€`: l'importo sta in un *fratello* della riga. È la stessa trappola
+  già annotata per le righe conto, e si ripresenta ovunque il markup
+  interattivo annidato sia stato sciolto.
+
+Le prove 8-11 del driver sono la parte 20b e stanno nello skill `collauda-app`,
+quindi si rieseguono. **Restano fuori**, da provare a mano: il percorso di login
+(il driver riusa una sessione) e il **rifiuto di archiviare un conto con regole
+ricorrenti attive**, che richiede di puntare una regola su un conto e provare ad
+archiviarlo.
+
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 
 Il guasto è emerso guardando a occhio una data in `/impostazioni/ricorrenti`: una
@@ -2148,8 +2291,14 @@ Seguire questo ordine, non saltare fasi:
     - **20a conti (issue #34)** — `accounts`, `account_id` NOT NULL + backfill,
       conto nell'onboarding, `recurring_rules.account_id`, pagina conti con saldo
       calcolato, selettore nel form, filtro nella lista
-    - **20b trasferimenti (issue #49)** — tipo `trasferimento`, `to_account_id` +
-      i quattro CHECK, destinazione facoltativa su `risparmio`/`investimento`
+    - **20b ✅ trasferimenti (issue #49)** — tipo `trasferimento`,
+      `to_account_id` + i quattro CHECK, destinazione facoltativa su
+      `risparmio`/`investimento`, segno relativo al conto guardato. Chiude
+      **entrambi i debiti** della 20a: la FK composita al posto di
+      `assertOwnAccount()` e le ricorrenti su conto archiviato. Migration
+      `20260815_transfers.sql` eseguita e collaudata il 2026-08-12 — sei prove
+      che dovevano fallire, tutte fallite; saldo che si sposta di 100 fra due
+      conti col **totale invariato**; 23 righe prima, 23 dopo
 21. Import dati — CSV / estratto Trade Republic via file (nessuna API ufficiale TR: si importa un CSV, es. generato da `pytr`; l'app non gestisce credenziali)
 22. Allegati/ricevute — foto scontrino sulle transazioni via Supabase Storage
 23. Export dati / report PDF mensile — complementa l'import (Fase 21)
