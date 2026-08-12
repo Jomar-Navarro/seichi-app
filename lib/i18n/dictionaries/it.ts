@@ -734,7 +734,25 @@ export const it = {
 	analytics: {
 		title: "Analisi",
 		lastWeek: "Ultima settimana",
-		netFlow: "Flusso netto",
+		/**
+		 * ⚠️ "Flusso", non più "Flusso netto" — ed è la stessa parola della home
+		 * (`t.home.flowTitle`) perché è **lo stesso identico numero**, calcolato
+		 * dalla stessa `sommaUscite()`.
+		 *
+		 * Fino alla 20a i due valori DIVERGEVANO — `/analisi` sottraeva anche
+		 * risparmi e investimenti — e due nomi diversi erano coerenti con due cose
+		 * diverse. La review della 20a ha allineato i numeri, e **così facendo ha
+		 * reso i due nomi un difetto**: vale la regola già scritta per i conti,
+		 * *stesso titolo o lo stesso numero ne avrebbe due*. "Netto" non aggiunge
+		 * nulla — la formula è identica — e suggeriva una terza grandezza che non
+		 * esiste.
+		 *
+		 * È il gemello della regola già registrata per la 20a: *correggere un
+		 * numero può rendere falsa l'etichetta che lo descriveva*. Qui l'etichetta
+		 * non è diventata falsa, è diventata **superflua e divergente** — e si
+		 * scopre solo mettendo le due schermate una accanto all'altra.
+		 */
+		netFlow: "Flusso",
 		/** Nessun periodo precedente con cui confrontarsi. */
 		firstMonth: "— primo mese",
 		tabs: {

@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { getAnalyticsData } from "../action";
 import { getAccounts } from "../conti/actions";
 import SpendingPieChart from "@/components/features/SpendingPieChart";
@@ -61,6 +62,21 @@ export default async function AnalyticsPage({
 	const accounts = "error" in accountsResult ? [] : accountsResult.data;
 	if ("error" in accountsResult) {
 		console.error("[analisi] getAccounts:", accountsResult.error);
+	}
+
+	/*
+	 * ⚠️ Un conto che non è (più) tuo NON deve produrre una pagina che mente.
+	 *
+	 * In 20a qui non serviva: l'id arrivava solo dal link della home, che il
+	 * controllo lo faceva già. Dalla memoria in cookie può arrivare anche da solo,
+	 * e senza guardia i grafici resterebbero filtrati su un id fantasma — cioè
+	 * vuoti — mentre il chip, non trovandolo fra i conti, scriverebbe "Tutti i
+	 * conti". Stesso difetto della home, stessa cura, stesso motivo per cui il
+	 * ritorno porta `?conto=` vuoto invece di niente: un parametro presente batte
+	 * il cookie, quindi la destinazione non può rimbalzare indietro.
+	 */
+	if (accountId && accounts.length > 0 && !accounts.some((a) => a.id === accountId)) {
+		redirect(`/analisi?periodo=${periodo}&conto=`);
 	}
 
 	/*

@@ -210,7 +210,7 @@ try {
 	/* ------------------------- 6 · il numero della home == quello di /analisi */
 	/*
 	 * ⚠️ È la verifica che conta più di tutte le altre messe insieme.
-	 * `/analisi` mostra "Flusso netto" — la STESSA parola della home — e prima
+	 * `/analisi` mostra "Flusso" — la STESSA parola della home, e non per caso: dalla
 	 * della correzione ne dava un valore diverso, perché contava come uscita
 	 * anche risparmi e investimenti. Due schermate a un tap di distanza, due
 	 * risposte per lo stesso mese: il difetto che l'intera fase esiste per
@@ -241,7 +241,7 @@ try {
 	await page.goto(`${BASE}/analisi?conto=`, { waitUntil: "domcontentloaded" });
 	await page.waitForLoadState("networkidle").catch(() => {});
 	const analisiFlow = toNumber(
-		await page.getByText(/Flusso netto|Net flow/i).first().locator("..").innerText(),
+		await page.getByText(/^(Flusso|Flow)$/).first().locator("..").innerText(),
 	);
 	console.log("shot:", await shot(page, "analisi"));
 
@@ -292,7 +292,7 @@ try {
 				await page.goto(`${BASE}/analisi?conto=${conto}`, { waitUntil: "domcontentloaded" });
 				await page.waitForLoadState("networkidle").catch(() => {});
 				const analisiFiltrato = toNumber(
-					await page.getByText(/Flusso netto|Net flow/i).first().locator("..").innerText(),
+					await page.getByText(/^(Flusso|Flow)$/).first().locator("..").innerText(),
 				);
 				console.log("shot:", await shot(page, "analisi-filtrata"));
 				const coincidonoF =

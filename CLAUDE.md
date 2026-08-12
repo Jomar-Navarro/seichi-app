@@ -1650,6 +1650,46 @@ Due lezioni, e la seconda vale oltre questo progetto:
    guasto*) applicata al collaudo stesso. Ogni ramo di scarto ora scrive un KO
    che dice **quale** controllo non è stato eseguito.
 
+#### Emerso dal code-review della 20b (2026-08-12)
+
+Tre rilievi, e tutti e tre stanno nella **relazione fra due punti**, non dentro
+l'uno o l'altro — cioè invisibili leggendo un file per volta.
+
+- ⚠️⚠️ **La memoria in cookie ha RIAPERTO il difetto che il redirect esisteva per
+  chiudere.** La guardia della home scattava solo con `fromUrl`, per non entrare
+  in ciclo. Ma un id che arriva dal *cookie* e non è fra i conti dell'utente non
+  veniva né corretto né annullato: la pagina restava **filtrata su un id
+  fantasma** (totali a zero) mentre il chip, non trovandolo, scriveva "Tutti i
+  conti". Etichetta e dati che si contraddicono.
+  La via d'uscita è `redirect("/?conto=")`: un parametro **presente ma vuoto** è
+  un'istruzione ("nessun conto") e batte il cookie, quindi la destinazione non
+  può rimbalzare indietro. Lo stesso buco esisteva su `/analisi`, dove in 20a non
+  serviva alcuna guardia perché l'id arrivava solo dal link della home.
+  **La lezione: aggiungere una fonte a un dato riapre ogni domanda già risposta
+  sull'altra fonte.** Non basta che la nuova fonte funzioni.
+- ⚠️ **`contoError()` diceva "Conto non trovato" anche per un `check_violation`.**
+  Un trasferimento verso se stessi o con categoria non ha niente a che vedere coi
+  conti: il messaggio avrebbe mandato a controllare una cosa sana. È la stessa
+  classe corretta nella review della 20a — `assertOwnAccount` che rispondeva
+  "Conto non trovato" a un guasto di rete. **Due cause diverse non possono avere
+  lo stesso messaggio solo perché arrivano dalla stessa `catch`.**
+- ⚠️ **Home "Flusso", `/analisi` "Flusso netto": lo stesso numero con due nomi**,
+  e la review della 20a l'ha *creato correggendo*. Finché i due valori
+  divergevano, due nomi erano coerenti con due cose; allineandoli si è lasciata
+  una differenza di parola su una identità di sostanza. Vale la regola già
+  scritta per i conti — *stesso titolo, o lo stesso numero ne avrebbe due* — ed è
+  il **gemello** dell'altra già registrata (*correggere un numero può rendere
+  falsa l'etichetta che lo descriveva*): qui l'etichetta non è diventata falsa, è
+  diventata **superflua e divergente**. Ora entrambe dicono "Flusso".
+  ⚠️ Il driver cercava `/Flusso netto|Net flow/`: senza i rami `else` aggiunti
+  poco prima, i confronti 6 e 7 sarebbero **spariti dal referto** invece di
+  fallire.
+
+Segnalato e **non corretto**, perché precedente alla fase e difendibile:
+`RecurringManager` usa `type === "entrata" ? "+ " : ""`, quindi una regola in
+uscita non ha segno mentre la transazione che ne deriva mostra `− € 12,00`. Una
+regola è un importo futuro, non un movimento avvenuto.
+
 #### E il trasferimento non entra nel flusso — la domanda che lo conferma
 
 Chiesto usando l'app: *"non segna il flusso, ma il trasferimento alla fine è un

@@ -44,9 +44,27 @@ function contoError(
 	error: { code?: string; message: string },
 	t: Awaited<ReturnType<typeof requireUser>>["t"],
 ) {
-	if (error.code === FK_VIOLATION || error.code === CHECK_VIOLATION) {
-		console.error("[transactions] vincolo violato:", error.code, error.message);
+	/*
+	 * ⚠️ Solo la FK parla di CONTI. Un `check_violation` dice che la FORMA del
+	 * movimento è illegale — trasferimento verso se stessi, con categoria, o
+	 * destinazione su una spesa — e rispondere "Conto non trovato" sarebbe una
+	 * frase **falsa**: manderebbe a controllare i conti, che sono a posto.
+	 *
+	 * Il primo tentativo li mappava insieme, ed è la stessa classe di difetto
+	 * corretta in `assertOwnAccount` durante la review della 20a: un guasto di
+	 * rete che diceva "Conto non trovato". Due cause diverse non possono avere lo
+	 * stesso messaggio solo perché arrivano dalla stessa `catch`.
+	 *
+	 * Sulla forma non si dice altro perché i CHECK li garantisce il form: se uno
+	 * scatta è un difetto nostro, e il posto dove leggerlo sono i log.
+	 */
+	if (error.code === FK_VIOLATION) {
+		console.error("[transactions] conto non appartenente:", error.message);
 		return t.accounts.errors.notFound;
+	}
+	if (error.code === CHECK_VIOLATION) {
+		console.error("[transactions] forma illegale del movimento:", error.message);
+		return t.common.genericError;
 	}
 	console.error("[transactions]", error.message);
 	return t.common.genericError;

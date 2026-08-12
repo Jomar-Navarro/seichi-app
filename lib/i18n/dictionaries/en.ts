@@ -477,7 +477,8 @@ export const en: Dictionary = {
 	analytics: {
 		title: "Analytics",
 		lastWeek: "Last week",
-		netFlow: "Net flow",
+		// "Flow", same word as the home card: it is the same number. See it.ts.
+		netFlow: "Flow",
 		firstMonth: "— first month",
 		tabs: {
 			settimana: "Week",

@@ -130,15 +130,26 @@ async function DashboardContent({
 	 * stessa contraddizione etichetta/dati corretta poco sopra per i movimenti
 	 * recenti.
 	 *
-	 * ⚠️ **Solo se l'id viene dall'URL**, e non è una raffinatezza: dal cookie
-	 * `getSelectedAccount` ha già restituito `null`, quindi qui non arriverebbe
-	 * mai — ma se un domani lo lasciasse passare, il `redirect("/")` tornerebbe
-	 * su una pagina che rilegge lo stesso cookie e rimanda su `/`, all'infinito.
-	 * La condizione dice a voce alta che il redirect è la risposta a
-	 * un'ISTRUZIONE sbagliata, non a una memoria stantia.
+	 * ⚠️ **Le due provenienze si correggono in modo DIVERSO**, e il primo tentativo
+	 * aveva chiuso solo metà del problema.
+	 *
+	 * Dall'URL si torna su `/`: è un'istruzione sbagliata, si annulla.
+	 *
+	 * Dal cookie NON si può fare lo stesso — `/` rileggerebbe lo stesso cookie e
+	 * rimanderebbe su `/`, all'infinito. Ma nemmeno si può *lasciar correre*, ed
+	 * è il difetto trovato in review: senza redirect la pagina resta **filtrata
+	 * su un id fantasma** (totali a zero) mentre il chip, non trovandolo fra i
+	 * conti, scrive "Tutti i conti". Etichetta e dati che si contraddicono — cioè
+	 * proprio ciò che questo blocco esiste per impedire, riaperto dalla memoria.
+	 *
+	 * La via d'uscita è `?conto=` vuoto: un parametro PRESENTE ma vuoto è
+	 * un'istruzione ("nessun conto") e batte il cookie, quindi la destinazione non
+	 * può rimbalzare indietro. Un salto solo, e solo in un caso che oggi non è
+	 * raggiungibile dall'interfaccia — i conti non si cancellano, si archiviano, e
+	 * gli archiviati restano nella vista.
 	 */
-	if (fromUrl && accountId && accounts.length > 0 && !accounts.some((a) => a.id === accountId)) {
-		redirect("/");
+	if (accountId && accounts.length > 0 && !accounts.some((a) => a.id === accountId)) {
+		redirect(fromUrl ? "/" : "/?conto=");
 	}
 
 	const goals = "error" in goalsResult ? [] : goalsResult.data;
