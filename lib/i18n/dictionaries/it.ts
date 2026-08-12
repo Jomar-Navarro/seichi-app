@@ -723,6 +723,16 @@ export const it = {
 		variableExpenses: "Spese variabili",
 		/** "del mese" va detto qui: l'intestazione non porta più l'arco temporale. */
 		fixedThisMonth: "fisse del mese {amount}",
+		/**
+		 * ⚠️ Compare SOLO con un filtro conto attivo, e dice un ambito diverso.
+		 *
+		 * Un budget è un limite su una CATEGORIA, non su un conto: "€ 400 per la
+		 * spesa" non si divide fra contanti e carta. Filtrarlo per conto
+		 * inventerebbe budget per-conto che nessuno ha impostato; nasconderlo
+		 * toglierebbe di vista i budget a chi filtra. Resta, e lo dichiara — la
+		 * stessa mossa già fatta sulla FlowCard e su /analisi.
+		 */
+		acrossAllAccounts: "i budget valgono su tutti i conti, non solo su quello filtrato",
 	},
 
 	/**

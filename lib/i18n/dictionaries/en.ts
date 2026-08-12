@@ -496,6 +496,7 @@ export const en: Dictionary = {
 		sectionTitle: "Budget",
 		variableExpenses: "Variable spending",
 		fixedThisMonth: "fixed this month {amount}",
+		acrossAllAccounts: "budgets count every account, not just the one you filtered",
 	},
 
 	jobHealth: {

@@ -236,10 +236,69 @@ try {
 		`${coincidono ? "OK " : "KO "} 6 home (${homeFlow}) == /analisi (${analisiFlow})`,
 	);
 
+	/* ------------- 7 · /analisi FILTRATA coincide con la home filtrata */
+	/*
+	 * ⚠️ È il controllo che il giro precedente non aveva, e che copre il difetto
+	 * più grave della review: la home era filtrabile per conto e `/analisi` no,
+	 * quindi selezionando un conto le due tornavano a dire numeri diversi sotto
+	 * la stessa parola — la correzione e la sua riapertura nella stessa PR.
+	 */
+	const accountsForFilter = await page.evaluate(async () => {
+		const r = await fetch("/conti");
+		return r.ok;
+	}).catch(() => false);
+	if (accountsForFilter) {
+		// Si prende il primo conto dal pannello e si confrontano le due pagine.
+		await page.goto(`${BASE}/`, { waitUntil: "domcontentloaded" });
+		await page.waitForLoadState("networkidle").catch(() => {});
+		const chip2 = page.getByRole("button", { name: /tutti i conti|all accounts/i }).first();
+		if (await chip2.isVisible().catch(() => false)) {
+			await chip2.click();
+			await page.waitForTimeout(300);
+			const rows2 = page.locator("div.absolute button");
+			if ((await rows2.count()) > 1) {
+				await rows2.nth(1).click();
+				await page.waitForTimeout(1500);
+				const url = new URL(page.url());
+				const conto = url.searchParams.get("conto");
+				const homeFiltrato = toNumber(
+					await page.locator("p").filter({ hasText: /€/ }).first().innerText(),
+				);
+				await page.goto(`${BASE}/analisi?conto=${conto}`, { waitUntil: "domcontentloaded" });
+				await page.waitForLoadState("networkidle").catch(() => {});
+				const analisiFiltrato = toNumber(
+					await page.getByText(/Flusso netto|Net flow/i).first().locator("..").innerText(),
+				);
+				console.log("shot:", await shot(page, "analisi-filtrata"));
+				const coincidonoF =
+					Number.isFinite(homeFiltrato) && Number.isFinite(analisiFiltrato) &&
+					Math.abs(homeFiltrato - analisiFiltrato) < 0.005;
+				(coincidonoF ? ok : ko).push(
+					`${coincidonoF ? "OK " : "KO "} 7 FILTRATO: home (${homeFiltrato}) == /analisi (${analisiFiltrato})`,
+				);
+			}
+		}
+	}
+
 	/* ---------------------------------------- 5 · lista filtrata senza risultati */
 	await page.goto(`${BASE}/transazioni`, { waitUntil: "domcontentloaded" });
 	await page.waitForLoadState("networkidle").catch(() => {});
 	console.log("shot:", await shot(page, "movimenti"));
+
+	// Filtrando per conto i budget NON si filtrano — restano su tutti i conti,
+	// perché un budget è un limite su una CATEGORIA. La nota deve dirlo.
+	const contoChip = page.getByRole("button", { name: /tutti i conti|all accounts/i }).first();
+	if (await contoChip.isVisible().catch(() => false)) {
+		await contoChip.click();
+		await page.waitForTimeout(300);
+		const voci = page.locator("div.absolute button");
+		if ((await voci.count()) > 1) {
+			await voci.nth(1).click();
+			await page.waitForTimeout(900);
+			await expectText(page, "budget valgono su tutti i conti", "5 i budget dichiarano il proprio ambito");
+			console.log("shot:", await shot(page, "movimenti-filtrati"));
+		}
+	}
 } catch (e) {
 	ko.push(`KO  eccezione: ${e.message.split("\n")[0]}`);
 	await shot(page, "errore").catch(() => {});

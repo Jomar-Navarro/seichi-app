@@ -97,6 +97,20 @@ export default function MovimentiPage() {
 			<div className="mt-5">
 				{budgets && <BudgetCards overview={budgets} />}
 				{/*
+					⚠️ I budget NON si filtrano per conto, e con un filtro attivo lo
+					dicono. Sono limiti su una CATEGORIA: "€ 400 per la spesa" non si
+					divide fra contanti e carta, quindi filtrarli inventerebbe budget
+					per-conto che nessuno ha impostato. Nasconderli toglierebbe di
+					vista i budget proprio a chi sta guardando le sue uscite. Resta la
+					terza via, già usata due volte in questa fase: quando due numeri
+					hanno ambiti diversi, si DICE.
+				*/}
+				{budgets && conto && (
+					<p className="-mt-1 mb-4 ml-1 text-[11px] text-disabled leading-relaxed">
+						{t.budget.acrossAllAccounts}
+					</p>
+				)}
+				{/*
 					`periodo` di default è "30d", quindi NON conta come filtro: se
 					contasse, la lista vuota di un utente nuovo direbbe "nessun
 					movimento con questi filtri" invece di invitarlo ad aggiungerne
