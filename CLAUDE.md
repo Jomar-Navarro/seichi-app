@@ -63,6 +63,10 @@ lib/
 │   │                     # format.ts (Intl: numeri, denaro, date, plurali),
 │   │                     # server.ts (getI18n/getDictionary — importa next/headers),
 │   │                     # dictionaries/it.ts (fonte di verità) + en.ts (Fase 19)
+├── accounts.ts           # icone/colori dei conti (DECORATIVI) + isAccountId()
+│                         #   + rememberAccount() — il cookie del conto scelto (20b)
+├── accounts-server.ts    # getSelectedAccount() — importa next/headers:
+│                         #   URL = istruzione (si corregge), cookie = memoria (si dimentica)
 ├── seichi-icons.tsx      # set icone SVG custom (SeichiIcon)
 ├── icon-map.ts           # nome categoria → icona (Lucide)
 ├── goal-icons.ts         # GOAL_ICON_MAP + GOAL_ICONS
@@ -1576,8 +1580,91 @@ spostare denaro non è né guadagnarlo né spenderlo.
 Le prove 8-11 del driver sono la parte 20b e stanno nello skill `collauda-app`,
 quindi si rieseguono. **Restano fuori**, da provare a mano: il percorso di login
 (il driver riusa una sessione) e il **rifiuto di archiviare un conto con regole
-ricorrenti attive**, che richiede di puntare una regola su un conto e provare ad
-archiviarlo.
+ricorrenti attive** — entrambi verificati a mano il 2026-08-12, insieme al primo
+trasferimento reale.
+
+#### Il conto selezionato si RICORDA — deciso usando l'app (2026-08-12)
+
+Emerso da chi la usava, non da un controllo: *"al click della home il filtro per
+conto si resetta e torna a tutti i conti"*. La causa è che la selezione viveva
+**solo** in `?conto=`, e "Home" nella bottom nav punta a `/`: ogni giro fuori e
+ritorno la azzerava. Su un'app che si apre dieci volte al giorno è la differenza
+fra uno strumento e un fastidio.
+
+Ora c'è un cookie (`seichi-account`), stesso meccanismo di tema e lingua e per le
+stesse ragioni: viaggia con la richiesta, quindi il server sa già cosa rendere e
+il primo byte è quello giusto.
+
+- ⚠️ **L'URL è un'ISTRUZIONE, il cookie è una MEMORIA**, e la distinzione decide
+  cosa fare quando il conto non esiste più. `?conto=` che punta a un conto non
+  tuo va **corretto** (`redirect("/")`), o il chip direbbe "Tutti i conti" sopra
+  dati filtrati su un id fantasma. Un cookie stantio va invece **dimenticato**:
+  col redirect si tornerebbe su `/`, dove il cookie verrebbe riletto, e da lì di
+  nuovo su `/` — **un ciclo infinito innescato dall'archiviazione di un conto**.
+  `getSelectedAccount()` (`lib/accounts-server.ts`) restituisce `fromUrl` proprio
+  perché il chiamante non debba riscoprire questo ragionamento.
+- ⚠️ **Un filtro appiccicoso è di norma una trappola** — dati parziali senza che
+  l'utente sappia perché. Regge qui solo perché la selezione è **sempre visibile
+  e sempre annullabile**: il chip porta scritto il nome, la prima voce del
+  pannello è "Tutti i conti", e scegliere quella *cancella* il cookie invece di
+  lasciarlo fermo. Il giorno in cui una pagina leggesse il cookie senza mostrare
+  il chip, il cookie va tolto da quella pagina.
+- **Il selettore è ora anche in `/analisi`**, e non è una comodità in più: senza,
+  per analizzare un conto servivano tre passaggi — tornare in home, selezionarlo,
+  ripartire dalla scorciatoia "Analisi". Tre passaggi per cambiare una variabile
+  sono il modo più affidabile di far smettere qualcuno di usare un filtro.
+  `keepParams` conserva il periodo, o un tocco ne cambierebbe **due**.
+- **Il nome del conto sotto il periodo è sparito** da `/analisi`. Non perché la
+  regola "se la pagina è filtrata deve dirlo" sia decaduta, ma perché a dirlo è
+  ora il chip, che porta lo stesso nome ed è pure il comando per cambiarlo.
+- ⚠️ **`/transazioni` NON eredita la memoria, deliberatamente.** Il cookie segue
+  le due viste che rispondono a *"come sto andando"*; la lista movimenti risponde
+  a *"cosa è successo"* e ha la propria barra filtri sempre a schermo, dove la
+  selezione è visibile e si cambia sul posto. Ricordarla là aggiungerebbe uno
+  stato invisibile senza togliere un passaggio.
+- ⚠️ `keepParams` è un **oggetto di stringhe, non una funzione** che costruisce
+  l'URL: `AccountSelector` è un client component istanziato da un server
+  component, e una prop funzione fa fallire la serializzazione RSC — l'errore che
+  né `tsc` né `next build` vedono e che compare solo aprendo la pagina.
+
+⚠️⚠️ **La memoria ha rotto il COLLAUDO, ed è così che si è vista funzionare.**
+Il driver sceglie un conto al passo 2. Prima quella scelta moriva al `goto("/")`
+successivo; da adesso sopravvive, quindi:
+
+- il **confronto 6** ("home non filtrata == /analisi") ha continuato a passare
+  misurando due numeri **filtrati** — € 2.334,10 invece di € 2.740,70. Un
+  controllo verde che dichiara una cosa e ne misura un'altra;
+- il **confronto 7** e il **controllo 12** cercavano il chip per il testo "Tutti
+  i conti", che ora porta il nome del conto: sono stati **saltati in silenzio**,
+  sparendo dal referto senza che nulla lo dicesse.
+
+Due lezioni, e la seconda vale oltre questo progetto:
+
+1. **Da quando esiste una memoria, "aprire la home" non è più uno stato
+   determinato.** Un collaudo che ha bisogno di uno stato preciso deve
+   **chiederlo**: `?conto=` vuoto è un'istruzione ("nessun conto") e batte il
+   cookie, quindi è il modo di dire "tutti i conti" senza toccare l'interfaccia.
+2. ⚠️ **Un `if` senza `else` in un collaudo è un buco.** Un elenco di soli OK non
+   distingue *passato* da *non eseguito*, ed è la stessa regola già scritta per
+   la #47 (*un registro di guasti non è collaudato finché non ha registrato un
+   guasto*) applicata al collaudo stesso. Ogni ramo di scarto ora scrive un KO
+   che dice **quale** controllo non è stato eseguito.
+
+#### E il trasferimento non entra nel flusso — la domanda che lo conferma
+
+Chiesto usando l'app: *"non segna il flusso, ma il trasferimento alla fine è un
+flusso o sbaglio?"*. È la domanda giusta, e la risposta è la premessa dell'intera
+fase: **"Flusso" è entrate − uscite, cioè quanto è entrato e uscito dal
+patrimonio.** Spostare 500 € fra due conti non rende né più ricchi né più poveri:
+cambia *dove* sta il denaro. Se entrasse nel flusso, l'app affermerebbe un
+guadagno o una perdita per un gesto che non è né l'uno né l'altro.
+
+Il posto dove quel movimento si vede è il **saldo** — seconda pagina del
+carosello — e nella lista, che filtrata sul conto di arrivo scrive `+ € 500,00`
+mentre senza filtro lo lascia neutro con la freccia. Che la domanda sia sorta
+guardando la home è la prova che la separazione va **detta**, non dedotta: è
+esattamente il lavoro che fanno il sottotitolo "entrate meno uscite di questo
+mese" e la riga che insegna a scorrere.
 
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 

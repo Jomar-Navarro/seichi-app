@@ -6,13 +6,27 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, Check, ArrowRight } from "lucide-react";
 import { useI18n } from "@/components/features/I18nProvider";
 import { DISPLAY_CURRENCY, formatMoney, plural } from "@/lib/i18n/format";
-import { accountTypeLabel } from "@/lib/accounts";
+import { accountTypeLabel, rememberAccount } from "@/lib/accounts";
 import type { AccountWithBalance } from "@/types";
 
 interface AccountSelectorProps {
 	accounts: AccountWithBalance[];
-	/** null = tutti i conti. Arriva dal search param, quindi il server ne è la fonte. */
+	/** null = tutti i conti. La fonte è il server: search param, o cookie. */
 	selectedId: string | null;
+	/**
+	 * La pagina su cui riatterrare dopo la scelta. Il selettore filtra *questa*
+	 * schermata, non necessariamente la home.
+	 */
+	basePath?: string;
+	/**
+	 * Gli altri parametri da conservare (es. `periodo` su `/analisi`).
+	 *
+	 * ⚠️ Dati semplici, NON una funzione che costruisca l'URL. Il selettore è un
+	 * client component istanziato da un server component, e una prop funzione fa
+	 * fallire la serializzazione RSC — l'errore che `tsc` e `next build` non
+	 * vedono e che compare solo aprendo la pagina (regola della Fase 19).
+	 */
+	keepParams?: Record<string, string>;
 }
 
 /**
@@ -32,7 +46,12 @@ interface AccountSelectorProps {
  * `isOpen` con un `return null` dentro, o lo stato sopravviverebbe alla chiusura
  * e andrebbe riazzerato a mano in un effetto.
  */
-export default function AccountSelector({ accounts, selectedId }: AccountSelectorProps) {
+export default function AccountSelector({
+	accounts,
+	selectedId,
+	basePath = "/",
+	keepParams,
+}: AccountSelectorProps) {
 	const { locale, t } = useI18n();
 	const router = useRouter();
 	const [open, setOpen] = useState(false);
@@ -55,9 +74,27 @@ export default function AccountSelector({ accounts, selectedId }: AccountSelecto
 
 	function choose(id: string | null) {
 		setOpen(false);
+
+		/*
+		 * ⚠️ Il cookie si scrive PRIMA della navigazione, e l'ordine conta: la
+		 * pagina di destinazione è un server component, quindi legge i cookie
+		 * della richiesta che `router.push` sta per fare. Scrivendolo dopo, il
+		 * primo render userebbe ancora il valore vecchio.
+		 *
+		 * Scegliere "Tutti i conti" CANCELLA la memoria invece di lasciarla
+		 * ferma: altrimenti tornando in home dalla bottom nav — che punta a `/`
+		 * senza parametri — il cookie riapplicherebbe il conto appena
+		 * deselezionato, e l'unico modo di vedere tutto sarebbe restare sulla
+		 * schermata senza mai uscirne.
+		 */
+		rememberAccount(id);
+
+		const params = new URLSearchParams(keepParams);
 		// `?conto=` sparisce del tutto per "tutti i conti": un parametro vuoto
 		// nell'URL è rumore, e il server lo leggerebbe comunque come assente.
-		router.push(id ? `/?conto=${id}` : "/");
+		if (id) params.set("conto", id);
+		const qs = params.toString();
+		router.push(qs ? `${basePath}?${qs}` : basePath);
 	}
 
 	return (

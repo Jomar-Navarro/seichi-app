@@ -216,13 +216,29 @@ try {
 	 * risposte per lo stesso mese: il difetto che l'intera fase esiste per
 	 * chiudere, ricreato dopo averlo chiuso altrove.
 	 */
-	await page.goto(`${BASE}/`, { waitUntil: "domcontentloaded" });
+	/*
+	 * ⚠️⚠️ `?conto=` VUOTO, non `/` nudo — e questa riga esiste per un difetto del
+	 * collaudo stesso, scoperto il 2026-08-12.
+	 *
+	 * Dalla 20b il conto scelto si RICORDA in un cookie. Il passo 2 qui sopra ne
+	 * sceglie uno, quindi da lì in poi un `goto("/")` non è più "la home non
+	 * filtrata": è la home filtrata su quel conto. Il confronto 6 ha continuato a
+	 * passare — misurando però due numeri FILTRATI invece dei totali, cioè non più
+	 * ciò che il commento qui sopra dichiara. **Un controllo che passa per il
+	 * motivo sbagliato è peggio di un controllo che manca**, perché nessuno torna
+	 * a guardarlo.
+	 *
+	 * Un parametro presente ma vuoto è un'ISTRUZIONE ("nessun conto") e batte la
+	 * memoria: vedi `getSelectedAccount`. È l'unico modo di chiedere "tutti i
+	 * conti" senza dover prima toccare l'interfaccia.
+	 */
+	await page.goto(`${BASE}/?conto=`, { waitUntil: "domcontentloaded" });
 	await page.waitForLoadState("networkidle").catch(() => {});
 	const homeFlow = toNumber(
 		await page.locator("p").filter({ hasText: /€/ }).first().innerText(),
 	);
 
-	await page.goto(`${BASE}/analisi`, { waitUntil: "domcontentloaded" });
+	await page.goto(`${BASE}/analisi?conto=`, { waitUntil: "domcontentloaded" });
 	await page.waitForLoadState("networkidle").catch(() => {});
 	const analisiFlow = toNumber(
 		await page.getByText(/Flusso netto|Net flow/i).first().locator("..").innerText(),
@@ -248,8 +264,17 @@ try {
 		return r.ok;
 	}).catch(() => false);
 	if (accountsForFilter) {
-		// Si prende il primo conto dal pannello e si confrontano le due pagine.
-		await page.goto(`${BASE}/`, { waitUntil: "domcontentloaded" });
+		/*
+		 * Si prende il primo conto dal pannello e si confrontano le due pagine.
+		 *
+		 * ⚠️ `?conto=` vuoto, per lo stesso motivo del confronto 6: con la memoria
+		 * attiva il chip porta il NOME del conto scelto al passo 2, quindi la
+		 * ricerca per "tutti i conti" non lo aggancia e l'intero blocco veniva
+		 * saltato **in silenzio** — il controllo spariva dal referto e nessuno se
+		 * ne accorgeva, perché un elenco di soli OK non distingue "passato" da
+		 * "non eseguito".
+		 */
+		await page.goto(`${BASE}/?conto=`, { waitUntil: "domcontentloaded" });
 		await page.waitForLoadState("networkidle").catch(() => {});
 		const chip2 = page.getByRole("button", { name: /tutti i conti|all accounts/i }).first();
 		if (await chip2.isVisible().catch(() => false)) {
@@ -276,8 +301,14 @@ try {
 				(coincidonoF ? ok : ko).push(
 					`${coincidonoF ? "OK " : "KO "} 7 FILTRATO: home (${homeFiltrato}) == /analisi (${analisiFiltrato})`,
 				);
+			} else {
+				ko.push("KO  7 nessun conto nel pannello: confronto filtrato NON eseguito");
 			}
+		} else {
+			ko.push("KO  7 chip 'Tutti i conti' non trovato: confronto filtrato NON eseguito");
 		}
+	} else {
+		ko.push("KO  7 /conti irraggiungibile: confronto filtrato NON eseguito");
 	}
 
 	/* ---------------------------------------- 5 · lista filtrata senza risultati */
@@ -373,6 +404,58 @@ try {
 		console.log("shot:", await shot(page, "ricorrente-conto"));
 	} else {
 		ok.push("OK  11 saltata — nessuna regola ricorrente da aprire");
+	}
+
+	/* ------- 12 · il conto scelto SOPRAVVIVE a un giro fuori e ritorno */
+	// ⚠️ È il difetto segnalato usando l'app: "Home" nella bottom nav punta a `/`,
+	// e finché la selezione viveva solo in `?conto=` ogni ritorno la azzerava.
+	// La prova deve passare da una navigazione VERA — andare su un'altra pagina e
+	// tornare — perché un `goto` diretto su `/?conto=…` non dimostrerebbe nulla:
+	// riporterebbe il parametro con sé.
+	// ⚠️ Si parte da uno stato NOTO (`?conto=` vuoto = tutti i conti), o il chip
+	// porterebbe il nome del conto lasciato dai passi precedenti e il selettore
+	// per testo non lo aggancerebbe. Lo stesso motivo per cui il confronto 6 va
+	// forzato: da quando esiste la memoria, "aprire la home" non è più uno stato
+	// determinato.
+	await page.goto(`${BASE}/?conto=`, { waitUntil: "domcontentloaded" });
+	await page.waitForLoadState("networkidle").catch(() => {});
+	await page.getByText("Tutti i conti", { exact: false }).first().click().catch(() => {});
+	await page.waitForTimeout(700);
+	const vociConto = page.locator("div.absolute button");
+	if ((await vociConto.count()) > 1) {
+		const nomeConto = (await vociConto.nth(1).innerText()).split("\n")[0].trim();
+		await vociConto.nth(1).click();
+		await page.waitForTimeout(1500);
+
+		// Giro fuori e ritorno, come farebbe la bottom nav.
+		await page.goto(`${BASE}/transazioni`, { waitUntil: "domcontentloaded" });
+		await page.waitForLoadState("networkidle").catch(() => {});
+		await page.goto(`${BASE}/`, { waitUntil: "domcontentloaded" });
+		await page.waitForLoadState("networkidle").catch(() => {});
+		await expectText(page, nomeConto, `12 il conto "${nomeConto}" è ricordato dopo il ritorno in home`);
+		console.log("shot:", await shot(page, "conto-ricordato"));
+
+		/* ---- 13 · /analisi eredita la memoria e ha il proprio selettore ---- */
+		await page.goto(`${BASE}/analisi?periodo=anno`, { waitUntil: "domcontentloaded" });
+		await page.waitForLoadState("networkidle").catch(() => {});
+		await expectText(page, nomeConto, "13 /analisi eredita il conto senza passare dalla home");
+		// ⚠️ Il periodo NON deve essere cambiato dal selettore: `keepParams` esiste
+		// per questo, o un tocco cambierebbe DUE variabili e una in silenzio.
+		const annoOk = page.url().includes("periodo=anno") || (await page.getByText(String(new Date().getFullYear()), { exact: false }).first().isVisible().catch(() => false));
+		(annoOk ? ok : ko).push(`${annoOk ? "OK " : "KO "} 13 il periodo sopravvive al selettore conti`);
+		console.log("shot:", await shot(page, "analisi-selettore"));
+
+		// Si rimette "Tutti i conti", o il giro successivo partirebbe filtrato.
+		await page.goto(`${BASE}/`, { waitUntil: "domcontentloaded" });
+		await page.waitForLoadState("networkidle").catch(() => {});
+		await page.locator("button").filter({ hasText: new RegExp(nomeConto) }).first().click().catch(() => {});
+		await page.waitForTimeout(700);
+		await page.locator("div.absolute button").first().click().catch(() => {});
+		await page.waitForTimeout(1200);
+		const pulito = await page.getByText("Tutti i conti", { exact: false }).first().isVisible().catch(() => false);
+		(pulito ? ok : ko).push(`${pulito ? "OK " : "KO "} 12b "Tutti i conti" cancella la memoria`);
+	} else {
+		ko.push("KO  12 pannello conti non apribile: memoria non verificata");
 	}
 } catch (e) {
 	ko.push(`KO  eccezione: ${e.message.split("\n")[0]}`);

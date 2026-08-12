@@ -88,6 +88,48 @@ export function isAccountId(value: string | null | undefined): value is string {
 	return typeof value === "string" && UUID_RE.test(value);
 }
 
+/**
+ * Il conto selezionato si RICORDA, in un cookie.
+ *
+ * ⚠️ Fino alla 20b viveva solo in `?conto=`, e questo lo rendeva **effimero per
+ * costruzione**: la voce "Home" della bottom nav punta a `/`, quindi ogni giro
+ * fuori e ritorno azzerava il filtro e costringeva a riselezionare il conto. Su
+ * un'app che si usa dieci volte al giorno è la differenza fra uno strumento e
+ * un fastidio.
+ *
+ * Stesso meccanismo di tema (Fase 18) e lingua (Fase 19), per le stesse ragioni:
+ * il cookie viaggia con la richiesta, quindi un server component sa già cosa
+ * rendere e **il primo byte è quello giusto** — niente lampo, niente
+ * round-trip. Il costo abituale (leggere i cookie rinuncia allo static) qui era
+ * già pagato: la home è dinamica da sempre.
+ *
+ * ⚠️ **Perché un filtro appiccicoso qui NON è la solita trappola.** Di norma uno
+ * stato di filtro che sopravvive alle sessioni è un difetto: l'utente vede dati
+ * parziali e non sa perché. Regge solo perché la selezione è **sempre visibile e
+ * sempre annullabile** — il chip in cima porta scritto il nome del conto e la
+ * prima voce del pannello è "Tutti i conti". Nel momento in cui quel chip
+ * sparisse da una pagina che legge questo cookie, il cookie andrebbe tolto con
+ * lui.
+ */
+export const ACCOUNT_COOKIE = "seichi-account";
+
+/** Un anno: è una preferenza, non una sessione. */
+const ACCOUNT_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+
+/**
+ * Scrive (o cancella) la memoria del conto. Lato client, come `setThemeCookie`.
+ *
+ * ⚠️ Cancellare è un caso a sé e non un valore vuoto: `conto=` verrebbe letto
+ * come una stringa vuota, e `isAccountId("")` è falso — funzionerebbe per caso.
+ * `max-age=0` rimuove davvero la riga.
+ */
+export function rememberAccount(id: string | null) {
+	if (typeof document === "undefined") return;
+	document.cookie = id
+		? `${ACCOUNT_COOKIE}=${id}; path=/; max-age=${ACCOUNT_COOKIE_MAX_AGE}; samesite=lax`
+		: `${ACCOUNT_COOKIE}=; path=/; max-age=0; samesite=lax`;
+}
+
 export function accountColor(type: string | null, custom?: string | null): string {
 	if (custom) return custom;
 	if (!type) return FALLBACK_COLOR;

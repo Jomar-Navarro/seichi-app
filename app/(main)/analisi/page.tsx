@@ -4,6 +4,8 @@ import { getAccounts } from "../conti/actions";
 import SpendingPieChart from "@/components/features/SpendingPieChart";
 import MonthlyLineChart from "@/components/features/MonthlyLineChart";
 import AnalyticsTabs from "@/components/features/AnalyticsTabs";
+import AccountSelector from "@/components/features/AccountSelector";
+import { getSelectedAccount } from "@/lib/accounts-server";
 import { getI18n } from "@/lib/i18n/server";
 import { DISPLAY_CURRENCY, capitalize, formatDate, formatMoney } from "@/lib/i18n/format";
 import type { Locale } from "@/lib/i18n/config";
@@ -32,31 +34,42 @@ export default async function AnalyticsPage({
 	const { periodo = "mese", conto } = await searchParams;
 
 	/*
-	 * ⚠️ La forma dell'id si valida come in home: qui non finisce in una RPC
-	 * tipizzata `uuid`, ma un valore assurdo produrrebbe comunque una pagina di
-	 * zeri senza spiegazione. Meglio ignorarlo.
+	 * Stessa memoria della home (`getSelectedAccount`): scegliendo un conto là,
+	 * questa pagina lo eredita.
+	 *
+	 * ⚠️ È il motivo per cui il selettore qui NON è una comodità in più ma la
+	 * metà mancante di una funzione. Prima il filtro esisteva solo in home, e per
+	 * analizzare un conto bisognava tornare indietro, selezionarlo e ripartire dal
+	 * collegamento "Analisi": tre passaggi per cambiare una variabile, che è il
+	 * modo più affidabile di far smettere qualcuno di usare un filtro.
 	 */
-	const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-	const accountId = conto && UUID.test(conto) ? conto : null;
+	const { id: accountId } = await getSelectedAccount(conto);
 
+	// I conti servono comunque, ora: il selettore c'è anche senza filtro attivo.
 	const [analytics, accountsResult] = await Promise.all([
 		getAnalyticsData(periodo, accountId),
-		accountId ? getAccounts() : Promise.resolve(null),
+		getAccounts(),
 	]);
 	const { locale, t } = await getI18n();
 	if ("error" in analytics) return <p>{t.home.error}</p>;
 
 	/*
-	 * ⚠️ Se la pagina è filtrata DEVE dirlo. Un "Flusso netto" ridotto senza
-	 * spiegazione si legge come un calo, non come un sottoinsieme — ed è
-	 * esattamente l'ambiguità che il filtro introdotto in home rischiava di
-	 * propagare qui.
+	 * ⚠️ I conti DEGRADANO, non bloccano: un errore qui non deve far sparire i
+	 * grafici. Il selettore semplicemente non compare e la pagina resta quella di
+	 * prima della fase — stesso trattamento già riservato ai conti in home.
 	 */
-	const filteredAccount =
-		accountId && accountsResult && "data" in accountsResult
-			? (accountsResult.data.find((a) => a.id === accountId)?.name ?? null)
-			: null;
+	const accounts = "error" in accountsResult ? [] : accountsResult.data;
+	if ("error" in accountsResult) {
+		console.error("[analisi] getAccounts:", accountsResult.error);
+	}
 
+	/*
+	 * ⚠️ Il nome del conto sotto il periodo NON c'è più, e non perché la regola
+	 * "se la pagina è filtrata deve dirlo" sia decaduta: a dirlo è ora il chip del
+	 * selettore, che porta lo stesso nome ed è pure il comando per cambiarlo.
+	 * Tenerli entrambi sarebbe la stessa parola due volte a tre centimetri di
+	 * distanza. Se un domani il selettore sparisse da qui, questa riga va rimessa.
+	 */
 	const isPositive = analytics.saldoMese >= 0;
 
 	return (
@@ -64,13 +77,25 @@ export default async function AnalyticsPage({
 			{/* Header */}
 			<div className="flex items-center justify-between mb-4">
 				<h1 className="text-2xl font-bold">{t.analytics.title}</h1>
-				<p className="text-sm text-muted text-right">
-					{periodoLabel(periodo, locale, t)}
-					{filteredAccount && (
-						<span className="block text-[11.5px] text-disabled">{filteredAccount}</span>
-					)}
-				</p>
+				<p className="text-sm text-muted text-right">{periodoLabel(periodo, locale, t)}</p>
 			</div>
+
+			{/*
+				Il selettore conti, lo stesso della home.
+				⚠️ `keepParams` conserva il periodo: senza, scegliere un conto mentre
+				si guarda l'anno riportava al mese, cioè cambiava DUE variabili per un
+				tocco solo — e quella non scelta cambia in silenzio.
+			*/}
+			{accounts.length > 0 && (
+				<div className="mb-4">
+					<AccountSelector
+						accounts={accounts}
+						selectedId={accountId}
+						basePath="/analisi"
+						keepParams={{ periodo }}
+					/>
+				</div>
+			)}
 
 			{/* Tab selector — useSearchParams richiede Suspense */}
 			<Suspense fallback={<div className="h-10 rounded-2xl segment-tab" />}>
