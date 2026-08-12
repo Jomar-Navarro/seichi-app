@@ -89,10 +89,9 @@ export default function TransactionForm({
 	 * sola — effetto separato invece che appeso a `selectedType.id`, o li
 	 * ricaricherebbe a ogni cambio di tipo per niente.
 	 *
-	 * ⚠️ Gli archiviati sono esclusi dal SELETTORE ma non dal record esistente:
-	 * modificando un vecchio movimento su un conto poi archiviato, il suo
-	 * `account_id` resta finché non lo si cambia. Filtrare qui e basta lo
-	 * riscriverebbe sul primo conto attivo senza che nessuno l'abbia chiesto.
+	 * ⚠️ Si caricano TUTTI, archiviati compresi: la scelta di cosa è proponibile
+	 * avviene più in basso (`effectiveAccountList`). Filtrare nella query
+	 * lascerebbe senza opzione il conto di un movimento esistente poi archiviato.
 	 */
 	useEffect(() => {
 		async function loadAccounts() {
@@ -217,13 +216,13 @@ export default function TransactionForm({
 	 * ⚠️ Un conto ARCHIVIATO collegato a una transazione esistente va aggiunto
 	 * alle opzioni, o il campo appare vuoto.
 	 *
-	 * `loadAccounts` filtra `archived = false`, quindi aprendo un vecchio
-	 * movimento su un conto poi archiviato il `Select` non trovava l'opzione
-	 * corrispondente e mostrava il segnaposto: un record CON un conto sembrava
-	 * non averne, e l'utente veniva spinto a sceglierne un altro — spostando in
-	 * silenzio un movimento storico. È lo stesso ripiego che
-	 * `effectiveCategoryList` fa dodici righe più su per la categoria; qui era
-	 * stato dimenticato.
+	 * `loadAccounts` carica TUTTI i conti apposta e la selezione avviene qui:
+	 * filtrando `archived = false` nella query, aprendo un vecchio movimento su
+	 * un conto poi archiviato il `Select` non trovava l'opzione corrispondente e
+	 * mostrava il segnaposto — un record CON un conto sembrava non averne, e
+	 * l'utente veniva spinto a sceglierne un altro, spostando in silenzio un
+	 * movimento storico. È lo stesso ripiego che `effectiveCategoryList` fa
+	 * dodici righe più su per la categoria.
 	 */
 	const effectiveAccountList: Account[] = accountList.filter(
 		(a) => !a.archived || a.id === accountId,
@@ -266,8 +265,16 @@ export default function TransactionForm({
 					questa posizione a ospitare il conto di destinazione quando il
 					tipo è `trasferimento`, che una categoria non ce l'ha.
 				*/}
+				{/*
+					⚠️ `fieldLabel` ("Conto"), NON `title` ("Conti").
+					`Select` costruisce il segnaposto come `Seleziona {title minuscolo}`,
+					quindi il titolo PLURALE della pagina produceva "Seleziona conti" su
+					un campo a scelta singola — la trappola della Fase 19 ("Seleziona
+					category", "Nuova investimento") reintrodotta riusando un titolo di
+					pagina dove serve un'etichetta di campo.
+				*/}
 				<Select
-					title={t.accounts.title}
+					title={t.accounts.fieldLabel}
 					variant="compact"
 					options={accountOptions}
 					selected={accountId ?? ""}
@@ -369,6 +376,24 @@ export default function TransactionForm({
 						? t.transactions.form.createRecurring
 						: t.transactions.form.save}
 			</button>
+
+			{/*
+				⚠️ Senza conti il bottone resta spento PER SEMPRE, e senza questa riga
+				non lo dice nessuno.
+
+				Capita a chi non ha una riga in `accounts` — registrato prima del
+				backfill della `20260814` e mai ripassato dall'onboarding, oppure
+				vittima di un errore transitorio di `ensureFirstAccount`. Digiti
+				l'importo, la tastiera risponde, e il salvataggio non si accende mai.
+				È lo stesso difetto corretto in `AccountSheet` per l'ultimo conto —
+				bottone visibile ma spento **con la ragione scritta sotto** — e non
+				era stato portato qui.
+			*/}
+			{accountList.length === 0 && (
+				<p className="mt-2 text-[11.5px] text-center leading-relaxed" style={{ color: "var(--ink-aka)" }}>
+					{t.accounts.errors.none}
+				</p>
+			)}
 
 			{isEditing && (
 				<div className="mt-2">

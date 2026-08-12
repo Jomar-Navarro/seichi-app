@@ -2,10 +2,27 @@
 
 import { requireUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import { ACCOUNT_TYPES, type AccountWithBalance } from "@/types";
+import { ACCOUNT_TYPES, type Account, type AccountWithBalance } from "@/types";
 
 /** Il limite è quello della colonna (`varchar(50)`): tagliarlo qui dà un messaggio. */
 const NAME_MAX = 50;
+
+/**
+ * I soli colori scrivibili in `accounts.color`.
+ *
+ * ⚠️ Un ELENCO CHIUSO e non una regex: il valore viene interpolato in una
+ * `color-mix()` inline, quindi "sembra un colore" non basta — deve essere uno
+ * dei token del design system, o il tema chiaro/scuro smette di spostarlo.
+ * Duplica `COLOR_CHOICES` di `AccountSheet` perché il client non può essere la
+ * fonte di verità di un controllo che esiste per difendersi dal client.
+ */
+const COLOR_CHOICES = [
+	"var(--color-ao)",
+	"var(--color-midori)",
+	"var(--color-kin)",
+	"var(--color-murasaki)",
+	"var(--color-aka)",
+];
 
 type AccountInput = {
 	name: string;
@@ -29,6 +46,18 @@ function validate(input: AccountInput, t: Awaited<ReturnType<typeof requireUser>
 	if (name.length > NAME_MAX) return { error: t.accounts.errors.nameTooLong };
 	if (input.type !== null && !ACCOUNT_TYPES.includes(input.type as never)) {
 		return { error: t.errors.invalidType };
+	}
+	/*
+	 * ⚠️ Anche `color` va validato, e non era. È dato dell'utente — una POST
+	 * diretta può scriverci qualsiasi cosa — e finisce interpolato GREZZO dentro
+	 * `color-mix(in srgb, ${color} 16%, transparent)` in tre componenti. Un
+	 * valore arbitrario rende la dichiarazione CSS invalida: la pastiglia perde
+	 * lo sfondo su ogni schermata che mostra quel conto, senza un errore e senza
+	 * modo di accorgersene dall'interfaccia. `type` era già protetto così;
+	 * `color` era rimasto aperto.
+	 */
+	if (input.color != null && !COLOR_CHOICES.includes(input.color)) {
+		return { error: t.accounts.errors.invalidColor };
 	}
 	return { name };
 }
@@ -73,6 +102,30 @@ export async function getAccounts(): Promise<
 	return { data: accounts };
 }
 
+/**
+ * Solo i campi che servono a NOMINARE un conto.
+ *
+ * ⚠️ Esiste perché `getAccounts()` legge la vista `account_balances`, il cui
+ * `balance` è un `left join` su tutta `transactions` con `group by`: chiamarla
+ * per riempire una tendina significa pagare l'aggregazione dell'intero archivio
+ * per mostrare qualche nome, buttando via saldo, colore, icona e date. È
+ * esattamente il costo che la `20260808` aveva tolto dalla home.
+ */
+export async function getAccountOptions(): Promise<
+	{ data: Pick<Account, "id" | "name" | "archived">[] } | { error: string }
+> {
+	const { supabase, user, t } = await requireUser();
+	if (!user) return { error: t.errors.notAuthenticated };
+
+	const { data, error } = await supabase
+		.from("accounts")
+		.select("id, name, archived")
+		.eq("user_id", user.id)
+		.order("created_at", { ascending: true });
+
+	return error ? { error: error.message } : { data: data ?? [] };
+}
+
 export async function createAccount(input: AccountInput) {
 	const { supabase, user, t } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
@@ -95,7 +148,14 @@ export async function createAccount(input: AccountInput) {
 		.select("id")
 		.single();
 
-	if (error) return { error: error.message };
+	if (error) {
+		// ⚠️ Il messaggio di Postgres si LOGGA e non si mostra: un overflow su
+		// `numeric(10,2)` direbbe all'utente "A field with precision 10, scale 2…",
+		// che non lo aiuta e racconta la forma dello schema. È la convenzione già
+		// stabilita in `page.tsx` per i loader della home.
+		console.error("[conti] createAccount:", error.message);
+		return { error: t.accounts.errors.saveFailed };
+	}
 	revalidatePath("/", "layout");
 	return { success: true as const, id: data.id as string };
 }
@@ -143,7 +203,10 @@ export async function updateAccount(id: string, input: AccountInput) {
 		.select("id")
 		.maybeSingle();
 
-	if (error) return { error: error.message };
+	if (error) {
+		console.error("[conti] updateAccount:", error.message);
+		return { error: t.accounts.errors.saveFailed };
+	}
 	// ⚠️ Un UPDATE su zero righe NON è un errore: senza questo controllo l'app
 	// direbbe "salvato" a vuoto. È lo stesso motivo per cui `profiles` usa
 	// sempre `upsert` e mai `update`.

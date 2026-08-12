@@ -10,7 +10,7 @@ interface FilterBarProps {
 	periodo: string;
 	/** "" = tutti i conti. Vuoto anche quando l'utente ne ha uno solo (vedi sotto). */
 	conto: string;
-	accounts: Account[];
+	accounts: Pick<Account, "id" | "name" | "archived">[];
 	onSearchChange: (v: string) => void;
 	onTipoChange: (v: string) => void;
 	onPeriodoChange: (v: string) => void;
@@ -62,9 +62,22 @@ export default function FilterBar({
 		return () => document.removeEventListener("pointerdown", handleClick);
 	}, []);
 
+	/*
+	 * ⚠️ Scegliibili solo gli attivi, ma il conto SELEZIONATO resta nell'elenco
+	 * anche se archiviato.
+	 *
+	 * Filtrando via gli archiviati e basta, archiviare il conto su cui si è
+	 * filtrati produceva due difetti insieme: il chip tornava a dire "Tutti i
+	 * conti" su una lista che restava filtrata, e — con un solo conto attivo
+	 * rimasto — l'intera tendina spariva (`accounts.length > 1`), rendendo il
+	 * filtro **impossibile da azzerare**. È la correzione già applicata a
+	 * `AccountSelector` e non portata qui: la stessa migrazione a campione che
+	 * CLAUDE.md documenta dalla Fase 18.
+	 */
+	const selectable = accounts.filter((a) => !a.archived || a.id === conto);
 	const contoOptions = [
 		{ value: "", label: t.accounts.all },
-		...accounts.map((a) => ({ value: a.id, label: a.name })),
+		...selectable.map((a) => ({ value: a.id, label: a.name })),
 	];
 
 	const tipoLabel = tipoOptions.find((o) => o.value === tipo)?.label ?? t.transactions.filterAll;
@@ -138,12 +151,14 @@ export default function FilterBar({
 				</div>
 
 				{/*
-					Conto — compare solo con più di un conto. Con uno solo il filtro
-					avrebbe una sola scelta oltre a "tutti", cioè un comando che non
-					può cambiare niente: sarebbe rumore per la stragrande maggioranza
-					degli utenti, che di conti ne hanno uno.
+					Conto — nascosto con un conto solo, perché il filtro avrebbe una
+					sola scelta oltre a "tutti": un comando che non può cambiare
+					niente, rumore per chi di conti ne ha uno.
+					⚠️ Ma resta visibile se un filtro È attivo (`|| conto`), o
+					archiviando l'unico altro conto la tendina sparirebbe lasciando la
+					lista filtrata e nessun modo di azzerarla.
 				*/}
-				{accounts.length > 1 && (
+				{(selectable.length > 1 || conto) && (
 					<div className="relative">
 						<button
 							onClick={() => setOpen(open === "conto" ? null : "conto")}

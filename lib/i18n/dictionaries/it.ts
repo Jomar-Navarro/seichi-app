@@ -464,6 +464,8 @@ export const it = {
 		 * piccolo accanto — la trappola già elevata a regola nella 17a ("spese
 		 * variabili", mai "spese totali").
 		 */
+		/** Etichetta del CAMPO nel form movimento — singolare, non il titolo della pagina. */
+		fieldLabel: "Conto",
 		balanceHeading: "Saldo",
 		activeCount: { one: "{n} conto attivo", other: "{n} conti attivi" },
 		/** Card saldo nel carosello della home: cosa somma, detto esplicitamente. */
@@ -546,6 +548,10 @@ export const it = {
 
 		errors: {
 			nameRequired: "Dai un nome al conto.",
+			invalidColor: "Colore non valido.",
+			/** Il form movimento senza conti: dice perché il salvataggio è spento. */
+			none: "Serve un conto per registrare un movimento. Creane uno dalla pagina conti.",
+			saveFailed: "Non è stato possibile salvare il conto. Riprova.",
 			nameTooLong: "Il nome può avere al massimo 50 caratteri.",
 			notFound: "Conto non trovato.",
 			lastAccount:

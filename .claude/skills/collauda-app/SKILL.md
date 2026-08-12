@@ -44,6 +44,12 @@ repo**, e si cancellano finito il giro. Playwright li carica con
 `context.addCookies()` aggiungendo `domain: "localhost"`, `path: "/"`,
 `sameSite: "Lax"`.
 
+⚠️ `SEICHI_COOKIES` e `SEICHI_SHOTS` sono **obbligatorie e senza default**: lo
+script esce se mancano. La prima versione ripiegava su `./cookies.json`, che si
+risolve contro la CWD — cioè la radice del repository — e avrebbe scritto una
+sessione viva in un percorso tracciato da git. `.gitignore` copre comunque
+`cookies.json` e `shots*/` come seconda difesa.
+
 ## 3 · Eseguire il driver
 
 `drive.mjs` sta accanto a questo file, ma `import { chromium } from "playwright"`

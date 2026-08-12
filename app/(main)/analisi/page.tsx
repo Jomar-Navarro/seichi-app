@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { getAnalyticsData } from "../action";
+import { getAccounts } from "../conti/actions";
 import SpendingPieChart from "@/components/features/SpendingPieChart";
 import MonthlyLineChart from "@/components/features/MonthlyLineChart";
 import AnalyticsTabs from "@/components/features/AnalyticsTabs";
@@ -26,12 +27,35 @@ function periodoLabel(periodo: string, locale: Locale, t: Dictionary): string {
 export default async function AnalyticsPage({
 	searchParams,
 }: {
-	searchParams: Promise<{ periodo?: string }>;
+	searchParams: Promise<{ periodo?: string; conto?: string }>;
 }) {
-	const { periodo = "mese" } = await searchParams;
-	const analytics = await getAnalyticsData(periodo);
+	const { periodo = "mese", conto } = await searchParams;
+
+	/*
+	 * ⚠️ La forma dell'id si valida come in home: qui non finisce in una RPC
+	 * tipizzata `uuid`, ma un valore assurdo produrrebbe comunque una pagina di
+	 * zeri senza spiegazione. Meglio ignorarlo.
+	 */
+	const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+	const accountId = conto && UUID.test(conto) ? conto : null;
+
+	const [analytics, accountsResult] = await Promise.all([
+		getAnalyticsData(periodo, accountId),
+		accountId ? getAccounts() : Promise.resolve(null),
+	]);
 	const { locale, t } = await getI18n();
 	if ("error" in analytics) return <p>{t.home.error}</p>;
+
+	/*
+	 * ⚠️ Se la pagina è filtrata DEVE dirlo. Un "Flusso netto" ridotto senza
+	 * spiegazione si legge come un calo, non come un sottoinsieme — ed è
+	 * esattamente l'ambiguità che il filtro introdotto in home rischiava di
+	 * propagare qui.
+	 */
+	const filteredAccount =
+		accountId && accountsResult && "data" in accountsResult
+			? (accountsResult.data.find((a) => a.id === accountId)?.name ?? null)
+			: null;
 
 	const isPositive = analytics.saldoMese >= 0;
 
@@ -40,7 +64,12 @@ export default async function AnalyticsPage({
 			{/* Header */}
 			<div className="flex items-center justify-between mb-4">
 				<h1 className="text-2xl font-bold">{t.analytics.title}</h1>
-				<p className="text-sm text-muted">{periodoLabel(periodo, locale, t)}</p>
+				<p className="text-sm text-muted text-right">
+					{periodoLabel(periodo, locale, t)}
+					{filteredAccount && (
+						<span className="block text-[11.5px] text-disabled">{filteredAccount}</span>
+					)}
+				</p>
 			</div>
 
 			{/* Tab selector — useSearchParams richiede Suspense */}

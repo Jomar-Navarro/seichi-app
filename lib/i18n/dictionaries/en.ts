@@ -312,6 +312,7 @@ export const en: Dictionary = {
 		all: "All accounts",
 		manage: "Manage accounts",
 
+		fieldLabel: "Account",
 		balanceHeading: "Balance",
 		activeCount: { one: "{n} active account", other: "{n} active accounts" },
 		balanceExplainAll: "the sum of your active accounts — archived ones stay out",
@@ -361,6 +362,9 @@ export const en: Dictionary = {
 
 		errors: {
 			nameRequired: "Give the account a name.",
+			invalidColor: "That colour is not valid.",
+			none: "You need an account before you can record a transaction. Create one from the accounts page.",
+			saveFailed: "Could not save the account. Please try again.",
 			nameTooLong: "The name can be at most 50 characters.",
 			notFound: "Account not found.",
 			lastAccount:

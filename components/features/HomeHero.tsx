@@ -46,6 +46,21 @@ export default function HomeHero({
 	const trackRef = useRef<HTMLDivElement>(null);
 
 	/*
+	 * ⚠️ Senza conti la seconda pagina NON si rende.
+	 *
+	 * `getAccounts()` può fallire, e la home degrada a `accounts = []` invece di
+	 * sparire — scelta giusta per il selettore, che semplicemente non compare.
+	 * Ma questa card AFFERMA: con l'elenco vuoto avrebbe scritto "Saldo € 0,00 ·
+	 * 0 conti attivi" a un utente con 15.000 € su quattro conti. Un numero
+	 * sbagliato che sembra giusto è peggio di un numero assente — e qui il
+	 * numero assente è disponibile gratis, basta non disegnare la pagina.
+	 *
+	 * Restando una card sola sparisce anche il carosello: niente puntini, niente
+	 * scorrimento verso il vuoto.
+	 */
+	const showBalance = accounts.length > 0;
+
+	/*
 	 * La pagina attiva si deduce dallo scroll invece di essere pilotata da noi:
 	 * lo swipe è nativo (`snap-x`), quindi l'unica fonte attendibile di "dove
 	 * siamo" è la posizione del contenitore. Guidarla da uno stato avrebbe
@@ -102,14 +117,16 @@ export default function HomeHero({
 						onToggleHidden={() => setHidden((h) => !h)}
 					/>
 				</div>
-				<div className="snap-center shrink-0 w-full px-5">
-					<AccountsBalanceCard
-						accounts={accounts}
-						selectedId={selectedId}
-						hidden={hidden}
-						onToggleHidden={() => setHidden((h) => !h)}
-					/>
-				</div>
+				{showBalance && (
+					<div className="snap-center shrink-0 w-full px-5">
+						<AccountsBalanceCard
+							accounts={accounts}
+							selectedId={selectedId}
+							hidden={hidden}
+							onToggleHidden={() => setHidden((h) => !h)}
+						/>
+					</div>
+				)}
 			</div>
 
 			{/*
@@ -117,6 +134,7 @@ export default function HomeHero({
 				comandi, non solo indicatori — su desktop non c'è lo swipe, e un
 				carosello senza modo di girarlo col mouse nasconde metà del contenuto.
 			*/}
+			{showBalance && (
 			<div className="flex items-center justify-center gap-1.5 mt-3">
 				{[0, 1].map((i) => (
 					<button
@@ -132,6 +150,7 @@ export default function HomeHero({
 					/>
 				))}
 			</div>
+			)}
 		</div>
 	);
 }

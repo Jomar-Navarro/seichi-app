@@ -6,15 +6,38 @@
  * locale del componente, e quello è esattamente ciò che serve verificare. Lo
  * script si ferma lì.
  *
- * Credenziali dall'ambiente, mai nel file:
- *   SEICHI_EMAIL / SEICHI_PASSWORD
+ * Nessuna credenziale: si riusa una sessione esistente via cookie.
+ *   SEICHI_COOKIES  percorso del JSON coi cookie `sb-*` — FUORI dal repo
+ *   SEICHI_SHOTS    cartella degli screenshot — FUORI dal repo
+ *   SEICHI_URL      opzionale, default http://localhost:3000
  */
 import { chromium } from "playwright";
 import { mkdirSync, readFileSync, existsSync } from "node:fs";
 
 const BASE = process.env.SEICHI_URL ?? "http://localhost:3000";
-const OUT = process.env.SEICHI_SHOTS ?? "./shots";
-const COOKIE_FILE = process.env.SEICHI_COOKIES ?? "./cookies.json";
+
+/*
+ * ⚠️ NESSUN default dentro il repository.
+ *
+ * La prima versione aveva `?? "./cookies.json"`, che si risolve contro la CWD —
+ * cioè la radice del progetto. Chi avesse lanciato lo script senza esportare le
+ * variabili avrebbe scritto i cookie di sessione Supabase VIVI in un percorso
+ * tracciato da git, a un `git add -A` dalla pubblicazione. E lo SKILL.md accanto
+ * dice "nello scratchpad, mai nel repo": il default faceva l'opposto di ciò che
+ * la sua stessa documentazione prescrive.
+ *
+ * Ora il percorso è obbligatorio e lo script si rifiuta di partire senza.
+ */
+const OUT = process.env.SEICHI_SHOTS;
+const COOKIE_FILE = process.env.SEICHI_COOKIES;
+
+if (!COOKIE_FILE || !OUT) {
+	console.error(
+		"Servono SEICHI_COOKIES e SEICHI_SHOTS, con percorsi FUORI dal repository " +
+			"(lo scratchpad della sessione). Nessun default: i cookie sono una sessione viva.",
+	);
+	process.exit(2);
+}
 
 /*
  * ⚠️ Si riusa la SESSIONE ESISTENTE invece di fare il login dal form: così la

@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { getTransactions } from "@/app/(main)/action";
-import { getAccounts } from "@/app/(main)/conti/actions";
+import { getAccountOptions } from "@/app/(main)/conti/actions";
 import { getBudgetOverview } from "@/app/(main)/budget-actions";
 import FilterBar from "@/components/features/Filterbar";
 import TransactionList from "@/components/features/TransactionList";
@@ -11,13 +11,16 @@ import { clientClock } from "@/lib/dates";
 import { useI18n } from "@/components/features/I18nProvider";
 import type { Account, BudgetOverview, Transaction } from "@/types";
 
+/** Quel poco che serve al filtro: vedi `getAccountOptions`. */
+type AccountOption = Pick<Account, "id" | "name" | "archived">;
+
 export default function MovimentiPage() {
 	const { t } = useI18n();
 	const [search, setSearch] = useState("");
 	const [tipo, setTipo] = useState("");
 	const [periodo, setPeriodo] = useState("30d");
 	const [conto, setConto] = useState("");
-	const [accounts, setAccounts] = useState<Account[]>([]);
+	const [accounts, setAccounts] = useState<AccountOption[]>([]);
 	const [transactions, setTransactions] = useState<Transaction[]>([]);
 	const [budgets, setBudgets] = useState<BudgetOverview | null>(null);
 	const [loading, setLoading] = useState(true);
@@ -41,12 +44,17 @@ export default function MovimentiPage() {
 	 */
 	useEffect(() => {
 		let cancelled = false;
-		getAccounts().then((res) => {
+		getAccountOptions().then((res) => {
 			if (cancelled || !("data" in res)) return;
-			setAccounts(res.data.filter((a) => !a.archived));
+			// ⚠️ Si tengono TUTTI, archiviati compresi: il filtro deve poter
+			// nominare il conto su cui è puntato anche se nel frattempo è stato
+			// archiviato. La selezione dei *proponibili* avviene in FilterBar.
+			setAccounts(res.data);
 		});
 		return () => { cancelled = true; };
-	}, []);
+		// ⚠️ Dipende da `transactionSavedAt`: senza, un conto creato altrove non
+		// compariva nel filtro fino a un ricaricamento completo della pagina.
+	}, [transactionSavedAt]);
 
 	// eslint-disable-next-line react-hooks/set-state-in-effect
 	useEffect(() => { loadTransactions(); }, [loadTransactions, transactionSavedAt]);

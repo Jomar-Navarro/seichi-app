@@ -241,9 +241,16 @@ async function DashboardContent({ accountId }: { accountId: string | null }) {
 				/>
 			</div>
 
-			{/* Analisi shortcut */}
+			{/*
+				Analisi shortcut.
+				⚠️ Il conto selezionato viaggia nel link. Senza, questa scorciatoia
+				portava da un "Flusso · € 120" filtrato a un "Flusso netto · € 1.540"
+				su tutti i conti — la stessa parola, due numeri, a un tap di distanza:
+				esattamente il difetto che `sommaUscite()` era stata scritta per
+				chiudere, riaperto dal filtro introdotto nella stessa fase.
+			*/}
 			<Link
-				href="/analisi"
+				href={accountId ? `/analisi?conto=${accountId}` : "/analisi"}
 				className="flex items-center justify-between px-4 py-3.5 rounded-2xl border border-subtle card-shadow"
 				style={{ background: "var(--surface)" }}
 			>

@@ -40,3 +40,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Collaudo con Playwright (.claude/skills/collauda-app): i cookie sono una
+# SESSIONE VIVA e gli screenshot possono contenere dati finanziari reali.
+# Lo script ora pretende percorsi espliciti fuori dal repo — queste righe sono
+# la seconda difesa, per il caso in cui qualcuno li punti qui dentro comunque.
+cookies.json
+shots/
+shots*/

@@ -34,8 +34,17 @@ async function assertOwnAccount(
 		.eq("user_id", userId)
 		.maybeSingle();
 
-	if (error) return { error: error.message };
-	if (!data) return { error: "account_not_found" as const };
+	if (error) {
+		// ⚠️ Un guasto di rete NON è "conto non trovato". Prima i chiamanti
+		// mappavano entrambi su `notFound`, quindi un 5xx transitorio diceva
+		// all'utente "Conto non trovato" per un conto che aveva appena scelto dal
+		// selettore: un messaggio che fa sembrare inutile riprovare, mentre
+		// riprovare è esattamente la cosa giusta. Il motivo vero finiva scartato
+		// prima di qualsiasi log.
+		console.error("[transactions] assertOwnAccount:", error.message);
+		return { failure: "unavailable" as const };
+	}
+	if (!data) return { failure: "not_found" as const };
 	return { ok: true as const };
 }
 
@@ -52,7 +61,14 @@ export async function saveTransaction(
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	const owned = await assertOwnAccount(supabase, user.id, conto_id);
-	if ("error" in owned) return { error: t.accounts.errors.notFound };
+	if ("failure" in owned) {
+		return {
+			error:
+				owned.failure === "not_found"
+					? t.accounts.errors.notFound
+					: t.common.genericError,
+		};
+	}
 
 	const { error } = await supabase.from("transactions").insert({
 		user_id: user.id,
@@ -127,7 +143,14 @@ export async function updateTransaction(
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	const owned = await assertOwnAccount(supabase, user.id, conto_id);
-	if ("error" in owned) return { error: t.accounts.errors.notFound };
+	if ("failure" in owned) {
+		return {
+			error:
+				owned.failure === "not_found"
+					? t.accounts.errors.notFound
+					: t.common.genericError,
+		};
+	}
 
 	const { error } = await supabase
 		.from("transactions")
@@ -179,7 +202,14 @@ export async function createRecurringRule(
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	const owned = await assertOwnAccount(supabase, user.id, conto_id);
-	if ("error" in owned) return { error: t.accounts.errors.notFound };
+	if ("failure" in owned) {
+		return {
+			error:
+				owned.failure === "not_found"
+					? t.accounts.errors.notFound
+					: t.common.genericError,
+		};
+	}
 
 	const { error } = await supabase.from("recurring_rules").insert({
 		user_id: user.id,
@@ -445,7 +475,21 @@ export async function getDashboardTotals(accountId?: string | null) {
  * arrivano già giuste, senza cambiare la forma dei dati.
  */
 
-export async function getAnalyticsData(periodo: string = "mese") {
+/**
+ * ⚠️ `accountId` NON è un'aggiunta di comodo: senza, questa pagina contraddice
+ * la home.
+ *
+ * `sommaUscite()` è stata introdotta perché home e `/analisi` mostravano due
+ * numeri diversi sotto la stessa parola. Ma la 20a ha reso la home filtrabile
+ * per conto **nello stesso commit**: selezionando "Contanti" la home dice
+ * "Flusso · € 120" e il collegamento "Analisi" — due card più sotto — apriva un
+ * "Flusso netto · € 1.540" calcolato su tutti i conti, senza alcun segno che i
+ * due fossero su insiemi diversi. La correzione e la sua riapertura erano nella
+ * stessa PR.
+ *
+ * Il filtro agisce su `account_id` come ovunque: l'ORIGINE del movimento.
+ */
+export async function getAnalyticsData(periodo: string = "mese", accountId?: string | null) {
 	const { supabase, user } = await requireUser();
 
 	const { locale, t } = await getI18n();
@@ -508,24 +552,33 @@ export async function getAnalyticsData(periodo: string = "mese") {
 		});
 	}
 
+	// Il filtro conto si applica a ENTRAMBE le query: il KPI e la torta devono
+	// parlare dello stesso insieme, o la pagina si contraddice al proprio interno.
+	const byAccount = <T>(q: T): T =>
+		accountId ? ((q as { eq: (c: string, v: string) => T }).eq("account_id", accountId)) : q;
+
 	const [
 		{ data: trendData, error: trendError },
 		{ data: speseData, error: speseError },
 	] = await Promise.all([
-		supabase
-			.from("transactions")
-			.select("amount, type, date")
-			.eq("user_id", user.id)
-			.in("type", ["entrata", "spesa", "risparmio", "investimento", "abbonamento"])
-			.gte("date", fetchStart.toISOString())
-			.lt("date", rangeEnd.toISOString()),
-		supabase
-			.from("transactions")
-			.select("amount, categories(name, color)")
-			.eq("user_id", user.id)
-			.eq("type", "spesa")
-			.gte("date", rangeStart.toISOString())
-			.lt("date", rangeEnd.toISOString()),
+		byAccount(
+			supabase
+				.from("transactions")
+				.select("amount, type, date")
+				.eq("user_id", user.id)
+				.in("type", ["entrata", "spesa", "risparmio", "investimento", "abbonamento"])
+				.gte("date", fetchStart.toISOString())
+				.lt("date", rangeEnd.toISOString()),
+		),
+		byAccount(
+			supabase
+				.from("transactions")
+				.select("amount, categories(name, color)")
+				.eq("user_id", user.id)
+				.eq("type", "spesa")
+				.gte("date", rangeStart.toISOString())
+				.lt("date", rangeEnd.toISOString()),
+		),
 	]);
 
 	if (trendError || speseError) return { error: (trendError ?? speseError)!.message };
