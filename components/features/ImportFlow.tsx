@@ -738,6 +738,7 @@ function AccountPicker({
 	exclude,
 	onChange,
 	onCreated,
+	onOpenChange,
 }: {
 	title: string;
 	accounts: ImportAccount[];
@@ -745,6 +746,8 @@ function AccountPicker({
 	exclude?: string;
 	onChange: (id: string) => void;
 	onCreated: (a: ImportAccount) => void;
+	/** Inoltrata a `Select`: serve alla card per alzarsi sopra la bottom nav. */
+	onOpenChange?: (open: boolean) => void;
 }) {
 	const { t } = useI18n();
 	const [creating, setCreating] = useState(false);
@@ -790,6 +793,7 @@ function AccountPicker({
 			<Select
 				variant="compact"
 				title={title}
+				onOpenChange={onOpenChange}
 				selected={creating ? "" : selected}
 				onChange={(v) => (v === NEW_ACCOUNT ? setCreating(true) : onChange(v))}
 				options={[
@@ -952,6 +956,17 @@ function GroupCard({
 	const [open, setOpen] = useState(false);
 
 	/*
+	 * ⚠️ Quante tendine sono aperte dentro questa card — un contatore e non un
+	 * booleano, perché `Select` non si chiude quando se ne apre un'altra: aprendo
+	 * la categoria mentre il tipo è ancora aperto, un booleano tornerebbe `false`
+	 * alla prima chiusura e farebbe ricadere la card sotto la bottom nav mentre
+	 * una tendina è ancora a schermo.
+	 */
+	const [openMenus, setOpenMenus] = useState(0);
+	const menuToggle = (isOpen: boolean) =>
+		setOpenMenus((n) => Math.max(0, n + (isOpen ? 1 : -1)));
+
+	/*
 	 * ⚠️ Il totale porta il SEGNO, e senza non si distinguono due gruppi.
 	 * "Imposte e bolli" compare due volte — il bollo addebitato e il suo storno —
 	 * con lo stesso titolo, nessun dettaglio e importi diversi: senza il segno
@@ -970,7 +985,20 @@ function GroupCard({
 	const ink = target && target !== "ignora" ? TIPO_INK[target] : "var(--ink-kiri)";
 
 	return (
-		<div className="relative rounded-[22px] border border-subtle bg-card backdrop-blur-xl" style={{ zIndex }}>
+		/*
+		 * ⚠️ Con una tendina aperta la card sale SOPRA la `BottomNav` (z-40), non
+		 * solo sopra le card vicine.
+		 *
+		 * `backdrop-blur` crea un contesto di impilamento, quindi il menu è
+		 * confinato al livello della card: con `zIndex` fra 1 e 14 finiva sotto la
+		 * navigazione, e le ultime voci di una lista di categorie erano coperte
+		 * dalla pastiglia e dal FAB. Nessuno z-index scritto dentro `Select` può
+		 * rimediare — l'unico che può alzare la card è chi la disegna.
+		 */
+		<div
+			className="relative rounded-[22px] border border-subtle bg-card backdrop-blur-xl"
+			style={{ zIndex: openMenus > 0 ? 60 : zIndex }}
+		>
 			<div className="p-4.5">
 				<div className="flex items-start gap-3">
 					<span
@@ -1019,6 +1047,7 @@ function GroupCard({
 							   scelta INSIEME alla frase che la conterrà. È la regola emersa
 							   dalla 20b, dove "Dal conto" produceva "Seleziona dal conto". */
 							title={t.import.preview.becomes}
+							onOpenChange={menuToggle}
 							selected={target ?? ""}
 							onChange={(v) => onChange({ target: v as GroupTarget })}
 							options={group.allowed.map((a) => ({
@@ -1051,6 +1080,7 @@ function GroupCard({
 										: t.import.preview.counterpartOut
 								}
 								accounts={accounts}
+								onOpenChange={menuToggle}
 								exclude={fileAccountId}
 								selected={decision?.counterpartAccountId ?? ""}
 								onChange={(v) => onChange({ counterpartAccountId: v })}
@@ -1062,6 +1092,7 @@ function GroupCard({
 							<Select
 								variant="compact"
 								title={t.import.preview.category}
+								onOpenChange={menuToggle}
 								selected={decision?.categoryId ?? ""}
 								onChange={(v) => onChange({ categoryId: v === "" ? null : v })}
 								options={[

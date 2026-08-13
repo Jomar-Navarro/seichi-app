@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ChevronDown, Check } from "lucide-react";
 import { useI18n } from "@/components/features/I18nProvider";
 import { fill } from "@/lib/i18n/format";
@@ -16,7 +16,28 @@ export interface DropdownProps {
 	selected: string;
 	onChange: (value: string) => void;
 	variant?: "default" | "compact";
+	/**
+	 * Avvisa il chiamante quando la tendina si apre o si chiude.
+	 *
+	 * ⚠️ Serve a chi sta dentro un CONTESTO DI IMPILAMENTO che questo componente
+	 * non può scavalcare da solo. Una card con `backdrop-filter` o uno `z-index`
+	 * proprio confina il menu al proprio livello: per quanto alto sia lo z-index
+	 * *interno*, resta sotto tutto ciò che nel documento sta più in alto della
+	 * card — per esempio la `BottomNav`, che è `fixed` a z-40. L'unico che può
+	 * alzare la card è il chiamante, e per farlo deve sapere quando.
+	 */
+	onOpenChange?: (open: boolean) => void;
 }
+
+/**
+ * Quanto spazio si tiene libero in fondo alla finestra quando si decide da che
+ * parte aprire la tendina: la pastiglia della `BottomNav` è alta 64px e la
+ * fascia sfocata sopra di lei 112px.
+ */
+const NAV_CLEARANCE = 112;
+
+/** Sotto questa altezza utile non vale la pena aprire verso il basso. */
+const MIN_ROOM = 180;
 
 export default function Select({
 	options,
@@ -24,10 +45,33 @@ export default function Select({
 	onChange,
 	title,
 	variant = "default",
+	onOpenChange,
 }: DropdownProps) {
 	const { t } = useI18n();
 	const [isOpen, setIsOpen] = useState(false);
+	const [openUp, setOpenUp] = useState(false);
+	const triggerRef = useRef<HTMLButtonElement>(null);
 	const selectedOption = options.find((o) => o.value === selected);
+
+	/**
+	 * Apre la tendina dalla parte dove c'è spazio.
+	 *
+	 * ⚠️ Il calcolo si fa al momento del tocco e non al render: la posizione del
+	 * bottone dipende da quanto si è scorso, e in una lista di quattordici gruppi
+	 * cambia in continuazione. Deciderlo una volta sola darebbe la risposta
+	 * giusta per il primo gruppo e sbagliata per tutti gli altri.
+	 */
+	function toggle() {
+		const next = !isOpen;
+		if (next && triggerRef.current) {
+			const rect = triggerRef.current.getBoundingClientRect();
+			const below = window.innerHeight - rect.bottom - NAV_CLEARANCE;
+			const above = rect.top - 8;
+			setOpenUp(below < MIN_ROOM && above > below);
+		}
+		setIsOpen(next);
+		onOpenChange?.(next);
+	}
 
 	/**
 	 * Segnaposto quando non c'è ancora una scelta: "Seleziona categoria".
@@ -47,7 +91,8 @@ export default function Select({
 			<div className="relative">
 				<p className="text-xs text-muted mb-1.5">{title}</p>
 				<button
-					onClick={() => setIsOpen((prev) => !prev)}
+					ref={triggerRef}
+					onClick={toggle}
 					className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-card border border-subtle"
 				>
 					{selectedOption?.icon && (
@@ -59,11 +104,33 @@ export default function Select({
 					<ChevronDown size={14} className="text-muted" />
 				</button>
 				{isOpen && (
-					<div className="absolute top-full mt-1 left-0 right-0 z-10 rounded-2xl bg-deep border border-subtle overflow-hidden">
+					/*
+					 * ⚠️ Tre difese, e servono tutte e tre perché falliscono in modi
+					 * diversi:
+					 *
+					 *   · `bottom-full` quando sotto non c'è spazio — altrimenti la
+					 *     tendina di un campo in fondo alla pagina nasce già coperta;
+					 *   · `max-h` + scorrimento — perché una lista lunga esce dalla
+					 *     finestra qualunque sia la direzione, e le ultime voci
+					 *     diventano irraggiungibili;
+					 *   · lo `z-index` alzato dal chiamante (`onOpenChange`) — perché
+					 *     dentro una card con `backdrop-filter` nessuno z-index scritto
+					 *     qui può superare la `BottomNav`.
+					 *
+					 * Le prime due si vedono con una lista di otto categorie; la terza
+					 * solo dentro le card dell'import.
+					 */
+					<div
+						className={`absolute ${openUp ? "bottom-full mb-1" : "top-full mt-1"} left-0 right-0 z-10 rounded-2xl bg-deep border border-subtle max-h-[min(320px,45vh)] overflow-y-auto`}
+					>
 						{options.map((option) => (
 							<button
 								key={option.value}
-								onClick={() => { onChange(option.value); setIsOpen(false); }}
+								onClick={() => {
+									onChange(option.value);
+									setIsOpen(false);
+									onOpenChange?.(false);
+								}}
 								className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-card"
 							>
 								{option.icon && <span className="shrink-0">{option.icon}</span>}
@@ -83,7 +150,8 @@ export default function Select({
 				{title}
 			</div>
 			<button
-				onClick={() => setIsOpen((prev) => !prev)}
+				ref={triggerRef}
+				onClick={toggle}
 				className="w-full flex items-center justify-between py-3.5 px-4 rounded-[20px] cursor-pointer text-inherit bg-input border border-subtle backdrop-blur-[20px] box-shadow"
 			>
 				<span className="flex items-center gap-3">
@@ -103,12 +171,19 @@ export default function Select({
 			</button>
 
 			{isOpen && (
-				<div className="absolute top-full mt-2 left-0 right-0 z-30 p-2 rounded-[20px] bg-deep border border-subtle backdrop-blur-[30px] input-shadow">
+				/*
+				 * Stessa protezione della variante compatta: una lista lunga deve poter
+				 * scorrere invece di uscire dalla finestra. Qui NON si ribalta verso
+				 * l'alto — questa variante vive nelle pagine di onboarding, che non
+				 * hanno la bottom nav e tengono il campo in alto.
+				 */
+				<div className="absolute top-full mt-2 left-0 right-0 z-30 p-2 rounded-[20px] bg-deep border border-subtle backdrop-blur-[30px] input-shadow max-h-[min(340px,50vh)] overflow-y-auto">
 					{options.map((option) => (
 						<div
 							onClick={() => {
 								onChange(option.value);
 								setIsOpen(false);
+								onOpenChange?.(false);
 							}}
 							key={option.value}
 							className="flex items-center justify-between py-2.5 px-3 cursor-pointer"
