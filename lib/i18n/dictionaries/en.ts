@@ -859,7 +859,6 @@ export const en: Dictionary = {
 		history: {
 			title: "Previous imports",
 			rows: { one: "{n} movement", other: "{n} movements" },
-			undone: "Import undone",
 		},
 
 		mapping: {
@@ -869,13 +868,13 @@ export const en: Dictionary = {
 			amount: "Amount",
 			description: "Description",
 			none: "none",
-			sample: "first row: {value}",
 		},
 
 		preview: {
 			found: { one: "{n} movement found", other: "{n} movements found" },
 			explain: "Decide by group: one choice applies to every row it contains.",
 			rows: { one: "{n} row", other: "{n} rows" },
+			more: { one: "+ {n} more row", other: "+ {n} more rows" },
 			undecided: { one: "{n} group to decide", other: "{n} groups to decide" },
 			becomes: "Movement type",
 			category: "Category",
@@ -917,7 +916,6 @@ export const en: Dictionary = {
 		},
 
 		summary: {
-			title: "Ready to import",
 			toImport: { one: "{n} movement to import", other: "{n} movements to import" },
 			ignored: { one: "{n} row ignored", other: "{n} rows ignored" },
 			unreadable: { one: "{n} unreadable row", other: "{n} unreadable rows" },

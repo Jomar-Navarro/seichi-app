@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Check } from "lucide-react";
 import { useI18n } from "@/components/features/I18nProvider";
 import { fill } from "@/lib/i18n/format";
@@ -61,6 +61,28 @@ export default function Select({
 	 * cambia in continuazione. Deciderlo una volta sola darebbe la risposta
 	 * giusta per il primo gruppo e sbagliata per tutti gli altri.
 	 */
+	/*
+	 * ⚠️ Se questo componente si SMONTA con la tendina aperta, `onOpenChange`
+	 * non verrebbe mai chiamato con `false` — e chi tiene un contatore delle
+	 * tendine aperte resterebbe sbilanciato per sempre. Nell'import succede
+	 * davvero: cambiando il tipo di un gruppo da `trasferimento` a qualcos'altro,
+	 * il selettore della controparte sparisce mentre è aperto, e la card
+	 * resterebbe alzata sopra la bottom nav per tutto il resto della sessione.
+	 *
+	 * Lo stato viaggia in un ref perché la pulizia gira una volta sola, allo
+	 * smontaggio, e leggerebbe altrimenti i valori del primo render.
+	 */
+	const latest = useRef({ open: false, notify: onOpenChange });
+	useEffect(() => {
+		latest.current = { open: isOpen, notify: onOpenChange };
+	});
+	useEffect(
+		() => () => {
+			if (latest.current.open) latest.current.notify?.(false);
+		},
+		[],
+	);
+
 	function toggle() {
 		const next = !isOpen;
 		if (next && triggerRef.current) {

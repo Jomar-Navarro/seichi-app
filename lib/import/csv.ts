@@ -169,14 +169,43 @@ export function parseAmount(raw: string | undefined): number | null {
 	const cleaned = raw.trim().replace(/\s| |€|EUR/gi, "");
 	if (cleaned === "") return null;
 
-	const lastComma = cleaned.lastIndexOf(",");
-	const lastDot = cleaned.lastIndexOf(".");
+	const dots = (cleaned.match(/\./g) ?? []).length;
+	const commas = (cleaned.match(/,/g) ?? []).length;
 
 	let normalized: string;
-	if (lastComma > lastDot) {
-		normalized = cleaned.replace(/\./g, "").replace(",", ".");
+
+	if (dots > 0 && commas > 0) {
+		// Ci sono entrambi: l'ULTIMO è il decimale, l'altro separa le migliaia.
+		normalized =
+			cleaned.lastIndexOf(",") > cleaned.lastIndexOf(".")
+				? cleaned.replace(/\./g, "").replace(",", ".")
+				: cleaned.replace(/,/g, "");
+	} else if (dots + commas === 0) {
+		normalized = cleaned;
 	} else {
-		normalized = cleaned.replace(/,/g, "");
+		/*
+		 * ⚠️ Un separatore SOLO, ed è il caso ambiguo — quello in cui la prima
+		 * versione di questa funzione perdeva un fattore mille.
+		 *
+		 * `1.250` in un estratto italiano vale milleduecentocinquanta; letto come
+		 * decimale diventa 1,25. E il difetto è muto: la riga si importa, non
+		 * finisce fra le illeggibili, e l'importo è semplicemente sbagliato.
+		 *
+		 * Due indizi lo risolvono quasi sempre:
+		 *   · un separatore RIPETUTO non può che essere quello delle migliaia
+		 *     (`1.234.567`);
+		 *   · seguito da ESATTAMENTE tre cifre quasi sempre lo è — nessun estratto
+		 *     scrive tre decimali per una somma di denaro.
+		 *
+		 * Ambiguità residua, dichiarata: un file tecnico che scriva `1.500`
+		 * intendendo uno e mezzo verrebbe letto come millecinquecento. Trade
+		 * Republic non è in quel caso — usa SEI decimali (`200.000000`,
+		 * `35070.710000`), quindi la coda non è mai di tre cifre.
+		 */
+		const sep = dots > 0 ? "." : ",";
+		const tail = cleaned.slice(cleaned.lastIndexOf(sep) + 1);
+		const isThousands = dots + commas > 1 || /^\d{3}$/.test(tail);
+		normalized = isThousands ? cleaned.split(sep).join("") : cleaned.replace(sep, ".");
 	}
 
 	const n = Number(normalized);

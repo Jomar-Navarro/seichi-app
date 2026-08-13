@@ -113,57 +113,85 @@ const KIND_BY_TYPE: Record<string, GroupKind> = {
  * guadagno che non c'è stato, `ignora` lascia il saldo del conto sbagliato del
  * ricavo. Fra due modi sbagliati non decide l'app.
  */
+/**
+ * Un bersaglio è compatibile con la direzione della riga?
+ *
+ * ⚠️ Il filtro si applica a TUTTI i rami, e la prima versione lo faceva solo in
+ * quello generico. `vendite` proponeva `entrata` per definizione — vero quasi
+ * sempre, falso quando le commissioni superano il ricavo (una vendita da pochi
+ * euro con 1 € di commissione e la tassa): quella riga toglie denaro dal conto e
+ * l'unica scelta offerta ne registrava l'ingresso. Nessun vincolo del database
+ * l'avrebbe intercettata — l'importo in Seichi è sempre positivo, quindi la riga
+ * sarebbe stata perfettamente formata e rivolta dalla parte sbagliata.
+ *
+ * È esattamente il difetto che il tipo `Direction` è stato introdotto per
+ * rendere impossibile, sopravvissuto dentro le due eccezioni scritte a mano.
+ */
+function fits(target: GroupTarget, direction: Direction): boolean {
+	if (target === "ignora" || target === "trasferimento") return true;
+	return direction === "entrata" ? target === "entrata" : target !== "entrata";
+}
+
 function targetsFor(
 	kind: GroupKind,
 	direction: Direction,
 ): { suggested: GroupTarget | null; allowed: GroupTarget[]; noteKey: string | null } {
+	const narrow = (r: {
+		suggested: GroupTarget | null;
+		allowed: GroupTarget[];
+		noteKey: string | null;
+	}) => {
+		const allowed = r.allowed.filter((a) => fits(a, direction));
+		return {
+			...r,
+			allowed,
+			// Una proposta che non sopravvive al filtro non è una proposta: meglio
+			// chiedere che suggerire qualcosa di incompatibile con la riga.
+			suggested: r.suggested !== null && allowed.includes(r.suggested) ? r.suggested : null,
+		};
+	};
+
 	if (kind === "senzaCassa") {
 		return { suggested: "ignora", allowed: ["ignora"], noteKey: "senzaCassa" };
 	}
 
 	if (kind === "vendite") {
-		return { suggested: null, allowed: ["entrata", "ignora"], noteKey: "vendite" };
+		return narrow({
+			suggested: null,
+			allowed: ["entrata", "spesa", "ignora"],
+			noteKey: "vendite",
+		});
 	}
 
-	if (kind === "trasferimentoIn") {
-		return {
+	if (kind === "trasferimentoIn" || kind === "trasferimentoOut") {
+		return narrow({
 			suggested: "trasferimento",
-			allowed: ["trasferimento", "entrata", "ignora"],
+			allowed: ["trasferimento", "entrata", "spesa", "risparmio", "investimento", "ignora"],
 			noteKey: "trasferimento",
-		};
-	}
-
-	if (kind === "trasferimentoOut") {
-		return {
-			suggested: "trasferimento",
-			allowed: ["trasferimento", "spesa", "risparmio", "investimento", "ignora"],
-			noteKey: "trasferimento",
-		};
+		});
 	}
 
 	if (kind === "acquisti") {
-		return {
+		return narrow({
 			suggested: "investimento",
-			allowed: ["investimento", "risparmio", "spesa", "ignora"],
+			allowed: ["investimento", "risparmio", "spesa", "entrata", "ignora"],
 			noteKey: null,
-		};
+		});
 	}
 
-	/*
-	 * ⚠️ Gli ammessi dipendono dalla DIREZIONE, non dal gusto. Offrire `entrata`
-	 * su una riga che toglie denaro produrrebbe un movimento perfettamente
-	 * formato e rivolto dalla parte sbagliata: l'importo in Seichi è sempre
-	 * positivo, quindi non ci sarebbe un numero negativo a tradire l'errore.
-	 */
-	const allowed: GroupTarget[] =
-		direction === "entrata"
-			? ["entrata", "trasferimento", "ignora"]
-			: ["spesa", "abbonamento", "investimento", "risparmio", "trasferimento", "ignora"];
-
-	const suggested: GroupTarget | null =
-		kind === "altro" ? null : direction === "entrata" ? "entrata" : "spesa";
-
-	return { suggested, allowed, noteKey: kind === "altro" ? "altro" : null };
+	return narrow({
+		suggested: kind === "altro" ? null : direction === "entrata" ? "entrata" : "spesa",
+		allowed: [
+			"entrata",
+			"spesa",
+			"abbonamento",
+			"investimento",
+			"risparmio",
+			"trasferimento",
+			"ignora",
+		],
+		noteKey: kind === "altro" ? "altro" : null,
+	});
 }
 
 const IBAN_RE = /\b([A-Z]{2}\d{2}[A-Z0-9]{10,30})\b/;

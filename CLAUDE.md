@@ -34,7 +34,8 @@ app/
 │       ├── password/     #     cambio password
 │       ├── elimina/      #     eliminazione account in 2 passi
 │       ├── categorie/    #     gestione categorie custom
-│       └── ricorrenti/   #     regole ricorrenti
+│       ├── ricorrenti/   #     regole ricorrenti
+│       └── importa/      #     import da file + actions.ts (Fase 21)
 ├── auth/confirm/         # verifyOtp per link email (?next= per il recupero password)
 └── layout.tsx            # root layout — legge i cookie e decide `.dark` e `lang`
                           #   su <html> (Fasi 18-19). NON forza più nulla
@@ -52,12 +53,18 @@ components/
 │   │                     # SpendingPieChart, MonthlyLineChart, ProfileEditor,
 │   │                     # EmailChangeForm, PasswordChangeForm, DeleteAccountFlow,
 │   │                     # ForgotPasswordForm, ResetPasswordForm, NotificationBell,
+│                     # ImportFlow (+ AccountPicker, ImportHistory),
 │   │                     # ThemeProvider (+ useTheme), ThemeToggle, ThemeSection,
 │   │                     # I18nProvider (+ useI18n)
 ├── LoginForm.tsx, SignUpForm.tsx, PasswordField.tsx
 └── icons.tsx             # GoogleIcon, FacebookIcon
 
 lib/
+├── import/               # Fase 21 — csv.ts (lettore RFC 4180 + numeri, date,
+│                         #   mojibake), trade-republic.ts (profilo riconosciuto
+│                         #   dall'intestazione), generic.ts (colonne indicate
+│                         #   dall'utente + contatore di occorrenza), types.ts,
+│                         #   index.ts (`analyze()` + IMPORT_MAX_BYTES)
 ├── supabase/             # client.ts, server.ts, proxy.ts (PUBLIC_PATHS)
 ├── i18n/                 # config.ts (locale, cookie, negoziazione — client-safe),
 │   │                     # format.ts (Intl: numeri, denaro, date, plurali),
@@ -148,7 +155,13 @@ transactions: id (UUID), user_id (UUID NOT NULL), amount (DECIMAL 10,2),
               type (VARCHAR 20), category_id (UUID), investment_type (VARCHAR 50,
               nullable), date (TIMESTAMP senza fuso), notes (VARCHAR 255),
               created_at (TIMESTAMP), recurring_rule_id (UUID, nullable),
-              account_id (UUID NOT NULL), to_account_id (UUID, nullable)
+              account_id (UUID NOT NULL), to_account_id (UUID, nullable),
+              import_id (UUID, nullable), import_key (TEXT, nullable)
+-- import_id: il lotto da cui la riga proviene (Fase 21). ON DELETE CASCADE —
+--   cancellare la riga di `imports` ANNULLA l'import. È l'unica cascade oltre
+--   a quella di `categories`, e come quella è l'operazione, non un effetto.
+-- import_key: chiave di deduplica, UNIQUE con user_id. NULL = riga inserita a
+--   mano, e i NULL restano DISTINTI (all'opposto di `budgets`).
 -- type: 'entrata' | 'spesa' | 'investimento' | 'risparmio' | 'abbonamento'
 --     | 'trasferimento'  (l'ultimo dalla Fase 20b)
 -- to_account_id: il conto di DESTINAZIONE. Obbligatorio su 'trasferimento',
@@ -1706,6 +1719,189 @@ guardando la home è la prova che la separazione va **detta**, non dedotta: è
 esattamente il lavoro che fanno il sottotitolo "entrate meno uscite di questo
 mese" e la riga che insegna a scorrere.
 
+### Fase 21 — import da file (CSV / Trade Republic)
+
+Implementata il 2026-08-13 (issue #35). Migration `20260816_imports.sql`.
+Progettata leggendo un export `pytr` **reale**, non la documentazione.
+
+```sql
+imports: id, user_id, account_id (il conto del FILE), source, filename, created_at
+transactions: + import_id (FK cascade), + import_key (unique con user_id)
+import_transactions(account, source, filename, rows jsonb) → (import_id, inserted, submitted)
+```
+
+#### Le decisioni di schema
+
+- **Una tabella `imports`, non solo una colonna.** Il lotto è ciò che rende
+  l'import **annullabile**: `transactions.import_id` è `on delete cascade`,
+  quindi disfare è una sola istruzione atomica. La colonna va messa subito —
+  vale il precedente di `notifications.destination`, e qui il backfill sarebbe
+  **impossibile**: nessun dato residuo direbbe quali righe erano arrivate insieme.
+- ⚠️ **`on delete cascade` su `import_id` mentre `account_id` è `no action`**, ed
+  è la stessa asimmetria di `categories` (cascade, serve a eliminare un
+  obiettivo) contro `accounts` (no action, cancellerebbe movimenti reali). Qui la
+  cascade **è** l'operazione.
+- **Nessuna colonna `row_count`** — quinta volta che questo progetto rifiuta un
+  totale memorizzato, dopo `spent`, `saved_amount`, `balance` e `valid_to`. Qui
+  divergerebbe al primo movimento importato che l'utente cancella a mano.
+- **`import_key` TEXT + `unique (user_id, import_key)` + `on conflict do nothing`**,
+  come `notifications.dedup_key`: reimportare un file sovrapposto **non può**
+  duplicare, per costruzione. ⚠️ I NULL restano **distinti** (default) — è
+  l'opposto di `budgets`, dove NULL significava "il budget globale", cioè una
+  cosa sola. Qui NULL significa "riga inserita a mano", e ce ne sono migliaia.
+- **FK composita `(account_id, user_id) → accounts (id, user_id)`**, come nella
+  20b: nessuna policy RLS guarda `account_id`.
+- ⚠️ **`import_transactions()` è `security invoker`**, cioè il default — non
+  `definer` come le altre funzioni del progetto. Qui non serve alcun privilegio
+  in più, e marcarla `definer` per abitudine avrebbe disattivato la RLS in cambio
+  di niente. Serve come funzione solo per l'**atomicità** lotto + righe.
+- **Tre policy su `imports`, niente UPDATE**: una riga è il verbale di un evento
+  accaduto, non contenuto modificabile.
+
+#### Le quattro cose che il file vero insegna, e nessuna documentazione dice
+
+1. ⚠️ **`amount` non è il movimento di cassa.** Su un acquisto vale il
+   controvalore e la commissione sta a parte (`amount −24,97`, `fee −1,00`: dal
+   conto escono 25,97). Sulle vendite c'è anche `tax`.
+2. ⚠️ **La colonna che contiene la cassa cambia con il tipo di riga.**
+   `TAX_OPTIMIZATION` (il bollo) ha `amount = 0` e il movimento in `tax`.
+3. ⚠️ **Alcune righe non sono movimenti.** `MIGRATION` (trasloco di custodia, a
+   coppie ±n) e `FREE_RECEIPT` hanno gli importi **vuoti**.
+4. ⚠️ **`counterparty_iban` è popolata solo sulle righe recenti.** Sulle altre
+   l'IBAN sta dentro il testo libero, o non c'è affatto — quindi **non** si può
+   costruire su di lei una colonna `accounts.iban`: mancherebbe metà delle volte.
+
+I primi tre si chiudono con **una regola sola** invece che con tre rami speciali:
+`netto = amount + fee + tax`, e **netto zero significa nessun movimento di
+cassa**. La conferma che sia quella giusta la dà il file: il versamento del
+07/03/2024 ha `amount 201,40` e `fee −1,40`, cioè **200,00 tondi**. Un numero
+rotondo che esce dall'aritmetica non è una coincidenza.
+
+#### Il passo centrale decide per GRUPPO, non per riga
+
+È lo scostamento voluto dal mockup `Seichi Importa CSV.dc.html`, che mostrava una
+lista di transazioni con una pastiglia "seleziona categoria" ciascuna. Un estratto
+di tre anni ha **~200 righe e ~15 decisioni**: tutti gli acquisti sono
+investimenti, tutti gli interessi entrate, tutti i bonifici da uno stesso IBAN
+vengono dallo stesso conto. Le righe restano ispezionabili aprendo il gruppo: è
+la **decisione** che si accorpa, non l'informazione.
+
+⚠️ **La direzione fa parte dell'IDENTITÀ del gruppo.** `TAX_OPTIMIZATION` compare
+sia in addebito sia in storno: raccolti insieme, una decisione sola varrebbe per
+righe che vanno in versi opposti.
+
+#### Gli altri difetti del mockup, corretti
+
+- **Mancava il conto**, e senza `transactions.account_id` (NOT NULL dalla 20a)
+  l'import non scrive una riga. Sta nel passo 1, perché è una proprietà
+  dell'**estratto**, non delle singole righe.
+- **La riga "Trasferimento risparmio" chiedeva una categoria**, che
+  `transactions_transfer_category_check` vieta. Un trasferimento vuole invece il
+  **conto di destinazione**.
+- **"max 10 MB" contro `bodySizeLimit: 3mb`** in `next.config.ts`. Il limite è
+  ora 2 MB (`IMPORT_MAX_BYTES`), quarto numero della catena da tenere allineata
+  insieme a quelli dell'avatar. Per la misura: l'estratto di tre anni pesa **40
+  KB**; il mockup dichiarava "2,1 MB" per 42 transazioni.
+- ⚠️ **"42 da importare · 3 duplicati ignorati" nella schermata di conferma**
+  prometteva prima dell'import un numero conoscibile solo **dopo**: quante righe
+  risultino già presenti lo decide il vincolo di unicità. Il riepilogo mostra ora
+  *da importare / ignorate / illeggibili*, che sommano al totale del file; i "già
+  presenti" compaiono alla fine.
+
+#### ⚠️⚠️ Il difetto più costoso: 216 movimenti sul conto sbagliato
+
+Il primo import reale ha attribuito un estratto **Trade Republic** al **Conto
+principale**, e ha scritto 31 trasferimenti fra Revolut e il corrente — portando
+Revolut a **−2.618,08 €** su un conto che non aveva mosso un euro.
+
+**Non è stato un errore dell'utente: era l'unica strada che l'interfaccia
+offriva.** Tre buchi che si sommavano, e ognuno da solo sarebbe stato innocuo:
+
+1. **Un conto Trade Republic non esisteva**, e dal flusso non si poteva creare —
+   uscire a farlo avrebbe perso il file già caricato.
+2. **Il selettore della controparte conteneva UNA voce** (l'unico altro conto),
+   con il gruppo già proposto come `trasferimento`. Non una scelta: l'unica riga
+   disponibile.
+3. **L'app sapeva che era un estratto Trade Republic e non lo diceva.**
+
+Le correzioni: l'analisi si fa **alla scelta del file** (solo dopo si conosce il
+profilo, quindi l'avviso arriva prima della scelta e non dopo), un avviso ambra
+per gli estratti di broker, e `AccountPicker` — un selettore che sa **creare** un
+conto senza uscire.
+
+⚠️ **E il quarto buco, che è mio e vale come regola: l'annullamento viveva solo
+nello stato del componente.** Il lotto era stato progettato apposta per rendere
+l'import reversibile, e poi il comando aveva la vita di una schermata: uscito da
+lì, la riga di `imports` era irraggiungibile da tutta l'app e restava solo il SQL
+Editor. **Progettare la reversibilità e non darle una casa stabile è metà del
+lavoro** — e la metà mancante si vede solo usando l'app. Ora
+`/impostazioni/importa` elenca gli import precedenti con il comando che li disfa.
+
+#### Emerso dal code-review (12 rilievi, tutti applicati)
+
+I quattro che valgono una regola:
+
+- ⚠️ **`parseAmount("1.250")` restituiva 1,25** — un fattore mille perso in
+  silenzio: la riga si importa, non finisce fra le illeggibili, e l'importo è
+  semplicemente sbagliato. Ora un separatore **ripetuto**, o seguito da
+  **esattamente tre cifre**, è quello delle migliaia. Ambiguità residua
+  dichiarata: un file tecnico con tre decimali. Trade Republic ne usa sei.
+- ⚠️ **`targetsFor` ignorava la direzione in due rami su cinque.** `vendite`
+  proponeva `entrata` per definizione — vero quasi sempre, falso quando le
+  commissioni superano il ricavo. È **esattamente il difetto che il tipo
+  `Direction` è stato introdotto per rendere impossibile**, sopravvissuto dentro
+  le eccezioni scritte a mano: un filtro applicato al caso generale e saltato nei
+  casi speciali non è una difesa, è una convenzione.
+- ⚠️ **`ImportHistory.run()` scartava l'esito di `undoImport`**: un annullamento
+  fallito chiudeva la conferma e ricaricava come uno riuscito, lasciando lotto e
+  transazioni al loro posto. L'utente vedeva il gesto compiersi e i dati restare.
+- ⚠️ **Nessun `try/finally` attorno alle server action**: una promise rifiutata
+  lasciava `pending` a `true` e il flusso bloccato senza messaggio.
+
+Più: errori di query scartati che si travestivano da "categoria sbagliata",
+messaggi Postgres grezzi mostrati all'utente, controparte non controllata per
+`archived`, `ready` vero dopo un'analisi fallita (un pulsante vivo che non fa
+niente), la corsa fra due scelte di file ravvicinate, il contatore delle tendine
+che restava sbilanciato allo smontaggio, e tre voci di dizionario mai usate.
+
+#### La tendina, e perché `Select` da solo non poteva farcela
+
+⚠️ Una card con `backdrop-filter` crea un **contesto di impilamento**: il menu
+resta confinato al livello della card, quindi nessuno z-index scritto dentro
+`Select` può superare la `BottomNav`, che è `fixed` a z-40. Tre difese, e servono
+tutte e tre perché falliscono in modi diversi:
+
+- **si ribalta verso l'alto** quando sotto non c'è spazio (calcolo al tocco, non
+  al render: in una lista lunga la posizione cambia di continuo);
+- **altezza massima con scorrimento interno**, o una lista lunga esce comunque;
+- **lo z-index lo alza il CHIAMANTE**, avvisato da `onOpenChange` — l'unico che
+  può alzare la card è chi la disegna.
+
+Il contatore delle tendine aperte è un **numero**, non un booleano: `Select` non
+si chiude quando se ne apre un'altra.
+
+#### `SELL` non ha un tipo — issue #52, aperta e non chiusa qui
+
+Seichi non sa registrare un **disinvestimento**: `investimento` è a senso unico.
+Le scorciatoie sbagliano in versi opposti — `entrata` falsifica il Flusso
+(vendere non è guadagnare), `ignora` lascia il saldo del conto più basso del
+reale — quindi il gruppo `vendite` non ha una proposta e **la scelta è
+dell'utente**. Un settimo tipo obbliga a rifare l'audit di ogni consumatore di
+`transactions`, che è una fase a sé.
+
+⚠️ **L'import non crea il buco, lo rende visibile** — stesso schema della #43.
+La misura, sui dati veri: versato su Trade Republic € 3.578,50, vendite
+€ 881,31, quindi **versato netto € 2.697,19** contro un valore reale di
+€ 2.935,61; la differenza di € 238,42 sono plusvalenze e liquidità non
+investita. Il modello regge, ma senza `disinvestimento` il totale investito
+**cresce e non cala mai**.
+
+#### Debito aperto: `/investimenti` non ha il selettore conto
+
+`getInvestments()` filtra su `user_id` e `type`, **mai sul conto**, e la pagina
+non ha un selettore — quindi somma gli investimenti di tutti i conti. La 20b lo
+ha dato a `/analisi` per la stessa ragione. Da fare come lavoro a sé.
+
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 
 Il guasto è emerso guardando a occhio una data in `/impostazioni/ricorrenti`: una
@@ -2426,7 +2622,13 @@ Seguire questo ordine, non saltare fasi:
       `20260815_transfers.sql` eseguita e collaudata il 2026-08-12 — sei prove
       che dovevano fallire, tutte fallite; saldo che si sposta di 100 fra due
       conti col **totale invariato**; 23 righe prima, 23 dopo
-21. Import dati — CSV / estratto Trade Republic via file (nessuna API ufficiale TR: si importa un CSV, es. generato da `pytr`; l'app non gestisce credenziali)
+21. ✅ Import dati (issue #35) — CSV con mappatura colonne + **profilo Trade
+    Republic riconosciuto dall'intestazione** (nessuna API ufficiale TR: si
+    importa un file, l'app non tocca mai le credenziali). Tabella `imports` come
+    lotto annullabile, `import_key` per l'idempotenza, decisioni **per gruppo**
+    e non per riga. Motivazioni, trappole del file vero e i quattro buchi che il
+    primo import reale ha rivelato: sezione "Fase 21" sopra. Migration
+    `20260816_imports.sql`. **Apre la issue #52 (disinvestimento)**
 22. Allegati/ricevute — foto scontrino sulle transazioni via Supabase Storage
 23. Export dati / report PDF mensile — complementa l'import (Fase 21)
 24. AI Financial Coach — suggerimenti personalizzati basati su metodologie (50/30/20, ecc.) via Claude API

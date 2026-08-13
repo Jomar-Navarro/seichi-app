@@ -105,7 +105,18 @@ export default function ImportFlow({ accounts, categories, previous }: Props) {
 	 * Trade Republic. Analizzando dopo, quell'avviso arriverebbe a scelta già
 	 * fatta, cioè troppo tardi per servire a qualcosa.
 	 */
+	/**
+	 * ⚠️ Il numero d'ordine dell'ultima analisi chiesta.
+	 *
+	 * Scegliendo due file in rapida successione, la risposta del PRIMO può
+	 * arrivare dopo quella del secondo e sovrascriverla: si finirebbe con il file
+	 * B in mano e i gruppi del file A, cioè decisioni prese su righe che non
+	 * verranno importate. Solo la risposta più recente ha diritto di scrivere.
+	 */
+	const analysisSeq = useRef(0);
+
 	async function pickFile(next: File | null) {
+		analysisSeq.current += 1;
 		setFile(next);
 		setAnalysis(null);
 		setMapping(null);
@@ -115,6 +126,7 @@ export default function ImportFlow({ accounts, categories, previous }: Props) {
 	}
 
 	async function analyse(f: File, m: GenericMapping | null): Promise<ImportAnalysis | null> {
+		const seq = (analysisSeq.current += 1);
 		setPending(true);
 		setError(null);
 
@@ -122,17 +134,31 @@ export default function ImportFlow({ accounts, categories, previous }: Props) {
 		form.set("file", f);
 		if (m) form.set("mapping", JSON.stringify(m));
 
-		const res = await analyzeImport(form);
-		setPending(false);
+		try {
+			const res = await analyzeImport(form);
+			// Una scelta più recente ha già vinto: questa risposta è vecchia.
+			if (seq !== analysisSeq.current) return null;
 
-		if ("error" in res) {
-			setError(res.error);
-			setAnalysis(null);
+			if ("error" in res) {
+				setError(res.error);
+				setAnalysis(null);
+				return null;
+			}
+
+			setAnalysis(res.data);
+			return res.data;
+		} catch {
+			if (seq === analysisSeq.current) setError(t.common.genericError);
 			return null;
+		} finally {
+			/*
+			 * ⚠️ `finally`, non una riga dopo l'await: se la server action rifiuta
+			 * — rete caduta, deploy in corso — `pending` resterebbe `true` e il
+			 * flusso si bloccherebbe senza un messaggio e senza un modo di uscirne.
+			 * È la forma usata da ogni altro componente di questo repo.
+			 */
+			if (seq === analysisSeq.current) setPending(false);
 		}
-
-		setAnalysis(res.data);
-		return res.data;
 	}
 
 	/**
@@ -231,29 +257,38 @@ export default function ImportFlow({ accounts, categories, previous }: Props) {
 		form.set("decisions", JSON.stringify([...decisions.values()]));
 		if (mapping) form.set("mapping", JSON.stringify(mapping));
 
-		const res = await runImport(form);
-		setPending(false);
-
-		if ("error" in res) {
-			setError(res.error);
-			return;
+		try {
+			const res = await runImport(form);
+			if ("error" in res) {
+				setError(res.error);
+				return;
+			}
+			setOutcome(res.data);
+			setStep("fatto");
+		} catch {
+			setError(t.common.genericError);
+		} finally {
+			setPending(false);
 		}
-
-		setOutcome(res.data);
-		setStep("fatto");
 	}
 
 	async function undo() {
 		if (!outcome?.importId) return;
 		setPending(true);
-		const res = await undoImport(outcome.importId);
-		setPending(false);
-		if ("error" in res) {
-			setError(res.error);
-			return;
+		setError(null);
+		try {
+			const res = await undoImport(outcome.importId);
+			if ("error" in res) {
+				setError(res.error);
+				return;
+			}
+			setConfirmUndo(false);
+			setUndone(true);
+		} catch {
+			setError(t.common.genericError);
+		} finally {
+			setPending(false);
 		}
-		setConfirmUndo(false);
-		setUndone(true);
 	}
 
 	if (accounts.length === 0) {
@@ -540,8 +575,17 @@ function FileStep({
 		})),
 	];
 
+	/*
+	 * ⚠️ Serve un'analisi RIUSCITA, non solo un file scelto. La prima versione
+	 * chiedeva `file && conto && (niente mappatura || mappatura completa)`: dopo
+	 * un'analisi fallita — file illeggibile, rete caduta — `analysis` è `null`,
+	 * quindi la condizione era vera e il pulsante si accendeva su un
+	 * `continueFromFile()` che non ha alcun ramo da eseguire. Un comando vivo che
+	 * non fa niente è peggio di uno spento: quello almeno dice che manca qualcosa.
+	 */
+	const mappingReady = mapping !== null && mapping.date >= 0 && mapping.amount >= 0;
 	const ready =
-		Boolean(file) && Boolean(accountId) && (!needsMapping || (mapping !== null && mapping.date >= 0 && mapping.amount >= 0));
+		Boolean(file) && Boolean(accountId) && (read !== null || (needsMapping !== null && mappingReady));
 
 	return (
 		<div className="flex flex-col grow">
@@ -858,12 +902,31 @@ function ImportHistory({
 	const [busy, setBusy] = useState(false);
 	const name = new Map(accounts.map((a) => [a.id, a.name]));
 
+	const [err, setErr] = useState<string | null>(null);
+
+	/*
+	 * ⚠️ L'esito si GUARDA. La prima versione scartava il valore di ritorno:
+	 * un annullamento fallito chiudeva la conferma e ricaricava la pagina
+	 * esattamente come uno riuscito, lasciando il lotto e le sue transazioni al
+	 * loro posto. L'utente vedeva il gesto compiersi e i dati restare —
+	 * l'unica prova sarebbe stata riaprire la pagina e ricontare.
+	 */
 	async function run(id: string) {
 		setBusy(true);
-		await undoImport(id);
-		setBusy(false);
-		setConfirming(null);
-		onUndone();
+		setErr(null);
+		try {
+			const res = await undoImport(id);
+			if ("error" in res) {
+				setErr(res.error);
+				return;
+			}
+			setConfirming(null);
+			onUndone();
+		} catch {
+			setErr(t.common.genericError);
+		} finally {
+			setBusy(false);
+		}
 	}
 
 	return (
@@ -871,6 +934,11 @@ function ImportHistory({
 			<p className="text-[11.5px] font-semibold tracking-[1.6px] uppercase text-disabled mb-2.5 ms-0.5">
 				{t.import.history.title}
 			</p>
+			{err && (
+				<p className="text-[12px] mb-2 ms-0.5" style={{ color: "var(--ink-aka)" }}>
+					{err}
+				</p>
+			)}
 			<div className="flex flex-col gap-2.5">
 				{items.map((it) => (
 					<div key={it.id} className="rounded-[20px] border border-subtle bg-card p-4">
@@ -1138,8 +1206,14 @@ function GroupCard({
 						</div>
 					))}
 					{rows.length > 40 && (
+						/*
+							⚠️ "+ 160 altre righe", non "160 righe". La seconda forma si legge
+							come il totale del gruppo e contraddice l'intestazione tre righe
+							sopra, che ne dichiara 200: due numeri diversi per la stessa cosa,
+							a un centimetro di distanza.
+						*/
 						<p className="px-4.5 py-2.5 text-[11.5px] text-disabled">
-							{plural(t.import.preview.rows, rows.length - 40, locale)}
+							{plural(t.import.preview.more, rows.length - 40, locale)}
 						</p>
 					)}
 				</div>

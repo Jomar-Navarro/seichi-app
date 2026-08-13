@@ -1290,7 +1290,6 @@ export const it = {
 			title: "Import precedenti",
 			/** ⚠️ Le righe si contano adesso: quelle cancellate a mano non ci sono più. */
 			rows: { one: "{n} movimento", other: "{n} movimenti" },
-			undone: "Import annullato",
 		},
 
 		/** Il passo che compare solo se il profilo non è riconosciuto. */
@@ -1301,7 +1300,6 @@ export const it = {
 			amount: "Importo",
 			description: "Descrizione",
 			none: "nessuna",
-			sample: "prima riga: {value}",
 		},
 
 		preview: {
@@ -1313,6 +1311,8 @@ export const it = {
 			 */
 			explain: "Decidi per gruppo: una scelta vale per tutte le righe che contiene.",
 			rows: { one: "{n} riga", other: "{n} righe" },
+			/** Coda della lista aperta: dice che ce ne sono ALTRE, non quante in tutto. */
+			more: { one: "+ {n} altra riga", other: "+ {n} altre righe" },
 			undecided: { one: "{n} gruppo da decidere", other: "{n} gruppi da decidere" },
 			becomes: "Tipo di movimento",
 			category: "Categoria",
@@ -1363,7 +1363,6 @@ export const it = {
 		},
 
 		summary: {
-			title: "Pronto per l'import",
 			toImport: { one: "{n} movimento da importare", other: "{n} movimenti da importare" },
 			ignored: { one: "{n} riga ignorata", other: "{n} righe ignorate" },
 			unreadable: { one: "{n} riga illeggibile", other: "{n} righe illeggibili" },

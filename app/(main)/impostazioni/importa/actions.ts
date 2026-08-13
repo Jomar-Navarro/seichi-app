@@ -141,10 +141,24 @@ export async function runImport(form: FormData): Promise<ImportResult> {
 	// esplicito su `user_id` è ridondante con la RLS ed è voluto: se un domani
 	// quella policy venisse allentata, questa validazione non deve diventare
 	// globale senza che nessuno se ne accorga.
-	const [{ data: accounts }, { data: categories }] = await Promise.all([
-		supabase.from("accounts").select("id, archived").eq("user_id", user.id),
-		supabase.from("categories").select("id, type").eq("user_id", user.id),
-	]);
+	const [{ data: accounts, error: accErr }, { data: categories, error: catErr }] =
+		await Promise.all([
+			supabase.from("accounts").select("id, archived").eq("user_id", user.id),
+			supabase.from("categories").select("id, type").eq("user_id", user.id),
+		]);
+
+	/*
+	 * ⚠️ L'errore va guardato, o un guasto di rete si traveste da dato mancante.
+	 * Con `data` a `null` le due mappe restano vuote, e i controlli qui sotto
+	 * rispondono "Scegli il conto" o "La categoria non corrisponde al tipo" — due
+	 * frasi che mandano a controllare cose sane. È la stessa classe corretta due
+	 * volte nella 20b: due cause diverse non possono avere lo stesso messaggio
+	 * solo perché arrivano dalla stessa `catch`.
+	 */
+	if (accErr || catErr) {
+		console.error("[import] conti/categorie:", accErr?.message ?? catErr?.message);
+		return { error: t.common.genericError };
+	}
 
 	const liveAccounts = new Map((accounts ?? []).map((a) => [a.id, a]));
 	const categoryType = new Map((categories ?? []).map((c) => [c.id, c.type as string]));
@@ -177,7 +191,17 @@ export async function runImport(form: FormData): Promise<ImportResult> {
 		p_rows: payload,
 	});
 
-	if (error) return { error: error.message };
+	/*
+	 * ⚠️ Il messaggio di Postgres si LOGGA e non si mostra: una violazione di
+	 * CHECK direbbe all'utente `new row for relation "transactions" violates
+	 * check constraint "transactions_transfer_category_check"`, che non lo aiuta
+	 * e racconta la forma dello schema. È la convenzione già fissata da
+	 * `createAccount` e dai loader della home.
+	 */
+	if (error) {
+		console.error("[import] import_transactions:", error.message);
+		return { error: t.common.genericError };
+	}
 
 	const result = Array.isArray(data) ? data[0] : data;
 	const imported: number = result?.inserted ?? 0;
@@ -220,7 +244,16 @@ function buildRow(
 ): { row: BuiltRow } | { error: string } {
 	if (d.target === "trasferimento") {
 		const other = d.counterpartAccountId;
-		if (!other || !accounts.has(other)) return { error: t.import.errors.transferNeedsAccount };
+		/*
+		 * ⚠️ Anche la controparte dev'essere ATTIVA, non solo esistente. Il conto
+		 * del file lo era già; questo lato no, ed è raggiungibile con una POST
+		 * diretta. Scriverci sopra significherebbe mandare denaro su un conto
+		 * escluso da ogni totale mostrato — lo stesso guasto silenzioso che la 20b
+		 * ha chiuso vietando le ricorrenti sui conti archiviati.
+		 */
+		if (!other || !accounts.get(other) || accounts.get(other)?.archived) {
+			return { error: t.import.errors.transferNeedsAccount };
+		}
 		/*
 		 * ⚠️ `to_account_id <> account_id` è un CHECK del database
 		 * (`transactions_dest_distinct_check`): senza questo controllo l'errore
@@ -348,7 +381,10 @@ export async function undoImport(importId: string): Promise<{ ok: true } | { err
 		.eq("id", importId)
 		.eq("user_id", user.id);
 
-	if (error) return { error: error.message };
+	if (error) {
+		console.error("[import] undoImport:", error.message);
+		return { error: t.common.genericError };
+	}
 
 	revalidatePath("/", "layout");
 	return { ok: true };
