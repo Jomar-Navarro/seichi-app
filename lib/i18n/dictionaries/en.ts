@@ -797,11 +797,13 @@ export const en: Dictionary = {
 			budget: "Budget",
 			categories: "Categories",
 			automation: "Automation",
+			data: "Data",
 			security: "Security",
 			support: "Support",
 			dangerZone: "Danger zone",
 		},
 
+		importData: "Import transactions",
 		manageCategories: "Manage categories",
 		recurringTransactions: "Recurring transactions",
 		recurringTitle: "Recurring",
@@ -825,6 +827,128 @@ export const en: Dictionary = {
 			GBP: "Pound",
 			CHF: "Franc",
 			JPY: "Yen",
+		},
+	},
+
+	import: {
+		title: "Import transactions",
+
+		file: {
+			drop: "Drag a CSV file",
+			or: "or tap to choose one",
+			hint: ".csv file with date, amount and description · 2 MB max",
+			change: "Change file",
+			accountLabel: "Statement account",
+			accountHint: "which account this file belongs to",
+			noAccounts: "You need at least one active account to import.",
+			continue: "Continue",
+
+			recognised: "{source} · {n}",
+			sources: {
+				trade_republic: "Trade Republic statement",
+				generico: "Generic CSV",
+			},
+			brokerHint:
+				"This is your Trade Republic statement: pick the account that stands for it, or create one. Not the account you transfer from.",
+
+			newAccount: "New account",
+			newAccountName: "Account name",
+			create: "Create",
+		},
+
+		history: {
+			title: "Previous imports",
+			rows: { one: "{n} movement", other: "{n} movements" },
+		},
+
+		mapping: {
+			title: "Which columns to use",
+			hint: "The format wasn't recognised: point out where the date and amount are.",
+			date: "Date",
+			amount: "Amount",
+			description: "Description",
+			none: "none",
+		},
+
+		preview: {
+			found: { one: "{n} movement found", other: "{n} movements found" },
+			explain: "Decide by group: one choice applies to every row it contains.",
+			rows: { one: "{n} row", other: "{n} rows" },
+			more: { one: "+ {n} more row", other: "+ {n} more rows" },
+			undecided: { one: "{n} group to decide", other: "{n} groups to decide" },
+			becomes: "Movement type",
+			category: "Category",
+			noCategory: "none",
+			counterpart: "Source account",
+			counterpartOut: "Destination account",
+			noDetail: "counterparty not stated",
+			showRows: "Show rows",
+			hideRows: "Hide rows",
+			continue: "Continue",
+		},
+
+		groups: {
+			acquisti: "Purchases and savings plans",
+			vendite: "Sales",
+			interessi: "Interest",
+			dividendi: "Dividends",
+			regalo: "Gifted shares",
+			carta: "Card payments",
+			imposte: "Taxes and duties",
+			trasferimentoIn: "Money received",
+			trasferimentoOut: "Money sent",
+			senzaCassa: "Rows with no money movement",
+			movimenti: "Movements",
+			altro: "Unrecognised",
+		},
+
+		notes: {
+			vendite:
+				"Seichi can't record a divestment yet. As income they inflate this month's flow; ignored, the account balance stays lower than it really is.",
+			senzaCassa:
+				"Securities transfers and free receipts: no money moves, so they don't become transactions.",
+			trasferimento: "Pick the other account, or the app can't tell where the money came from.",
+			altro: "Unknown movement type: you decide what it becomes.",
+		},
+
+		targets: {
+			ignora: "Don't import",
+		},
+
+		summary: {
+			toImport: { one: "{n} movement to import", other: "{n} movements to import" },
+			ignored: { one: "{n} row ignored", other: "{n} rows ignored" },
+			unreadable: { one: "{n} unreadable row", other: "{n} unreadable rows" },
+			confirm: "Import",
+			importing: "Importing…",
+		},
+
+		done: {
+			title: "Import complete",
+			imported: { one: "{n} movement imported", other: "{n} movements imported" },
+			skipped: { one: "{n} already there", other: "{n} already there" },
+			nothing: "No new movements: they had all been imported already.",
+			undo: "Undo the import",
+			undoTitle: "Undo this import?",
+			undoBody:
+				"The movements written by this import will be deleted, including any edits made by hand afterwards.",
+			undoConfirm: "Undo the import",
+			undoCancel: "Keep",
+			backToSettings: "Back to settings",
+		},
+
+		errors: {
+			tooLarge: "The file is too large — 2 MB max",
+			notCsv: "A .csv file is required",
+			empty: "No readable movements in this file",
+			unknownFormat: "Format not recognised",
+			noAccount: "Choose the account this file belongs to",
+			undecided: "Decide what to do with every group",
+			badDecisions: "Invalid choices",
+			transferNeedsAccount: "Pick the other account of the transfer",
+			sameAccount: "The source and destination accounts must be different",
+			badCategory: "The category doesn't match the chosen type",
+			nothingToImport: "Nothing left to import",
 		},
 	},
 };

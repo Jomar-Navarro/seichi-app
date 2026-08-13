@@ -1199,11 +1199,14 @@ export const it = {
 			budget: "Budget",
 			categories: "Categorie",
 			automation: "Automazione",
+			/** Import (Fase 21) e, quando arriverà, export (Fase 23). */
+			data: "Dati",
 			security: "Sicurezza",
 			support: "Supporto",
 			dangerZone: "Zona pericolo",
 		},
 
+		importData: "Importa transazioni",
 		manageCategories: "Gestisci categorie",
 		recurringTransactions: "Transazioni ricorrenti",
 		/** Titolo della pagina dedicata: lì il contesto rende superfluo "Transazioni". */
@@ -1233,6 +1236,172 @@ export const it = {
 			GBP: "Sterlina",
 			CHF: "Franco",
 			JPY: "Yen",
+		},
+	},
+
+	/** Import di transazioni da file — Fase 21. */
+	import: {
+		title: "Importa transazioni",
+
+		file: {
+			/** Il gesto, non il formato: "trascina" è ciò che si può fare qui. */
+			drop: "Trascina un file CSV",
+			or: "o tocca per selezionare",
+			/**
+			 * ⚠️ Il limite dichiarato deve corrispondere a `IMPORT_MAX_BYTES`, che
+			 * a sua volta sta sotto `bodySizeLimit` di `next.config.ts`. Sono tre
+			 * numeri da tenere allineati, come per l'avatar.
+			 */
+			hint: "file .csv con data, importo e descrizione · massimo 2 MB",
+			change: "Cambia file",
+			/**
+			 * ⚠️ Il conto si chiede QUI, nello stesso passo del file, e la frase
+			 * dice perché: è una proprietà dell'estratto, non delle singole righe.
+			 */
+			accountLabel: "Conto dell'estratto",
+			accountHint: "di quale conto è questo file",
+			noAccounts: "Serve almeno un conto attivo per importare.",
+			continue: "Continua",
+
+			/** Il profilo riconosciuto, mostrato appena scelto il file. */
+			recognised: "{source} · {n}",
+			sources: {
+				trade_republic: "Estratto Trade Republic",
+				generico: "CSV generico",
+			},
+			/**
+			 * ⚠️ Compare SOLO per i profili di broker, e questa riga esiste perché
+			 * la sua assenza è costata un import sbagliato da 216 movimenti: chi
+			 * carica un estratto Trade Republic non ha necessariamente un conto
+			 * Trade Republic in Seichi, e il campo proponeva il primo conto della
+			 * lista senza dire che era un'altra cosa.
+			 */
+			brokerHint:
+				"È l'estratto del tuo conto Trade Republic: scegli il conto che lo rappresenta, o creane uno. Non il conto da cui parti per versare.",
+
+			/** Creare un conto senza uscire dal flusso e perdere il file scelto. */
+			newAccount: "Nuovo conto",
+			newAccountName: "Nome del conto",
+			create: "Crea",
+		},
+
+		/** Gli import già fatti, da cui si annulla. */
+		history: {
+			title: "Import precedenti",
+			/** ⚠️ Le righe si contano adesso: quelle cancellate a mano non ci sono più. */
+			rows: { one: "{n} movimento", other: "{n} movimenti" },
+		},
+
+		/** Il passo che compare solo se il profilo non è riconosciuto. */
+		mapping: {
+			title: "Quali colonne servono",
+			hint: "Il formato non è stato riconosciuto: indica dove stanno data e importo.",
+			date: "Data",
+			amount: "Importo",
+			description: "Descrizione",
+			none: "nessuna",
+		},
+
+		preview: {
+			found: { one: "{n} movimento trovato", other: "{n} movimenti trovati" },
+			/**
+			 * ⚠️ "gruppi" e non "righe": è la differenza rispetto al mockup, che
+			 * faceva decidere riga per riga. Duecento movimenti sono una quindicina
+			 * di decisioni, e la frase deve dirlo o l'utente si aspetta duecento tap.
+			 */
+			explain: "Decidi per gruppo: una scelta vale per tutte le righe che contiene.",
+			rows: { one: "{n} riga", other: "{n} righe" },
+			/** Coda della lista aperta: dice che ce ne sono ALTRE, non quante in tutto. */
+			more: { one: "+ {n} altra riga", other: "+ {n} altre righe" },
+			undecided: { one: "{n} gruppo da decidere", other: "{n} gruppi da decidere" },
+			becomes: "Tipo di movimento",
+			category: "Categoria",
+			noCategory: "nessuna",
+			/** ⚠️ Etichette PIENE, non "Dal conto": `Select` compone "Seleziona {label}". */
+			counterpart: "Conto di partenza",
+			counterpartOut: "Conto di arrivo",
+			noDetail: "controparte non indicata",
+			showRows: "Mostra le righe",
+			hideRows: "Nascondi le righe",
+			continue: "Continua",
+		},
+
+		/** Le famiglie di righe. Le parole stanno qui, la meccanica in `lib/import/`. */
+		groups: {
+			acquisti: "Acquisti e piani d'accumulo",
+			vendite: "Vendite",
+			interessi: "Interessi",
+			dividendi: "Dividendi",
+			regalo: "Azioni in regalo",
+			carta: "Pagamenti con carta",
+			imposte: "Imposte e bolli",
+			trasferimentoIn: "Denaro ricevuto",
+			trasferimentoOut: "Denaro inviato",
+			senzaCassa: "Righe senza movimento di denaro",
+			movimenti: "Movimenti",
+			altro: "Non riconosciuti",
+		},
+
+		/** Perché un gruppo va guardato. Compaiono sotto il titolo del gruppo. */
+		notes: {
+			/**
+			 * ⚠️ Dice il problema, non solo la scelta. Seichi non ha un tipo per il
+			 * disinvestimento (issue #52) e le due strade sbagliano in versi
+			 * opposti: chi decide deve sapere quale prezzo sta pagando.
+			 */
+			vendite:
+				"Seichi non sa ancora registrare un disinvestimento. Come entrata gonfiano il flusso del mese; ignorate, il saldo del conto resta più basso del reale.",
+			senzaCassa:
+				"Trasferimenti di titoli e accrediti gratuiti: non spostano denaro, quindi non diventano movimenti.",
+			trasferimento: "Scegli l'altro conto, o l'app non sa da dove arriva il denaro.",
+			altro: "Tipo di movimento sconosciuto: decidi tu cosa diventa.",
+		},
+
+		targets: {
+			/** Non è un tipo di transazione: è la scelta di non scrivere niente. */
+			ignora: "Non importare",
+		},
+
+		summary: {
+			toImport: { one: "{n} movimento da importare", other: "{n} movimenti da importare" },
+			ignored: { one: "{n} riga ignorata", other: "{n} righe ignorate" },
+			unreadable: { one: "{n} riga illeggibile", other: "{n} righe illeggibili" },
+			confirm: "Importa",
+			importing: "Importazione…",
+		},
+
+		done: {
+			title: "Import completato",
+			imported: { one: "{n} movimento importato", other: "{n} movimenti importati" },
+			/**
+			 * ⚠️ "già presenti" e non "duplicati": non sono righe doppie nel file,
+			 * sono movimenti che c'erano già da un import precedente. Chiamarli
+			 * duplicati farebbe cercare un errore nel file.
+			 */
+			skipped: { one: "{n} già presente", other: "{n} già presenti" },
+			nothing: "Nessun movimento nuovo: erano già tutti importati.",
+			undo: "Annulla l'import",
+			undoTitle: "Annullare l'import?",
+			undoBody:
+				"I movimenti scritti da questo import vengono eliminati, comprese le modifiche fatte a mano dopo.",
+			undoConfirm: "Annulla l'import",
+			undoCancel: "Tieni",
+			backToSettings: "Torna alle impostazioni",
+		},
+
+		errors: {
+			tooLarge: "Il file è troppo grande — massimo 2 MB",
+			notCsv: "Serve un file .csv",
+			empty: "Nessun movimento leggibile in questo file",
+			unknownFormat: "Formato non riconosciuto",
+			noAccount: "Scegli il conto a cui appartiene il file",
+			undecided: "Decidi cosa fare di ogni gruppo",
+			badDecisions: "Scelte non valide",
+			transferNeedsAccount: "Scegli l'altro conto del trasferimento",
+			/** Lo impone anche un CHECK del database; qui serve solo il messaggio. */
+			sameAccount: "Il conto di partenza e quello di arrivo devono essere diversi",
+			badCategory: "La categoria non corrisponde al tipo scelto",
+			nothingToImport: "Non è rimasto niente da importare",
 		},
 	},
 };

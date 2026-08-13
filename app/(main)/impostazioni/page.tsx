@@ -11,6 +11,7 @@ import {
 	Repeat,
 	Trash2,
 	TriangleAlert,
+	Upload,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getAccountContext } from "@/lib/account";
@@ -125,6 +126,16 @@ export default async function ImpostazioniPage() {
 					icon={<Repeat size={17} className="text-secondary" />}
 					label={t.settings.recurringTransactions}
 					href="/impostazioni/ricorrenti"
+					chevron
+				/>
+			</SettingsGroup>
+
+			{/* Dati — import (Fase 21); l'export arriverà qui accanto (Fase 23) */}
+			<SettingsGroup label={t.settings.groups.data}>
+				<SettingsRow
+					icon={<Upload size={17} className="text-secondary" />}
+					label={t.settings.importData}
+					href="/impostazioni/importa"
 					chevron
 				/>
 			</SettingsGroup>
