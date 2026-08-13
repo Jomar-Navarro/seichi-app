@@ -1864,6 +1864,27 @@ messaggi Postgres grezzi mostrati all'utente, controparte non controllata per
 niente), la corsa fra due scelte di file ravvicinate, il contatore delle tendine
 che restava sbilanciato allo smontaggio, e tre voci di dizionario mai usate.
 
+#### ⚠️ Tre volte su tre, a sbagliare era la VERIFICA e non il codice
+
+Vale come regola di metodo, perché è successo in una fase sola:
+
+- il controllo sul **mojibake** interrogava una riga che usa il campo `name`,
+  dove la riparazione non passa mai: passava senza testare niente;
+- il **driver** decideva un gruppo solo e concludeva "il pulsante non si accende",
+  mentre a bloccare erano i quattro gruppi di bonifici — e intanto quel KO
+  nascondeva il difetto vero, che era l'ordinamento;
+- ⚠️ la **controprova nella migration** cercava `qual not like '%select
+  auth.uid()%'`. Postgres non conserva il testo che scrivi: lo ri-stampa
+  dall'albero sintattico, e `(select auth.uid())` diventa `( SELECT auth.uid()
+  AS uid)` — maiuscolo e con un alias. Con `like` sensibile alle maiuscole il
+  controllo dichiarava **nude tutte e 25 le policy** del database, tutte
+  perfettamente corrette. Si controlla con `~*`, mai con `like`.
+
+La regola già scritta per la #47 — *un registro di guasti non è collaudato finché
+non ha registrato un guasto* — ha un gemello: **un controllo che segnala un
+guasto va diagnosticato prima di crederci.** Due dei tre difetti veri di questa
+fase si sono visti proprio andando a capire perché una verifica diceva rosso.
+
 #### La tendina, e perché `Select` da solo non poteva farcela
 
 ⚠️ Una card con `backdrop-filter` crea un **contesto di impilamento**: il menu

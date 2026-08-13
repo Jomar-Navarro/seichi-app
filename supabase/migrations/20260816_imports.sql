@@ -439,6 +439,15 @@ grant  execute on function public.delete_current_user(boolean) to authenticated;
 --
 -- Da eseguire nel SQL Editor DOPO la migration.
 --
+-- ✅ ESEGUITA il 2026-08-13 con un ruolo di sola lettura: **tutti e nove i
+--    controlli strutturali verdi** — tabella creata, tre policy (nessuna di
+--    UPDATE), RLS attiva, FK **composita a due colonne**, UNIQUE su
+--    `(user_id, import_key)` con i NULL **distinti**, `import_id` in cascade
+--    (`confdeltype = 'c'`) e `import_transactions` con `prosecdef = false`.
+--    Verificate insieme anche le fasi precedenti: i quattro CHECK dei
+--    trasferimenti ci sono tutti, `account_balances` ha `security_invoker=true`,
+--    e le 25 policy usano tutte `(select auth.uid())`.
+--
 -- a) Struttura — tutte devono dire `t`.
 --
 --   select
@@ -446,9 +455,17 @@ grant  execute on function public.delete_current_user(boolean) to authenticated;
 --        where table_schema = 'public' and table_name = 'imports')            as tabella,
 --     (select count(*) = 3 from pg_policies
 --        where schemaname = 'public' and tablename = 'imports')               as tre_policy,
+--     -- ⚠️ REGEX case-insensitive (`!~*`), non `not like`. Postgres non
+--     -- conserva il testo che hai scritto: lo ri-stampa dall'albero sintattico,
+--     -- e `(select auth.uid())` diventa `( SELECT auth.uid() AS uid)` —
+--     -- maiuscolo e con un alias che non avevi messo. Un `like '%select
+--     -- auth.uid()%'` non aggancia nulla, quindi il controllo dichiara NUDE
+--     -- tutte le policy del database, comprese le 25 scritte correttamente.
+--     -- Verificato il 2026-08-13: con la regex il conto è 0, con `like` era 25.
 --     (select count(*) = 0 from pg_policies
 --        where schemaname = 'public' and tablename = 'imports'
---          and (qual like '%auth.uid()%' and qual not like '%select auth.uid()%')) as niente_uid_nudo,
+--          and (coalesce(qual,'') || coalesce(with_check,'')) ~ 'auth\.uid\(\)'
+--          and (coalesce(qual,'') || coalesce(with_check,'')) !~* 'select auth\.uid\(\)') as niente_uid_nudo,
 --     (select relrowsecurity from pg_class
 --        where oid = 'public.imports'::regclass)                              as rls_attiva,
 --     (select count(*) = 1 from pg_constraint
