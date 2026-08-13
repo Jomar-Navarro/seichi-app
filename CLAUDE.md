@@ -303,6 +303,49 @@ le colonne rimaste prima che sia un'altra fase a scoprirlo.
   servono alle SELECT ma alle **cancellazioni in cascata**, che senza scandiscono
   l'intera tabella.
 
+#### Verifica contro il catalogo — 2026-08-13
+
+Le affermazioni di questa sezione sono state controllate **interrogando il
+database**, non rileggendo i file, con un ruolo di sola lettura. Tutto confermato:
+
+- `profiles.currency`, `.language` e `.theme` **senza default** — la lezione
+  "un DEFAULT è un'affermazione sul mondo" è applicata;
+- le cinque colonne residue (`is_ricurrent`, `frequency`, `parent_id`,
+  `profiles.name`, `.surname`) sono sparite;
+- `transactions.user_id` e `.account_id` NOT NULL, `categories.user_id` ancora
+  nullable (debito dichiarato), `date` ancora `timestamp without time zone`;
+- `budgets_user_category_period_key` è davvero **`NULLS NOT DISTINCT`**;
+- `dashboard_totals` ha **una sola** firma; `generate_recurring_transactions`
+  torna `integer`;
+- ⚠️ `notifications`: `authenticated` ha `ardDxtm` a livello di TABELLA — niente
+  `w` — più un grant di colonna `authenticated=w` sulla sola `read`. Il
+  meccanismo "la RLS decide le RIGHE, il grant le COLONNE" funziona come scritto.
+
+⚠️ **`anon` ha ancora `arwdDxtm` su TUTTE le tabelle**, `imports` e `job_runs`
+comprese: il debito è vivo e si è esteso alle tabelle nuove da solo, perché
+arriva dai default di Supabase e non da una scelta. Resta innocuo per la sola
+RLS — difesa singola. ⚠️ Non si verifica con `information_schema.role_table_grants`,
+che mostra soltanto i grant in cui il ruolo corrente è concedente o beneficiario:
+da un ruolo terzo risulta **vuota**, e sembra che nessuno abbia privilegi. Si
+legge `pg_class.relacl`.
+
+**Una lacuna trovata: tre FK senza indice**, tutte nella classe che la #43
+doveva chiudere e che è stata chiusa solo in parte.
+
+| vincolo | on delete | effetto |
+|---|---|---|
+| `budgets_category_id_fkey` | CASCADE | cancellare una categoria scandisce `budgets` |
+| `recurring_rules_category_id_fkey` | SET NULL | idem su `recurring_rules` |
+| `recurring_rules_user_id_fkey` | CASCADE | cancellare un utente scandisce `recurring_rules` |
+
+Oggi sono tabelle minuscole, quindi è un costo teorico. Le FK **composite**
+`(user_id, account_id)` invece stanno bene malgrado non abbiano un indice sulla
+coppia: il controllo di integrità cerca per `account_id`, e quell'indice c'è.
+
+`ensure_rls` è un event trigger **della piattaforma**, non nostro: Supabase abilita
+la RLS da sé su ogni tabella nuova. Comoda rete di sicurezza, ma non sostituisce
+il `enable row level security` esplicito nelle migration — quello dice l'intenzione.
+
 #### ⚠️ Le guardie: tre file non vanno più rieseguiti
 
 `20260727`, `20260728` e `20260809` descrivono stati **superati** da migration
