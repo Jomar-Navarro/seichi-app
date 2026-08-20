@@ -53,13 +53,21 @@ export async function getGoals(): Promise<{ data: GoalWithProgress[] } | { error
  * hai ripreso. L'etichetta diceva "Valore portafoglio" ed era **falsa da
  * sempre** — la issue #52 l'ha resa visibile invece di crearla.
  *
- * ⚠️ Il netting è per POSIZIONE (categoria), non per riga, e la ragione è
- * `investment_type`: la scrive solo l'import, non il `TransactionForm`. Una
- * vendita inserita a mano lo avrebbe `null` e finirebbe nel secchio "altro"
- * mentre gli acquisti che liquida stanno in "etf" — la compensazione per
- * tipologia darebbe due numeri sbagliati invece di uno giusto. La tipologia si
- * prende quindi dalla posizione, decisa dalle righe di ACQUISTO, che sono le
- * uniche che possano averla.
+ * Il capitale si compensa su DUE partizioni diverse dello stesso insieme, e
+ * vanno tenute distinte perché non coincidono:
+ *
+ *   · per POSIZIONE (categoria) — quanto è ancora versato su ciascuna;
+ *   · per TIPOLOGIA (`investment_type`) — su quali asset.
+ *
+ * ⚠️ Non è la stessa aggregazione fatta due volte. La decisione dell'import è
+ * per GRUPPO ma `investment_type` sta sulla RIGA, quindi una sola categoria
+ * "ETF" contiene davvero righe di asset diversi: la posizione ha un solo nome e
+ * più tipologie dentro. È il motivo per cui il badge di una posizione può non
+ * corrispondere al suo nome — dice la tipologia della prima riga, non l'unica.
+ *
+ * ⚠️ Il badge di posizione lo fissano solo le righe di ACQUISTO, e solo la
+ * prima non nulla: le righe arrivano in ordine di data decrescente, quindi
+ * senza quella guardia una vendita recente lo sovrascriverebbe.
  *
  * @param accountId conto su cui restringere, o `null`/assente per tutti (#53).
  *   Filtra su `account_id`, cioè il conto su cui il movimento AGISCE — per un
@@ -146,15 +154,39 @@ export async function getInvestments(
 	 * zero, valori come 1.400%. Il numero resta vero, la proporzione si calcola
 	 * su ciò che una proporzione può descrivere.
 	 */
-	const basePct = Array.from(catMap.values())
-		.filter((c) => c.total > 0)
-		.reduce((acc, c) => acc + c.total, 0);
-	const share = (v: number) => (basePct > 0 && v > 0 ? Math.round((v / basePct) * 100) : 0);
+	// ⚠️ Due denominatori, non uno. Posizioni e tipologie sono due partizioni
+	// diverse dello stesso capitale e i loro totali positivi NON coincidono
+	// quando una posizione mescola più asset: un denominatore solo darebbe
+	// percentuali che non sommano a 100 in una delle due liste.
+	const somma = (v: number[]) => v.filter((x) => x > 0).reduce((a, x) => a + x, 0);
+	const shareOf = (v: number, base: number) =>
+		base > 0 && v > 0 ? Math.round((v / base) * 100) : 0;
+	const basePos = somma(Array.from(catMap.values()).map((c) => c.total));
 
+	/*
+	 * ⚠️ La ripartizione per TIPOLOGIA si somma per RIGA, non per posizione, ed
+	 * è la correzione di un errore fatto scrivendo questa fase.
+	 *
+	 * `investment_type` sta sulla transazione perché il file di Trade Republic
+	 * distingue l'asset movimento per movimento, mentre la decisione dell'import
+	 * è per GRUPPO: una sola categoria "ETF" contiene davvero righe di asset
+	 * diversi. Aggregando per categoria — come faceva la prima stesura, per far
+	 * quadrare le vendite — quelle righe collassavano tutte sulla tipologia della
+	 * prima, cancellando una distinzione **vera**, presente nei dati e visibile
+	 * nell'app: la posizione "ETF" mostra il badge "Crypto" proprio per questo.
+	 *
+	 * Le vendite quadrano lo stesso perché l'import ora scrive
+	 * `investment_type` anche su `disinvestimento` (vedi `importa/actions.ts`).
+	 * Restano fuori le righe inserite a mano, che la tipologia non ce l'hanno in
+	 * nessuno dei due versi — acquisti compresi — quindi finiscono in "altro"
+	 * insieme, e si compensano fra loro senza sporcare le altre tipologie.
+	 */
 	const typeMap = new Map<string, number>();
-	for (const cat of catMap.values()) {
-		const key = cat.investment_type ?? INVESTMENT_TYPE_FALLBACK;
-		typeMap.set(key, (typeMap.get(key) ?? 0) + cat.total);
+	for (const tx of txns ?? []) {
+		if (!tx.category_id || !tx.categories) continue;
+		const key = tx.investment_type ?? INVESTMENT_TYPE_FALLBACK;
+		const signed = tx.type === "disinvestimento" ? -tx.amount : tx.amount;
+		typeMap.set(key, (typeMap.get(key) ?? 0) + signed);
 	}
 
 	/*
@@ -170,13 +202,15 @@ export async function getInvestments(
 			? Math.round(((thisMonthContrib - lastMonthContrib) / lastMonthContrib) * 1000) / 10
 			: null;
 
+	const baseType = somma(Array.from(typeMap.values()));
+
 	const byType = Array.from(typeMap.entries())
 		.map(([type, typeTotal]) => ({
 			type,
 			label: lookup(t.investments.types, type, (label) => label, type),
 			color: INVESTMENT_TYPE_COLOR[type] ?? INVESTMENT_TYPE_COLOR[INVESTMENT_TYPE_FALLBACK],
 			total: typeTotal,
-			pct: share(typeTotal),
+			pct: shareOf(typeTotal, baseType),
 		}))
 		.sort((a, b) => b.total - a.total);
 
@@ -188,7 +222,7 @@ export async function getInvestments(
 			color: cat.color,
 			investment_type: cat.investment_type,
 			total: cat.total,
-			pct: share(cat.total),
+			pct: shareOf(cat.total, basePos),
 		}))
 		.sort((a, b) => b.total - a.total);
 

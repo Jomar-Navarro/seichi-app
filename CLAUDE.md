@@ -2138,6 +2138,71 @@ diagnosticato prima di crederci*, con il corollario che vale anche al contrario
 — **un controllo che segnala successo va diagnosticato prima di crederci**,
 perché il messaggio giusto può arrivare dal percorso sbagliato.
 
+#### ⚠️ Due partizioni, non la stessa somma fatta due volte
+
+Emerso **guardando lo schermo**, non leggendo il codice, ed è la correzione di un
+errore fatto scrivendo questa fase.
+
+La prima stesura aggregava le TIPOLOGIE per categoria, per far quadrare le
+vendite (che `investment_type` non ce l'hanno). Ma la decisione dell'import è
+per **gruppo** mentre `investment_type` sta sulla **riga**: una sola categoria
+"ETF" contiene davvero righe di asset diversi, perché il file di Trade Republic
+li distingue e la scelta dell'utente no. Aggregando per categoria quelle righe
+collassavano tutte sulla tipologia della prima — `/investimenti` diceva
+**"2 tipologie"** dove ce n'erano **4**, cancellando una distinzione vera.
+
+La chiusura è far portare `investment_type` **anche alle vendite** dell'import,
+che l'asset lo conosce riga per riga. Così le tipologie tornano per-riga e le
+vendite si compensano lo stesso. Restano fuori le righe inserite a mano, che la
+tipologia non ce l'hanno in nessuno dei due versi — acquisti compresi — quindi
+finiscono in "altro" insieme e si compensano fra loro.
+
+⚠️ Conseguenza: **due denominatori**, non uno. Posizioni e tipologie sono due
+partizioni diverse dello stesso capitale e i loro totali positivi non
+coincidono; un denominatore solo darebbe percentuali che non sommano a 100 in
+una delle due liste.
+
+#### Difetto PREESISTENTE trovato guardando, non corretto qui
+
+La posizione "ETF" mostra il badge **"Crypto"**. Non è una regressione della
+fase: il badge prende la tipologia della **prima riga di acquisto** della
+categoria, e con categorie miste quella riga può descrivere un altro asset. Il
+numero è giusto, l'etichetta accanto no.
+
+Non corretto perché la scelta non è ovvia — mostrare la tipologia dominante,
+mostrarne più di una, o togliere il badge dalle posizioni miste sono tre
+prodotti diversi — e perché è precedente alla #52. Da aprire come issue a sé.
+
+#### ⚠️ La griglia del modale: il numero di righe si CALCOLA
+
+`grid-rows-3` era cablato. Con sei tipi la griglia 2×3 era esatta e il numero
+fisso coincideva; col settimo servono quattro righe, e le card in eccesso
+finivano in una riga **implicita** dentro un contenitore `flex-1 min-h-0` che
+non può crescere. Ora è `gridTemplateRows` inline, derivato da
+`TRANSACTION_TYPES.length` — inline e non una classe Tailwind, perché le classi
+sono statiche e `grid-rows-${n}` non verrebbe generata.
+
+Verificato su 414×896 **e su 375×667**: `minmax(0, 1fr)` stringe le righe a
+128px, la griglia finisce a 641 su 667 e **nessuna card ha il testo tagliato**.
+
+⚠️ **E il collaudo ha mentito due volte prima di dire il vero**, entrambe per
+difetti nella prova e non nella pagina:
+
+- il selettore del driver era `.grid.grid-cols-2.grid-rows-3`; togliendo solo
+  `grid-rows-3` è diventato abbastanza generico da agganciare **la griglia delle
+  card della home**, che sta dietro al modale aperto. Il KO dichiarava la card
+  fuori dal riquadro misurando due elementi che non c'entrano nulla fra loro.
+  **Un selettore va reso PIÙ specifico, non meno, quando la classe su cui si
+  appoggiava sparisce** — qui `.min-h-0`, che il modale ha e la home no;
+- il donut è stato dichiarato "non disegnato" leggendo uno screenshot a bassa
+  scala. Il DOM diceva sei fette con `fill` risolto a colori veri, e un
+  ritaglio ingrandito lo ha confermato: c'era, ed era corretto.
+
+Terza e quarta volta che in questo progetto **a sbagliare è la verifica e non il
+codice** (le prime tre nella Fase 21). Il corollario è ormai una regola:
+*qualunque cosa dica un controllo — rosso o verde — va diagnosticata prima di
+crederci.*
+
 #### L'import: le vendite ora hanno una proposta
 
 Il gruppo `vendite` era l'unico con `suggested: null` per un motivo che è

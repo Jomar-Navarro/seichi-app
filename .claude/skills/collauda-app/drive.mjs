@@ -344,9 +344,26 @@ try {
 	await page.waitForLoadState("networkidle").catch(() => {});
 	await page.locator(".fab").first().click();
 	await page.waitForTimeout(700);
-	await expectText(page, "Trasferimento", "8 il sesto tipo c'è");
+	await expectText(page, "Trasferimento", "8 l'ultimo tipo c'è");
+	await expectText(page, "Disinvestimento", "8 il settimo tipo c'è (#52)");
 
-	const griglia = page.locator(".grid.grid-cols-2.grid-rows-3").first();
+	/*
+	 * ⚠️ `.min-h-0` NON è decorativo nel selettore: è ciò che distingue la
+	 * griglia del MODALE da quella delle quattro card della home, che è anch'essa
+	 * `.grid.grid-cols-2` e sta DIETRO al modale aperto.
+	 *
+	 * Era `.grid.grid-cols-2.grid-rows-3`, e col settimo tipo (#52) quella classe
+	 * è sparita — il conteggio ora si calcola da `TRANSACTION_TYPES.length`.
+	 * Togliendo solo `grid-rows-3` il selettore è diventato abbastanza generico
+	 * da agganciare la griglia della home, e `.first()` sceglieva quella: il
+	 * risultato era un KO che dichiarava la card fuori dal riquadro misurando due
+	 * elementi che non c'entrano nulla fra loro.
+	 *
+	 * La lezione: un selettore va reso PIÙ specifico, non meno, quando la classe
+	 * su cui si appoggiava sparisce. E un KO va diagnosticato prima di crederci —
+	 * qui il difetto era nella prova, non nella pagina.
+	 */
+	const griglia = page.locator(".min-h-0.grid.grid-cols-2").first();
 	const gb = await griglia.boundingBox();
 	const cardTrasf = page.getByText("Trasferimento", { exact: true }).first();
 	const cb = await cardTrasf.boundingBox();
@@ -355,7 +372,7 @@ try {
 		`${dentro ? "OK " : "KO "} 8 la card 'Trasferimento' sta DENTRO la griglia ` +
 		`(griglia fino a ${gb ? Math.round(gb.y + gb.height) : "?"}, card fino a ${cb ? Math.round(cb.y + cb.height) : "?"})`,
 	);
-	console.log("shot:", await shot(page, "tipi-sei-card"));
+	console.log("shot:", await shot(page, "tipi-sette-card"));
 
 	/* --------------- 9 · il form trasferimento: due conti, nessuna categoria */
 	await cardTrasf.click();

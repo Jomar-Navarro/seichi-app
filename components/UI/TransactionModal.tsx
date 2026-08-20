@@ -124,7 +124,35 @@ function TransactionModalContent() {
 
 				{/* Step: type selector */}
 				{step === "type" && (
-					<div className="flex-1 min-h-0 grid grid-cols-2 grid-rows-3 gap-2.25">
+					/*
+					 * ⚠️ Il numero di righe si CALCOLA, e prima era cablato a
+					 * `grid-rows-3`.
+					 *
+					 * Con sei tipi la griglia 2×3 era esatta e il numero fisso
+					 * coincideva; col settimo (`disinvestimento`, #52) servono quattro
+					 * righe — tre coppie più la card larga — e le card in eccesso
+					 * finivano in una riga IMPLICITA, dimensionata dal contenuto, dentro
+					 * un contenitore `flex-1 min-h-0` che non può crescere: le tre righe
+					 * esplicite si schiacciavano per farle posto.
+					 *
+					 * È lo stesso difetto di `spansFullRow` qui sotto — un numero scritto
+					 * a mano che coincide con la realtà finché nessuno aggiunge un tipo —
+					 * e si chiude allo stesso modo: derivandolo dall'array, che è
+					 * l'unica fonte che non può divergere da sé.
+					 *
+					 * `gridTemplateRows` inline e non una classe Tailwind: le classi sono
+					 * statiche, quindi `grid-rows-${n}` non verrebbe generata e
+					 * fallirebbe in silenzio — la famiglia di difetti che
+					 * `npm run audit:tokens` esiste per intercettare.
+					 */
+					<div
+						className="flex-1 min-h-0 grid grid-cols-2 gap-2.25"
+						style={{
+							gridTemplateRows: `repeat(${Math.ceil(
+								TRANSACTION_TYPES.length / 2,
+							)}, minmax(0, 1fr))`,
+						}}
+					>
 						{TRANSACTION_TYPES.map((type, i) => {
 							const Icon = type.icon;
 							/*

@@ -312,10 +312,24 @@ function buildRow(
 			date: row.date,
 			notes: row.description,
 			category_id: d.categoryId,
-			// `investment_type` ha senso solo su un investimento: portarselo
-			// dietro su una spesa lascerebbe nel database un dato che non
-			// descrive la riga che lo contiene.
-			investment_type: d.target === "investimento" ? row.investmentType : null,
+			/*
+			 * `investment_type` ha senso solo dove descrive un asset: portarselo
+			 * dietro su una spesa lascerebbe nel database un dato che non descrive
+			 * la riga che lo contiene.
+			 *
+			 * ⚠️ Anche sulle VENDITE, e non è simmetria per simmetria (#52). La
+			 * decisione dell'import è per GRUPPO, ma `investment_type` è per RIGA:
+			 * una sola categoria "ETF" contiene legittimamente righe di asset
+			 * diversi, perché il file li distingue e la scelta dell'utente no.
+			 * Se la vendita non portasse la propria tipologia, `/investimenti`
+			 * dovrebbe dedurla dalla categoria — e a quel punto compenserebbe
+			 * l'intera categoria su un asset solo, cancellando una distinzione che
+			 * il file conosce.
+			 */
+			investment_type:
+				d.target === "investimento" || d.target === "disinvestimento"
+					? row.investmentType
+					: null,
 			import_key: row.key,
 		},
 	};
