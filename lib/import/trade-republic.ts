@@ -127,9 +127,22 @@ const KIND_BY_TYPE: Record<string, GroupKind> = {
  * È esattamente il difetto che il tipo `Direction` è stato introdotto per
  * rendere impossibile, sopravvissuto dentro le due eccezioni scritte a mano.
  */
+/**
+ * I bersagli che portano denaro DENTRO al conto.
+ *
+ * ⚠️ Da quando esiste `disinvestimento` (#52) non basta più confrontare con
+ * `entrata`: sono due tipi diversi che vanno nello stesso verso, e tenerne
+ * conto in un solo punto è ciò che impedisce alla direzione di essere
+ * reinterpretata a ogni ramo — che è il difetto già corretto una volta qui
+ * sotto.
+ */
+const IN_ENTRATA: GroupTarget[] = ["entrata", "disinvestimento"];
+
 function fits(target: GroupTarget, direction: Direction): boolean {
 	if (target === "ignora" || target === "trasferimento") return true;
-	return direction === "entrata" ? target === "entrata" : target !== "entrata";
+	return direction === "entrata"
+		? IN_ENTRATA.includes(target)
+		: !IN_ENTRATA.includes(target);
 }
 
 function targetsFor(
@@ -156,9 +169,23 @@ function targetsFor(
 	}
 
 	if (kind === "vendite") {
+		/*
+		 * ⚠️ Dalla #52 questo gruppo ha una PROPOSTA, e prima non poteva averla.
+		 *
+		 * Finché `disinvestimento` non esisteva, le due scorciatoie sbagliavano in
+		 * versi opposti — `entrata` gonfiava il Flusso (vendere non è guadagnare),
+		 * `ignora` lasciava il saldo del conto più basso del reale — e fra due modi
+		 * sbagliati la scelta non poteva essere dell'app. Ora il tipo giusto c'è,
+		 * quindi proporlo non è più indovinare: è dire la cosa vera.
+		 *
+		 * `entrata` resta fra gli ammessi perché una vendita di titoli non è
+		 * l'unica riga che può finire qui, e `spesa` sopravvive al filtro solo per
+		 * le vendite in perdita di cassa (commissioni sopra il ricavo), dove la
+		 * direzione è uscente e `narrow()` toglie da sé i bersagli in entrata.
+		 */
 		return narrow({
-			suggested: null,
-			allowed: ["entrata", "spesa", "ignora"],
+			suggested: "disinvestimento",
+			allowed: ["disinvestimento", "entrata", "spesa", "ignora"],
 			noteKey: "vendite",
 		});
 	}
@@ -186,6 +213,10 @@ function targetsFor(
 			"spesa",
 			"abbonamento",
 			"investimento",
+			// Fra gli ammessi e non fra i proposti: un movimento che il profilo non
+			// ha saputo classificare PUÒ essere una vendita, ma dedurlo sarebbe
+			// indovinare. `narrow()` lo toglie da sé dalle righe in uscita.
+			"disinvestimento",
 			"risparmio",
 			"trasferimento",
 			"ignora",

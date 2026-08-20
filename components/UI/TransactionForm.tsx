@@ -86,6 +86,23 @@ export default function TransactionForm({
 	 * un trasferimento non produce un dato strano, produce un errore.
 	 */
 	const isTransfer = selectedType.id === "trasferimento";
+	/**
+	 * ⚠️ La seconda rottura dell'accoppiamento 1:1 tipo↔categoria, e va nel verso
+	 * OPPOSTO alla prima: il trasferimento la categoria non ce l'ha affatto, il
+	 * disinvestimento la prende **in prestito** dagli investimenti.
+	 *
+	 * Vendere significa liquidare una posizione che esiste già: la riga deve
+	 * puntare alla stessa categoria dell'acquisto — vendi "ETF", non
+	 * "disinvestimento ETF" — o `/investimenti` non potrebbe compensare le due
+	 * righe sulla stessa posizione, che è l'intero scopo della issue #52.
+	 *
+	 * Per questo NON esiste una categoria di tipo `disinvestimento`, e
+	 * `categories_type_check` resta deliberatamente più stretto di
+	 * `transactions_type_check` (vedi la 20260817). Le tabelle dicono cose
+	 * diverse sullo stesso vocabolario, ed è scritto in entrambe.
+	 */
+	const categoryTypeFor = (typeId: string) =>
+		typeId === "disinvestimento" ? "investimento" : typeId;
 	/*
 	 * ⚠️ La destinazione FACOLTATIVA su risparmio e investimento è ciò che rende
 	 * il doppio conteggio impossibile invece che sconsigliato. Senza, mettere
@@ -115,7 +132,7 @@ export default function TransactionForm({
 			const { data } = await supabase
 				.from("categories")
 				.select("*")
-				.eq("type", selectedType.id);
+				.eq("type", categoryTypeFor(selectedType.id));
 			if (data) setCategoryList(data);
 		}
 		loadCategories();

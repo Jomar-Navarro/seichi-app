@@ -36,6 +36,36 @@
 
 
 -- ----------------------------------------------------------------------------
+-- GUARDIA — questo file non va più rieseguito
+-- ----------------------------------------------------------------------------
+-- La sezione 5 ricrea `account_balances` con la formula in cui **solo `entrata`
+-- somma in positivo**. Dalla `20260817` non è più vero: anche `disinvestimento`
+-- aggiunge alla giacenza, perché è capitale che rientra nel conto.
+--
+-- ⚠️ Rieseguire questo file dopo la `20260817` NON darebbe alcun errore: un
+-- `create or replace view` compatibile riesce benissimo, e il risultato sarebbe
+-- che ogni vendita torna a ABBASSARE il saldo — in silenzio, su dati veri, con
+-- la causa illeggibile mesi dopo. È esattamente la classe che le guardie della
+-- `20260727`, `20260728` e `20260809` esistono per intercettare, e vale la
+-- regola che ne discende: **il file più recente dev'essere autosufficiente**,
+-- così non c'è mai motivo di tornare indietro.
+
+do $$
+begin
+	if exists (
+		select 1
+		from pg_views
+		where schemaname = 'public'
+		  and viewname   = 'account_balances'
+		  and definition ilike '%disinvestimento%'
+	) then
+		raise exception
+			'STOP: la 20260817 è già stata eseguita. Questo file ricrea account_balances senza il termine `disinvestimento`, quindi ogni vendita tornerebbe ad abbassare il saldo invece di alzarlo — senza alcun errore. Su un database allineato non ha nulla da fare.';
+	end if;
+end $$;
+
+
+-- ----------------------------------------------------------------------------
 -- 1. transactions.to_account_id
 -- ----------------------------------------------------------------------------
 -- UNA riga per un trasferimento, non due: `account_id` è l'origine,

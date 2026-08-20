@@ -89,6 +89,22 @@ export default function InvestimentiTab({
 		};
 	});
 
+	/*
+	 * ⚠️ Il donut vede solo le posizioni POSITIVE, e non è una preferenza
+	 * estetica: una fetta di torta non sa rappresentare un valore negativo.
+	 * Recharts la disegnerebbe comunque — con un angolo negativo che si somma
+	 * agli altri — e il risultato sarebbe un anello che gira al contrario, con
+	 * percentuali che non tornano.
+	 *
+	 * Una posizione può risultare negativa quando è stata liquidata per più di
+	 * quanto vi era stato versato (c'erano plusvalenze). Sparisce dal grafico ma
+	 * NON dall'elenco sotto, dove è scritta col suo segno e con la frase che
+	 * spiega perché: azzerarla direbbe "qui non hai mai versato niente", che è
+	 * falso. La regola è quella della 17a — un numero assente è meglio di uno
+	 * sbagliato — applicata al posto giusto: il grafico tace, l'elenco parla.
+	 */
+	const chartItems = items.filter((i) => i.total > 0);
+
 	return (
 		<>
 			{/* Summary line */}
@@ -124,7 +140,7 @@ export default function InvestimentiTab({
 			</div>
 
 			{/* Composizione — visibile solo con almeno 2 posizioni */}
-			{positions.length >= 2 && (
+			{chartItems.length >= 2 && (
 				<>
 					<p className="text-[14.5px] font-semibold mt-5 mb-3.5 text-foreground">
 						{t.investments.composition}
@@ -134,7 +150,7 @@ export default function InvestimentiTab({
 							<ResponsiveContainer width="100%" height="100%">
 								<PieChart>
 									<Pie
-										data={items}
+										data={chartItems}
 										dataKey="total"
 										nameKey="label"
 										innerRadius="60%"
@@ -171,7 +187,7 @@ export default function InvestimentiTab({
 						</div>
 
 						<div className="flex-1 flex flex-col gap-2.5">
-							{items.map((pos) => (
+							{chartItems.map((pos) => (
 								<div key={pos.category_id} className="flex items-center justify-between">
 									<div className="flex items-center gap-2.25">
 										<span
@@ -224,7 +240,14 @@ export default function InvestimentiTab({
 										>
 											{pos.typeLabel}
 										</span>
-										<span className="text-[11px] text-muted">{pos.pct}%</span>
+										{/* ⚠️ Niente "0%" su una posizione liquidata: la percentuale è
+										    la quota del capitale ancora versato, e per un netto
+										    negativo quella quota non esiste. Scrivere 0% direbbe "pesa
+										    nulla nel portafoglio" al posto di "non è più nel
+										    portafoglio", che è un'altra affermazione. */}
+										{pos.total > 0 && (
+											<span className="text-[11px] text-muted">{pos.pct}%</span>
+										)}
 									</div>
 								</div>
 							</div>
@@ -237,6 +260,20 @@ export default function InvestimentiTab({
 									{money(pos.total)}
 								</span>
 							</div>
+
+							{/*
+								⚠️ Un netto negativo senza spiegazione si legge come un errore
+								dell'app, non come un fatto sul portafoglio: "− € 45,20 investito"
+								non vuol dire niente finché non si sa che hai ripreso più di quanto
+								avevi messo. La frase è l'unica cosa che trasforma un numero
+								inspiegabile in un'informazione — ed è il motivo per cui la
+								posizione si mostra invece di azzerarla.
+							*/}
+							{pos.total < 0 && (
+								<p className="text-[11px] text-midori-ink mt-1.5 leading-snug">
+									{t.investments.negativeNote}
+								</p>
+							)}
 						</div>
 					);
 				})}

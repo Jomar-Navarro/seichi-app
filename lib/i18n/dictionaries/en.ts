@@ -56,6 +56,7 @@ export const en: Dictionary = {
 		spesa: "Expenses",
 		risparmio: "Savings",
 		investimento: "Investments",
+		disinvestimento: "Divestments",
 		abbonamento: "Subscriptions",
 		trasferimento: "Transfers",
 	},
@@ -285,6 +286,11 @@ export const en: Dictionary = {
 		risparmio: { label: "Saving", description: "Set-asides and goals" },
 		investimento: { label: "Investment", description: "Markets, funds, portfolio" },
 		abbonamento: { label: "Recurring", description: "Subscriptions and fixed payments" },
+		/** Vedi la nota in it.ts: la descrizione dice anche ciò che il tipo NON è. */
+		disinvestimento: {
+			label: "Divestment",
+			description: "Sell: the capital returns to your account",
+		},
 		trasferimento: { label: "Transfer", description: "Move money between your accounts" },
 	},
 
@@ -459,7 +465,10 @@ export const en: Dictionary = {
 			"Add a transaction of type “{type}” to start tracking your portfolio.",
 		positionCount: { one: "{n} active position", other: "{n} active positions" },
 		typeCount: { one: "{n} type", other: "{n} types" },
-		portfolioValue: "Portfolio value",
+		/** ⚠️ Non è il valore di mercato — vedi la nota estesa in it.ts. */
+		portfolioValue: "Capital contributed",
+		/** Mostrata quando una posizione è stata liquidata oltre il versato. */
+		negativeNote: "you took out more than you put in: the difference is gain",
 		vsLastMonth: "vs last month",
 		composition: "Composition",
 		total: "Total",
@@ -904,7 +913,7 @@ export const en: Dictionary = {
 
 		notes: {
 			vendite:
-				"Seichi can't record a divestment yet. As income they inflate this month's flow; ignored, the account balance stays lower than it really is.",
+				"They become divestments: the capital returns to the account without counting as income. As income they would inflate this month's flow.",
 			senzaCassa:
 				"Securities transfers and free receipts: no money moves, so they don't become transactions.",
 			trasferimento: "Pick the other account, or the app can't tell where the money came from.",
