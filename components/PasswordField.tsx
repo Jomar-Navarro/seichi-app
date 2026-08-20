@@ -23,7 +23,7 @@ export default function PasswordField({
 
 	return (
 		<div className="flex items-center gap-3 px-4 rounded-2xl bg-input border border-subtle segment-tab mb-1 text-muted">
-			<Lock size={18} className="shrink-0 text-shadow-foreground" />
+			<Lock size={18} className="shrink-0" />
 			<input
 				id={id}
 				name={name}
@@ -42,9 +42,9 @@ export default function PasswordField({
 			>
 				{/* L'icona mostra l'azione disponibile, non lo stato corrente */}
 				{isView ? (
-					<EyeOff size={18} className="shrink-0 text-shadow-foreground" />
+					<EyeOff size={18} className="shrink-0" />
 				) : (
-					<Eye size={18} className="shrink-0 text-shadow-foreground" />
+					<Eye size={18} className="shrink-0" />
 				)}
 			</button>
 		</div>

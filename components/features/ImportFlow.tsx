@@ -1237,7 +1237,7 @@ function SummaryLine({ text, tone, muted }: { text: string; tone?: string; muted
 				className="w-8 h-8 rounded-[10px] flex items-center justify-center shrink-0"
 				style={{
 					background: muted
-						? "var(--control)"
+						? "var(--color-control)"
 						: `color-mix(in srgb, ${tone} 14%, transparent)`,
 				}}
 			>

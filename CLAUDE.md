@@ -12,6 +12,7 @@ Next.js 16 App Router, TypeScript strict, Tailwind CSS v4, Supabase (cloud), Zus
 npm run dev          # avvia dev server
 npm run build        # build produzione
 npm run lint         # eslint
+npm run audit:tokens # token e classi di colore (richiede una build) — vedi sotto
 ```
 
 ## Project Structure
@@ -957,9 +958,56 @@ getta**, non parte del repo: si riscrivono in dieci minuti quando servono.
 3. **Parità dizionari** — stesse foglie in it/en, voci mai usate, e **valori
    identici fra le due lingue** (una traduzione dimenticata compila benissimo;
    i 26 identici attuali sono tutti parole internazionali: Email, ETF, Budget…).
-4. **Audit dei token CSS** della Fase 18, incluse le costruzioni **dinamiche**
-   (`` var(--color-${accent}) ``): il suffisso non è visibile al grep, quindi
-   vanno enumerati i valori possibili.
+4. **Audit dei token CSS** della Fase 18 — ora è uno script nel repo,
+   `npm run audit:tokens` (`scripts/audit-tokens.mjs`), non più codice usa e
+   getta: è l'unico dei quattro che va rieseguito a *ogni* fase. Restano fuori
+   le costruzioni **dinamiche** (`` var(--color-${accent}) ``), il cui suffisso
+   non è visibile staticamente: vanno enumerate a mano.
+
+#### L'audit dei token, e i due buchi che aveva (2026-08-20)
+
+Lo script fa tre controlli, perché la stessa famiglia di difetti — *un colore
+che non si applica perché il nome non esiste* — fallisce in tre modi:
+
+| | cosa cerca | come si vedeva prima |
+|---|---|---|
+| **A** | `var(--nome)` mai definita | il grep della Fase 18 |
+| **B** | una **classe** Tailwind mai generata | ⚠️ **niente lo cercava** |
+| **C** | un `--ink-*` non mappato in `@theme inline` | a mano, dopo `text-kiri-ink` |
+
+⚠️ **Il controllo B è quello che mancava, e costava.** La Fase 18 confrontava
+solo le `var(--…)`, quindi `bg-glass-border` — un token che **non esiste da
+nessuna parte** — è sopravvissuta per mesi in `LoginForm` e `SignUpForm`: le
+lineette ai lati di "oppure" erano invisibili, e soprattutto le barre di
+robustezza password mostravano **solo i segmenti verdi**, senza traccia sotto
+quelli non ancora soddisfatti. Insieme a lei `text-primary` (già nota e mai
+chiusa), `var(--control)` della Fase 21 e `text-md`, che in Tailwind **non
+esiste**: la scala è `xs, sm, base, lg, xl`, non c'è `md`.
+
+⚠️ **B si misura contro il CSS REALMENTE GENERATO in `.next/static`**, non
+contro un elenco scritto a mano — solo il compilatore sa cosa ha prodotto. Da
+qui due conseguenze: serve una build (senza, il controllo **dichiara di non
+aver guardato** invece di passare), e si legge **solo** la build di produzione,
+mai `.next/dev`, che può essere di uno stato del sorgente diverso e
+mascherare una classe mancante con una copia stantia.
+
+⚠️ **Lo scanner ha prodotto falsi positivi due volte prima di essere giusto**,
+ed è la regola della Fase 21 (*un controllo che segnala un guasto va
+diagnosticato prima di crederci*) pagata di nuovo:
+
+- prima versione: estraeva l'utility **nuda**, quindi dichiarava mancanti
+  `last:border-b-0`, `focus:border-muted` e `bg-muted/50` — sane. Tailwind
+  scrive varianti e modificatori **dentro** il selettore (`.last\:border-b-0`);
+- seconda: pretendeva che una variante iniziasse con una lettera, e su
+  `2xl:text-2xl` partiva a metà token da `xl:`. Un identificatore CSS non può
+  cominciare con una cifra, quindi Tailwind la scrive come escape esadecimale:
+  `.\32 xl\:text-2xl`.
+
+**Il collaudo dello scanner è parte dello scanner**: prima di crederci sono
+stati reintrodotti tutti e cinque i difetti e verificato che li segnali, con
+accanto un `2xl:text-2xl` valido che **non** deve comparire. Uscita 1 se trova
+qualcosa, 0 altrimenti — un elenco di soli OK non distingue *passato* da *non
+eseguito*.
 
 ⚠️ **`tsc` e `next build` non vedono gli errori di serializzazione RSC.** Marcare
 `SummaryCard` come `"use client"` per usare `useI18n()` ha rotto la home: la

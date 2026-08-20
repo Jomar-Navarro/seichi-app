@@ -177,7 +177,7 @@ export default function Select({
 				className="w-full flex items-center justify-between py-3.5 px-4 rounded-[20px] cursor-pointer text-inherit bg-input border border-subtle backdrop-blur-[20px] box-shadow"
 			>
 				<span className="flex items-center gap-3">
-					<span className="w-10 h-10 rounded-xl bg-input flex items-center justify-center text-lg text-primary">
+					<span className="w-10 h-10 rounded-xl bg-input flex items-center justify-center text-lg text-foreground">
 						{selectedOption?.icon}
 					</span>
 					<span className="flex flex-col gap-1 text-start">
@@ -211,10 +211,10 @@ export default function Select({
 							className="flex items-center justify-between py-2.5 px-3 cursor-pointer"
 						>
 							<span className="flex items-center gap-3">
-								<span className="w-6 text-center text-sm text-primary">
+								<span className="w-6 text-center text-sm text-foreground">
 									{option?.icon}
 								</span>
-								<span className="text-sm text-primary">{option.label}</span>
+								<span className="text-sm text-foreground">{option.label}</span>
 							</span>
 							{option.value === selected && (
 								<Check size={17} className="text-midori" />

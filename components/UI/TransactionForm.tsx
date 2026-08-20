@@ -345,7 +345,7 @@ export default function TransactionForm({
 		<div className="flex flex-col flex-1 min-h-0 overflow-y-auto overscroll-contain">
 			{/* Importo */}
 			<div className="text-center pt-1 pb-3">
-				<p className="text-muted text-md mb-2">{t.transactions.form.amount}</p>
+				<p className="text-muted text-base mb-2">{t.transactions.form.amount}</p>
 				<div className="text-7xl font-bold tracking-tight">
 					<span className="text-3xl mr-1">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
 					{amount || "0"}

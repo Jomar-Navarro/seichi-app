@@ -145,7 +145,7 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 							value={email}
 							onChange={setEmail}
 							icon={
-								<Mail size={18} className="shrink-0 text-shadow-foreground" />
+								<Mail size={18} className="shrink-0" />
 							}
 						/>
 
@@ -179,7 +179,7 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 											: t.auth.signUp.requirements[req.key]
 									}
 									className={`grow shrink basis-0 h-1.5 rounded-sm transition-all ${
-										req.met ? "bg-midori" : "bg-glass-border"
+										req.met ? "bg-midori" : "bg-input"
 									}`}
 								/>
 							))}
@@ -214,9 +214,9 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 				</form>
 
 				<div className="flex items-center gap-3 my-5">
-					<span className="grow shrink basis-0 h-px bg-glass-border"></span>
+					<span className="grow shrink basis-0 h-px bg-subtle"></span>
 					<span className="text-muted text-xs">{t.auth.signIn.or}</span>
-					<span className="grow shrink basis-0 h-px bg-glass-border"></span>
+					<span className="grow shrink basis-0 h-px bg-subtle"></span>
 				</div>
 
 				<div className="flex gap-3 mb-4">

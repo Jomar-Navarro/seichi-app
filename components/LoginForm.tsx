@@ -105,9 +105,9 @@ export default function LoginForm({ onTabChange, notice }: LoginFormProps) {
 					<div className="grow" />
 
 					<div className="flex items-center gap-3 mb-4">
-						<span className="grow shrink basis-0 h-px bg-glass-border" />
+						<span className="grow shrink basis-0 h-px bg-subtle" />
 						<span className="text-muted text-xs">{t.auth.signIn.or}</span>
-						<span className="grow shrink basis-0 h-px bg-glass-border" />
+						<span className="grow shrink basis-0 h-px bg-subtle" />
 					</div>
 
 					<div className="flex gap-3 lg:pb-0">
