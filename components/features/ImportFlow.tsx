@@ -7,7 +7,7 @@ import { ChevronDown, FileText, Info, Plus, Undo2, Upload } from "lucide-react";
 import Select from "@/components/UI/Select";
 import { useI18n } from "@/components/features/I18nProvider";
 import { fill, formatDate, formatNumber, lookup, plural } from "@/lib/i18n/format";
-import { formatAmount, TIPO_COLOR, TIPO_INK } from "@/lib/transaction-utils";
+import { categoryTypeFor, formatAmount, TIPO_COLOR, TIPO_INK } from "@/lib/transaction-utils";
 import type { AmountSign } from "@/lib/transaction-utils";
 import { accountColor } from "@/lib/accounts";
 import type { Locale } from "@/lib/i18n/config";
@@ -1046,19 +1046,12 @@ function GroupCard({
 	const target = decision?.target ?? null;
 	const isTransfer = target === "trasferimento";
 	const usable = target && target !== "ignora" && !isTransfer;
-	/*
-	 * ⚠️ Un `disinvestimento` prende in prestito le categorie dell'INVESTIMENTO,
-	 * esattamente come nel `TransactionForm`. Vendi "ETF", non "disinvestimento
-	 * ETF": le due righe devono puntare alla stessa categoria o `/investimenti`
-	 * non potrebbe compensarle sulla stessa posizione, che è lo scopo della #52.
-	 *
-	 * Senza questa riga il selettore sarebbe VUOTO — `categories_type_check` non
-	 * ammette una categoria `disinvestimento`, quindi il filtro non troverebbe
-	 * nulla — e il gruppo delle vendite resterebbe non decidibile: un bersaglio
-	 * proponibile che non si può completare.
-	 */
-	const categoryType = target === "disinvestimento" ? "investimento" : target;
-	const forType = usable ? categories.filter((c) => c.type === categoryType) : [];
+	// ⚠️ Senza la mappatura il selettore sarebbe VUOTO per il gruppo delle
+	// vendite, e quel gruppo resterebbe non decidibile: un bersaglio proponibile
+	// che non si può completare. Vedi `categoryTypeFor`.
+	const forType = usable
+		? categories.filter((c) => c.type === categoryTypeFor(target))
+		: [];
 
 	/** L'accento del bersaglio scelto; neutro finché non c'è una scelta. */
 	const accent = target && target !== "ignora" ? TIPO_COLOR[target] : "var(--color-kiri)";
