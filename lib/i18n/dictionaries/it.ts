@@ -681,7 +681,34 @@ export const it = {
 			"Prova ad allargare il periodo, o a scegliere un altro conto o tipo.",
 		addAction: "Aggiungi movimento",
 		searchPlaceholder: "Cerca movimenti",
-		filterAll: "Tutte",
+		/**
+		 * ⚠️ Era "Tutte", ed è diventato ambiguo aggiungendo il filtro CATEGORIA
+		 * (#9): due chip affiancati che dicevano "Tutte" e "Tutte le categorie"
+		 * lasciavano indovinare a cosa si riferisse il primo. Il chip non ha
+		 * un'etichetta accanto che lo spieghi — è l'etichetta — quindi deve
+		 * nominare da sé la propria dimensione.
+		 *
+		 * La chiave resta `filterAll` perché descrive il RUOLO (l'opzione "tutti"
+		 * del filtro tipo), non il testo.
+		 */
+		filterAll: "Tutti i tipi",
+		/** L'opzione "tutte" del filtro categoria (#9). */
+		filterAllCategories: "Tutte le categorie",
+		/**
+		 * ⚠️ "Azzera filtri" e non "Cancella": cancellare suggerisce di perdere
+		 * dei dati, e qui non si perde niente — si torna allo stato con cui la
+		 * pagina si apre.
+		 */
+		resetFilters: "Azzera filtri",
+		/** Il pulsante in fondo alla lista paginata (#9). */
+		loadMore: "Carica altri",
+		/**
+		 * ⚠️ Parla di quante righe ha GUARDATO, non di quante ne ha trovate.
+		 * Cercando, il tetto vale sulle righe scandite e non sulle corrispondenze:
+		 * "altri risultati" sarebbe falso proprio quando non ce n'è nemmeno uno.
+		 */
+		searchScanLimit:
+			"La ricerca ha guardato i {n} movimenti più recenti del periodo. Restringi il periodo per cercare più indietro.",
 		periods: {
 			"7d": "7 giorni",
 			"30d": "30 giorni",
@@ -838,7 +865,17 @@ export const it = {
 		 */
 		variableExpenses: "Spese variabili",
 		/** "del mese" va detto qui: l'intestazione non porta più l'arco temporale. */
-		fixedThisMonth: "fisse del mese {amount}",
+		/**
+		 * ⚠️ "USCITE fisse", non solo "fisse": la forma breve aveva perso il
+		 * sostantivo e la riga si leggeva "fisse del mese € 52" — fisse cosa? È la
+		 * stessa classe di "Tutte" accanto a "Tutte le categorie" nella barra
+		 * filtri (#9): un testo che sta da solo deve nominare la propria dimensione,
+		 * perché non ha un'etichetta accanto che lo spieghi.
+		 *
+		 * "del mese" resta perché senza quella parola la cifra non avrebbe un arco
+		 * temporale — l'intestazione della sezione è neutra ("Budget") dalla 17a.
+		 */
+		fixedThisMonth: "uscite fisse del mese {amount}",
 		/**
 		 * ⚠️ Compare SOLO con un filtro conto attivo, e dice un ambito diverso.
 		 *

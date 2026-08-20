@@ -419,7 +419,14 @@ export const en: Dictionary = {
 			"Try widening the period, or picking a different account or type.",
 		addAction: "Add transaction",
 		searchPlaceholder: "Search transactions",
-		filterAll: "All",
+		/** ⚠️ Era "All": ambiguo accanto al filtro categoria — vedi la nota in it.ts. */
+		filterAll: "All types",
+		filterAllCategories: "All categories",
+		resetFilters: "Clear filters",
+		loadMore: "Load more",
+		/** ⚠️ Righe guardate, non risultati trovati — vedi la nota in it.ts. */
+		searchScanLimit:
+			"Search looked at the {n} most recent transactions in this period. Narrow the period to search further back.",
 		periods: {
 			"7d": "7 days",
 			"30d": "30 days",
@@ -518,7 +525,8 @@ export const en: Dictionary = {
 
 		sectionTitle: "Budget",
 		variableExpenses: "Variable spending",
-		fixedThisMonth: "fixed this month {amount}",
+		/** ⚠️ "fixed OUTFLOWS": vedi la nota in it.ts — "fixed" da solo non dice cosa. */
+		fixedThisMonth: "fixed outflows this month {amount}",
 		acrossAllAccounts: "budgets count every account, not just the one you filtered",
 	},
 

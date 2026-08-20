@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { getI18n } from "@/lib/i18n/server";
 import { formatDate, shortMonth } from "@/lib/i18n/format";
 import { requireUser } from "@/lib/auth";
-import { isAccountId } from "@/lib/accounts";
+import { isAccountId, isUuid } from "@/lib/accounts";
 import { firstRunFrom, rollForwardPastToday } from "@/lib/recurring";
 import type { Frequency } from "@/types";
 
@@ -99,12 +99,23 @@ export async function saveTransaction(
 	return { success: true };
 }
 
-export async function getTransactions(
-	tipo?: string,
-	periodo?: string,
-	limit?: number,
-	conto?: string,
-) {
+/**
+ * La lista movimenti, una pagina per volta.
+ *
+ * ⚠️ Opzioni nominate e non parametri posizionali: erano quattro, con questa
+ * fase diventerebbero sei, e due di quelli — `limit` e `offset` — sono numeri
+ * adiacenti che si scambiano senza che nulla se ne accorga. Un errore del genere
+ * non produce un guasto, produce una pagina di risultati sbagliata.
+ */
+export async function getTransactions(opts: {
+	tipo?: string;
+	periodo?: string;
+	conto?: string;
+	categoria?: string;
+	limit?: number;
+	offset?: number;
+} = {}) {
+	const { tipo, periodo, conto, categoria, limit, offset } = opts;
 	const { supabase, user, t } = await requireUser();
 
 	if (!user) return { error: t.errors.notAuthenticated };
@@ -157,10 +168,43 @@ export async function getTransactions(
 		query = query.gte("date", from.toISOString());
 	}
 
-	if (limit !== undefined) query = query.limit(limit);
+	/*
+	 * ⚠️ Il filtro CATEGORIA usa `isUuid()` per la stessa ragione del conto, ma
+	 * per un guasto diverso: qui `.eq()` fa da parametro davvero — nessuna
+	 * sintassi da iniettare — e il rischio è solo un `22P02` su un id malformato,
+	 * che in questa pagina si presenterebbe come una lista vuota con "Errore".
+	 * Ignorarlo degrada a "nessun filtro", che è onesto: la barra mostra comunque
+	 * quale categoria è selezionata.
+	 */
+	if (isUuid(categoria)) query = query.eq("category_id", categoria);
+
+	/*
+	 * La paginazione, e il modo in cui si sa che c'è dell'altro.
+	 *
+	 * ⚠️ Si chiede UNA RIGA IN PIÙ di quelle che servono invece di fare una
+	 * seconda query con `count: "exact"`. Il conteggio esatto costerebbe una
+	 * scansione completa a ogni pagina — sulla stessa tabella che questa fase
+	 * esiste per smettere di scandire — e servirebbe a rispondere a una domanda
+	 * che nessuno pone: la UI non mostra "pagina 3 di 12", mostra un pulsante
+	 * "carica altri". Per quello basta sapere SE esiste una riga successiva.
+	 *
+	 * La riga in eccesso viene tolta prima di uscire: chi chiama riceve
+	 * esattamente `limit` righe, e `hasMore` separatamente. Restituirla e lasciare
+	 * al chiamante il compito di scartarla sarebbe un'invariante affidata
+	 * all'attenzione di chi scrive la prossima pagina.
+	 */
+	if (limit !== undefined) {
+		const from = offset ?? 0;
+		query = query.range(from, from + limit); // `range` è inclusivo: limit + 1 righe
+	}
 
 	const { data, error } = await query;
-	return error ? { error: error.message } : { data };
+	if (error) return { error: error.message };
+
+	if (limit === undefined) return { data, hasMore: false };
+
+	const hasMore = (data?.length ?? 0) > limit;
+	return { data: hasMore ? data!.slice(0, limit) : data, hasMore };
 }
 
 export async function updateTransaction(

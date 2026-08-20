@@ -84,8 +84,25 @@ const FALLBACK_COLOR = "var(--color-kiri)";
  */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export function isAccountId(value: string | null | undefined): value is string {
+/**
+ * La stessa forma, senza dire di quale entità.
+ *
+ * ⚠️ Esiste perché il filtro CATEGORIA della lista movimenti (#9) ha bisogno
+ * dello stesso controllo, e chiamare `isAccountId()` su un id di categoria
+ * sarebbe un nome che mente su ciò che sta verificando — la classe di difetto
+ * che questo progetto ha già pagato con `accounts.type` e `hasPasswordIdentity`.
+ *
+ * `isAccountId()` resta, e non è un doppione: quel nome è citato per esteso
+ * nella nota qui sopra e in CLAUDE.md come il punto che chiude l'unica
+ * interpolazione di sintassi dell'app. Rinominarlo renderebbe illeggibili due
+ * documenti per risparmiare tre righe.
+ */
+export function isUuid(value: string | null | undefined): value is string {
 	return typeof value === "string" && UUID_RE.test(value);
+}
+
+export function isAccountId(value: string | null | undefined): value is string {
+	return isUuid(value);
 }
 
 /**

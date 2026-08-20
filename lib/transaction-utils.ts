@@ -8,6 +8,73 @@ import {
 } from "@/lib/i18n/format";
 import type { Locale } from "@/lib/i18n/config";
 
+/**
+ * Quante righe per pagina nella lista movimenti (#9).
+ *
+ * ⚠️ Sta QUI e non accanto a `getTransactions()` per un motivo che il
+ * compilatore non spiega e la build sì: da un file `"use server"` si possono
+ * esportare **solo funzioni async**. Una costante esportata da lì fa fallire
+ * `next build` con *"Only async functions are allowed to be exported in a
+ * 'use server' file"* — e né `tsc` né il lint la vedono.
+ *
+ * Serve a DUE punti che devono restare d'accordo: la server action, che per
+ * sapere se esiste una pagina successiva ne chiede una in più, e la pagina, che
+ * decide quante chiederne. Se divergessero, il sintomo sarebbe un pulsante
+ * "carica altri" che non carica niente — o che sparisce con righe ancora da
+ * mostrare.
+ */
+export const TRANSACTIONS_PAGE_SIZE = 50;
+
+/**
+ * Quante righe può guardare la RICERCA (#9).
+ *
+ * La ricerca non è paginata — filtra lato client su categoria, note e nome
+ * conto, che stanno su altre tabelle — quindi carica il periodo intero. Senza un
+ * tetto quello è un `select` illimitato, e **PostgREST ne ha uno suo**: su
+ * questo progetto *Settings → Data API → Max rows* vale **1000**. Superato,
+ * l'API tronca **senza dire niente**: la ricerca guarderebbe le prime mille
+ * righe e dichiarerebbe "nessun movimento" per una che sta alla millesima
+ * seconda.
+ *
+ * ⚠️ Il tetto qui è DELIBERATAMENTE più basso di quello di PostgREST, e non per
+ * prudenza: `getTransactions` scopre se c'è dell'altro chiedendo **una riga in
+ * più**, e a ridosso del limite esterno quella riga verrebbe tagliata insieme
+ * alle altre — `hasMore` risulterebbe falso proprio nel caso in cui deve essere
+ * vero. Il meccanismo che rende visibile il troncamento si romperebbe
+ * esattamente dove serve.
+ *
+ * Il troncamento resta possibile, ma **smette di essere silenzioso**: la pagina
+ * dice che ha guardato le prime N e invita a restringere il periodo. È la regola
+ * della 17a — un numero (o una lista) sbagliato che sembra giusto è peggio di
+ * uno dichiarato incompleto.
+ */
+export const SEARCH_SCAN_LIMIT = 500;
+
+/**
+ * Di quale TIPO sono le categorie che un movimento di questo tipo può usare.
+ *
+ * Coincide col tipo del movimento per tutti tranne uno: un `disinvestimento` usa
+ * le categorie dell'INVESTIMENTO che liquida — vendi "ETF", non "disinvestimento
+ * ETF" — o le due righe non si compenserebbero sulla stessa posizione, che è
+ * l'intero scopo della #52. `categories_type_check` infatti non ammette
+ * `disinvestimento`.
+ *
+ * ⚠️ Serve in TRE punti — il form transazione, l'anteprima dell'import e il
+ * filtro della lista movimenti — e nei primi due era scritta a mano. Il terzo è
+ * quello che ha reso visibile il problema: senza, filtrando per
+ * "Disinvestimenti" la tendina categoria si svuotava, perché cercava categorie
+ * di un tipo che non può esistere. È la "migrazione a campione" che questo
+ * progetto documenta dalla Fase 18 — una regola applicata dove ci si è pensato
+ * e non dove serviva.
+ *
+ * ⚠️ `trasferimento` NON è qui, e la differenza è sostanziale: quello la
+ * categoria non ce l'ha affatto (un CHECK la vieta), quindi non c'è un tipo da
+ * restituire. Chi lo gestisce lo fa a monte, non chiedendo categorie affatto.
+ */
+export function categoryTypeFor(transactionType: string): string {
+	return transactionType === "disinvestimento" ? "investimento" : transactionType;
+}
+
 export const TIPO_COLOR: Record<string, string> = {
 	entrata:      "var(--color-midori)",
 	spesa:        "var(--color-aka)",

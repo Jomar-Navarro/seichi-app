@@ -75,7 +75,7 @@ async function DashboardContent({
 			 * giù. Trovato guardando uno screenshot, non da un controllo: i tipi
 			 * erano corretti e il parametro semplicemente mancava.
 			 */
-			getTransactions(undefined, undefined, 5, accountId ?? undefined),
+			getTransactions({ limit: 5, conto: accountId ?? undefined }),
 			getGoals(),
 			getProfileHeader(),
 			getUnreadCount(),
