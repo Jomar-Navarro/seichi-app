@@ -2354,9 +2354,33 @@ avrebbe detto nulla sul comportamento del job.
 
 #### Emerso dal code-review — la sorveglianza affermava più di quanto sapeva
 
-⚠️ **Migration `20260811_job_health_fixes.sql` DA ESEGUIRE** (dopo la `20260809`
-e la `20260810`). Cambia il tipo di ritorno di `daily_job_health()`: senza, le
-due pagine impostazioni chiamano una firma che non esiste più.
+✅ **Migration `20260811_job_health_fixes.sql` ESEGUITA** (dopo la `20260809` e
+la `20260810`). Cambia il tipo di ritorno di `daily_job_health()`: senza, le due
+pagine impostazioni chiamerebbero una firma che non esiste più.
+
+⚠️ **Questa riga ha detto "DA ESEGUIRE" per una settimana mentre non era vero**,
+e vale registrarlo perché è la stessa classe di difetto che questo documento
+insegue altrove: *una fonte che afferma qualcosa sul mondo senza che nessuno
+l'abbia verificata*. Il codice aveva già smesso di essere compatibile con la
+firma vecchia — `lib/jobs.ts` legge `failed_steps` e `watching_since`, che solo
+la nuova produce — quindi le due affermazioni si contraddicevano **dentro il
+repo**, e dal repo non era decidibile quale fosse giusta. Verificato il
+2026-08-20 interrogando il catalogo:
+
+```
+last_run_at   2026-08-20 03:00   ← il cron della notte
+last_ok_at    2026-08-20 03:00   ← andato a buon fine
+had_error     false
+failed_steps  []                 ← array vuoto, mai NULL, come prescritto
+watching_since 2026-08-08 12:32  ← il seme `installed`
+```
+
+⚠️ Il guasto che sarebbe seguito **non era un errore**: con la firma vecchia i
+due campi tornano `undefined`, `failed_steps` diventa `[]` e `watching_since`
+`null` — e in TypeScript `lastOkAt === null` significa `stale`. Cioè l'avviso
+"job fermo" a torto, dal primo minuto: proprio ciò che il seme esiste per
+impedire. **Il marcatore stantio era più pericoloso della migration mancante**,
+perché mandava a cercare il difetto dalla parte sbagliata.
 
 Il guasto era chiuso, ma il meccanismo costruito per sorvegliarlo diceva il falso
 in tre casi. **Sono lo stesso difetto in tre travestimenti**, ed è la classe già
