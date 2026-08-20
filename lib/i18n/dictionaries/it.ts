@@ -702,6 +702,13 @@ export const it = {
 		resetFilters: "Azzera filtri",
 		/** Il pulsante in fondo alla lista paginata (#9). */
 		loadMore: "Carica altri",
+		/**
+		 * ⚠️ Parla di quante righe ha GUARDATO, non di quante ne ha trovate.
+		 * Cercando, il tetto vale sulle righe scandite e non sulle corrispondenze:
+		 * "altri risultati" sarebbe falso proprio quando non ce n'è nemmeno uno.
+		 */
+		searchScanLimit:
+			"La ricerca ha guardato i {n} movimenti più recenti del periodo. Restringi il periodo per cercare più indietro.",
 		periods: {
 			"7d": "7 giorni",
 			"30d": "30 giorni",

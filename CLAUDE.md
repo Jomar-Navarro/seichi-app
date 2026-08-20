@@ -2309,14 +2309,33 @@ reso visibile il problema. Ora è una funzione sola in `lib/transaction-utils.ts
 È la "migrazione a campione" che questo documento registra dalla Fase 18: una
 regola applicata dove ci si è pensato e non dove serviva.
 
-#### Debito dichiarato: il tetto di PostgREST
+#### ⚠️ Il tetto di PostgREST — verificato e chiuso
 
-Sfogliare è ora limitato a 50 righe per volta, ma **cercare carica l'intero
-periodo senza limite**. PostgREST tronca oltre un tetto configurabile
-(*Settings → API → Max rows*): superato quello, con il periodo "Tutte" la
-ricerca guarderebbe solo le prime N righe **senza dirlo**. Da verificare e, se
-il tetto è vicino, da chiudere con un avviso esplicito — mai con un troncamento
-silenzioso.
+**Max rows = 1000** su questo progetto (*Settings → Data API*, verificato il
+2026-08-20). Sfogliare è al sicuro — 50 righe per volta — ma **cercare** carica
+il periodo in un colpo solo, e oltre il tetto PostgREST tronca **in silenzio**:
+la ricerca guarderebbe le prime mille righe e direbbe "nessun movimento" per una
+che sta alla millesima seconda.
+
+⚠️ **Non è teorico**: l'import della Fase 21 ha aggiunto **216 righe in un colpo
+solo**. Due o tre estratti così e il tetto è raggiunto.
+
+Chiuso con `SEARCH_SCAN_LIMIT = 500` (`lib/transaction-utils.ts`) più una riga
+in fondo alla lista che dice quante righe ha guardato. Il troncamento resta
+possibile ma **smette di essere silenzioso**.
+
+⚠️ **Il tetto nostro è deliberatamente più BASSO di quello di PostgREST**, e non
+per prudenza: `getTransactions` scopre se c'è dell'altro chiedendo **una riga in
+più**, e a ridosso del limite esterno quella riga verrebbe tagliata insieme alle
+altre — `hasMore` risulterebbe falso proprio nel caso in cui deve essere vero.
+Il meccanismo che rende visibile il troncamento si romperebbe esattamente dove
+serve. Un tetto interno che coincide con quello esterno non è un tetto: è lo
+stesso silenzio scritto due volte.
+
+⚠️ E la frase parla di quante righe ha **guardato**, non di quante ne ha
+**trovate**: cercando, il limite vale sulle righe scandite e non sulle
+corrispondenze. "Altri risultati" sarebbe falso proprio quando non ce n'è
+nemmeno uno.
 
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 

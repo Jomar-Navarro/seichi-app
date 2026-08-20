@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { getTransactions } from "@/app/(main)/action";
-import { TRANSACTIONS_PAGE_SIZE } from "@/lib/transaction-utils";
+import { SEARCH_SCAN_LIMIT, TRANSACTIONS_PAGE_SIZE } from "@/lib/transaction-utils";
 import { getAccountOptions } from "@/app/(main)/conti/actions";
 import { getBudgetOverview } from "@/app/(main)/budget-actions";
 import { getCategories } from "@/app/(main)/impostazioni/actions";
@@ -11,6 +11,7 @@ import BudgetCards from "@/components/features/BudgetCards";
 import { useUIStore } from "@/store/useUIStore";
 import { clientClock } from "@/lib/dates";
 import { useI18n } from "@/components/features/I18nProvider";
+import { fill } from "@/lib/i18n/format";
 import type { Account, BudgetOverview, Category, Transaction } from "@/types";
 
 /** Quel poco che serve al filtro: vedi `getAccountOptions`. */
@@ -42,9 +43,15 @@ export default function MovimentiPage() {
 	 * successiva — un risultato **falso che sembra vero**, cioè il difetto che
 	 * questa app evita per regola (17a).
 	 *
-	 * Quindi: appena c'è del testo nella ricerca si carica l'intero periodo, come
-	 * faceva la pagina prima di questa fase. Nessuna capacità persa, e il caso
-	 * comune — sfogliare — smette di scaricare tutto.
+	 * Quindi: appena c'è del testo nella ricerca si carica il periodo in un colpo
+	 * solo, come faceva la pagina prima di questa fase. Nessuna capacità persa, e
+	 * il caso comune — sfogliare — smette di scaricare tutto.
+	 *
+	 * ⚠️ "In un colpo solo" NON vuol dire "senza limite": vale
+	 * `SEARCH_SCAN_LIMIT`, e serve perché **PostgREST un limite ce l'ha
+	 * comunque** (Max rows = 1000 su questo progetto) e lo applica **in
+	 * silenzio**. Meglio un tetto nostro, più basso e dichiarato dalla riga in
+	 * fondo alla lista, che uno esterno che tronca senza dirlo.
 	 *
 	 * ⚠️ La dipendenza è il BOOLEANO `searching`, non il testo: scrivere il
 	 * secondo carattere non deve rifare la query, perché i dati che servono ci
@@ -61,7 +68,10 @@ export default function MovimentiPage() {
 					periodo,
 					conto: conto || undefined,
 					categoria: categoria || undefined,
-					limit: searching ? undefined : TRANSACTIONS_PAGE_SIZE,
+					// ⚠️ Anche la ricerca ha un tetto, e NON è paginazione: è ciò che
+					// impedisce a PostgREST di troncare in silenzio a 1000 righe. Vedi
+					// `SEARCH_SCAN_LIMIT`.
+					limit: searching ? SEARCH_SCAN_LIMIT : TRANSACTIONS_PAGE_SIZE,
 					offset,
 				});
 				if ("error" in result) {
@@ -263,6 +273,23 @@ export default function MovimentiPage() {
 					periodo è caricato per intero — quindi un pulsante direbbe che
 					esiste dell'altro da vedere mentre non è vero.
 				*/}
+				{/*
+					⚠️ Cercando, `hasMore` NON significa "ci sono altri risultati": la
+					ricerca filtra ciò che è stato caricato, e il tetto vale sulle righe
+					SCANDITE, non sulle corrispondenze. Quindi la frase parla di quante
+					ne ha guardate, non di quante ne ha trovate — dire "altri risultati"
+					sarebbe falso proprio quando non ce n'è nemmeno uno.
+
+					Senza questa riga il troncamento sarebbe SILENZIOSO: la pagina
+					direbbe "nessun movimento" per una riga che esiste ed è solo oltre
+					la finestra guardata.
+				*/}
+				{hasMore && searching && (
+					<p className="mt-4 px-1 text-[11.5px] text-disabled leading-relaxed">
+						{fill(t.transactions.searchScanLimit, { n: SEARCH_SCAN_LIMIT })}
+					</p>
+				)}
+
 				{hasMore && !searching && (
 					<button
 						onClick={loadMore}

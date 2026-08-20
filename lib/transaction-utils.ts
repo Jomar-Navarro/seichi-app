@@ -26,6 +26,31 @@ import type { Locale } from "@/lib/i18n/config";
 export const TRANSACTIONS_PAGE_SIZE = 50;
 
 /**
+ * Quante righe può guardare la RICERCA (#9).
+ *
+ * La ricerca non è paginata — filtra lato client su categoria, note e nome
+ * conto, che stanno su altre tabelle — quindi carica il periodo intero. Senza un
+ * tetto quello è un `select` illimitato, e **PostgREST ne ha uno suo**: su
+ * questo progetto *Settings → Data API → Max rows* vale **1000**. Superato,
+ * l'API tronca **senza dire niente**: la ricerca guarderebbe le prime mille
+ * righe e dichiarerebbe "nessun movimento" per una che sta alla millesima
+ * seconda.
+ *
+ * ⚠️ Il tetto qui è DELIBERATAMENTE più basso di quello di PostgREST, e non per
+ * prudenza: `getTransactions` scopre se c'è dell'altro chiedendo **una riga in
+ * più**, e a ridosso del limite esterno quella riga verrebbe tagliata insieme
+ * alle altre — `hasMore` risulterebbe falso proprio nel caso in cui deve essere
+ * vero. Il meccanismo che rende visibile il troncamento si romperebbe
+ * esattamente dove serve.
+ *
+ * Il troncamento resta possibile, ma **smette di essere silenzioso**: la pagina
+ * dice che ha guardato le prime N e invita a restringere il periodo. È la regola
+ * della 17a — un numero (o una lista) sbagliato che sembra giusto è peggio di
+ * uno dichiarato incompleto.
+ */
+export const SEARCH_SCAN_LIMIT = 500;
+
+/**
  * Di quale TIPO sono le categorie che un movimento di questo tipo può usare.
  *
  * Coincide col tipo del movimento per tutti tranne uno: un `disinvestimento` usa

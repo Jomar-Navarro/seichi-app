@@ -424,6 +424,9 @@ export const en: Dictionary = {
 		filterAllCategories: "All categories",
 		resetFilters: "Clear filters",
 		loadMore: "Load more",
+		/** ⚠️ Righe guardate, non risultati trovati — vedi la nota in it.ts. */
+		searchScanLimit:
+			"Search looked at the {n} most recent transactions in this period. Narrow the period to search further back.",
 		periods: {
 			"7d": "7 days",
 			"30d": "30 days",
