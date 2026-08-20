@@ -13,6 +13,9 @@ export const TIPO_COLOR: Record<string, string> = {
 	spesa:        "var(--color-aka)",
 	risparmio:    "var(--color-kin)",
 	investimento: "var(--color-ao)",
+	// ⚠️ Stesso blu dell'investimento: il colore nomina il DOMINIO, non la
+	// direzione, che la portano il segno e l'icona. Vedi `TRANSACTION_TYPES`.
+	disinvestimento: "var(--color-ao)",
 	abbonamento:  "var(--color-murasaki)",
 	// Neutro: vedi la nota su `TRANSACTION_TYPES` in `types/index.ts`. Un
 	// trasferimento non afferma nulla sul denaro, si limita a spostarlo.
@@ -33,6 +36,7 @@ export const TIPO_INK: Record<string, string> = {
 	spesa:        "var(--ink-aka)",
 	risparmio:    "var(--ink-kin)",
 	investimento: "var(--ink-ao)",
+	disinvestimento: "var(--ink-ao)",
 	abbonamento:  "var(--ink-murasaki)",
 	/*
 	 * ⚠️ `--text-primary` e non `--ink-kiri`, ed è l'unico inchiostro che non
@@ -118,6 +122,13 @@ export type AmountSign = "+" | "−" | null;
  *   riconciliare col saldo che `/conti` mostra tre tap più in là. Il denaro che
  *   arriva è `+`, quello che parte è `−`, qualunque sia il tipo che lo porta.
  *
+ * ⚠️ `disinvestimento` sta accanto a `entrata` nell'ultima riga, e le due cose
+ * restano diverse ovunque altro: un'entrata è reddito ed entra nel Flusso, una
+ * vendita è capitale proprio che rientra e nel Flusso non ci entra. Qui
+ * coincidono perché la domanda è una sola — *questo denaro si aggiunge al
+ * conto?* — e per entrambe la risposta è sì. È la stessa coincidenza, per lo
+ * stesso motivo, che le mette insieme in `account_balances` (20260817).
+ *
  * ⚠️ Il ramo della destinazione viene PRIMA del tipo, e l'ordine è la sostanza:
  * un `risparmio` di 200 € dal Corrente al Libretto è `−` guardando il Corrente e
  * `+` guardando il Libretto. Mettendo prima il tipo, il Libretto mostrerebbe
@@ -130,7 +141,7 @@ export function amountSign(
 ): AmountSign {
 	if (viewedAccountId && tx.to_account_id === viewedAccountId) return "+";
 	if (tx.type === "trasferimento") return viewedAccountId ? "−" : null;
-	return tx.type === "entrata" ? "+" : "−";
+	return tx.type === "entrata" || tx.type === "disinvestimento" ? "+" : "−";
 }
 
 /**

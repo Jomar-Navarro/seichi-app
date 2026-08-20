@@ -106,6 +106,26 @@ export function TrendingUpIcon(p: SeichiIconProps) {
 	);
 }
 
+/**
+ * Il gemello esatto di `TrendingUpIcon`, specchiato sull'asse orizzontale
+ * (ogni `y` diventa `24 − y`): stessa spezzata, stesso angolo, freccia in basso
+ * a destra invece che in alto.
+ *
+ * ⚠️ Specchiata e non ridisegnata, perché le due icone stanno **una accanto
+ * all'altra** nella griglia del `TransactionModal` — investimento e
+ * disinvestimento sono lo stesso atto nei due versi. Un disegno "simile" fatto a
+ * mano avrebbe pendenze diverse, e la parentela fra i due tipi si leggerebbe
+ * come somiglianza casuale invece che come opposizione.
+ */
+export function TrendingDownIcon(p: SeichiIconProps) {
+	return (
+		<svg {...base(p, 1.6)}>
+			<path d="M4 9l4.5 4.5 3-3L20 18" />
+			<path d="M15 18h5v-5" />
+		</svg>
+	);
+}
+
 export function RepeatIcon(p: SeichiIconProps) {
 	return (
 		<svg {...base(p, 1.5)}>

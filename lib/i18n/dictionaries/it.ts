@@ -83,6 +83,7 @@ export const it = {
 		spesa: "Uscite",
 		risparmio: "Risparmi",
 		investimento: "Investimenti",
+		disinvestimento: "Disinvestimenti",
 		abbonamento: "Abbonamenti",
 		trasferimento: "Trasferimenti",
 	},
@@ -99,15 +100,22 @@ export const it = {
 		investimento: "Investimento",
 		abbonamento: "Abbonamento",
 		/*
-		 * ⚠️ NIENTE `trasferimento` qui, né in `newByType` e `typesShort`, e non è
-		 * una dimenticanza.
+		 * ⚠️ NIENTE `trasferimento` né `disinvestimento` qui, né in `newByType` e
+		 * `typesShort`, e non è una dimenticanza.
 		 *
 		 * Questi tre elenchi servono SOLO alla UI delle categorie
-		 * (`CategoryManager`, `CategorySheet`), e una categoria di tipo
-		 * `trasferimento` non può esistere: `categories_type_check` non lo ammette,
-		 * e un trasferimento non ha categoria per costruzione. Le voci sarebbero
-		 * codice morto in due lingue — il difetto che il code-review della 20a ha
-		 * trovato otto volte.
+		 * (`CategoryManager`, `CategorySheet`), e nessuno dei due tipi può avere
+		 * una categoria propria — `categories_type_check` non li ammette — ma per
+		 * ragioni OPPOSTE, che vale la pena tenere distinte:
+		 *
+		 *   · un `trasferimento` non ha categoria per costruzione (un CHECK la
+		 *     vieta: `transactions_transfer_category_check`);
+		 *   · un `disinvestimento` la categoria ce l'ha, ma è **in prestito** dagli
+		 *     investimenti — vendi "ETF", non "disinvestimento ETF" — perché le due
+		 *     righe devono compensarsi sulla stessa posizione (#52).
+		 *
+		 * In entrambi i casi le voci sarebbero codice morto in due lingue — il
+		 * difetto che il code-review della 20a ha trovato otto volte.
 		 *
 		 * `t.types` (plurale) e `t.transactionTypes` invece ce l'hanno, perché
 		 * quelli descrivono i TIPI DI MOVIMENTO e vengono resi davvero: il filtro
@@ -424,6 +432,17 @@ export const it = {
 		investimento: { label: "Investimento", description: "Mercati, fondi, portafoglio" },
 		abbonamento: { label: "Ricorrente", description: "Abbonamenti e pagamenti fissi" },
 		/**
+		 * ⚠️ "torna sul conto" fa il lavoro che nella riga sopra fa "fra i tuoi
+		 * conti": dice ciò che il tipo NON è. Vendere non è guadagnare — è
+		 * capitale tuo che rientra — e senza quelle parole il tipo si legge come
+		 * un'entrata, che è proprio la scorciatoia scartata dalla #52 perché
+		 * falsifica il Flusso.
+		 */
+		disinvestimento: {
+			label: "Disinvestimento",
+			description: "Vendi: il capitale torna sul conto",
+		},
+		/**
 		 * ⚠️ "fra i tuoi conti" e non "sposta denaro": la descrizione deve dire
 		 * anche ciò che il tipo NON fa. Un trasferimento non è una spesa, e
 		 * l'unico modo di comunicarlo in una riga è nominare i due estremi.
@@ -715,7 +734,20 @@ export const it = {
 			"Aggiungi una transazione di tipo «{type}» per iniziare a tracciare il tuo portafoglio.",
 		positionCount: { one: "{n} posizione attiva", other: "{n} posizioni attive" },
 		typeCount: { one: "{n} tipologia", other: "{n} tipologie" },
-		portfolioValue: "Valore portafoglio",
+		/**
+		 * ⚠️ Era "Valore portafoglio", ed era **falso da sempre**: Seichi non ha
+		 * quotazioni, quindi questo numero non è il valore di mercato ma la somma
+		 * di quanto hai versato — ora al netto di quanto hai liquidato (#52).
+		 *
+		 * La #52 non ha creato la bugia, l'ha resa visibile: finché il totale
+		 * poteva solo crescere, "valore" e "versato" sembravano la stessa cosa.
+		 * È la regola della 17a — *un numero sbagliato che sembra giusto è peggio
+		 * di un numero assente* — e la stessa correzione già fatta su "spese
+		 * totali" → "spese variabili" e su "Saldo totale" → "Saldo · N conti".
+		 */
+		portfolioValue: "Capitale versato",
+		/** Mostrata quando una posizione è stata liquidata oltre il versato. */
+		negativeNote: "hai liquidato più di quanto versato: la differenza è guadagno",
 		vsLastMonth: "rispetto al mese scorso",
 		composition: "Composizione",
 		total: "Totale",
@@ -1350,7 +1382,7 @@ export const it = {
 			 * opposti: chi decide deve sapere quale prezzo sta pagando.
 			 */
 			vendite:
-				"Seichi non sa ancora registrare un disinvestimento. Come entrata gonfiano il flusso del mese; ignorate, il saldo del conto resta più basso del reale.",
+				"Diventano disinvestimenti: il capitale torna sul conto senza contare come guadagno. Come entrata gonfierebbero il flusso del mese.",
 			senzaCassa:
 				"Trasferimenti di titoli e accrediti gratuiti: non spostano denaro, quindi non diventano movimenti.",
 			trasferimento: "Scegli l'altro conto, o l'app non sa da dove arriva il denaro.",

@@ -5,6 +5,7 @@ import {
 	PiggyBankIcon,
 	RepeatIcon,
 	TrendingUpIcon,
+	TrendingDownIcon,
 	ArrowLeftRightIcon,
 } from "@/lib/seichi-icons";
 
@@ -13,6 +14,7 @@ export type TransactionTypeId =
 	| "entrata"
 	| "risparmio"
 	| "investimento"
+	| "disinvestimento"
 	| "abbonamento"
 	| "trasferimento";
 
@@ -349,6 +351,28 @@ export const TRANSACTION_TYPES: TransactionType[] = [
 		id: "abbonamento",
 		color: "var(--color-murasaki)",
 		icon: RepeatIcon,
+	},
+	/**
+	 * ⚠️ Stesso BLU dell'investimento, e non è una svista.
+	 *
+	 * I cinque accenti dicono ciascuno una cosa sul denaro — verde entra, rosso
+	 * esce, oro da parte, blu investito, viola ricorre — e il colore nomina il
+	 * DOMINIO, non la direzione. Vendere un ETF resta una faccenda di
+	 * investimenti: dargli un accento diverso affermerebbe che è denaro di
+	 * un'altra natura, che è la trappola già corretta nella Fase 18 sul donut
+	 * policromo (colori diversi suggerivano una distinzione che lì non esisteva).
+	 *
+	 * La direzione la portano il SEGNO (`+`, da `amountSign()`) e l'icona, che è
+	 * `TrendingUpIcon` specchiata. Sono due segnali direzionali; il colore ne
+	 * sarebbe un terzo, e direbbe un'altra cosa.
+	 *
+	 * Penultimo per la stessa ragione per cui il trasferimento è ultimo: la
+	 * griglia si legge dall'alto e questo è un tipo che si sceglie di rado.
+	 */
+	{
+		id: "disinvestimento",
+		color: "var(--color-ao)",
+		icon: TrendingDownIcon,
 	},
 	/**
 	 * ⚠️ Ultimo, e NEUTRO — le due cose sono deliberate.

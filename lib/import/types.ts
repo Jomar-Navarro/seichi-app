@@ -104,11 +104,17 @@ export interface ParsedGroup {
 	/**
 	 * `null` = **da decidere**, e l'utente non può proseguire finché non sceglie.
 	 *
-	 * ⚠️ È lo stato che serve alle vendite Trade Republic. Seichi non ha un tipo
-	 * per il disinvestimento (issue #52): mapparle in silenzio su `entrata`
-	 * gonfierebbe il Flusso di quei mesi, scartarle in silenzio lascerebbe il
-	 * saldo del conto sbagliato di centinaia di euro. Fra due modi sbagliati la
-	 * scelta non è dell'app.
+	 * ⚠️ Nasce per le vendite Trade Republic, che fino alla #52 **non avevano una
+	 * proposta possibile**: Seichi non aveva un tipo per il disinvestimento, e le
+	 * due scorciatoie sbagliavano in versi opposti — `entrata` gonfiava il Flusso
+	 * di quei mesi, `ignora` lasciava il saldo del conto sbagliato di centinaia di
+	 * euro. Fra due modi sbagliati la scelta non era dell'app.
+	 *
+	 * Dalla #52 quel tipo esiste e le vendite una proposta ce l'hanno. Lo stato
+	 * `null` RESTA, e non è un residuo: serve al gruppo `altro` — i movimenti che
+	 * il profilo non sa classificare — dove nessuna proposta è ancora possibile.
+	 * Toglierlo significherebbe inventare un bersaglio per righe che non si sono
+	 * capite, cioè il difetto che questo campo esiste per impedire.
 	 */
 	suggested: GroupTarget | null;
 	/** I bersagli ammessi, coerenti con la direzione. */
