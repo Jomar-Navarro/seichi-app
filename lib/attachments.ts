@@ -70,7 +70,19 @@ export const SIGNED_URL_TTL = 600;
  */
 export const ATTACHMENT_MAX_EDGE = 1600;
 
-/** Il percorso dentro il bucket. Vedi la nota sul PIATTO nella migration. */
+/**
+ * Il percorso dentro il bucket. Vedi la nota sul PIATTO nella migration.
+ *
+ * ⚠️ **Solo dal SERVER**, malgrado questo file sia per il resto client-safe.
+ * `crypto.randomUUID()` esiste solo in **contesto sicuro**: in Node c'è sempre,
+ * nel browser solo su HTTPS o `localhost` — e questo progetto si prova dal
+ * telefono su `http://192.168.1.224:3000`, dove è `undefined`.
+ *
+ * Non è teoria: la Fase 22 ha perso un giro proprio così, con un
+ * `crypto.randomUUID()` client che sollevava in silenzio e faceva sembrare
+ * l'allegatura semplicemente non funzionante. Se un domani serve un id nel
+ * browser, si usa `chiaveLocale()` di `AttachmentPicker`, che ha il ripiego.
+ */
 export function receiptPath(userId: string, ext: string): string {
 	return `${userId}/${crypto.randomUUID()}.${ext}`;
 }

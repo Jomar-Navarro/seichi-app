@@ -69,6 +69,25 @@ async function downscale(file: File): Promise<File> {
 type Pendente = { key: string; file: File; preview: string };
 
 /**
+ * Una chiave locale per l'elenco delle foto in attesa.
+ *
+ * ⚠️ **NON `crypto.randomUUID()` da solo**, ed è un difetto vero costato una
+ * riscrittura: quell'API esiste solo in **contesto sicuro**. Su `localhost` c'è,
+ * su `http://192.168.1.224:3000` — l'IP di LAN che `next.config.ts` autorizza
+ * apposta per provare l'app dal telefono — **è `undefined`**.
+ *
+ * Il sintomo era muto: `pick()` sollevava, il file non veniva aggiunto e non
+ * compariva alcun errore. Invisibile al driver, che gira su `localhost`, e
+ * visibile solo sul dispositivo su cui l'app si usa davvero.
+ *
+ * La chiave serve solo a React per distinguere le righe di un elenco che vive
+ * qualche secondo: `Math.random()` basta, e non ha requisiti di contesto.
+ */
+function chiaveLocale(): string {
+	return globalThis.crypto?.randomUUID?.() ?? `p-${Date.now()}-${Math.random()}`;
+}
+
+/**
  * Le ricevute di un movimento: elenco, aggiunta, rimozione.
  *
  * ⚠️ Funziona in DUE modi, e il secondo esiste perché la prima stesura sbagliava.
@@ -153,7 +172,7 @@ export default function AttachmentPicker({
 				aggiornaPendenti([
 					...pendenti,
 					{
-						key: crypto.randomUUID(),
+						key: chiaveLocale(),
 						file: shrunk,
 						preview: URL.createObjectURL(shrunk),
 					},
@@ -171,6 +190,21 @@ export default function AttachmentPicker({
 				return;
 			}
 			setItems((prev) => [...prev, res.data]);
+		} catch (e) {
+			/*
+			 * ⚠️ Il `catch` MANCAVA, ed è il difetto più profondo dei due.
+			 *
+			 * `crypto.randomUUID()` indefinito fuori da un contesto sicuro faceva
+			 * sollevare questa funzione: con il solo `finally` l'eccezione spariva,
+			 * il file non veniva aggiunto e **non compariva nulla**. Un gesto che non
+			 * fa niente e non dice niente è il peggior modo di fallire — l'utente
+			 * conclude che la funzione non esiste.
+			 *
+			 * La causa vera è stata corretta (vedi `chiaveLocale`), ma il `catch`
+			 * resta: qualunque altra cosa vada storta qui deve DIRLO.
+			 */
+			console.error("[attachments] scelta file:", e);
+			setError(t.common.genericError);
 		} finally {
 			/*
 			 * ⚠️ `finally`, non una riga dopo l'await: se la server action rifiuta —

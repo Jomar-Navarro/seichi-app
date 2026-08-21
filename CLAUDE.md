@@ -2474,6 +2474,54 @@ peggiore:
 Niente ricevute su un `trasferimento`: non c'è uno scontrino per aver spostato
 denaro fra due conti propri.
 
+#### ⚠️⚠️ `crypto.randomUUID()` non esiste sul telefono — e falliva in SILENZIO
+
+Il difetto che ha fatto sembrare l'allegatura in creazione semplicemente non
+funzionante, e vale come classe nuova per questo progetto.
+
+`crypto.randomUUID()` è disponibile **solo in contesto sicuro**. Su `localhost`
+c'è; su `http://192.168.1.224:3000` — l'IP di LAN che `next.config.ts` autorizza
+**apposta** per provare l'app dal telefono — è `undefined`.
+
+⚠️ **E il sintomo era muto.** La funzione che sceglie il file aveva `try` con il
+solo `finally` e **nessun `catch`**: l'eccezione spariva, il file non veniva
+aggiunto, non compariva alcun errore. Un gesto che non fa niente e non dice
+niente è il peggior modo di fallire — chi lo usa conclude che la funzione non
+esista, non che sia rotta.
+
+⚠️ **Invisibile a ogni verifica automatica.** `tsc`, lint e build non vedono un
+requisito di contesto; il driver Playwright gira su `localhost`, dove l'API
+c'è. È il primo difetto di questo progetto che **dipende dall'URL da cui si apre
+l'app** — quindi nessuna prova fatta sulla macchina di sviluppo poteva
+intercettarlo.
+
+Due correzioni, perché i difetti erano due:
+
+- `chiaveLocale()` con ripiego (`Math.random()`): quella chiave serve a React per
+  un elenco che vive qualche secondo, non ha bisogno di unicità crittografica;
+- il **`catch`**, che resta anche ora che la causa è chiusa: qualunque altra cosa
+  vada storta lì deve DIRLO.
+
+⚠️ Nota lasciata su `receiptPath()` in `lib/attachments.ts`: il file è per il
+resto client-safe, ma quella funzione **non lo è** per la stessa ragione. È
+chiamata solo dal server, e senza la nota il prossimo che la riusa nel browser
+ricadrebbe esattamente qui.
+
+**La regola: un'API del browser va verificata anche per il CONTESTO in cui gira,
+non solo per l'esistenza.** E su questo progetto il contesto reale è un telefono
+su HTTP in LAN, non `localhost`.
+
+Corretto e riprovato **dal telefono** il 2026-08-21: l'allegatura in creazione
+funziona, e non nasce alcun movimento duplicato (l'altra invariante introdotta
+nello stesso giro, vedi `createdId`).
+
+⚠️ Conseguenza sul METODO, e vale oltre questa fase: lo skill `collauda-app` gira
+su `localhost` e **non può** intercettare questa classe. Ogni volta che una fase
+tocca un'API del browser, la prova finale va fatta **sull'indirizzo di LAN dal
+telefono** — è l'unico ambiente in cui l'app viene davvero usata. La Fase 27
+(mobile nativo) è il posto dove questa verifica diventerà sistematica; fino ad
+allora è una cosa da ricordarsi a mano.
+
 #### Due sorgenti immagine, due componenti diversi
 
 Le miniature già caricate usano `next/image` (URL firmato, validato contro
