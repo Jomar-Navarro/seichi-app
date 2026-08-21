@@ -152,6 +152,28 @@ export interface Transaction {
 	} | null;
 }
 
+/**
+ * Un allegato di un movimento — una ricevuta (Fase 22, issue #36).
+ *
+ * ⚠️ `url` NON è una colonna: è la firma generata all'apertura da
+ * `getAttachments()`. Il database conserva `storage_path`, che non cambia mai;
+ * una firma invece scade, quindi memorizzarla darebbe un dato che diventa falso
+ * da solo senza che nulla lo aggiorni.
+ *
+ * ⚠️ `null` significa "il file non è firmabile" — sparito dal bucket, per
+ * esempio rimosso a mano. La UI lo mostra come rotto invece di nasconderlo: una
+ * riga senza file è un fatto da vedere, non da far sparire.
+ */
+export interface Attachment {
+	id: string;
+	transaction_id: string;
+	storage_path: string;
+	mime_type: string;
+	size_bytes: number;
+	created_at: string;
+	url: string | null;
+}
+
 export type Frequency = "settimanale" | "mensile" | "annuale";
 
 export interface RecurringRule {

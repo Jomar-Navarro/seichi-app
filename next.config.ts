@@ -76,6 +76,16 @@ const nextConfig: NextConfig = {
         hostname: supabaseHost,
         pathname: "/storage/v1/object/public/avatars/**",
       },
+      // ⚠️ Le ricevute (Fase 22) stanno su `/sign/`, non su `/public/`, ed è la
+      // conseguenza diretta del bucket PRIVATO: non esiste un URL pubblico, solo
+      // firme a scadenza. Senza questa riga `next/image` rifiuterebbe l'host e
+      // ogni anteprima resterebbe vuota — un guasto che non compare né in `tsc`
+      // né nel build, ma solo aprendo un movimento con un allegato.
+      {
+        protocol: "https",
+        hostname: supabaseHost,
+        pathname: "/storage/v1/object/sign/receipts/**",
+      },
     ],
   },
 };

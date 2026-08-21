@@ -8,6 +8,7 @@ import { ACCOUNT_ICON_FALLBACK, ACCOUNT_TYPE_ICON, accountColor } from "@/lib/ac
 import FrequencySelector from "@/components/UI/FrequencySelector";
 import { SwitchVisual } from "@/components/UI/Switch";
 import { categoryTypeFor } from "@/lib/transaction-utils";
+import AttachmentPicker from "@/components/features/AttachmentPicker";
 import { buildCategoryOptions } from "@/lib/category-options";
 import {
 	saveTransaction,
@@ -498,6 +499,29 @@ export default function TransactionForm({
 					)}
 				</div>
 			)}
+
+			{/*
+				Ricevute (Fase 22, issue #36).
+
+				⚠️ Solo in MODIFICA, e non è una limitazione da sanare: un allegato ha
+				bisogno di un `transaction_id`, e in creazione quell'id non esiste
+				ancora. Le alternative sono peggiori — caricare in un percorso
+				temporaneo e spostare (due punti di scrittura, con un orfano se il
+				secondo fallisce), oppure salvare di nascosto per ottenere l'id
+				(scrive un movimento che l'utente non ha ancora confermato).
+				La riga qui sotto DICE cosa fare invece di offrire un comando che
+				fallirebbe: è il caso reale — fotografi lo scontrino e registri la
+				spesa, in quest'ordine — quindi il costo è un tocco in più, una volta.
+
+				⚠️ Niente ricevute su un TRASFERIMENTO: non c'è uno scontrino per
+				aver spostato denaro fra due conti propri.
+			*/}
+			{!isTransfer &&
+				(isEditing ? (
+					<AttachmentPicker transactionId={transaction.id} />
+				) : (
+					<p className="mt-5 text-[11.5px] text-disabled">{t.attachments.afterSave}</p>
+				))}
 
 			{/* Tastierino */}
 			<div className="grid grid-cols-3 gap-2">

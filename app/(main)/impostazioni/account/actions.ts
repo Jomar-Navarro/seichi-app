@@ -7,8 +7,10 @@ import { PASSWORD_MIN_LENGTH, validateNewPassword } from "@/lib/password";
 import { getDictionary } from "@/lib/i18n/server";
 import { fill } from "@/lib/i18n/format";
 import { SITE_URL } from "@/lib/site-url";
+import { RECEIPT_BUCKET } from "@/lib/attachments";
 
 const AVATAR_BUCKET = "avatars";
+
 const AVATAR_MAX_BYTES = 2 * 1024 * 1024; // deve restare allineato al file_size_limit del bucket
 const AVATAR_MIME: Record<string, string> = {
 	"image/jpeg": "jpg",
@@ -95,20 +97,33 @@ export async function updateFullName(fullName: string): Promise<ActionResult> {
 /* ------------------------------------------------------------------ */
 
 /**
- * Rimuove i file avatar dell'utente, saltando `keep` (il file appena caricato).
- * La cartella ne contiene normalmente uno solo.
+ * Svuota la cartella di un utente dentro un bucket, saltando `keep` (il file
+ * appena caricato, nel caso dell'avatar).
  *
  * Ritorna l'errore invece di ingoiarlo: per upload e rimozione un fallimento è
  * innocuo (resta un file di troppo), ma nell'eliminazione account significa
  * abbandonare dati personali nel bucket, ed è il chiamante a doverlo decidere.
+ * I due chiamanti infatti scelgono diversamente — vedi `deleteAccount()` contro
+ * `undoImport()`.
+ *
+ * ⚠️ `list()` è PIATTA: elenca ciò che sta direttamente dentro `{userId}/`, e su
+ * una struttura annidata restituirebbe le sottocartelle invece dei file. È il
+ * motivo per cui sia gli avatar sia le ricevute usano un percorso a un solo
+ * livello (`{user_id}/{uuid}.{ext}`) — vedi la nota nella `20260818`.
+ *
+ * Generalizzata nella Fase 22: la logica era identica per i due bucket, e
+ * ricopiarla avrebbe significato due punti da correggere il giorno in cui la
+ * cancellazione cambia. `purgeAvatarFiles` resta come nome parlante per il
+ * chiamante, come `isAccountId` accanto a `isUuid`.
  */
-async function purgeAvatarFiles(
+async function purgeUserFiles(
 	supabase: SupabaseServerClient,
+	bucket: string,
 	userId: string,
 	keep?: string,
 ): Promise<{ error: string | null }> {
 	const { data: files, error: listError } = await supabase.storage
-		.from(AVATAR_BUCKET)
+		.from(bucket)
 		.list(userId);
 
 	if (listError) return { error: listError.message };
@@ -119,8 +134,16 @@ async function purgeAvatarFiles(
 
 	if (!stale.length) return { error: null };
 
-	const { error } = await supabase.storage.from(AVATAR_BUCKET).remove(stale);
+	const { error } = await supabase.storage.from(bucket).remove(stale);
 	return { error: error?.message ?? null };
+}
+
+function purgeAvatarFiles(
+	supabase: SupabaseServerClient,
+	userId: string,
+	keep?: string,
+): Promise<{ error: string | null }> {
+	return purgeUserFiles(supabase, AVATAR_BUCKET, userId, keep);
 }
 
 export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
@@ -314,6 +337,25 @@ export async function deleteAccount(confirmEmail: string, password: string) {
 	const purge = await purgeAvatarFiles(supabase, user.id);
 	if (purge.error) {
 		return { error: t.errors.avatarRemoveFailed };
+	}
+
+	/*
+	 * ⚠️ E le RICEVUTE, dalla Fase 22 — stessa ragione, stesso momento.
+	 *
+	 * `delete_current_user()` cancella le righe di `attachments`, ma i file dello
+	 * Storage in SQL non si toccano affatto: Supabase vieta il DELETE diretto su
+	 * `storage.objects`. Dopo la RPC la sessione non esiste più per autorizzare
+	 * la cancellazione, quindi o si fa adesso o non si fa mai.
+	 *
+	 * ⚠️ Un fallimento FERMA tutto, al contrario di `undoImport`: una ricevuta è
+	 * un documento personale — dice cosa hai comprato, dove e quando — e
+	 * distruggere l'account lasciandola nel bucket, irraggiungibile e non più
+	 * cancellabile da nessuno, è il contrario di ciò che l'utente ha chiesto.
+	 */
+	const purgeReceipts = await purgeUserFiles(supabase, RECEIPT_BUCKET, user.id);
+	if (purgeReceipts.error) {
+		console.error("[account] ricevute non rimosse:", purgeReceipts.error);
+		return { error: t.errors.receiptsRemoveFailed };
 	}
 
 	// delete_current_user() è SECURITY DEFINER e cancella solo auth.uid():
