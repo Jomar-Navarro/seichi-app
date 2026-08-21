@@ -161,6 +161,8 @@ transactions: id (UUID), user_id (UUID NOT NULL), amount (DECIMAL 10,2),
 -- import_id: il lotto da cui la riga proviene (Fase 21). ON DELETE CASCADE —
 --   cancellare la riga di `imports` ANNULLA l'import. È l'unica cascade oltre
 --   a quella di `categories`, e come quella è l'operazione, non un effetto.
+-- ⚠️ Gli ALLEGATI non sono qui: sono la tabella `attachments` (Fase 22), 0..N
+--   per movimento, con FK composita `(transaction_id, user_id)`.
 -- import_key: chiave di deduplica, UNIQUE con user_id. NULL = riga inserita a
 --   mano, e i NULL restano DISTINTI (all'opposto di `budgets`).
 -- type: 'entrata' | 'spesa' | 'investimento' | 'risparmio' | 'abbonamento'
@@ -2337,6 +2339,139 @@ stesso silenzio scritto due volte.
 corrispondenze. "Altri risultati" sarebbe falso proprio quando non ce n'è
 nemmeno uno.
 
+### Fase 22 — allegati / ricevute (issue #36)
+
+Implementata il 2026-08-21. Migration `20260818_attachments.sql`.
+
+#### ⚠️ Il bucket è PRIVATO — qui NON si copia il precedente degli avatar
+
+`avatars` è pubblico in lettura perché l'avatar compare su ogni pagina e conviene
+servirlo dalla CDN; l'unica protezione è un path non indovinabile.
+
+Per una ricevuta quel calcolo si **rovescia**: si apre una alla volta su
+richiesta — nessun guadagno dalla cache — e contiene cosa hai comprato, dove e
+quando, a volte le ultime cifre della carta. Un URL non indovinabile è sicurezza
+per oscurità: accettabile per una foto profilo, non per un documento
+finanziario. Bucket privato, **URL firmati** con TTL di 10 minuti generati a ogni
+apertura.
+
+⚠️ Conseguenza che né `tsc` né il build vedono: le firme stanno su
+`/object/sign/`, non su `/object/public/`, e `next.config.ts` autorizzava a
+`next/image` solo `/object/public/avatars/**`. Senza il `remotePattern` nuovo
+**ogni anteprima resterebbe vuota** — si vede solo aprendo un movimento con un
+allegato.
+
+#### Una TABELLA e non una colonna
+
+Il test è quello già usato per `accounts.type`: *esiste un caso reale in cui ne
+servono due?* Tre risposte sì — ristorante (scontrino fiscale + ricevuta carta),
+fattura multipagina in due scatti, acquisto + garanzia.
+
+Con una colonna quei casi sono **irrappresentabili** e costringono a scegliere
+quale ricevuta perdere. È il rovescio della regola solita: di norma si rende
+irrappresentabile lo stato ILLEGALE, qui una colonna renderebbe irrappresentabile
+uno stato perfettamente legale.
+
+#### ⚠️ Il percorso è PIATTO, e lo decide la cancellazione
+
+`{user_id}/{uuid}.{ext}`, non `.../{transaction_id}/...`. `purgeUserFiles()` fa
+`list(userId)`, che è **piatta**: con un livello in più restituirebbe le
+sottocartelle e non i file, e l'eliminazione account lascerebbe ogni ricevuta nel
+bucket. Il legame con la transazione vive nel database, che è dove va una
+relazione.
+
+#### ⚠️ Il nodo vero: la cascade tiene pulito il DB e PERDE i file
+
+Supabase **vieta il DELETE diretto su `storage.objects`**, quindi la pulizia non
+può stare in SQL né nel job notturno: è per forza lato app. E la cascade che
+cancella la riga è proprio ciò che impedisce all'app di sapere quali file
+orfanare. I cinque percorsi, mappati prima di scrivere:
+
+| percorso | l'app vede le righe? |
+|---|---|
+| `deleteTransaction` | ✅ diretta |
+| `deleteGoal` | ✅ le cancella esplicitamente |
+| `deleteCategory` | ✅ **rifiuta** se ci sono movimenti collegati |
+| `undoImport` | ⚠️ cascade — i path si raccolgono PRIMA |
+| `deleteAccount` | ⚠️ cascade nella RPC — idem |
+
+⚠️ **I due chiamanti scelgono in modo OPPOSTO sul fallimento, ed è deliberato:**
+
+- in `undoImport` un errore di rimozione **non** annulla l'operazione. L'import è
+  già disfatto e non torna: rispondere "errore" farebbe credere il contrario, e
+  il secondo tentativo non troverebbe nulla da annullare. Restano al più file
+  orfani — un costo di spazio, non una bugia — e finiscono nei log;
+- in `deleteAccount` un errore **ferma tutto**. Là i file sono documenti
+  personali di chi ha chiesto di sparire, e abbandonarli nel bucket è peggio che
+  non cancellare l'account.
+
+#### Prima il FILE, poi la riga
+
+In `deleteAttachment` l'ordine rende ogni fallimento recuperabile. Al contrario
+la riga sparirebbe e il file resterebbe **irraggiungibile per sempre**: nessuna
+schermata lo mostra, nessuna cancellazione lo trova. Così invece, se fallisce il
+file non è cambiato niente; se fallisce la riga, resta una riga visibilmente
+rotta e il secondo tentativo la toglie (`remove()` su un file assente non è un
+errore).
+
+#### ⚠️ Le firme si riabbinano per PATH, non per posizione
+
+`createSignedUrls` restituisce un elemento per input, ma ciascuno può portare un
+proprio errore. Fidandosi dell'indice, un solo elemento fallito sposterebbe tutti
+quelli dopo di lui: **ogni ricevuta mostrerebbe l'immagine di un'altra**. Un
+difetto che non produce errori e che si nota solo se conosci le tue ricevute.
+
+#### La riduzione lato client è il PREREQUISITO, non un'ottimizzazione
+
+La foto di un telefono pesa 3-8 MB: senza ridimensionare, **ogni upload verrebbe
+rifiutato** e la funzione sarebbe inutilizzabile sul caso normale. Lato lungo a
+1600px — è il testo stampato di uno scontrino a dettare il minimo, non
+l'estetica — e uscita sempre in JPEG, anche da PNG.
+
+Verificato con una foto **da 4,80 MB generata in un canvas 3000×2000**:
+l'anteprima risultante ha `naturalWidth = 1600`, cioè esattamente
+`ATTACHMENT_MAX_EDGE`. Un file già piccolo non avrebbe dimostrato niente.
+
+⚠️ `ATTACHMENT_MAX_BYTES` è il **quinto** membro della catena da tenere allineata
+a mano: `bodySizeLimit` (3 MB) → `file_size_limit` del bucket (2 MB) → la
+costante → il testo nella UI, che prende `{max}` dalla costante e non lo riscrive.
+
+#### Solo in MODIFICA, e non è una limitazione da sanare
+
+Un allegato ha bisogno di un `transaction_id`, che in creazione non esiste
+ancora. Le alternative sono peggiori: un percorso temporaneo da spostare (due
+scritture, con un orfano se la seconda fallisce) o un salvataggio di nascosto per
+ottenere l'id (scrive un movimento che l'utente non ha confermato). Il form dice
+cosa fare invece di offrire un comando che fallirebbe.
+
+Niente ricevute su un `trasferimento`: non c'è uno scontrino per aver spostato
+denaro fra due conti propri.
+
+#### ⚠️ Una guardia si era SCADUTA
+
+La `20260816` diceva esplicitamente *"nessuna guardia nuova da aggiungere"*, e il
+ragionamento era corretto — **finché quel file era l'ultimo a definire
+`delete_current_user()`**. Ora la catena si è allungata: rieseguirla
+ripristinerebbe una versione che non conosce `attachments`, lasciando righe con
+nomi di file e date di un utente cancellato, **senza alcun errore**.
+
+**La regola: una guardia protegge dai successori che ESISTEVANO quando è stata
+scritta.** Chi allunga la catena deve guardare daccapo invece di fidarsi della
+copertura ereditata.
+
+#### Il collaudo — 5 prove su 6, e la sesta è dichiarata non fatta
+
+`a1` allegato valido, `b1` path duplicato rifiutato, `b3` dimensione zero
+rifiutata, `a2` cascade che toglie le righe, `c1` bucket presente e privato.
+
+⚠️ **`b2` è SALTATA e non si finge il contrario**: verifica che un utente non
+possa appendere file alle transazioni di un ALTRO, e senza un secondo utente con
+movimenti non è dimostrabile. Un insert con uno `user_id` inventato fallirebbe
+sulla FK verso `auth.users`, cioè **passerebbe per il motivo sbagliato** — la
+trappola già registrata nella Fase 21. Resta la verifica strutturale (la FK
+composita esiste ed è `(transaction_id, user_id)`), che dice che il vincolo c'è,
+non che rifiuta.
+
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 
 Il guasto è emerso guardando a occhio una data in `/impostazioni/ricorrenti`: una
@@ -3101,7 +3236,13 @@ Seguire questo ordine, non saltare fasi:
     note e nome conto e paginando cercherebbe dentro le sole righe caricate.
     Motivazioni e i due difetti di testo che l'aggiunta di un chip ha reso
     visibili: sezione "Lista movimenti" sopra
-22. Allegati/ricevute — foto scontrino sulle transazioni via Supabase Storage
+22. ✅ Allegati/ricevute (issue #36) — foto scontrino sulle transazioni via
+    Supabase Storage. Tabella `attachments` (0..N), **bucket privato con URL
+    firmati** — la divergenza voluta dagli avatar, che sono pubblici. ⚠️ Il nodo
+    non è l'upload ma la CANCELLAZIONE: la cascade tiene pulito il database e
+    perde i file, e in SQL lo Storage non si tocca. Motivazioni, i cinque
+    percorsi di cancellazione e la guardia scaduta: sezione "Fase 22" sopra.
+    Migration `20260818_attachments.sql`
 23. Export dati / report PDF mensile — complementa l'import (Fase 21)
 24. AI Financial Coach — suggerimenti personalizzati basati su metodologie (50/30/20, ecc.) via Claude API
 25. Blocco app — PIN / biometrico (sezione "Sicurezza" del mockup impostazioni, saltata in Fase 13)
