@@ -2436,16 +2436,51 @@ l'anteprima risultante ha `naturalWidth = 1600`, cioè esattamente
 a mano: `bodySizeLimit` (3 MB) → `file_size_limit` del bucket (2 MB) → la
 costante → il testo nella UI, che prende `{max}` dalla costante e non lo riscrive.
 
-#### Solo in MODIFICA, e non è una limitazione da sanare
+#### ⚠️ "Solo in modifica" era una limitazione INVENTATA
 
-Un allegato ha bisogno di un `transaction_id`, che in creazione non esiste
-ancora. Le alternative sono peggiori: un percorso temporaneo da spostare (due
-scritture, con un orfano se la seconda fallisce) o un salvataggio di nascosto per
-ottenere l'id (scrive un movimento che l'utente non ha confermato). Il form dice
-cosa fare invece di offrire un comando che fallirebbe.
+La prima stesura permetteva di allegare solo a un movimento già salvato, e la
+difendeva così: *un allegato ha bisogno di un `transaction_id`, che in creazione
+non esiste ancora*. La premessa è vera; la conclusione — **quindi si allega
+dopo** — no.
+
+La via d'uscita saltata è la più semplice: **tenere il file nel browser e
+caricarlo appena l'id c'è**, dentro lo stesso gesto di salvataggio. Il caso reale
+è fotografare lo scontrino *mentre* si registra la spesa, quindi l'obbligo di
+salvare e riaprire metteva un ostacolo proprio sul percorso più frequente.
+
+Emerso da chi usa l'app — *"perché devo prima salvare? Se un utente vuole
+allegarla subito?"* — non da un controllo. **La lezione: quando una limitazione
+si spiega con un vincolo tecnico vero, il vincolo va confermato ma la
+conclusione va cercata daccapo.** Le due alternative peggiori restano scartate
+(percorso temporaneo da spostare; salvataggio di nascosto per ottenere l'id).
+
+⚠️ Conseguenze, entrambe necessarie perché il rimedio non introduca un difetto
+peggiore:
+
+- **`saveTransaction()` restituisce l'`id`.** Stesso precedente di
+  `createCategory()` nella 17a: senza, l'unica strada sarebbe ritrovare la riga
+  appena scritta cercandola per campi che non la identificano — due movimenti
+  identici nello stesso giorno sono indistinguibili.
+- ⚠️ **`createdId` in stato, e `handleSave` guarda quello invece di
+  `isEditing`.** Se il salvataggio riesce ma un caricamento fallisce, il modale
+  resta aperto: da quel momento il movimento ESISTE, e un secondo tocco su
+  "Salva" deve aggiornarlo. Continuando a guardare `isEditing` — che dipende
+  dalla prop e non cambia mai — ogni riprova creerebbe **un movimento
+  duplicato**, difetto che si scopre contando i soldi invece che leggendo un
+  errore.
+- **Su un caricamento fallito il modale NON si chiude**: chiudere lascerebbe
+  l'utente convinto di avere una prova che non ha.
 
 Niente ricevute su un `trasferimento`: non c'è uno scontrino per aver spostato
 denaro fra due conti propri.
+
+#### Due sorgenti immagine, due componenti diversi
+
+Le miniature già caricate usano `next/image` (URL firmato, validato contro
+`remotePatterns`); le anteprime locali e il visore a schermo intero usano
+`<img>`. Non è incoerenza: un `blob:` l'ottimizzatore non sa né scaricarlo né
+validarlo, e il visore deve reggere **entrambe** le sorgenti — quindi non può
+usare quello che ne accetta una sola.
 
 #### ⚠️ Una guardia si era SCADUTA
 
@@ -2459,18 +2494,45 @@ nomi di file e date di un utente cancellato, **senza alcun errore**.
 scritta.** Chi allunga la catena deve guardare daccapo invece di fidarsi della
 copertura ereditata.
 
-#### Il collaudo — 5 prove su 6, e la sesta è dichiarata non fatta
+#### Il collaudo — 6 prove su 6
 
 `a1` allegato valido, `b1` path duplicato rifiutato, `b3` dimensione zero
-rifiutata, `a2` cascade che toglie le righe, `c1` bucket presente e privato.
+rifiutata, `a2` cascade che toglie le righe, `c1` bucket presente e privato, e
+**`b2` allegato su transazione ALTRUI rifiutato dalla FK composita**.
 
-⚠️ **`b2` è SALTATA e non si finge il contrario**: verifica che un utente non
-possa appendere file alle transazioni di un ALTRO, e senza un secondo utente con
-movimenti non è dimostrabile. Un insert con uno `user_id` inventato fallirebbe
-sulla FK verso `auth.users`, cioè **passerebbe per il motivo sbagliato** — la
-trappola già registrata nella Fase 21. Resta la verifica strutturale (la FK
-composita esiste ed è `(transaction_id, user_id)`), che dice che il vincolo c'è,
-non che rifiuta.
+⚠️ **`b2` è la prova che conta, ed è rimasta SALTATA per un giorno** — richiede
+un secondo utente con movimenti, e finché non c'è non è dimostrabile: un insert
+con uno `user_id` inventato fallirebbe sulla FK verso `auth.users`, cioè
+**passerebbe per il motivo sbagliato** (la trappola già registrata nella Fase
+21). Nel frattempo valeva solo la verifica strutturale, che dice che il vincolo
+c'è — **non che rifiuta**. Eseguita il 2026-08-21 appena il secondo utente ha
+avuto movimenti: *"allegato su transazione ALTRUI rifiutato dalla FK
+composita"*.
+
+Vale come metodo: **una prova che si autoesclude va lasciata dichiarata e
+ripresa**, non archiviata come superata perché tutto il resto è verde.
+
+#### La verifica visiva
+
+Foto **da 4,80 MB generata in un canvas 3000×2000**, caricata dall'app vera:
+l'anteprima risultante ha `naturalWidth = 1600`, cioè esattamente
+`ATTACHMENT_MAX_EDGE`. Un file già piccolo non avrebbe dimostrato niente, perché
+il ridimensionamento non sarebbe partito. Più: URL firmato che si carica davvero
+(la prova del `remotePattern`), graffetta nella lista, primo tocco che arma senza
+cancellare, secondo che rimuove. Zero errori console.
+
+⚠️ E la prova che il codice non può fare da sé: **una ricevuta vera**, aperta a
+schermo intero. Fatta a mano il 2026-08-21 su una distinta di bonifico —
+`ATTACHMENT_MAX_EDGE = 1600` regge, ogni campo resta leggibile senza sforzo. È
+il numero che va rialzato se un domani un documento più fitto non si legge: non
+è una scelta estetica, la detta il testo stampato.
+
+⚠️ **Ed è la stessa prova che conferma il bucket privato.** Quella distinta porta
+nome dell'ordinante, nome del beneficiario, **IBAN completo**, importo e causale.
+La decisione — presa in astratto all'inizio della fase, contro il precedente
+degli avatar — si legge molto diversamente guardando cosa ci finisce dentro
+davvero: un URL non indovinabile su un documento del genere sarebbe stato
+sicurezza per oscurità su dati bancari.
 
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 

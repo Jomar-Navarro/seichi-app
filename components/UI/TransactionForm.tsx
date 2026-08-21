@@ -9,6 +9,7 @@ import FrequencySelector from "@/components/UI/FrequencySelector";
 import { SwitchVisual } from "@/components/UI/Switch";
 import { categoryTypeFor } from "@/lib/transaction-utils";
 import AttachmentPicker from "@/components/features/AttachmentPicker";
+import { uploadAttachment } from "@/app/(main)/attachment-actions";
 import { buildCategoryOptions } from "@/lib/category-options";
 import {
 	saveTransaction,
@@ -72,6 +73,23 @@ export default function TransactionForm({
 	);
 	const [isDeleteConfirm, setIsDeleteConfirm] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
+	/*
+	 * Le ricevute scelte prima che il movimento esista (Fase 22): vivono nel
+	 * browser finché non c'è un id a cui appenderle.
+	 */
+	const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+	const [attachmentError, setAttachmentError] = useState<string | null>(null);
+	/**
+	 * L'id del movimento APPENA creato da questo form.
+	 *
+	 * ⚠️ Esiste per un caso solo, ed è quello che senza di lui produce dati
+	 * sbagliati: il movimento è stato scritto ma il caricamento di una ricevuta è
+	 * fallito, quindi il modale resta aperto. Da quel momento un secondo tocco su
+	 * "Salva" deve AGGIORNARE quella riga, non crearne un'altra — altrimenti ogni
+	 * tentativo lascerebbe un movimento duplicato, e il difetto si scoprirebbe
+	 * contando i soldi invece che leggendo un errore.
+	 */
+	const [createdId, setCreatedId] = useState<string | null>(null);
 	const { closeTransactionModal, notifyTransactionSaved, recurringDefault } =
 		useUIStore();
 	const [isRecurring, setIsRecurring] = useState(recurringDefault);
@@ -201,9 +219,17 @@ export default function TransactionForm({
 		setIsSaving(true);
 		try {
 			const importo = parseFloat(amount.replace(",", "."));
-			const result = isEditing
+			/*
+			 * ⚠️ `effectiveId` e non `isEditing`: dopo una creazione riuscita il
+			 * movimento ESISTE anche se il modale è ancora aperto (una ricevuta non
+			 * caricata lo tiene lì). Continuare a guardare `isEditing` — che dipende
+			 * dalla prop e non cambia mai — manderebbe il secondo tentativo di nuovo
+			 * su `saveTransaction`, cioè un movimento duplicato a ogni riprova.
+			 */
+			const effectiveId = transaction?.id ?? createdId;
+			const result = effectiveId
 				? await updateTransaction(
-						transaction.id,
+						effectiveId,
 						importo,
 						selectedType.id,
 						effectiveCategoryId,
@@ -232,10 +258,49 @@ export default function TransactionForm({
 							effectiveToAccountId,
 						);
 
-			if (!result?.error) {
-				notifyTransactionSaved();
-				closeTransactionModal();
+			if (result?.error) return;
+
+			/*
+			 * Le ricevute scelte PRIMA del salvataggio si caricano adesso: solo ora
+			 * esiste l'id a cui appenderle (Fase 22).
+			 *
+			 * ⚠️ `createdId` si ricorda, e non è un dettaglio: da questo momento il
+			 * movimento ESISTE. Se un upload fallisce il modale resta aperto, e un
+			 * secondo tocco su "Salva" deve AGGIORNARE quella riga, non crearne una
+			 * seconda. Senza, un allegato che non passa produrrebbe un movimento
+			 * duplicato a ogni tentativo — un difetto silenzioso che si scopre
+			 * contando i soldi.
+			 */
+			const nuovoId =
+				result && "id" in result ? (result as { id: string }).id : null;
+			if (nuovoId) setCreatedId(nuovoId);
+
+			const targetId = transaction?.id ?? nuovoId ?? createdId;
+			if (targetId && pendingFiles.length > 0) {
+				const falliti: string[] = [];
+				for (const file of pendingFiles) {
+					const form = new FormData();
+					form.set("transactionId", targetId);
+					form.set("file", file);
+					const res = await uploadAttachment(form);
+					if ("error" in res) falliti.push(res.error);
+				}
+				if (falliti.length > 0) {
+					/*
+					 * ⚠️ NON si chiude. Il movimento è salvato ma la ricevuta no, e
+					 * chiudere lascerebbe l'utente convinto di avere una prova che non
+					 * ha. Restando aperto il picker ha ora un id vero, quindi
+					 * "aggiungi ricevuta" funziona: si riprova senza rifare altro.
+					 */
+					setAttachmentError(falliti[0]);
+					setPendingFiles([]);
+					return;
+				}
+				setPendingFiles([]);
 			}
+
+			notifyTransactionSaved();
+			closeTransactionModal();
 		} finally {
 			setIsSaving(false);
 		}
@@ -503,25 +568,31 @@ export default function TransactionForm({
 			{/*
 				Ricevute (Fase 22, issue #36).
 
-				⚠️ Solo in MODIFICA, e non è una limitazione da sanare: un allegato ha
-				bisogno di un `transaction_id`, e in creazione quell'id non esiste
-				ancora. Le alternative sono peggiori — caricare in un percorso
-				temporaneo e spostare (due punti di scrittura, con un orfano se il
-				secondo fallisce), oppure salvare di nascosto per ottenere l'id
-				(scrive un movimento che l'utente non ha ancora confermato).
-				La riga qui sotto DICE cosa fare invece di offrire un comando che
-				fallirebbe: è il caso reale — fotografi lo scontrino e registri la
-				spesa, in quest'ordine — quindi il costo è un tocco in più, una volta.
+				⚠️ Funziona anche in CREAZIONE, e la prima stesura no. La foto scelta
+				prima di salvare resta nel browser e viene caricata subito dopo, dentro
+				lo stesso gesto: il caso reale è fotografare lo scontrino MENTRE si
+				registra la spesa, quindi obbligare a salvare e riaprire metteva un
+				ostacolo proprio sul percorso più frequente.
+
+				Restano scartate le due alternative peggiori: un percorso temporaneo da
+				spostare (due scritture, con un orfano se la seconda fallisce) e un
+				salvataggio di nascosto per ottenere l'id (scrive un movimento che
+				l'utente non ha confermato).
 
 				⚠️ Niente ricevute su un TRASFERIMENTO: non c'è uno scontrino per
 				aver spostato denaro fra due conti propri.
 			*/}
-			{!isTransfer &&
-				(isEditing ? (
-					<AttachmentPicker transactionId={transaction.id} />
-				) : (
-					<p className="mt-5 text-[11.5px] text-disabled">{t.attachments.afterSave}</p>
-				))}
+			{!isTransfer && (
+				<>
+					<AttachmentPicker
+						transactionId={transaction?.id ?? createdId}
+						onPendingChange={setPendingFiles}
+					/>
+					{attachmentError && (
+						<p className="mt-1.5 text-[11.5px] text-aka-ink">{attachmentError}</p>
+					)}
+				</>
+			)}
 
 			{/* Tastierino */}
 			<div className="grid grid-cols-3 gap-2">

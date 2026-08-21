@@ -65,26 +65,52 @@ async function downscale(file: File): Promise<File> {
 	}
 }
 
+/** Una ricevuta scelta ma non ancora caricata: esiste solo nel browser. */
+type Pendente = { key: string; file: File; preview: string };
+
 /**
  * Le ricevute di un movimento: elenco, aggiunta, rimozione.
  *
- * ⚠️ Si monta solo su un movimento ESISTENTE. Un allegato ha bisogno di un
- * `transaction_id`, e in creazione quell'id non c'è ancora: il form mostra al
- * suo posto la riga `t.attachments.afterSave`, che dice cosa fare invece di
- * offrire un comando che fallirebbe.
+ * ⚠️ Funziona in DUE modi, e il secondo esiste perché la prima stesura sbagliava.
+ *
+ * - **movimento esistente** (`transactionId` valorizzato): ogni gesto va subito
+ *   sul server;
+ * - **movimento ancora da creare** (`null`): le foto restano nel BROWSER e il
+ *   form le carica dopo il salvataggio, dentro lo stesso gesto.
+ *
+ * Il secondo modo mancava, e la limitazione era stata difesa così: "un allegato
+ * ha bisogno di un `transaction_id` che in creazione non esiste". Vero, ma la
+ * conclusione — *quindi si allega dopo* — saltava la via d'uscita più semplice:
+ * tenere il file in memoria e caricarlo appena l'id c'è. Il caso reale è
+ * fotografare lo scontrino **mentre** si registra la spesa, quindi obbligare a
+ * salvare e riaprire mette un ostacolo proprio sul percorso più frequente.
+ *
+ * ⚠️ Restano scartate le due alternative peggiori: un percorso temporaneo da
+ * spostare (due scritture, con un orfano se la seconda fallisce) e un
+ * salvataggio di nascosto per ottenere l'id (scrive un movimento che l'utente
+ * non ha confermato).
  */
-export default function AttachmentPicker({ transactionId }: { transactionId: string }) {
+export default function AttachmentPicker({
+	transactionId,
+	onPendingChange,
+}: {
+	transactionId: string | null;
+	/** I file in attesa, per il form che li caricherà dopo il salvataggio. */
+	onPendingChange?: (files: File[]) => void;
+}) {
 	const { t, locale } = useI18n();
 	const [items, setItems] = useState<Attachment[]>([]);
-	const [loading, setLoading] = useState(true);
+	const [pendenti, setPendenti] = useState<Pendente[]>([]);
+	const [loading, setLoading] = useState(!!transactionId);
 	const [pending, setPending] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	/** L'id in attesa di conferma: il primo tocco arma, il secondo rimuove. */
 	const [confirming, setConfirming] = useState<string | null>(null);
-	const [zoomed, setZoomed] = useState<Attachment | null>(null);
+	const [zoomed, setZoomed] = useState<{ url: string } | null>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
 
 	useEffect(() => {
+		if (!transactionId) return;
 		let cancelled = false;
 		getAttachments(transactionId).then((res) => {
 			if (cancelled) return;
@@ -96,12 +122,45 @@ export default function AttachmentPicker({ transactionId }: { transactionId: str
 		};
 	}, [transactionId]);
 
+	/*
+	 * ⚠️ Le anteprime locali sono `blob:` e vanno REVOCATE allo smontaggio: senza,
+	 * ogni foto scelta e poi scartata resta in memoria finché la scheda non viene
+	 * chiusa. Su un modale che si apre e chiude decine di volte al giorno è una
+	 * perdita che cresce in silenzio.
+	 */
+	useEffect(() => {
+		return () => {
+			for (const p of pendenti) URL.revokeObjectURL(p.preview);
+		};
+		// Volutamente al solo smontaggio: le revoche mirate stanno in `scarta()`.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	function aggiornaPendenti(next: Pendente[]) {
+		setPendenti(next);
+		onPendingChange?.(next.map((p) => p.file));
+	}
+
 	async function pick(file: File | null) {
 		if (!file) return;
 		setError(null);
 		setPending(true);
 		try {
 			const shrunk = await downscale(file);
+
+			// Senza id il file resta qui: lo caricherà il form dopo il salvataggio.
+			if (!transactionId) {
+				aggiornaPendenti([
+					...pendenti,
+					{
+						key: crypto.randomUUID(),
+						file: shrunk,
+						preview: URL.createObjectURL(shrunk),
+					},
+				]);
+				return;
+			}
+
 			const form = new FormData();
 			form.set("transactionId", transactionId);
 			form.set("file", shrunk);
@@ -142,15 +201,31 @@ export default function AttachmentPicker({ transactionId }: { transactionId: str
 		}
 	}
 
+	/** Scarta una foto non ancora caricata: nessun server, solo memoria. */
+	function scarta(key: string) {
+		const p = pendenti.find((x) => x.key === key);
+		if (p) URL.revokeObjectURL(p.preview);
+		aggiornaPendenti(pendenti.filter((x) => x.key !== key));
+		setConfirming(null);
+	}
+
+	// Caricate + in attesa: per l'utente sono tutte "ricevute di questo movimento",
+	// e distinguerle nel conteggio significherebbe spiegare una differenza che
+	// riguarda noi (esiste già una riga?) e non lui.
+	const totale = items.length + pendenti.length;
+
 	return (
-		<div className="mt-5">
+		// ⚠️ `mb-5` oltre a `mt-5`: senza, il limite ("JPG, PNG o WebP · massimo
+		// 2 MB") finisce appoggiato al tastierino, e una riga di servizio incollata
+		// ai tasti si legge come parte di essi.
+		<div className="mt-5 mb-5">
 			<div className="flex items-center justify-between mb-2.5">
 				<span className="text-[13px] font-medium text-secondary">
 					{t.attachments.title}
 				</span>
-				{items.length > 0 && (
+				{totale > 0 && (
 					<span className="text-[11.5px] text-disabled">
-						{plural(t.attachments.count, items.length, locale)}
+						{plural(t.attachments.count, totale, locale)}
 					</span>
 				)}
 			</div>
@@ -163,7 +238,10 @@ export default function AttachmentPicker({ transactionId }: { transactionId: str
 						<div key={a.id} className="relative">
 							<button
 								type="button"
-								onClick={() => a.url && setZoomed(a)}
+								// Il visore vuole un url CERTO: `a.url` è nullable (file sparito
+								// dal bucket), e la guardia qui è ciò che rende il tipo onesto
+								// invece di costringere il visore ad accettare `null`.
+								onClick={() => a.url && setZoomed({ url: a.url })}
 								className="w-20 h-20 rounded-xl overflow-hidden bg-input border border-subtle flex items-center justify-center"
 								aria-label={t.attachments.open}
 							>
@@ -212,6 +290,48 @@ export default function AttachmentPicker({ transactionId }: { transactionId: str
 						</div>
 					))}
 
+					{/*
+						Le foto scelte ma non ancora caricate. Si vedono uguali alle altre
+						— stessa miniatura, stesso cestino — perché per chi guarda sono già
+						"la ricevuta di questo movimento": la differenza (esiste una riga
+						nel database?) riguarda noi, non lui.
+					*/}
+					{pendenti.map((p) => (
+						<div key={p.key} className="relative">
+							<button
+								type="button"
+								onClick={() => setZoomed({ url: p.preview })}
+								className="w-20 h-20 rounded-xl overflow-hidden bg-input border border-subtle"
+								aria-label={t.attachments.open}
+							>
+								{/*
+									⚠️ `<img>` e non `next/image`: la sorgente è un `blob:` locale,
+									che l'ottimizzatore non può né scaricare né validare contro
+									`remotePatterns`. Non è una scorciatoia — è l'unico modo di
+									mostrare un file che non ha ancora un URL.
+								*/}
+								{/* eslint-disable-next-line @next/next/no-img-element */}
+								<img src={p.preview} alt="" className="w-full h-full object-cover" />
+							</button>
+							<button
+								type="button"
+								onClick={() =>
+									confirming === p.key ? scarta(p.key) : setConfirming(p.key)
+								}
+								onBlur={() => setConfirming((c) => (c === p.key ? null : c))}
+								className={`absolute -top-1.5 -right-1.5 rounded-full flex items-center justify-center border border-subtle ${
+									confirming === p.key
+										? "px-2 h-6 bg-aka text-[10px] font-semibold"
+										: "w-6 h-6 bg-card"
+								}`}
+								style={confirming === p.key ? { color: "var(--on-accent)" } : undefined}
+								aria-label={t.attachments.remove}
+							>
+								{confirming === p.key ? t.common.confirm : <Trash2 size={12} />}
+							</button>
+						</div>
+					))}
+
 					<button
 						type="button"
 						disabled={pending}
@@ -255,13 +375,19 @@ export default function AttachmentPicker({ transactionId }: { transactionId: str
 					>
 						<X size={16} />
 					</button>
-					<Image
+					{/*
+						⚠️ `<img>` e non `next/image`, al contrario delle miniature caricate.
+						Qui la sorgente può essere DUE cose — un URL firmato oppure un
+						`blob:` locale di una foto non ancora caricata — e
+						l'ottimizzatore un blob non sa né scaricarlo né validarlo contro
+						`remotePatterns`. Un componente che deve reggere entrambe le
+						sorgenti non può usare quello che ne accetta una sola.
+					*/}
+					{/* eslint-disable-next-line @next/next/no-img-element */}
+					<img
 						src={zoomed.url}
 						alt=""
-						width={1200}
-						height={1600}
 						className="max-w-full max-h-full w-auto h-auto object-contain rounded-xl"
-						unoptimized
 					/>
 				</div>
 			)}

@@ -874,12 +874,6 @@ export const it = {
 		uploading: "Caricamento…",
 		/** Mostrato al posto dell'anteprima quando il file non è più nel bucket. */
 		missing: "File non disponibile",
-		/**
-		 * ⚠️ Compare solo in CREAZIONE: la ricevuta si carica dopo che il movimento
-		 * esiste, perché prima non c'è un id a cui appenderla. Dirlo è meglio che
-		 * mostrare un comando che fallirebbe.
-		 */
-		afterSave: "Salva il movimento, poi allega la ricevuta",
 		errors: {
 			tooLarge: "L'immagine supera {max} MB. Scegline una più leggera.",
 			notSaved: "Non è stato possibile allegare la ricevuta a questo movimento.",

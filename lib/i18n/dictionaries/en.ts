@@ -525,7 +525,6 @@ export const en: Dictionary = {
 		open: "Open full screen",
 		uploading: "Uploading…",
 		missing: "File unavailable",
-		afterSave: "Save the transaction, then attach a receipt",
 		errors: {
 			tooLarge: "That image is over {max} MB. Pick a lighter one.",
 			notSaved: "Could not attach the receipt to this transaction.",
