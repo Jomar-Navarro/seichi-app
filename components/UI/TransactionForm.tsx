@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TransactionType, Category, Transaction, Frequency, Account } from "@/types";
 import { createClient } from "@/lib/supabase/client";
 import { Pencil, Delete, Check, Trash2, Repeat } from "lucide-react";
@@ -8,8 +8,9 @@ import { ACCOUNT_ICON_FALLBACK, ACCOUNT_TYPE_ICON, accountColor } from "@/lib/ac
 import FrequencySelector from "@/components/UI/FrequencySelector";
 import { SwitchVisual } from "@/components/UI/Switch";
 import { categoryTypeFor } from "@/lib/transaction-utils";
-import AttachmentPicker from "@/components/features/AttachmentPicker";
-import { uploadAttachment } from "@/app/(main)/attachment-actions";
+import AttachmentPicker, {
+	type AttachmentPickerHandle,
+} from "@/components/features/AttachmentPicker";
 import { buildCategoryOptions } from "@/lib/category-options";
 import {
 	saveTransaction,
@@ -74,10 +75,17 @@ export default function TransactionForm({
 	const [isDeleteConfirm, setIsDeleteConfirm] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
 	/*
-	 * Le ricevute scelte prima che il movimento esista (Fase 22): vivono nel
-	 * browser finché non c'è un id a cui appenderle.
+	 * Le ricevute scelte prima che il movimento esista (Fase 22) vivono nel
+	 * BROWSER finché non c'è un id a cui appenderle — e vivono dentro il picker,
+	 * che è il loro unico proprietario.
+	 *
+	 * ⚠️ Qui c'era una copia derivata (`File[]` aggiornata da `onPendingChange`),
+	 * e due proprietari per la stessa coda hanno prodotto un difetto vero:
+	 * svuotando la copia dopo un caricamento fallito, il picker non lo sapeva e
+	 * continuava a mostrare le miniature di file che nessuno avrebbe più
+	 * caricato. Il form ora non tiene la coda: la CHIEDE.
 	 */
-	const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+	const pickerRef = useRef<AttachmentPickerHandle | null>(null);
 	const [attachmentError, setAttachmentError] = useState<string | null>(null);
 	/**
 	 * L'id del movimento APPENA creato da questo form.
@@ -273,30 +281,36 @@ export default function TransactionForm({
 			 */
 			const nuovoId =
 				result && "id" in result ? (result as { id: string }).id : null;
+			const targetId = transaction?.id ?? nuovoId ?? createdId;
+
+			/*
+			 * ⚠️ L'ordine conta, ed è tarato su due corse:
+			 *
+			 *  1. il caricamento PRIMA di `setCreatedId`. Impostare l'id fa passare
+			 *     `transactionId` del picker da `null` a un valore, il che scatena la
+			 *     sua rilettura degli allegati: partendo prima, quella rilettura
+			 *     tornerebbe una lista vuota e potrebbe sovrascrivere le ricevute
+			 *     appena caricate. Finito il caricamento, invece, rilegge la verità.
+			 *  2. `setCreatedId` PRIMA dell'uscita anticipata, altrimenti una
+			 *     ricevuta fallita lascerebbe il form convinto di dover ancora creare
+			 *     il movimento — e ogni riprova ne scriverebbe uno nuovo.
+			 */
+			const attachmentFailure = targetId
+				? await pickerRef.current?.uploadPending(targetId)
+				: null;
+
 			if (nuovoId) setCreatedId(nuovoId);
 
-			const targetId = transaction?.id ?? nuovoId ?? createdId;
-			if (targetId && pendingFiles.length > 0) {
-				const falliti: string[] = [];
-				for (const file of pendingFiles) {
-					const form = new FormData();
-					form.set("transactionId", targetId);
-					form.set("file", file);
-					const res = await uploadAttachment(form);
-					if ("error" in res) falliti.push(res.error);
-				}
-				if (falliti.length > 0) {
-					/*
-					 * ⚠️ NON si chiude. Il movimento è salvato ma la ricevuta no, e
-					 * chiudere lascerebbe l'utente convinto di avere una prova che non
-					 * ha. Restando aperto il picker ha ora un id vero, quindi
-					 * "aggiungi ricevuta" funziona: si riprova senza rifare altro.
-					 */
-					setAttachmentError(falliti[0]);
-					setPendingFiles([]);
-					return;
-				}
-				setPendingFiles([]);
+			if (attachmentFailure) {
+				/*
+				 * ⚠️ NON si chiude. Il movimento è salvato ma la ricevuta no, e
+				 * chiudere lascerebbe l'utente convinto di avere una prova che non ha.
+				 * Le ricevute non passate sono ancora in coda dentro il picker, che nel
+				 * frattempo ha un id vero: il secondo "Salva" le riprende da lì, senza
+				 * ricaricare quelle già andate a buon fine.
+				 */
+				setAttachmentError(attachmentFailure);
+				return;
 			}
 
 			notifyTransactionSaved();
@@ -586,7 +600,7 @@ export default function TransactionForm({
 				<>
 					<AttachmentPicker
 						transactionId={transaction?.id ?? createdId}
-						onPendingChange={setPendingFiles}
+						ref={pickerRef}
 					/>
 					{attachmentError && (
 						<p className="mt-1.5 text-[11.5px] text-aka-ink">{attachmentError}</p>

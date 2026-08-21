@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useRef, useState } from "react";
+import type { RefObject } from "react";
 import Image from "next/image";
 import { Paperclip, Trash2, X } from "lucide-react";
 import {
@@ -69,6 +70,28 @@ async function downscale(file: File): Promise<File> {
 type Pendente = { key: string; file: File; preview: string };
 
 /**
+ * Ciò che il form può chiedere al picker.
+ *
+ * ⚠️ Esiste per dare alla coda delle ricevute in attesa **un solo proprietario**,
+ * ed è la correzione di un difetto vero.
+ *
+ * Prima il picker teneva `pendenti` e il form ne teneva una copia derivata
+ * (`File[]`, aggiornata da `onPendingChange`). Il flusso era a senso unico, così
+ * quando il form svuotava la propria copia dopo un caricamento fallito il picker
+ * non lo sapeva: le miniature restavano a schermo, un secondo "Salva" non
+ * ricaricava niente e **la ricevuta spariva mentre lo schermo diceva che c'era**.
+ * Un gesto che sembra compiuto e non lo è, cioè il modo peggiore di fallire —
+ * lo stesso già corretto una volta in questa fase.
+ *
+ * Ora la coda sta in un posto solo e il form la CHIEDE: `uploadPending()`
+ * restituisce il primo errore (o `null`), lasciando in coda le sole ricevute
+ * che non sono passate. Lo stato incoerente non è mitigato, è irrappresentabile.
+ */
+export type AttachmentPickerHandle = {
+	uploadPending: (transactionId: string) => Promise<string | null>;
+};
+
+/**
  * Una chiave locale per l'elenco delle foto in attesa.
  *
  * ⚠️ **NON `crypto.randomUUID()` da solo**, ed è un difetto vero costato una
@@ -111,11 +134,11 @@ function chiaveLocale(): string {
  */
 export default function AttachmentPicker({
 	transactionId,
-	onPendingChange,
+	ref,
 }: {
 	transactionId: string | null;
-	/** I file in attesa, per il form che li caricherà dopo il salvataggio. */
-	onPendingChange?: (files: File[]) => void;
+	/** Il form lo usa per caricare la coda appena l'id esiste. */
+	ref?: RefObject<AttachmentPickerHandle | null>;
 }) {
 	const { t, locale } = useI18n();
 	const [items, setItems] = useState<Attachment[]>([]);
@@ -127,6 +150,15 @@ export default function AttachmentPicker({
 	const [confirming, setConfirming] = useState<string | null>(null);
 	const [zoomed, setZoomed] = useState<{ url: string } | null>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
+	/**
+	 * La coda di adesso, leggibile fuori da un render.
+	 *
+	 * ⚠️ Serve a DUE cose che lo stato non può fare, e la prima era un difetto:
+	 * la pulizia allo smontaggio (vedi sotto) e lo scatto della coda dentro
+	 * `uploadPending`, che gira in un `await` durante il quale `pendenti` è il
+	 * valore catturato dal render, non quello corrente.
+	 */
+	const pendentiRef = useRef<Pendente[]>([]);
 
 	useEffect(() => {
 		if (!transactionId) return;
@@ -134,6 +166,11 @@ export default function AttachmentPicker({
 		getAttachments(transactionId).then((res) => {
 			if (cancelled) return;
 			if ("data" in res) setItems(res.data);
+			// ⚠️ L'errore si DICE. Ingoiandolo restava un elenco vuoto, che si legge
+			// come "questo movimento non ha ricevute" — una lettura fallita che si
+			// traveste da fatto. È la stessa classe della graffetta mancante nella
+			// lista, e la differenza fra le due è che qui un rimedio c'è: ricaricare.
+			else setError(res.error);
 			setLoading(false);
 		});
 		return () => {
@@ -144,21 +181,75 @@ export default function AttachmentPicker({
 	/*
 	 * ⚠️ Le anteprime locali sono `blob:` e vanno REVOCATE allo smontaggio: senza,
 	 * ogni foto scelta e poi scartata resta in memoria finché la scheda non viene
-	 * chiusa. Su un modale che si apre e chiude decine di volte al giorno è una
-	 * perdita che cresce in silenzio.
+	 * chiusa. Non è teorico: tornare indietro alla griglia dei tipi SMONTA il
+	 * form, quindi capita a ogni ripensamento.
+	 *
+	 * ⚠️⚠️ E per un giro questa difesa NON è esistita, pur essendo scritta: il
+	 * ciclo leggeva `pendenti` dalle dipendenze `[]`, cioè la closure catturata
+	 * al MONTAGGIO, quando l'array è vuoto. Revocava zero blob a ogni chiusura.
+	 * L'`eslint-disable` qui sotto è precisamente ciò che ha impedito al lint di
+	 * dirlo — un commento che descriveva una protezione assente.
+	 *
+	 * Si legge dal ref, che non è una closure e quindi non invecchia.
 	 */
 	useEffect(() => {
+		const coda = pendentiRef;
 		return () => {
-			for (const p of pendenti) URL.revokeObjectURL(p.preview);
+			for (const p of coda.current) URL.revokeObjectURL(p.preview);
 		};
-		// Volutamente al solo smontaggio: le revoche mirate stanno in `scarta()`.
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
+	/** L'unico punto che scrive la coda: stato e ref restano allineati per forza. */
 	function aggiornaPendenti(next: Pendente[]) {
+		pendentiRef.current = next;
 		setPendenti(next);
-		onPendingChange?.(next.map((p) => p.file));
 	}
+
+	/*
+	 * Carica la coda sul movimento appena creato — vedi `AttachmentPickerHandle`.
+	 *
+	 * ⚠️ Le riuscite escono dalla coda ed entrano fra le caricate, le fallite
+	 * RESTANO in coda: è ciò che rende il secondo "Salva" una ripresa e non un
+	 * duplicato. Con un `pendenti = []` indiscriminato, un caricamento riuscito
+	 * su due avrebbe rimesso in fila anche quello già passato.
+	 */
+	useImperativeHandle(
+		ref,
+		() => ({
+			async uploadPending(id: string) {
+				const coda = pendentiRef.current;
+				if (coda.length === 0) return null;
+
+				let primoErrore: string | null = null;
+				const riusciti: Attachment[] = [];
+				const rimasti: Pendente[] = [];
+
+				for (const p of coda) {
+					const form = new FormData();
+					form.set("transactionId", id);
+					form.set("file", p.file);
+					const res = await uploadAttachment(form);
+					if ("error" in res) {
+						primoErrore ??= res.error;
+						rimasti.push(p);
+					} else {
+						riusciti.push(res.data);
+						// Il blob non serve più: da adesso l'anteprima è quella firmata.
+						URL.revokeObjectURL(p.preview);
+					}
+				}
+
+				if (riusciti.length > 0) setItems((prev) => [...prev, ...riusciti]);
+				aggiornaPendenti(rimasti);
+				return primoErrore;
+			},
+		}),
+		// ⚠️ Niente elenco di dipendenze, e non è una dimenticanza: l'handle si
+		// riscrive a ogni render — costa un'assegnazione — invece di dover
+		// dichiarare che cosa legge. Con `[]` la scelta andrebbe difesa a mano a
+		// ogni modifica del corpo, ed è così che nasce l'`eslint-disable` che
+		// poche righe più su ha nascosto per un giro un difetto vero.
+	);
 
 	async function pick(file: File | null) {
 		if (!file) return;

@@ -73,6 +73,26 @@ export async function getAttachments(
 	};
 }
 
+/**
+ * Quanti id stanno in una sola `.in(...)`.
+ *
+ * ⚠️⚠️ Il limite NON è di PostgREST ma dell'**URL**: `.in()` finisce nella query
+ * string di una GET, e un uuid con la virgola costa 37 caratteri. Il proxy
+ * davanti al database rifiuta una riga di richiesta oltre gli ~8 KB, cioè
+ * intorno ai **215 id** — e un solo estratto Trade Republic ne produce 216
+ * (Fase 21). Non è una soglia teorica: è già superabile con i dati di oggi.
+ *
+ * Il guasto sarebbe stato invisibile e falso insieme: la query fallisce, la
+ * funzione degrada a `{}` per scelta, e la lista dichiara "nessuna ricevuta" su
+ * movimenti che ce l'hanno. Un'affermazione sbagliata che sembra giusta — la
+ * regola della 17a applicata a un'icona invece che a un numero.
+ *
+ * 100 e non 215: il tetto nostro sta sotto quello esterno di proposito, come
+ * `SEARCH_SCAN_LIMIT` sta sotto il tetto di PostgREST. Un margine che coincide
+ * col limite non è un margine.
+ */
+const IN_CHUNK = 100;
+
 /** Il conteggio per una lista di movimenti — per il segnaposto nella lista. */
 export async function getAttachmentCounts(
 	transactionIds: string[],
@@ -81,24 +101,69 @@ export async function getAttachmentCounts(
 	const { supabase, user } = await requireUser();
 	if (!user) return {};
 
-	const { data, error } = await supabase
-		.from("attachments")
-		.select("transaction_id")
-		.eq("user_id", user.id)
-		.in("transaction_id", transactionIds);
-
-	if (error) {
-		// ⚠️ Degrada, non blocca: il segnaposto è un di più, e la lista movimenti
-		// deve restare leggibile anche se questa query fallisce.
-		console.error("[attachments] getAttachmentCounts:", error.message);
-		return {};
-	}
-
 	const counts: Record<string, number> = {};
-	for (const row of data ?? []) {
-		counts[row.transaction_id] = (counts[row.transaction_id] ?? 0) + 1;
+
+	for (let i = 0; i < transactionIds.length; i += IN_CHUNK) {
+		const { data, error } = await supabase
+			.from("attachments")
+			.select("transaction_id")
+			.eq("user_id", user.id)
+			.in("transaction_id", transactionIds.slice(i, i + IN_CHUNK));
+
+		if (error) {
+			// ⚠️ Degrada, non blocca: il segnaposto è un di più, e la lista movimenti
+			// deve restare leggibile anche se questa query fallisce. Si restituisce
+			// ciò che si è riusciti a contare: una graffetta in meno è meglio di una
+			// lista che non si apre.
+			console.error("[attachments] getAttachmentCounts:", error.message);
+			return counts;
+		}
+
+		for (const row of data ?? []) {
+			counts[row.transaction_id] = (counts[row.transaction_id] ?? 0) + 1;
+		}
 	}
+
 	return counts;
+}
+
+/**
+ * I path dei file allegati a una lista di movimenti.
+ *
+ * ⚠️ Esiste per `undoImport()`, che deve raccoglierli **prima** della cascade:
+ * dopo il delete, quali file fossero non è più scritto da nessuna parte. Sta
+ * qui e non là perché è lo stesso spezzettamento di `getAttachmentCounts()`, e
+ * due copie della stessa cautela sono due occasioni di correggerne una sola.
+ *
+ * ⚠️ `incomplete` NON è un errore da mostrare: dice che l'elenco potrebbe essere
+ * parziale, e serve al chiamante per scriverlo nei log con abbastanza contesto
+ * da poter ritrovare i file a mano. Restituire `[]` e basta avrebbe reso
+ * indistinguibile "nessun allegato" da "non sono riuscito a guardare".
+ */
+export async function getAttachmentPaths(
+	transactionIds: string[],
+): Promise<{ paths: string[]; incomplete: boolean }> {
+	if (transactionIds.length === 0) return { paths: [], incomplete: false };
+	const { supabase, user } = await requireUser();
+	if (!user) return { paths: [], incomplete: true };
+
+	const paths: string[] = [];
+
+	for (let i = 0; i < transactionIds.length; i += IN_CHUNK) {
+		const { data, error } = await supabase
+			.from("attachments")
+			.select("storage_path")
+			.eq("user_id", user.id)
+			.in("transaction_id", transactionIds.slice(i, i + IN_CHUNK));
+
+		if (error) {
+			console.error("[attachments] getAttachmentPaths:", error.message);
+			return { paths, incomplete: true };
+		}
+		for (const row of data ?? []) paths.push(row.storage_path);
+	}
+
+	return { paths, incomplete: false };
 }
 
 export async function uploadAttachment(

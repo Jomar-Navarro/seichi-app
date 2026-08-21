@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { RECEIPT_BUCKET } from "@/lib/attachments";
+import { getAttachmentPaths } from "@/app/(main)/attachment-actions";
 import { requireUser } from "@/lib/auth";
 import { analyze, IMPORT_MAX_BYTES } from "@/lib/import";
 import type {
@@ -404,22 +405,36 @@ export async function undoImport(importId: string): Promise<{ ok: true } | { err
 	 * della RPC: una cascade tiene in ordine le righe e non sa niente dello
 	 * Storage, che in SQL non è nemmeno raggiungibile.
 	 */
-	const { data: txns } = await supabase
+	const { data: txns, error: txnsError } = await supabase
 		.from("transactions")
 		.select("id")
 		.eq("user_id", user.id)
 		.eq("import_id", importId);
 
 	const ids = (txns ?? []).map((r) => r.id);
-	let paths: string[] = [];
 
-	if (ids.length > 0) {
-		const { data: files } = await supabase
-			.from("attachments")
-			.select("storage_path")
-			.eq("user_id", user.id)
-			.in("transaction_id", ids);
-		paths = (files ?? []).map((f) => f.storage_path);
+	/*
+	 * ⚠️ Gli errori di lettura NON si scartano, nemmeno qui dove non fermano
+	 * niente. Un import può contenere centinaia di righe: senza controllarli,
+	 * una select fallita darebbe zero path e ogni ricevuta resterebbe nel bucket
+	 * **senza una riga di log** — irraggiungibile e non più cancellabile da
+	 * nessuno. Non potendo rimediare, si lascia almeno una traccia con l'id del
+	 * lotto, che è ciò che permette di ritrovare i file a mano.
+	 *
+	 * ⚠️ `getAttachmentPaths` spezza la richiesta in blocchi: `.in()` viaggia
+	 * nella query string, e 216 uuid — un solo estratto Trade Republic — fanno
+	 * una URL che il proxy rifiuta. Vedi `IN_CHUNK` in attachment-actions.ts.
+	 */
+	const { paths, incomplete } = ids.length > 0
+		? await getAttachmentPaths(ids)
+		: { paths: [] as string[], incomplete: false };
+
+	if (txnsError || incomplete) {
+		console.error(
+			"[import] elenco ricevute incompleto prima di undoImport:",
+			importId,
+			txnsError?.message ?? "lettura allegati parziale",
+		);
 	}
 
 	const { error } = await supabase

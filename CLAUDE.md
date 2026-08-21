@@ -24,6 +24,8 @@ app/
 ├── (onboarding)/         # start, preference, category + actions.ts
 ├── (main)/               # app autenticata:
 │   ├── page.tsx          #   home dashboard + action.ts (server actions transazioni/totali)
+│   │                     #   + budget-actions.ts, attachment-actions.ts (Fase 22:
+│   │                     #   firma gli URL, e spezza le `.in()` — vedi IN_CHUNK)
 │   ├── transazioni/      #   lista + filtri
 │   ├── risparmi/         #   obiettivi + actions.ts (getGoals, getInvestments, CRUD goal)
 │   ├── investimenti/     #   breakdown portafoglio
@@ -54,7 +56,9 @@ components/
 │   │                     # SpendingPieChart, MonthlyLineChart, ProfileEditor,
 │   │                     # EmailChangeForm, PasswordChangeForm, DeleteAccountFlow,
 │   │                     # ForgotPasswordForm, ResetPasswordForm, NotificationBell,
-│                     # ImportFlow (+ AccountPicker, ImportHistory),
+│   │                     # ImportFlow (+ AccountPicker, ImportHistory),
+│   │                     # AttachmentPicker — ricevute; PROPRIETARIO UNICO della
+│   │                     #   coda in attesa, il form gliela chiede (Fase 22),
 │   │                     # ThemeProvider (+ useTheme), ThemeToggle, ThemeSection,
 │   │                     # I18nProvider (+ useI18n)
 ├── LoginForm.tsx, SignUpForm.tsx, PasswordField.tsx
@@ -71,6 +75,10 @@ lib/
 │   │                     # format.ts (Intl: numeri, denaro, date, plurali),
 │   │                     # server.ts (getI18n/getDictionary — importa next/headers),
 │   │                     # dictionaries/it.ts (fonte di verità) + en.ts (Fase 19)
+├── attachments.ts        # Fase 22 — bucket, limiti, MIME, TTL della firma,
+│                         #   ATTACHMENT_MAX_EDGE. ⚠️ client-safe TRANNE
+│                         #   receiptPath(): crypto.randomUUID() vuole un
+│                         #   contesto sicuro, che in LAN su HTTP non c'è
 ├── accounts.ts           # icone/colori dei conti (DECORATIVI) + isAccountId()
 │                         #   + rememberAccount() — il cookie del conto scelto (20b)
 ├── accounts-server.ts    # getSelectedAccount() — importa next/headers:
@@ -2355,11 +2363,26 @@ per oscurità: accettabile per una foto profilo, non per un documento
 finanziario. Bucket privato, **URL firmati** con TTL di 10 minuti generati a ogni
 apertura.
 
-⚠️ Conseguenza che né `tsc` né il build vedono: le firme stanno su
-`/object/sign/`, non su `/object/public/`, e `next.config.ts` autorizzava a
-`next/image` solo `/object/public/avatars/**`. Senza il `remotePattern` nuovo
-**ogni anteprima resterebbe vuota** — si vede solo aprendo un movimento con un
-allegato.
+⚠️ Le firme stanno su `/object/sign/`, non su `/object/public/`, mentre
+`next.config.ts` autorizza a `next/image` solo `/object/public/avatars/**`.
+Sembra che serva un `remotePattern` nuovo. **Non serve, e per un giro questo
+documento ha affermato il contrario**: le miniature passano `unoptimized`, e in
+quel caso `remotePatterns` non viene mai consultato — `generateImgAttrs` esce
+prima di chiamare il loader (`shared/lib/get-img-props.js`) e il controllo
+sull'host vive **dentro** il loader (`shared/lib/image-loader.js`).
+
+La riga era quindi configurazione morta che *sembrava* una difesa, ed è stata
+tolta dal code-review pre-merge — con la spiegazione al suo posto, o la prossima
+persona la rimette. ⚠️ `unoptimized` a sua volta è deliberato: l'URL di una
+ricevuta è una **firma a scadenza**, quindi cambia a ogni apertura; ottimizzare
+significherebbe una sorgente nuova ogni volta, cache che non colpisce mai e una
+trasformazione fatturata per ogni sguardo, su un'immagine che l'app ha già
+ridotto a 1600px prima di caricarla.
+
+**La lezione, che è quella di sempre in un'altra veste: una difesa va provata
+DISATTIVANDOLA.** Qui non lo si è fatto — il pattern è stato aggiunto e le
+anteprime funzionavano, il che è compatibile sia con "serviva" sia con "non è
+mai stato letto". Un controllo verde non distingue le due cose.
 
 #### Una TABELLA e non una colonna
 
@@ -2524,11 +2547,11 @@ allora è una cosa da ricordarsi a mano.
 
 #### Due sorgenti immagine, due componenti diversi
 
-Le miniature già caricate usano `next/image` (URL firmato, validato contro
-`remotePatterns`); le anteprime locali e il visore a schermo intero usano
-`<img>`. Non è incoerenza: un `blob:` l'ottimizzatore non sa né scaricarlo né
-validarlo, e il visore deve reggere **entrambe** le sorgenti — quindi non può
-usare quello che ne accetta una sola.
+Le miniature già caricate usano `next/image` con `unoptimized` (URL firmato); le
+anteprime locali e il visore a schermo intero usano `<img>`. Non è incoerenza:
+un `blob:` l'ottimizzatore non sa né scaricarlo né validarlo, e il visore deve
+reggere **entrambe** le sorgenti — quindi non può usare quello che ne accetta
+una sola.
 
 #### ⚠️ Una guardia si era SCADUTA
 
@@ -2565,9 +2588,9 @@ ripresa**, non archiviata come superata perché tutto il resto è verde.
 Foto **da 4,80 MB generata in un canvas 3000×2000**, caricata dall'app vera:
 l'anteprima risultante ha `naturalWidth = 1600`, cioè esattamente
 `ATTACHMENT_MAX_EDGE`. Un file già piccolo non avrebbe dimostrato niente, perché
-il ridimensionamento non sarebbe partito. Più: URL firmato che si carica davvero
-(la prova del `remotePattern`), graffetta nella lista, primo tocco che arma senza
-cancellare, secondo che rimuove. Zero errori console.
+il ridimensionamento non sarebbe partito. Più: URL firmato che si carica davvero,
+graffetta nella lista, primo tocco che arma senza cancellare, secondo che
+rimuove. Zero errori console.
 
 ⚠️ E la prova che il codice non può fare da sé: **una ricevuta vera**, aperta a
 schermo intero. Fatta a mano il 2026-08-21 su una distinta di bonifico —
@@ -2581,6 +2604,89 @@ La decisione — presa in astratto all'inizio della fase, contro il precedente
 degli avatar — si legge molto diversamente guardando cosa ci finisce dentro
 davvero: un URL non indovinabile su un documento del genere sarebbe stato
 sicurezza per oscurità su dati bancari.
+
+#### Emerso dal code-review PRIMA del merge (2026-08-21)
+
+Quattro rilievi, tutti applicati, tutti su codice che `tsc`, lint, build e
+`audit:tokens` davano per buono. Nessuno tocca lo schema: la migration era
+corretta, a sbagliare era il codice attorno.
+
+- ⚠️⚠️ **La coda delle ricevute aveva DUE proprietari, e il ramo d'errore la
+  perdeva in silenzio.** Il picker teneva `pendenti`, il form una copia derivata
+  (`File[]` via `onPendingChange`), e il flusso era a senso unico: quando il form
+  svuotava la propria copia dopo un caricamento fallito, **il picker non lo
+  sapeva**. Le miniature restavano a schermo, un secondo "Salva" non ricaricava
+  niente e chiudeva — la ricevuta spariva *mentre lo schermo diceva che c'era*.
+  Con due foto di cui una riuscita se ne vedevano tre, perché nel frattempo la
+  rilettura aggiungeva la caricata accanto alle due in attesa.
+
+  ⚠️ **È lo stesso difetto di forma corretto poche ore prima** — un gesto che
+  sembra compiuto e non lo è — riapparso di un ramo più in là. La chiusura non è
+  un `else` in più: la coda ha ora **un proprietario solo** e il form la *chiede*
+  (`AttachmentPickerHandle.uploadPending()`), che lascia in coda le sole ricevute
+  non passate. Lo stato incoerente non è mitigato, è irrappresentabile.
+- ⚠️ **Un commento descriveva una difesa che non esisteva.** La revoca dei
+  `blob:` allo smontaggio leggeva `pendenti` con dipendenze `[]`, cioè la closure
+  del **montaggio**, quando l'array è vuoto: revocava zero URL a ogni chiusura, e
+  tornare indietro alla griglia dei tipi smonta il form, quindi capitava a ogni
+  ripensamento. A nasconderlo era l'`eslint-disable` scritto due righe sopra.
+  Ora si legge da un ref, che non è una closure e non invecchia.
+
+  **La regola: un `eslint-disable` su `exhaustive-deps` va giustificato dicendo
+  quale valore si sta congelando**, perché è esattamente la cosa che il commento
+  accanto darà per scontata.
+- ⚠️⚠️ **`.in()` viaggia nella query string, e 216 uuid sono una URL rifiutata.**
+  Il conteggio delle graffette chiedeva gli id di tutte le righe arrivate — fino
+  a `SEARCH_SCAN_LIMIT = 500` quando si cerca — cioè ~19 KB di URL contro gli ~8
+  KB che il proxy accetta: **oltre le ~215 righe la lista avrebbe dichiarato
+  "nessuna ricevuta" su movimenti che ce l'hanno**, perché la funzione degrada a
+  `{}` di proposito. Un solo estratto Trade Republic ne produce 216: la soglia è
+  già raggiungibile con i dati di oggi, non è teorica.
+  Chiuso spezzando in blocchi da 100 (`IN_CHUNK`), **sotto** il limite esterno e
+  non a ridosso — stessa ragione per cui `SEARCH_SCAN_LIMIT` sta sotto il tetto
+  di PostgREST. Stesso difetto in `undoImport()`, che in più **scartava l'errore
+  della select**: non potendo rimediare, ora almeno lascia nei log l'id del lotto.
+- ⚠️ **Una difesa va provata DISATTIVANDOLA**, o "funziona" e "non è mai stata
+  letta" sono indistinguibili. Vedi il `remotePattern` delle ricevute qui sopra:
+  aggiunto, anteprime funzionanti, conclusione sbagliata.
+
+Più: `getAttachments` fallita mostrava un elenco vuoto, che si legge come
+"nessuna ricevuta" — una lettura fallita travestita da fatto, la stessa famiglia
+della graffetta mancante.
+
+##### Il ramo d'errore, collaudato per davvero (2026-08-21)
+
+Il guasto si inietta abbassando `ATTACHMENT_MAX_BYTES` a 60 KB: così il rifiuto
+arriva dal controllo **vero** in `uploadAttachment()` e non da un ramo scritto
+per il test. Prove superate: l'errore viene detto, il modale resta aperto, la
+miniatura resta ("1 ricevuta" nel contatore), **un solo movimento creato**.
+
+⚠️⚠️ **Ma la prova che la riprova RICARICHI non si può fare leggendo lo schermo,
+e la prima versione infatti non dimostrava nulla.** `attachmentError` non viene
+azzerato prima del secondo tentativo, quindi il messaggio è ancora lì comunque:
+vederlo è compatibile sia con "ha ritentato e fallito di nuovo" sia con "non ha
+fatto niente" — cioè proprio il difetto che si sta cercando. Un controllo che
+passa in entrambi i mondi non è un controllo.
+
+Si dimostra **contando le chiamate**: una server action è una POST, e la riprova
+ne fa **due** (update + upload) dove la versione difettosa ne avrebbe fatta
+**una**. Misurato: 2.
+
+**La regola: quando lo stato dell'interfaccia SOPRAVVIVE al gesto, l'interfaccia
+non può testimoniare sul gesto.** Va misurato un effetto che nasce solo se il
+gesto è avvenuto — qui il traffico, altrove una riga in più nel database.
+
+⚠️ E il driver ha sbagliato **due volte prima di funzionare**, entrambe nella
+prova e non nella pagina: cercava una card `/^Spesa$/` (l'etichetta è
+**"Uscita"** — `spesa` è l'id nel database, e il bottone contiene anche la
+descrizione, quindi l'ancoraggio `$` non aggancia), e componeva il selettore del
+tastierino con `"\\" + "0"`, che in una regex è **`\0`, il carattere nullo**.
+Quinta e sesta volta in questo progetto che a sbagliare è la verifica.
+
+I due movimenti di prova (€ 0,01 e € 0,02) sono stati **cancellati dall'app**,
+con il conteggio prima e dopo: 1+1 → 0+0. Il database è di produzione, quindi il
+collaudo non finisce quando il referto è verde ma quando i dati sono come li ha
+trovati.
 
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 
