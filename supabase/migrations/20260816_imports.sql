@@ -52,6 +52,38 @@ end $$;
 
 
 -- ----------------------------------------------------------------------------
+-- ⚠️ GUARDIA — e questo file non va più rieseguito
+-- ----------------------------------------------------------------------------
+-- La sezione 4 ridefinisce `delete_current_user()` nella versione che NON
+-- conosce `attachments` (Fase 22, `20260818`). Rieseguirla non darebbe alcun
+-- errore: farebbe il danno **in silenzio**, lasciando nel database le righe
+-- degli allegati — con i nomi dei file e le date — di un utente che ha chiesto
+-- di sparire.
+--
+-- ⚠️ La nota alla fine di questo file diceva che nessuna guardia nuova serviva,
+-- perché quella della `20260814` copriva anche il ripristino di una
+-- `delete_current_user()` incompleta. Era vero **finché quel file era l'ultimo
+-- a definirla**: ora la catena si è allungata, e la guardia della 20260814 non
+-- può riconoscere un successore che non esisteva quando è stata scritta.
+--
+-- Riconosce il successore da un fatto del catalogo — l'esistenza della tabella
+-- `attachments` — e non da una convenzione sui nomi dei file. Stessa forma delle
+-- guardie in testa alla 20260727, 20260728, 20260809 e 20260814, e stessa regola
+-- che le genera: **il file più recente dev'essere autosufficiente.**
+
+do $$
+begin
+	if exists (
+		select 1 from information_schema.tables
+		where table_schema = 'public' and table_name = 'attachments'
+	) then
+		raise exception
+			'STOP: la 20260818 è già stata eseguita. Questo file ridefinisce delete_current_user() SENZA attachments, quindi l''eliminazione account lascerebbe le righe degli allegati — senza alcun errore. Su un database allineato non ha nulla da fare.';
+	end if;
+end $$;
+
+
+-- ----------------------------------------------------------------------------
 -- 1. imports — il lotto
 -- ----------------------------------------------------------------------------
 -- Perché una tabella e non solo una colonna su `transactions`.
@@ -413,6 +445,16 @@ revoke all     on function public.delete_current_user(boolean) from public, anon
 grant  execute on function public.delete_current_user(boolean) to authenticated;
 
 
+-- ⚠️ AGGIORNAMENTO (Fase 22): questo file ha ora una guardia PROPRIA, in testa.
+-- La nota qui sotto resta perché il ragionamento è corretto e vale ancora per la
+-- `20260814` — ma la sua conclusione ("nessuna guardia nuova") è scaduta nel
+-- momento in cui la `20260818` ha ridefinito di nuovo `delete_current_user()`.
+--
+-- **La lezione: una guardia protegge dai successori che ESISTEVANO quando è
+-- stata scritta.** Ogni file che ridefinisce una funzione già ridefinita
+-- allunga la catena, e va guardato daccapo invece di fidarsi della copertura
+-- ereditata.
+--
 -- ⚠️ Nessuna guardia NUOVA da aggiungere alla `20260814`, che è il file dove
 -- vive la versione precedente di questa funzione — e vale la pena scrivere
 -- perché, o alla prossima rilettura sembrerà una dimenticanza.

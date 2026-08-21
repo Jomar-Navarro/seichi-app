@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { RECEIPT_BUCKET } from "@/lib/attachments";
+import { getAttachmentPaths } from "@/app/(main)/attachment-actions";
 import { requireUser } from "@/lib/auth";
 import { analyze, IMPORT_MAX_BYTES } from "@/lib/import";
 import type {
@@ -389,6 +391,52 @@ export async function undoImport(importId: string): Promise<{ ok: true } | { err
 	const { supabase, user, t } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
+	/*
+	 * ⚠️ I FILE degli allegati vanno raccolti PRIMA, e questo è il punto in cui
+	 * la Fase 22 tocca l'import.
+	 *
+	 * Cancellare la riga di `imports` fa cascata su `transactions` e da lì su
+	 * `attachments`: il database resta pulito e i file restano nel bucket,
+	 * irraggiungibili — nessuna schermata li mostra più, nessuna cancellazione li
+	 * trova. Dopo il delete l'informazione su QUALI file fossero non esiste più
+	 * da nessuna parte, quindi va presa adesso.
+	 *
+	 * ⚠️ È lo stesso motivo per cui `deleteAccount()` rimuove l'avatar prima
+	 * della RPC: una cascade tiene in ordine le righe e non sa niente dello
+	 * Storage, che in SQL non è nemmeno raggiungibile.
+	 */
+	const { data: txns, error: txnsError } = await supabase
+		.from("transactions")
+		.select("id")
+		.eq("user_id", user.id)
+		.eq("import_id", importId);
+
+	const ids = (txns ?? []).map((r) => r.id);
+
+	/*
+	 * ⚠️ Gli errori di lettura NON si scartano, nemmeno qui dove non fermano
+	 * niente. Un import può contenere centinaia di righe: senza controllarli,
+	 * una select fallita darebbe zero path e ogni ricevuta resterebbe nel bucket
+	 * **senza una riga di log** — irraggiungibile e non più cancellabile da
+	 * nessuno. Non potendo rimediare, si lascia almeno una traccia con l'id del
+	 * lotto, che è ciò che permette di ritrovare i file a mano.
+	 *
+	 * ⚠️ `getAttachmentPaths` spezza la richiesta in blocchi: `.in()` viaggia
+	 * nella query string, e 216 uuid — un solo estratto Trade Republic — fanno
+	 * una URL che il proxy rifiuta. Vedi `IN_CHUNK` in attachment-actions.ts.
+	 */
+	const { paths, incomplete } = ids.length > 0
+		? await getAttachmentPaths(ids)
+		: { paths: [] as string[], incomplete: false };
+
+	if (txnsError || incomplete) {
+		console.error(
+			"[import] elenco ricevute incompleto prima di undoImport:",
+			importId,
+			txnsError?.message ?? "lettura allegati parziale",
+		);
+	}
+
 	const { error } = await supabase
 		.from("imports")
 		.delete()
@@ -398,6 +446,28 @@ export async function undoImport(importId: string): Promise<{ ok: true } | { err
 	if (error) {
 		console.error("[import] undoImport:", error.message);
 		return { error: t.common.genericError };
+	}
+
+	/*
+	 * ⚠️ I file si rimuovono DOPO, e un fallimento qui NON annulla l'operazione.
+	 *
+	 * L'import è già disfatto: le righe non ci sono più e non tornano. Rispondere
+	 * "errore" farebbe credere che l'annullamento non sia avvenuto, e il secondo
+	 * tentativo non troverebbe nulla da annullare — un messaggio falso su un
+	 * gesto riuscito. Restano al più dei file orfani, che è un costo di spazio,
+	 * non una bugia: finisce nei log, dove si può cercare.
+	 *
+	 * È il rovescio della scelta fatta in `deleteAccount()`, dove il fallimento
+	 * della rimozione FERMA tutto — là i file sono dati personali di chi ha
+	 * chiesto di sparire, e abbandonarli è peggio che non cancellare l'account.
+	 */
+	if (paths.length > 0) {
+		const { error: removeError } = await supabase.storage
+			.from(RECEIPT_BUCKET)
+			.remove(paths);
+		if (removeError) {
+			console.error("[import] ricevute orfane dopo undoImport:", removeError.message, paths);
+		}
 	}
 
 	revalidatePath("/", "layout");

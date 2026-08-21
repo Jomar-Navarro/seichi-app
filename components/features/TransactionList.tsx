@@ -13,6 +13,10 @@ import {
 	formatAmount,
 } from "@/lib/transaction-utils";
 import { ArrowLeftRightIcon } from "@/lib/seichi-icons";
+// Graffetta da Lucide e non `ReceiptIcon` di seichi-icons: quella è già la voce
+// "Transazioni" della bottom nav, e lo stesso segno per due significati diversi
+// nella stessa schermata si legge come un errore.
+import { Paperclip } from "lucide-react";
 import { useI18n } from "./I18nProvider";
 
 interface TransactionListProps {
@@ -26,6 +30,15 @@ interface TransactionListProps {
 	 * che i dati ci siano ancora.
 	 */
 	filtered?: boolean;
+	/**
+	 * Quanti allegati ha ciascun movimento (Fase 22), per id.
+	 *
+	 * ⚠️ Facoltativo e DEGRADA: un oggetto vuoto significa "non lo so", non
+	 * "nessuno". Il segnaposto è un di più, e la lista deve restare leggibile
+	 * anche se la query dei conteggi fallisce — è il motivo per cui
+	 * `getAttachmentCounts()` restituisce `{}` invece di sollevare.
+	 */
+	attachmentCounts?: Record<string, number>;
 	/**
 	 * Serve a NOMINARE i conti di un trasferimento: un movimento che sposta
 	 * denaro non ha una categoria da mostrare, e "—" al suo posto sarebbe una
@@ -101,6 +114,7 @@ export default function TransactionList({
 	transactions,
 	loading,
 	filtered = false,
+	attachmentCounts = {},
 	accounts = [],
 	viewedAccountId = null,
 }: TransactionListProps) {
@@ -171,7 +185,20 @@ export default function TransactionList({
 										}
 									</div>
 									<div className="flex-1 min-w-0">
-										<p className="text-sm font-semibold truncate">{title}</p>
+										<p className="text-sm font-semibold flex items-center gap-1.5">
+											<span className="truncate">{title}</span>
+											{/*
+												⚠️ Il segnaposto sta accanto al TITOLO e non in fondo
+												alla riga, dove vivono l'importo e la data: quella zona
+												parla di quanto e quando, e una graffetta lì si
+												leggerebbe come parte del numero. Qui dice invece "di
+												questo movimento esiste una prova" — una proprietà del
+												movimento, non del suo importo.
+											*/}
+											{(attachmentCounts[tx.id] ?? 0) > 0 && (
+												<Paperclip size={12} className="text-muted shrink-0" />
+											)}
+										</p>
 										<p className="text-xs text-muted mt-0.5 truncate">
 											{tx.notes ? tx.notes : t.types[tx.type as keyof typeof t.types]}
 											{/*

@@ -5,6 +5,7 @@ import { SEARCH_SCAN_LIMIT, TRANSACTIONS_PAGE_SIZE } from "@/lib/transaction-uti
 import { getAccountOptions } from "@/app/(main)/conti/actions";
 import { getBudgetOverview } from "@/app/(main)/budget-actions";
 import { getCategories } from "@/app/(main)/impostazioni/actions";
+import { getAttachmentCounts } from "@/app/(main)/attachment-actions";
 import FilterBar from "@/components/features/Filterbar";
 import TransactionList from "@/components/features/TransactionList";
 import BudgetCards from "@/components/features/BudgetCards";
@@ -25,6 +26,7 @@ export default function MovimentiPage() {
 	const [conto, setConto] = useState("");
 	const [categoria, setCategoria] = useState("");
 	const [hasMore, setHasMore] = useState(false);
+	const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({});
 	const [categories, setCategories] = useState<Category[]>([]);
 	const [accounts, setAccounts] = useState<AccountOption[]>([]);
 	const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -82,6 +84,25 @@ export default function MovimentiPage() {
 				const rows = (result.data as Transaction[]) ?? [];
 				setTransactions((prev) => (append ? [...prev, ...rows] : rows));
 				setHasMore(result.hasMore);
+
+				/*
+				 * I conteggi degli allegati per le righe APPENA arrivate (Fase 22).
+				 *
+				 * ⚠️ Si chiedono solo per quelle, non per l'intera lista: caricando la
+				 * quinta pagina rifare la domanda su 250 movimenti sarebbe una query
+				 * che cresce a ogni tocco di "carica altri". Si fondono con quelli già
+				 * noti invece di sostituirli.
+				 *
+				 * ⚠️ Degrada in silenzio, e va bene: `getAttachmentCounts` risponde con
+				 * un oggetto vuoto se la query fallisce, quindi al massimo manca una
+				 * graffetta. Bloccare la lista per un segnaposto sarebbe sproporzionato.
+				 */
+				if (rows.length > 0) {
+					const counts = await getAttachmentCounts(rows.map((r) => r.id));
+					setAttachmentCounts((prev) => (append ? { ...prev, ...counts } : counts));
+				} else if (!append) {
+					setAttachmentCounts({});
+				}
 			} finally {
 				setLoading(false);
 			}
@@ -249,6 +270,7 @@ export default function MovimentiPage() {
 					transactions={filtered}
 					loading={loading}
 					filtered={hasFilters}
+					attachmentCounts={attachmentCounts}
 					accounts={accounts}
 					/*
 						⚠️ `conto || null` e non `conto`: la stringa vuota significa

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TransactionType, Category, Transaction, Frequency, Account } from "@/types";
 import { createClient } from "@/lib/supabase/client";
 import { Pencil, Delete, Check, Trash2, Repeat } from "lucide-react";
@@ -8,6 +8,9 @@ import { ACCOUNT_ICON_FALLBACK, ACCOUNT_TYPE_ICON, accountColor } from "@/lib/ac
 import FrequencySelector from "@/components/UI/FrequencySelector";
 import { SwitchVisual } from "@/components/UI/Switch";
 import { categoryTypeFor } from "@/lib/transaction-utils";
+import AttachmentPicker, {
+	type AttachmentPickerHandle,
+} from "@/components/features/AttachmentPicker";
 import { buildCategoryOptions } from "@/lib/category-options";
 import {
 	saveTransaction,
@@ -71,6 +74,30 @@ export default function TransactionForm({
 	);
 	const [isDeleteConfirm, setIsDeleteConfirm] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
+	/*
+	 * Le ricevute scelte prima che il movimento esista (Fase 22) vivono nel
+	 * BROWSER finché non c'è un id a cui appenderle — e vivono dentro il picker,
+	 * che è il loro unico proprietario.
+	 *
+	 * ⚠️ Qui c'era una copia derivata (`File[]` aggiornata da `onPendingChange`),
+	 * e due proprietari per la stessa coda hanno prodotto un difetto vero:
+	 * svuotando la copia dopo un caricamento fallito, il picker non lo sapeva e
+	 * continuava a mostrare le miniature di file che nessuno avrebbe più
+	 * caricato. Il form ora non tiene la coda: la CHIEDE.
+	 */
+	const pickerRef = useRef<AttachmentPickerHandle | null>(null);
+	const [attachmentError, setAttachmentError] = useState<string | null>(null);
+	/**
+	 * L'id del movimento APPENA creato da questo form.
+	 *
+	 * ⚠️ Esiste per un caso solo, ed è quello che senza di lui produce dati
+	 * sbagliati: il movimento è stato scritto ma il caricamento di una ricevuta è
+	 * fallito, quindi il modale resta aperto. Da quel momento un secondo tocco su
+	 * "Salva" deve AGGIORNARE quella riga, non crearne un'altra — altrimenti ogni
+	 * tentativo lascerebbe un movimento duplicato, e il difetto si scoprirebbe
+	 * contando i soldi invece che leggendo un errore.
+	 */
+	const [createdId, setCreatedId] = useState<string | null>(null);
 	const { closeTransactionModal, notifyTransactionSaved, recurringDefault } =
 		useUIStore();
 	const [isRecurring, setIsRecurring] = useState(recurringDefault);
@@ -200,9 +227,17 @@ export default function TransactionForm({
 		setIsSaving(true);
 		try {
 			const importo = parseFloat(amount.replace(",", "."));
-			const result = isEditing
+			/*
+			 * ⚠️ `effectiveId` e non `isEditing`: dopo una creazione riuscita il
+			 * movimento ESISTE anche se il modale è ancora aperto (una ricevuta non
+			 * caricata lo tiene lì). Continuare a guardare `isEditing` — che dipende
+			 * dalla prop e non cambia mai — manderebbe il secondo tentativo di nuovo
+			 * su `saveTransaction`, cioè un movimento duplicato a ogni riprova.
+			 */
+			const effectiveId = transaction?.id ?? createdId;
+			const result = effectiveId
 				? await updateTransaction(
-						transaction.id,
+						effectiveId,
 						importo,
 						selectedType.id,
 						effectiveCategoryId,
@@ -231,10 +266,55 @@ export default function TransactionForm({
 							effectiveToAccountId,
 						);
 
-			if (!result?.error) {
-				notifyTransactionSaved();
-				closeTransactionModal();
+			if (result?.error) return;
+
+			/*
+			 * Le ricevute scelte PRIMA del salvataggio si caricano adesso: solo ora
+			 * esiste l'id a cui appenderle (Fase 22).
+			 *
+			 * ⚠️ `createdId` si ricorda, e non è un dettaglio: da questo momento il
+			 * movimento ESISTE. Se un upload fallisce il modale resta aperto, e un
+			 * secondo tocco su "Salva" deve AGGIORNARE quella riga, non crearne una
+			 * seconda. Senza, un allegato che non passa produrrebbe un movimento
+			 * duplicato a ogni tentativo — un difetto silenzioso che si scopre
+			 * contando i soldi.
+			 */
+			const nuovoId =
+				result && "id" in result ? (result as { id: string }).id : null;
+			const targetId = transaction?.id ?? nuovoId ?? createdId;
+
+			/*
+			 * ⚠️ L'ordine conta, ed è tarato su due corse:
+			 *
+			 *  1. il caricamento PRIMA di `setCreatedId`. Impostare l'id fa passare
+			 *     `transactionId` del picker da `null` a un valore, il che scatena la
+			 *     sua rilettura degli allegati: partendo prima, quella rilettura
+			 *     tornerebbe una lista vuota e potrebbe sovrascrivere le ricevute
+			 *     appena caricate. Finito il caricamento, invece, rilegge la verità.
+			 *  2. `setCreatedId` PRIMA dell'uscita anticipata, altrimenti una
+			 *     ricevuta fallita lascerebbe il form convinto di dover ancora creare
+			 *     il movimento — e ogni riprova ne scriverebbe uno nuovo.
+			 */
+			const attachmentFailure = targetId
+				? await pickerRef.current?.uploadPending(targetId)
+				: null;
+
+			if (nuovoId) setCreatedId(nuovoId);
+
+			if (attachmentFailure) {
+				/*
+				 * ⚠️ NON si chiude. Il movimento è salvato ma la ricevuta no, e
+				 * chiudere lascerebbe l'utente convinto di avere una prova che non ha.
+				 * Le ricevute non passate sono ancora in coda dentro il picker, che nel
+				 * frattempo ha un id vero: il secondo "Salva" le riprende da lì, senza
+				 * ricaricare quelle già andate a buon fine.
+				 */
+				setAttachmentError(attachmentFailure);
+				return;
 			}
+
+			notifyTransactionSaved();
+			closeTransactionModal();
 		} finally {
 			setIsSaving(false);
 		}
@@ -497,6 +577,35 @@ export default function TransactionForm({
 						</div>
 					)}
 				</div>
+			)}
+
+			{/*
+				Ricevute (Fase 22, issue #36).
+
+				⚠️ Funziona anche in CREAZIONE, e la prima stesura no. La foto scelta
+				prima di salvare resta nel browser e viene caricata subito dopo, dentro
+				lo stesso gesto: il caso reale è fotografare lo scontrino MENTRE si
+				registra la spesa, quindi obbligare a salvare e riaprire metteva un
+				ostacolo proprio sul percorso più frequente.
+
+				Restano scartate le due alternative peggiori: un percorso temporaneo da
+				spostare (due scritture, con un orfano se la seconda fallisce) e un
+				salvataggio di nascosto per ottenere l'id (scrive un movimento che
+				l'utente non ha confermato).
+
+				⚠️ Niente ricevute su un TRASFERIMENTO: non c'è uno scontrino per
+				aver spostato denaro fra due conti propri.
+			*/}
+			{!isTransfer && (
+				<>
+					<AttachmentPicker
+						transactionId={transaction?.id ?? createdId}
+						ref={pickerRef}
+					/>
+					{attachmentError && (
+						<p className="mt-1.5 text-[11.5px] text-aka-ink">{attachmentError}</p>
+					)}
+				</>
 			)}
 
 			{/* Tastierino */}

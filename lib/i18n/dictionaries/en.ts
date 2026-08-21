@@ -105,6 +105,9 @@ export const en: Dictionary = {
 		wrongPassword: "Incorrect password",
 		emailMismatch: "That email doesn't match your account",
 		avatarRemoveFailed: "Could not remove your profile photo. Please try again.",
+		/** ⚠️ Frase propria, non quella dell'avatar — vedi la nota in it.ts. */
+		receiptsRemoveFailed:
+			"Could not remove your attached receipts. Your account was not deleted: please try again.",
 		categoryHasTransactions: {
 			one: "This category has {n} linked transaction. Move or delete it before removing the category.",
 			other: "This category has {n} linked transactions. Move or delete them before removing the category.",
@@ -509,6 +512,22 @@ export const en: Dictionary = {
 			settimana: "this week",
 			mese: "this month",
 			anno: "this year",
+		},
+	},
+
+	/** ⚠️ "Receipts" per chi legge, "attachment" nel codice — vedi la nota in it.ts. */
+	attachments: {
+		title: "Receipts",
+		add: "Add receipt",
+		hint: "JPG, PNG or WebP · {max} MB max",
+		count: { one: "{n} receipt", other: "{n} receipts" },
+		remove: "Remove",
+		open: "Open full screen",
+		uploading: "Uploading…",
+		missing: "File unavailable",
+		errors: {
+			tooLarge: "That image is over {max} MB. Pick a lighter one.",
+			notSaved: "Could not attach the receipt to this transaction.",
 		},
 	},
 

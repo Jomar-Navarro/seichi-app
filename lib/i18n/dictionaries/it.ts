@@ -182,6 +182,15 @@ export const it = {
 		emailMismatch: "L'email digitata non corrisponde al tuo account",
 		avatarRemoveFailed: "Non è stato possibile rimuovere la foto profilo. Riprova.",
 		/**
+		 * ⚠️ Frase PROPRIA e non `avatarRemoveFailed`: due cause diverse non possono
+		 * avere lo stesso messaggio solo perché arrivano dallo stesso punto del
+		 * codice. Dire "foto profilo" a chi sta eliminando l'account con delle
+		 * ricevute allegate manderebbe a controllare una cosa sana — la stessa
+		 * classe già corretta in `contoError()` nella 20b.
+		 */
+		receiptsRemoveFailed:
+			"Non è stato possibile rimuovere le ricevute allegate. L'account non è stato eliminato: riprova.",
+		/**
 		 * Cancellazione di una categoria che ha ancora movimenti.
 		 *
 		 * ⚠️ Era l'ULTIMA frase cablata dell'app, sopravvissuta alla Fase 19 —
@@ -844,6 +853,33 @@ export const it = {
 	},
 
 	/** Budget (Fase 17a). */
+	/**
+	 * Allegati / ricevute (Fase 22, issue #36).
+	 *
+	 * ⚠️ "Ricevute" e non "Allegati" nel titolo visibile: è la parola con cui
+	 * l'utente cerca la funzione. "Allegato" descrive il MECCANISMO — un file
+	 * appeso a un record — e resta nei nomi tecnici; "ricevuta" descrive la cosa
+	 * che fotografi. È la stessa distinzione già fatta fra "giacenza" e
+	 * "investito": il nome segue chi legge, non chi implementa.
+	 */
+	attachments: {
+		title: "Ricevute",
+		add: "Aggiungi ricevuta",
+		/** ⚠️ `{max}` viene da `ATTACHMENT_MAX_BYTES`, mai scritto a mano qui. */
+		hint: "JPG, PNG o WebP · massimo {max} MB",
+		/** Il conteggio accanto al movimento nella lista. */
+		count: { one: "{n} ricevuta", other: "{n} ricevute" },
+		remove: "Rimuovi",
+		open: "Apri a schermo intero",
+		uploading: "Caricamento…",
+		/** Mostrato al posto dell'anteprima quando il file non è più nel bucket. */
+		missing: "File non disponibile",
+		errors: {
+			tooLarge: "L'immagine supera {max} MB. Scegline una più leggera.",
+			notSaved: "Non è stato possibile allegare la ricevuta a questo movimento.",
+		},
+	},
+
 	budget: {
 		monthlyLimit: "Limite mensile",
 		variableOnly: "Solo spese variabili",

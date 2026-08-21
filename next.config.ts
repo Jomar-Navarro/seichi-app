@@ -76,6 +76,24 @@ const nextConfig: NextConfig = {
         hostname: supabaseHost,
         pathname: "/storage/v1/object/public/avatars/**",
       },
+      /*
+       * ⚠️ Le RICEVUTE (Fase 22) non stanno qui, e vale scritto perché — o la
+       * prossima persona aggiunge una riga per `/storage/v1/object/sign/receipts/**`
+       * convinta che serva.
+       *
+       * Le loro miniature usano `next/image` con `unoptimized`, e in quel caso
+       * `remotePatterns` **non viene mai consultato**: verificato nel sorgente di
+       * Next, `generateImgAttrs` esce prima di chiamare il loader
+       * (`shared/lib/get-img-props.js`) e il controllo sull'host vive dentro il
+       * loader (`shared/lib/image-loader.js`). Una riga qui sarebbe stata
+       * configurazione morta che *sembra* una difesa.
+       *
+       * ⚠️ E `unoptimized` è deliberato, non una scorciatoia: l'URL di una
+       * ricevuta è una FIRMA a scadenza, quindi cambia a ogni apertura. Ogni
+       * sguardo sarebbe una sorgente nuova per l'ottimizzatore — cache che non
+       * colpisce mai e una trasformazione fatturata ogni volta, per un'immagine
+       * che l'app ha già ridotto a 1600px lato client prima di caricarla.
+       */
     ],
   },
 };

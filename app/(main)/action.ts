@@ -83,20 +83,35 @@ export async function saveTransaction(
 
 	if (!user) return { error: t.errors.notAuthenticated };
 
-	const { error } = await supabase.from("transactions").insert({
-		user_id: user.id,
-		amount: importo,
-		type: tipo,
-		category_id: categoria_id,
-		notes: nota,
-		date: data,
-		account_id: conto_id,
-		to_account_id: a_conto_id,
-	});
+	/*
+	 * ⚠️ L'`id` torna al chiamante, e serve alla Fase 22: la ricevuta scelta
+	 * PRIMA di salvare si carica subito dopo, e un allegato ha bisogno di un
+	 * `transaction_id` che fino a questo momento non esiste.
+	 *
+	 * È lo stesso motivo per cui `createCategory()` restituisce l'id dalla 17a —
+	 * là serviva a impostare il budget sulla categoria appena creata. Senza,
+	 * l'unica strada sarebbe una seconda query per ritrovare la riga appena
+	 * scritta, cercandola per campi che non la identificano: due movimenti
+	 * identici lo stesso giorno sono indistinguibili.
+	 */
+	const { data: row, error } = await supabase
+		.from("transactions")
+		.insert({
+			user_id: user.id,
+			amount: importo,
+			type: tipo,
+			category_id: categoria_id,
+			notes: nota,
+			date: data,
+			account_id: conto_id,
+			to_account_id: a_conto_id,
+		})
+		.select("id")
+		.single();
 
 	if (error) return { error: contoError(error, t) };
 	revalidatePath("/", "layout");
-	return { success: true };
+	return { success: true, id: row.id as string };
 }
 
 /**
