@@ -12,9 +12,18 @@ import { useI18n } from "./I18nProvider";
 
 interface MonthlyLineChartProps {
 	trend: { mese: string; entrate: number; uscite: number }[];
+	/**
+	 * ⚠️ `animated` esiste per la STAMPA (Fase 23b), e il default resta `true`.
+	 *
+	 * Recharts anima al mount: chi apre il report e preme subito Stampa cattura
+	 * il grafico **a metà disegno**, e sulla carta resta così per sempre. Non è
+	 * un caso di laboratorio — è il gesto normale, perché la pagina esiste per
+	 * essere stampata. A schermo l'animazione resta, che è dove serve.
+	 */
+	animated?: boolean;
 }
 
-export default function MonthlyLineChart({ trend }: MonthlyLineChartProps) {
+export default function MonthlyLineChart({ trend, animated = true }: MonthlyLineChartProps) {
 	const { t } = useI18n();
 	const id = useId();
 	const gradE = `gradientEntrate-${id}`;
@@ -83,6 +92,7 @@ export default function MonthlyLineChart({ trend }: MonthlyLineChartProps) {
 					<Area
 						type="monotone"
 						dataKey="entrate"
+						isAnimationActive={animated}
 						stroke="var(--color-midori)"
 						strokeWidth={2}
 						fill={`url(#${gradE})`}
@@ -92,6 +102,7 @@ export default function MonthlyLineChart({ trend }: MonthlyLineChartProps) {
 					<Area
 						type="monotone"
 						dataKey="uscite"
+						isAnimationActive={animated}
 						stroke="var(--color-aka)"
 						strokeWidth={2}
 						fill={`url(#${gradU})`}

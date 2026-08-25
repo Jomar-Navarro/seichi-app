@@ -803,6 +803,13 @@ export const it = {
 		title: "Analisi",
 		lastWeek: "Ultima settimana",
 		/**
+		 * ⚠️ Il TITOLO del periodo, non l'etichetta del tab (che è "Tutto").
+		 * Su un foglio stampato "Tutto" da solo non dice tutto DI COSA: l'unica
+		 * riga che colloca il documento nel tempo è questa, e va letta senza lo
+		 * schermo intorno.
+		 */
+		allTime: "Tutto lo storico",
+		/**
 		 * ⚠️ "Flusso", non più "Flusso netto" — ed è la stessa parola della home
 		 * (`t.home.flowTitle`) perché è **lo stesso identico numero**, calcolato
 		 * dalla stessa `sommaUscite()`.
@@ -827,6 +834,7 @@ export const it = {
 			settimana: "Settimana",
 			mese: "Mese",
 			anno: "Anno",
+			tutto: "Tutto",
 		},
 		legendIncome: "Entrate",
 		/**
@@ -842,6 +850,25 @@ export const it = {
 		 */
 		legendExpenses: "Uscite",
 		spendingByCategory: "Spese per categoria",
+		/**
+		 * ⚠️ L'etichetta al centro del donut: **"Spese", non "Uscite"**.
+		 *
+		 * Il donut somma le sole transazioni `spesa`, mentre in quest'app
+		 * **"uscite" significa deliberatamente l'insieme più largo** — spese PIÙ
+		 * abbonamenti — ed è la parola scelta dalla 20a proprio per non far
+		 * sparire l'affitto da un totale (*«uscite», non «spese», perché comprende
+		 * gli abbonamenti*).
+		 *
+		 * Prima c'era `t.types.spesa`, che in italiano rende "Uscite": il grafico
+		 * diceva quindi la parola larga sopra il numero stretto. Invisibile finché
+		 * niente le stava accanto; il report della 23b ha messo su uno stesso
+		 * foglio una card «Uscite € 785,30» e un donut «Uscite € 733,40» — la
+		 * differenza sono esattamente i 51,90 di abbonamenti.
+		 *
+		 * È il gemello della regola già scritta per la #9: *aggiungere un elemento
+		 * accanto a un testo può rendere quel testo ambiguo senza toccarlo.*
+		 */
+		spendingLabel: "Spese",
 		/** Stato vuoto del donut: "Nessuna spesa questo mese". */
 		noSpending: "Nessuna spesa {window}",
 		/** Periodo vuoto nel donut: "nessuna spesa questa settimana". */
@@ -849,6 +876,36 @@ export const it = {
 			settimana: "questa settimana",
 			mese: "questo mese",
 			anno: "quest'anno",
+			/**
+			 * ⚠️ Senza questa voce `SpendingPieChart` ripiegava su `mese`, e sotto
+			 * l'intestazione "Tutto lo storico" compariva "Nessuna spesa questo
+			 * mese". Una frase FALSA — e sul report finisce stampata e archiviata.
+			 */
+			tutto: "in tutto lo storico",
+		},
+
+		/** Il report stampabile — Fase 23b. */
+		report: {
+			/** Il comando su /analisi che porta al report. */
+			open: "Report stampabile",
+			title: "Report",
+			print: "Stampa",
+			/**
+			 * ⚠️ La data di generazione sta SUL foglio, e non è decorazione: un
+			 * report stampato sopravvive alla schermata che lo ha prodotto, e senza
+			 * una data non si distingue quello di agosto da quello di settembre —
+			 * che è esattamente la domanda che ci si pone rileggendolo mesi dopo.
+			 */
+			generatedOn: "generato il {date}",
+			/**
+			 * ⚠️ NON si riusa `t.home.flowExplain`, benché il numero sia lo stesso.
+			 * Quella frase finisce con "per i saldi, scorri →", che su un foglio di
+			 * carta non vuol dire niente: non c'è un carosello da scorrere. Stessa
+			 * cifra e stessa spiegazione, parole diverse perché il supporto è
+			 * diverso — ed è l'unico motivo legittimo per non condividere una voce.
+			 */
+			flowExplain: "entrate meno uscite del periodo — non è il saldo dei tuoi conti",
+			trendTitle: "Andamento",
 		},
 	},
 

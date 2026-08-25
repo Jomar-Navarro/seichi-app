@@ -6,6 +6,15 @@ import { DISPLAY_CURRENCY, fill, formatMoney } from "@/lib/i18n/format";
 interface SpendingPieChartProps {
 	spese: { name: string; color: string; total: number }[];
 	periodo?: string;
+	/**
+	 * ⚠️ `animated` esiste per la STAMPA (Fase 23b), e il default resta `true`.
+	 *
+	 * Recharts anima al mount: chi apre il report e preme subito Stampa cattura
+	 * il grafico **a metà disegno**, e sulla carta resta così per sempre. Non è
+	 * un caso di laboratorio — è il gesto normale, perché la pagina esiste per
+	 * essere stampata. A schermo l'animazione resta, che è dove serve.
+	 */
+	animated?: boolean;
 }
 
 /**
@@ -33,7 +42,11 @@ const CHART_RAMP = [
 	"color-mix(in srgb, var(--color-aka) 60%, black)",
 ];
 
-export default function SpendingPieChart({ spese, periodo = "mese" }: SpendingPieChartProps) {
+export default function SpendingPieChart({
+	spese,
+	periodo = "mese",
+	animated = true,
+}: SpendingPieChartProps) {
 	const { locale, t } = useI18n();
 	/** Importi con i decimali, nel formato del locale. */
 	const money = (v: number) =>
@@ -73,6 +86,7 @@ export default function SpendingPieChart({ spese, periodo = "mese" }: SpendingPi
 								data={data}
 								dataKey="total"
 								nameKey="name"
+								isAnimationActive={animated}
 								innerRadius="62%"
 								outerRadius="90%"
 								strokeWidth={2}
@@ -99,7 +113,7 @@ export default function SpendingPieChart({ spese, periodo = "mese" }: SpendingPi
 					{/* Centro */}
 					<div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-0.5">
 						<p className="text-[9.5px] text-muted uppercase tracking-[0.08em] leading-none">
-							{t.types.spesa}
+							{t.analytics.spendingLabel}
 						</p>
 						<p className="text-[15px] font-semibold text-foreground leading-none">
 							{money(totale)}

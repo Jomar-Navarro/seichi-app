@@ -477,6 +477,67 @@ function sommaUscite(rows: { type: string; amount: number }[]) {
 		.reduce((acc, t) => acc + t.amount, 0);
 }
 
+/** Quante righe per blocco quando si legge una serie storica. */
+/**
+ * Quante righe per blocco quando si legge una serie storica.
+ *
+ * ⚠️ DEVE restare sotto il *Max rows* di PostgREST (1000 su questo progetto).
+ * Il ciclo si ferma quando un blocco torna incompleto: se il tetto del server
+ * scendesse sotto questo valore, il PRIMO blocco tornerebbe già corto e la
+ * lettura si fermerebbe lì — reintroducendo il troncamento silenzioso che
+ * questo lettore esiste per impedire. È la stessa regola di `IN_CHUNK` e di
+ * `SEARCH_SCAN_LIMIT`, e come quelle va riletta se si tocca la Data API.
+ */
+const ANALYTICS_CHUNK = 500;
+
+/**
+ * Un fermo contro un ciclo infinito, non un limite di prodotto.
+ *
+ * Stesso ruolo di `MAX_CHUNKS` nel Route Handler dell'export (23a): se un
+ * blocco tornasse sempre pieno per un difetto nostro, il server resterebbe
+ * appeso. Meglio un errore che una pagina che non arriva mai.
+ */
+const ANALYTICS_MAX_CHUNKS = 200;
+
+/**
+ * Legge TUTTE le righe di una query, a blocchi.
+ *
+ * ⚠️⚠️ Senza, `getAnalyticsData` tronca in SILENZIO. PostgREST ha un tetto
+ * proprio — *Max rows = 1000* su questo progetto — e lo applica senza dire
+ * niente: i grafici mostrerebbero le prime mille righe e basta, con un totale
+ * più basso del vero e nessun errore da nessuna parte. È la stessa trappola
+ * già documentata per `SEARCH_SCAN_LIMIT` nella lista movimenti.
+ *
+ * Il rischio è ARRIVATO col periodo "tutto", che non ha un limite inferiore di
+ * data — ma non era nato lì: anche un anno molto movimentato poteva superare
+ * le mille righe, e nessuno se ne sarebbe accorto. Paginando qui si chiude per
+ * tutti i periodi, non solo per quello nuovo.
+ *
+ * 500 e non 1000 per la ragione di sempre: un margine che coincide col limite
+ * esterno non è un margine.
+ */
+async function leggiTutte<T>(
+	crea: (
+		from: number,
+		to: number,
+	) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+): Promise<{ rows: T[]; error: string | null }> {
+	const rows: T[] = [];
+	for (let giro = 0; giro < ANALYTICS_MAX_CHUNKS; giro++) {
+		const from = giro * ANALYTICS_CHUNK;
+		const { data, error } = await crea(from, from + ANALYTICS_CHUNK - 1);
+		if (error) return { rows, error: error.message };
+		const blocco = data ?? [];
+		rows.push(...blocco);
+		if (blocco.length < ANALYTICS_CHUNK) return { rows, error: null };
+	}
+
+	// Centomila righe senza mai un blocco corto: è un difetto nostro, non un
+	// archivio grande. Si dichiara invece di restituire dati a metà.
+	console.error("[analytics] troppi blocchi: la lettura non si è mai chiusa");
+	return { rows, error: "analytics: lettura non conclusa" };
+}
+
 export async function getDashboardTotals(accountId?: string | null) {
 	const { supabase, user, t } = await requireUser();
 
@@ -650,6 +711,70 @@ export async function getAnalyticsData(periodo: string = "mese", accountId?: str
 			start: new Date(now.getFullYear(), i, 1),
 			end: new Date(now.getFullYear(), i + 1, 1),
 		}));
+	} else if (periodo === "tutto") {
+		/*
+		 * ⚠️ Serve la data del PRIMO movimento, e si chiede al database invece di
+		 * inventare un inizio: partire da una data fissa riempirebbe il grafico di
+		 * anni vuoti prima che l'utente esistesse.
+		 *
+		 * La query è minuscola (una riga) e vive solo su questo periodo. Il filtro
+		 * conto si applica anche qui, o la prima colonna del grafico potrebbe
+		 * essere l'anno di un conto che non si sta guardando.
+		 */
+		let primaQuery = supabase
+			.from("transactions")
+			.select("date")
+			.eq("user_id", user.id)
+			/*
+			 * ⚠️ Gli STESSI tipi del trend, o l'ancora non descrive il grafico:
+			 * un trasferimento più vecchio di ogni altro movimento aggiungerebbe
+			 * colonne d'anno strutturalmente vuote — proprio ciò che partire dal
+			 * primo movimento serve a evitare.
+			 */
+			.in("type", ["entrata", "spesa", "risparmio", "investimento", "abbonamento"])
+			.order("date", { ascending: true })
+			.limit(1);
+		if (accountId) primaQuery = primaQuery.eq("account_id", accountId);
+
+		/*
+		 * ⚠️ L'errore si GUARDA. Scartandolo, una lettura fallita faceva ripiegare
+		 * su `now.getFullYear()`: «tutto» diventava in silenzio «quest'anno» per il
+		 * KPI, il trend e la torta, senza che nulla lo dicesse. È la classe già
+		 * corretta due volte in questa fase — una lettura fallita travestita da
+		 * fatto — e ogni altra query di questa funzione l'errore lo restituisce.
+		 */
+		const { data: prima, error: primaError } = await primaQuery;
+		if (primaError) return { error: primaError.message };
+
+		/*
+		 * ⚠️ `Math.min` con l'anno corrente: una data FUTURA (si inserisce a mano,
+		 * e il form la accetta) darebbe `anni = 0`, cioè trend vuoto e finestra
+		 * `rangeStart > rangeEnd` — una pagina di zeri su un archivio pieno.
+		 */
+		const primoAnno = Math.min(
+			prima?.[0]?.date ? new Date(prima[0].date).getFullYear() : now.getFullYear(),
+			now.getFullYear(),
+		);
+
+		rangeStart = new Date(primoAnno, 0, 1);
+		rangeEnd = new Date(now.getFullYear() + 1, 0, 1);
+		/*
+		 * ⚠️ Nessun periodo PRECEDENTE, e non è una svista: prima di "tutto" non
+		 * c'è niente con cui confrontarsi. Con l'intervallo vuoto `prevData` resta
+		 * vuoto, `saldoPrecedente` è 0 e `variazionePct` esce **null** — che è
+		 * esattamente ciò che la UI già sa mostrare (nessuna freccia).
+		 */
+		prevStart = rangeStart;
+		prevEnd = rangeStart;
+		fetchStart = rangeStart;
+
+		// Un punto per ANNO: su una storia lunga i mesi sarebbero illeggibili.
+		const anni = now.getFullYear() - primoAnno + 1;
+		trendPoints = Array.from({ length: anni }, (_, i) => ({
+			label: String(primoAnno + i),
+			start: new Date(primoAnno + i, 0, 1),
+			end: new Date(primoAnno + i + 1, 0, 1),
+		}));
 	} else {
 		// mese (default)
 		rangeStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -682,31 +807,53 @@ export async function getAnalyticsData(periodo: string = "mese", accountId?: str
 	const byAccount = <T>(q: T): T =>
 		accountId ? ((q as { eq: (c: string, v: string) => T }).eq("account_id", accountId)) : q;
 
-	const [
-		{ data: trendData, error: trendError },
-		{ data: speseData, error: speseError },
-	] = await Promise.all([
-		byAccount(
-			supabase
-				.from("transactions")
-				.select("amount, type, date")
-				.eq("user_id", user.id)
-				.in("type", ["entrata", "spesa", "risparmio", "investimento", "abbonamento"])
-				.gte("date", fetchStart.toISOString())
-				.lt("date", rangeEnd.toISOString()),
+	const [trendRes, speseRes] = await Promise.all([
+		leggiTutte((from, to) =>
+			byAccount(
+				supabase
+					.from("transactions")
+					.select("amount, type, date")
+					.eq("user_id", user.id)
+					.in("type", ["entrata", "spesa", "risparmio", "investimento", "abbonamento"])
+					/*
+					 * ⚠️⚠️ Ordinamento TOTALE, o la paginazione perde righe.
+					 *
+					 * Senza `order by`, ogni pagina è una query a sé e Postgres può
+					 * restituire le righe in un ordine diverso a ogni giro: con gli offset
+					 * una riga finisce in due blocchi e un'altra in nessuno.
+					 *
+					 * Non è teoria: misurato abbassando `ANALYTICS_CHUNK` a 5, il Flusso di
+					 * «tutto» usciva **€ 2.766,12** invece di € 6.068,95. È la stessa
+					 * correzione che il code-review della 23a aveva imposto a
+					 * `getTransactions` — riapplicata qui perché il difetto sta nella
+					 * PAGINAZIONE, non in quella funzione, e chi ne scrive una nuova se lo
+					 * ritrova identico. `id` è la chiave primaria: basta lei.
+					 */
+					.order("id", { ascending: true })
+					.gte("date", fetchStart.toISOString())
+					.lt("date", rangeEnd.toISOString()),
+			).range(from, to),
 		),
-		byAccount(
-			supabase
-				.from("transactions")
-				.select("amount, categories(name, color)")
-				.eq("user_id", user.id)
-				.eq("type", "spesa")
-				.gte("date", rangeStart.toISOString())
-				.lt("date", rangeEnd.toISOString()),
+		leggiTutte((from, to) =>
+			byAccount(
+				supabase
+					.from("transactions")
+					.select("amount, categories(name, color)")
+					.eq("user_id", user.id)
+					.eq("type", "spesa")
+					// ⚠️ Stesso motivo della query qui sopra: senza ordinamento totale la
+					// paginazione perde righe, e qui il sintomo sarebbe una torta con le
+					// fette sbagliate invece di un numero sbagliato.
+					.order("id", { ascending: true })
+					.gte("date", rangeStart.toISOString())
+					.lt("date", rangeEnd.toISOString()),
+			).range(from, to),
 		),
 	]);
 
-	if (trendError || speseError) return { error: (trendError ?? speseError)!.message };
+	if (trendRes.error || speseRes.error) return { error: trendRes.error ?? speseRes.error! };
+	const trendData = trendRes.rows;
+	const speseData = speseRes.rows;
 
 	// Trend
 	const trend = trendPoints.map(({ label, start, end }) => {
@@ -761,6 +908,16 @@ export async function getAnalyticsData(periodo: string = "mese", accountId?: str
 
 	return {
 		spese: Object.values(spesePerCategoria ?? {}),
+		/*
+		 * ⚠️ Entrate e uscite del periodo escono di qui, e NON è un dato nuovo:
+		 * sono i due addendi di `saldoMese`, già calcolati sopra con
+		 * `sommaUscite()`. Li usa il report stampabile (23b), che per regola non
+		 * introduce un solo numero proprio — ricalcolarli là avrebbe creato la
+		 * quarta definizione di "uscita" dopo le tre che la review della 20a ha
+		 * dovuto unificare, e le tre divergevano già fra loro.
+		 */
+		entrate: entrateCorrente,
+		uscite: usciteCorrente,
 		saldoMese,
 		variazionePct,
 		trend,

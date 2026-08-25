@@ -2876,6 +2876,230 @@ Il metodo che ha retto, e che vale la pena riusare:
   virgolette dentro i campi. Non promette la re-importabilità — promette che le
   due metà del progetto non si contraddicono sul formato.
 
+#### Emerso implementando la 23b (2026-08-25)
+
+Nessuna migration, **zero dipendenze**. `/analisi/report` + `window.print()`.
+
+##### ⚠️ Stampare un'app che può essere in tema scuro
+
+La via ovvia — un `@media print` che ridichiara i token chiari — significava una
+seconda lista di **43 valori** da tenere allineata a mano: esattamente ciò che la
+Fase 18 rifiutò quando scelse due soli blocchi invece di duplicare la palette
+dentro una media query.
+
+La soluzione è **condividere il selettore**, non i valori: `:root, .paper { … }`.
+Funziona per come cascatano le custom properties — `.dark` le imposta su `<html>`
+e i figli le ereditano, ma una dichiarazione su un elemento più interno vince per
+quel sottoalbero. `.paper` sul contenitore del report riporta al chiaro tutto ciò
+che sta dentro, **senza un solo valore duplicato**. E vale sempre, non solo in
+stampa: un documento è color carta, così ciò che vedi è ciò che stampi.
+
+Due trappole dentro quella soluzione, e nessuna delle due era prevedibile
+leggendo il codice:
+
+- ⚠️⚠️ **Ridefinire i token NON basta per il testo.** La proprietà `color` il
+  documento se l'è già risolta più in alto (il contenitore di `(main)` fa
+  `color: var(--text-primary)` con il valore del tema scuro), e l'eredità porta
+  giù il **colore calcolato**, non la variabile. Ogni elemento senza un colore
+  proprio finiva con l'inchiostro chiaro su carta bianca: luminanza 0,91 su 1,00.
+  Serve `.paper { color: var(--text-primary) }` — il token si condivide nel
+  blocco comune, la **proprietà** va dichiarata a parte. ⚠️ Non si può metterla
+  nel blocco condiviso: là finirebbe anche su `<html>` e forzerebbe l'inchiostro
+  chiaro sull'intera app in tema scuro.
+- ⚠️⚠️ **Un documento non può essere di VETRO.** `--card` è
+  `rgba(255,255,255,0.45)`: il vetro funziona solo sopra la superficie per cui è
+  tarato, e sopra la pagina scura quel 45% diventa **grigio medio**, con i testi
+  `--text-muted` quasi invisibili. Il fondo del foglio è ora `--color-tsuki`, che
+  è la carta del progetto e **non è ridefinita in `.dark`**: un foglio è un
+  foglio in entrambi i temi.
+
+##### ⚠️ La verifica che passava sopra un difetto vero
+
+Il controllo del tema scuro leggeva `backgroundColor` e ne calcolava la luminanza
+con `match(/\d+/g)`, cioè prendendo i primi tre numeri e **buttando via
+l'alpha**: su `rgba(255,255,255,0.45)` vedeva bianco pieno e dichiarava «fondo
+chiaro». Il difetto si è visto **guardando lo screenshot**.
+
+**La regola: un controllo che misura la proprietà giusta nel modo sbagliato non
+fallisce mai — e quindi non protegge da niente.** Ora il controllo confronta
+anche `alpha === 1`, ed è stato messo alla controprova rimettendo il vetro:
+diventa rosso, mentre «fondo chiaro» continua a passare. È la dimostrazione in
+una riga di cosa fosse cieco.
+
+##### Il report non introduce un solo numero — e proprio per questo ne ha corretto uno
+
+`entrate` e `uscite` escono ora da `getAnalyticsData()`, che le calcolava già:
+ricalcolarle avrebbe creato la **quarta** definizione di "uscita" dopo le tre che
+la review della 20a ha dovuto unificare.
+
+⚠️ E mettendole sul foglio è comparsa una collisione che nessuno vedeva: la card
+diceva **«Uscite € 785,30»** e il donut, due dita più sotto, **«Uscite
+€ 733,40»**. La differenza sono esattamente i **51,90 di abbonamenti** — la card
+somma `spesa + abbonamento` (come il Flusso e la legenda del grafico), il donut
+solo `spesa`, ma al centro portava `t.types.spesa`, che in italiano rende
+"Uscite": **la parola larga sopra il numero stretto**, mentre dalla 20a "uscite"
+significa deliberatamente l'insieme che comprende gli abbonamenti.
+
+Corretto in `t.analytics.spendingLabel` ("Spese"), quindi **anche su `/analisi`**,
+dove il difetto viveva da sempre invisibile perché niente gli stava accanto. È il
+gemello della regola della #9: *aggiungere un elemento accanto a un testo può
+rendere quel testo ambiguo senza toccarlo.*
+
+##### Il quarto periodo — «tutto», chiesto usando l'app
+
+Notato dopo il merge della 23a: **l'export CSV accettava `periodo=tutto`, il
+report no.** Le due liste di finestre restano diverse di proposito — l'analisi
+ragiona per periodi di CALENDARIO (settimana, mese, anno), la lista per finestre
+MOBILI (7g, 30g, 3m) — ma la stessa fase offriva l'intera storia in un formato e
+non nell'altro. Aggiunto a `ANALYTICS_PERIODS`, quindi **quarto tab su
+`/analisi`** e non solo nel report: una finestra che il report ha e la pagina no
+contraddirebbe la regola per cui il report è *la vista che stavi guardando*.
+
+- Il trend di «tutto» si raggruppa **per ANNO** (su una storia lunga i mesi sono
+  illeggibili) e parte dalla data del **primo movimento**, chiesta al database:
+  un inizio fisso riempirebbe il grafico di anni vuoti precedenti all'utente.
+- Nessun periodo precedente con cui confrontarsi → `variazionePct` esce `null`,
+  che la UI già sa mostrare.
+
+##### ⚠️⚠️ …e «tutto» ha fatto emergere un troncamento SILENZIOSO
+
+Fino a qui ogni query dell'analisi aveva un limite inferiore di data. «Tutto» lo
+toglie, e **PostgREST tronca a 1000 righe senza dirlo**: i grafici avrebbero
+mostrato le prime mille righe con un totale più basso del vero e nessun errore.
+Il rischio è arrivato col periodo nuovo ma **non era nato lì** — anche un anno
+molto movimentato poteva superarle. Chiuso paginando la lettura
+(`leggiTutte`, blocchi da 500) per **tutti** i periodi, non solo per quello nuovo.
+
+⚠️⚠️ **E la prima versione del lettore paginato aveva il difetto che il
+code-review della 23a aveva appena fatto correggere**: paginava **senza
+ordinamento totale**. Senza `order by` ogni pagina è una query a sé, Postgres può
+ordinare diversamente a ogni giro, e con gli offset una riga finisce in due
+blocchi e un'altra in nessuno.
+
+Misurato abbassando `ANALYTICS_CHUNK` a 5: il Flusso di «tutto» usciva
+**€ 2.766,12** invece di € 6.068,95. Con `.order("id")` i due valori coincidono a
+blocchi da 5 (49 giri) e da 500 (1 giro), su tutti e tre i periodi.
+
+**La lezione, e vale più della correzione: il difetto non stava in
+`getTransactions`, stava nella PAGINAZIONE.** Averlo corretto là non ha protetto
+il lettore scritto poche ore dopo — è la "migrazione a campione" che questo
+documento registra dalla Fase 18, applicata a se stessi nella stessa giornata.
+Chi scrive una nuova lettura a blocchi in questo progetto se lo ritrova identico.
+
+⚠️ Nota di metodo: **il difetto l'ha trovato l'iniezione del guasto, non un
+controllo**. Abbassare la soglia è ormai il gesto standard di questo progetto
+(`ATTACHMENT_MAX_BYTES` in Fase 22, `EXPORT_CHUNK` in 23a) e qui ha pagato per la
+terza volta.
+
+⚠️ E un OK **vuoto**: la prova che l'asse del trend mostrasse gli anni faceva
+`assi.every(…)` su un array **vuoto**, che in JavaScript è `true`. Passava senza
+guardare niente. Che l'asse dica davvero 2023-2026 si è visto **guardando lo
+screenshot**. Un insieme vuoto soddisfa qualunque `every`: un controllo che può
+ricevere zero elementi deve pretendere `length > 0` prima di dichiararsi
+superato.
+
+##### La seconda code-review — quella sul periodo «tutto» (6 rilievi, tutti applicati)
+
+⚠️ Il batch di «tutto» era stato collaudato ma **non ancora passato da una
+review**, ed è quello in cui mi ero già infilato il difetto della paginazione.
+Vale come regola di processo: *una review copre il diff che esisteva quando è
+stata eseguita*, esattamente come una guardia di migration copre i successori che
+esistevano quando è stata scritta.
+
+- ⚠️ **`analytics.windows` non aveva la chiave `tutto`**, quindi
+  `SpendingPieChart` ripiegava su `mese`: sotto l'intestazione "Tutto lo storico"
+  compariva **"Nessuna spesa questo mese"**. Terza volta in questa fase che una
+  frase falsa finirebbe **stampata e archiviata**, e la seconda che nasce da un
+  ripiego silenzioso di un dizionario indicizzato con un valore variabile.
+- ⚠️ **L'errore della query d'ancoraggio veniva scartato.** Su una lettura
+  fallita `primoAnno` ripiegava sull'anno corrente: «tutto» diventava in silenzio
+  «quest'anno» per KPI, trend e torta. Ogni altra query della funzione l'errore
+  lo restituisce — questa era l'unica a non farlo.
+- ⚠️ **«— primo mese» su un arco di quattro anni.** Con `variazionePct` null per
+  costruzione, `/analisi` cadeva nel ramo di ripiego e mostrava quella frase. Il
+  commento in `action.ts` diceva "nessuna freccia": **descriveva un
+  comportamento che la pagina non aveva**. Su «tutto» ora non si mostra nulla.
+- **L'ancora non filtrava per tipo** mentre trend e torta escludono
+  `trasferimento`/`disinvestimento`: un trasferimento più vecchio di tutto il
+  resto avrebbe aggiunto colonne d'anno strutturalmente vuote — proprio ciò che
+  partire dal primo movimento serve a evitare.
+- **Una data futura** (il form la accetta) dava `anni = 0` e una finestra
+  `rangeStart > rangeEnd`: pagina di zeri su un archivio pieno. Chiuso con
+  `Math.min(primoAnno, anno corrente)`.
+- **Il lettore a blocchi non distingue "fine dati" da "pagina tagliata dal
+  server"**: se il *Max rows* di PostgREST scendesse sotto 500, il primo blocco
+  tornerebbe già corto e la lettura si fermerebbe lì, reintroducendo il
+  troncamento silenzioso che il lettore esiste per impedire. Il vincolo è ora
+  scritto sulla costante, insieme al fusibile `ANALYTICS_MAX_CHUNKS` che l'export
+  aveva già.
+
+⚠️ Effetto collaterale dell'`.order("id")`: la legenda del donut ha ora un ordine
+**deterministico** dove prima dipendeva da come il database restituiva le righe.
+Resta un ordine arbitrario (per id del movimento più vecchio) e non per importo:
+è una scelta di prodotto preesistente, non toccata qui.
+
+##### Due rifiniture chieste guardando l'app, non un controllo
+
+- ⚠️ **La bottom nav non deve esserci sul report, non solo in stampa.** `no-print`
+  la toglie dalla carta ma non dallo schermo, e siccome è `fixed` galleggiava
+  sopra il documento mentre si scorre — coprendo proprio il donut delle spese,
+  cioè la parte che un'anteprima serve a controllare. Ora `BottomNav` restituisce
+  `null` sulle rotte che sono un DOCUMENTO (`DOCUMENT_ROUTES`), e il report ha
+  perso i 144px che le riservava: spazio vuoto per un elemento inesistente.
+  ⚠️ Nascondere lì è più economico che spostare il report fuori dal gruppo
+  `(main)`, che vorrebbe un layout proprio e un secondo controllo di
+  autenticazione per ottenere la stessa cosa.
+- **Il comando "Report stampabile" sta sulla riga del selettore conti.** Stava su
+  una fascia propria sotto i tab, per una parola sola, mentre accanto al chip
+  restava metà riga vuota: su un telefono lo spazio verticale è la risorsa
+  scarsa, e un comando secondario si mette dove uno spazio esiste già invece di
+  aprirne uno nuovo. ⚠️ `ml-auto` e non `justify-between`: senza conti il
+  selettore non viene reso affatto, e `justify-between` con un figlio solo lo
+  appoggerebbe a sinistra — il comando cambierebbe lato a seconda di quanti conti
+  hai.
+
+##### Emerso dal code-review — 8 rilievi, 7 applicati
+
+I due che valgono una regola:
+
+- ⚠️ **Un documento che non sa dichiarare il proprio ambito non si stampa.** Con
+  `getAccounts()` fallita l'intestazione scriveva "Tutti i conti" — perché il
+  nome non si risolveva — sopra numeri che restavano filtrati sul conto
+  ricordato. Su `/analisi` degradare è giusto (sparisce il chip, i dati restano);
+  qui l'affermazione finisce **stampata e archiviata**. Ora, se un conto è
+  selezionato e i conti non si leggono, la pagina si ferma.
+- ⚠️ **`--background` è un `radial-gradient`, non un colore**, applicato con uno
+  stile inline che nessuna classe scavalca: con «Grafica di sfondo» attiva
+  finiva stampato dietro il foglio, su ogni pagina. In stampa si spengono le sole
+  `background-image`, così i colori — e la carta — restano.
+
+Il resto: `pb-36` (lo spazio della bottom nav) che poteva generare un foglio
+bianco in più; `-webkit-backdrop-filter` non azzerato, cioè la card del grafico
+ancora sfocata **proprio su iOS**, che è il percorso per cui la fase esiste; il
+ritorno a `/analisi` che perdeva il conto e poteva mostrarne un altro;
+`getAccounts()` (aggregazione dei saldi su tutto l'archivio) usata per ricavare
+un nome, al posto di `getAccountOptions()`; e `AnalyticsTabs` che teneva la
+propria copia dei tre periodi nella stessa PR che ha estratto `ANALYTICS_PERIODS`.
+
+##### La stampa vera — fatta il 2026-08-25, ed è ciò che chiude la fase
+
+Tre criteri su otto non erano raggiungibili da `localhost` con un browser
+headless, e sono stati verificati **a mano dal telefono sull'IP di LAN**:
+stampa partendo dal tema scuro, resa con «Grafica di sfondo» disattivata, e il
+percorso reale Condividi → Stampa → Salva su File.
+
+⚠️ **Con essa si chiude anche l'unico residuo del code-review**:
+`ResponsiveContainer` di Recharts si dimensiona da un `ResizeObserver`, e non era
+dimostrato che rimisurasse prima dello scatto di stampa a larghezza di pagina —
+sotto emulazione lo faceva (svg 290 → 340px), ma l'emulazione non è la stampa.
+Sulla carta i grafici escono corretti, quindi il `beforeprint` che era stato
+tenuto pronto **non serve** e non è stato aggiunto.
+
+⚠️ Vale come metodo, e conferma la nota della Fase 22: `collauda-app` gira su
+`localhost` e **non stampa**. Ogni fase che tocca un'API del browser — la stampa
+quanto `crypto.randomUUID()` — ha una parte di collaudo che nessun driver può
+fare, e va prevista dall'inizio invece di scoprirla alla fine.
+
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 
 Il guasto è emerso guardando a occhio una data in `/impostazioni/ricorrenti`: una
@@ -3652,8 +3876,11 @@ Seguire questo ordine, non saltare fasi:
     dipendenze nuove**. Due PR: **23a ✅ export CSV** (issue #37) — Route Handler
     con `Content-Disposition`, colonne leggibili, re-importabilità NON promessa.
     Implementata e collaudata il 2026-08-25 — vedi "Emerso implementando la 23a";
-    **23b report stampabile** (issue #60) — `@media print` + `window.print()`,
-    nessuna libreria PDF
+    **23b ✅ report stampabile** (issue #60) — `@media print` + `window.print()`,
+    nessuna libreria PDF, i grafici Recharts restano SVG. ⚠️ Il nodo era stampare
+    un'app che può essere in tema scuro: risolto condividendo il SELETTORE dei
+    token chiari (`:root, .paper`) invece di ricopiarne 43. Implementata e
+    collaudata il 2026-08-25 — vedi "Emerso implementando la 23b"
 24. AI Financial Coach — suggerimenti personalizzati basati su metodologie (50/30/20, ecc.) via Claude API
 25. Blocco app — PIN / biometrico (sezione "Sicurezza" del mockup impostazioni, saltata in Fase 13)
 26. PWA: manifest.json + Service Worker
