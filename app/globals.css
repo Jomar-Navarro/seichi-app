@@ -4,7 +4,29 @@
    SEICHI — ZEN GLASS DESIGN TOKENS
    ============================================================ */
 
-:root {
+/*
+ * ⚠️ `.paper` CONDIVIDE i valori del tema chiaro con `:root`: non li ricopia.
+ *
+ * Serve al report stampabile (Fase 23b), che deve essere chiaro anche quando
+ * l'app è in tema scuro — o si stampa un foglio nero. La via ovvia era un
+ * blocco `@media print` che ridichiara i token, ma `.dark` ne ridefinisce
+ * **43**: sarebbe stata una seconda lista di valori da tenere allineata a
+ * mano, cioè esattamente ciò che la Fase 18 ha rifiutato quando ha scelto due
+ * soli blocchi invece di duplicare la palette dentro una media query.
+ *
+ * Funziona per come cascatano le CUSTOM PROPERTIES: `.dark` le imposta su
+ * `<html>` e i figli le ereditano, ma una dichiarazione su un elemento più
+ * interno vince per quel sottoalbero. Mettere `.paper` sul contenitore del
+ * report riporta quindi al chiaro tutto ciò che sta dentro, senza toccare il
+ * resto della pagina e senza un solo valore duplicato.
+ *
+ * ⚠️ Vale SEMPRE, non solo in stampa, ed è deliberato: un report è un
+ * documento, e un documento è color carta. Così ciò che si vede sullo schermo
+ * è ciò che esce dalla stampante — che è il solo modo di non scoprire in
+ * cartaceo un difetto che il monitor nascondeva.
+ */
+:root,
+.paper {
 	color-scheme: light;
 
 	/* ---------- Brand ---------- */
@@ -453,4 +475,124 @@ body {
 		var(--shadow-inset) 0px 1px 0px inset,
 		var(--shadow-drop) 0px 6px 16px;
 	border: medium;
+}
+
+/* ============================================================
+   STAMPA — il report mensile (Fase 23b)
+   ============================================================ */
+
+@media print {
+	/*
+	 * ⚠️ Il tema NON si tocca qui: ci pensa `.paper` sul contenitore del report,
+	 * che condivide i valori chiari con `:root` invece di ricopiarli. Vedi la
+	 * nota in testa a questo file.
+	 */
+
+	@page {
+		margin: 14mm;
+	}
+
+	/* Il guscio dell'app non è parte del documento. */
+	.no-print {
+		display: none !important;
+	}
+
+	/*
+	 * ⚠️ Le ombre in stampa non sono morbide: diventano rettangoli grigi, perché
+	 * la resa a 600 dpi non ha nulla della sfocatura che le rende invisibili a
+	 * schermo. Il bordo da solo basta a separare le superfici sulla carta.
+	 */
+	.paper * {
+		box-shadow: none !important;
+		backdrop-filter: none !important;
+		/*
+		 * ⚠️ Serve ANCHE il prefisso: Tailwind emette entrambe le proprietà, e
+		 * Safari sotto la 18 legge solo quella prefissata. Senza, la card del
+		 * grafico resta sfocata proprio su iOS — cioè sul percorso
+		 * "Condividi → Stampa → Salva su File" per cui questa fase esiste.
+		 */
+		-webkit-backdrop-filter: none !important;
+	}
+
+	/*
+	 * ⚠️ `--background` NON è un colore: è un `radial-gradient`, quindi una
+	 * background-IMAGE. Il contenitore di `(main)` se lo applica con uno stile
+	 * inline, che nessuna classe può scavalcare — e con «Grafica di sfondo»
+	 * attiva quel gradiente scuro finisce stampato dietro il foglio chiaro, su
+	 * OGNI pagina.
+	 *
+	 * Si spengono le immagini di sfondo e basta: i colori restano, quindi la
+	 * carta di `.paper` non si tocca. Anche gli aloni decorativi `zg-breathe`
+	 * spariscono, ed è desiderato — non sono contenuto.
+	 */
+	* {
+		background-image: none !important;
+	}
+
+	/*
+	 * ⚠️⚠️ Il browser NON stampa gli sfondi, salvo che l'utente spunti
+	 * "Grafica di sfondo".
+	 *
+	 * `print-color-adjust: exact` è la richiesta di stamparli comunque, ed è
+	 * onorata dai browser moderni — ma resta una RICHIESTA, non una garanzia:
+	 * l'utente può sempre negarla. Quindi il report è disegnato per restare
+	 * leggibile SENZA: inchiostri su carta bianca, mai testo chiaro dentro un
+	 * riempimento d'accento (che diventerebbe bianco su bianco, la trappola
+	 * accento/inchiostro della Fase 18 nella versione in cui il colore non è
+	 * sbagliato ma ASSENTE). Ciò che gli sfondi aggiungono — i pallini della
+	 * legenda — è decorazione: l'etichetta accanto porta già il significato.
+	 *
+	 * ⚠️ Le fette del donut invece si stampano comunque: sono `fill` di SVG, non
+	 * sfondi CSS, e non passano da questa regola.
+	 */
+	.paper {
+		print-color-adjust: exact;
+		-webkit-print-color-adjust: exact;
+	}
+
+	/* Un blocco non si spezza a metà fra due fogli. */
+	.print-block {
+		break-inside: avoid;
+	}
+}
+
+/*
+ * ⚠️⚠️ Il COLORE DEL TESTO va dichiarato su `.paper`: ridefinire i token non basta.
+ *
+ * È il difetto che il collaudo della 23b ha trovato leggendo il colore calcolato,
+ * e la causa è precisa: una custom property ridefinita su `.paper` cambia solo le
+ * DICHIARAZIONI che la leggono dentro quel sottoalbero. La proprietà `color`,
+ * invece, il documento se l'è già risolta più in alto — il contenitore di
+ * `(main)` fa `color: var(--text-primary)`, e lì `--text-primary` è quello di
+ * `html.dark`.
+ *
+ * Risultato: ogni elemento del report che non dichiari un colore proprio eredita
+ * l'inchiostro CHIARO del tema scuro, cioè testo quasi bianco su carta bianca.
+ * Misurato prima della correzione: luminanza 0,91 del testo su 1,00 del foglio.
+ *
+ * ⚠️ Non si può mettere nel blocco condiviso `:root, .paper`: là `color`
+ * finirebbe anche su `<html>` e forzerebbe l'inchiostro chiaro sull'INTERA app in
+ * tema scuro. Il token si condivide, la proprietà no.
+ */
+.paper {
+	color: var(--text-primary);
+
+	/*
+	 * ⚠️⚠️ Il fondo è OPACO, e non può essere `--card`.
+	 *
+	 * `--card` è **vetro**: `rgba(255, 255, 255, 0.45)`. Il vetro funziona solo
+	 * sopra la superficie per cui è tarato — in tema chiaro sta su carta chiara e
+	 * si legge bianco. Sopra la pagina scura diventa **grigio medio**, e
+	 * l'inchiostro scuro che `.paper` impone finisce su un fondo a metà strada:
+	 * i testi `--text-muted` sparivano quasi del tutto.
+	 *
+	 * Trovato guardando lo screenshot in tema scuro, non da un controllo: la
+	 * prova leggeva `backgroundColor` e ne calcolava la luminanza **ignorando
+	 * l'alpha**, quindi vedeva `rgb(255,255,255)` e dichiarava «fondo chiaro».
+	 * Un controllo che misura il colore giusto nel modo sbagliato passa sempre.
+	 *
+	 * `--color-tsuki` è la carta del progetto e NON è ridefinita in `.dark`,
+	 * quindi vale identica nei due temi: un foglio è un foglio.
+	 */
+	background-color: var(--color-tsuki);
 }

@@ -1,6 +1,7 @@
 "use client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useI18n } from "./I18nProvider";
+import { ANALYTICS_PERIODS } from "@/lib/analytics";
 
 /**
  * Gli id sono già i valori del parametro `?periodo=`.
@@ -10,7 +11,14 @@ import { useI18n } from "./I18nProvider";
  * dizionario (`t.analytics.tabs`) quella mappa sparisce: il testo non è più
  * anche una chiave.
  */
-const TABS = ["settimana", "mese", "anno"] as const;
+/*
+ * ⚠️ La lista viene da `lib/analytics.ts`, che è la stessa usata dal titolo
+ * del periodo e dalla validazione del report (23b). Tenerne una copia qui
+ * significava che aggiungere una finestra temporale richiedeva di ricordarsi
+ * di tre punti — e il terzo, il report, è nato proprio dalla necessità di
+ * validare quel parametro.
+ */
+const TABS = ANALYTICS_PERIODS;
 type Tab = (typeof TABS)[number];
 
 export default function AnalyticsTabs() {

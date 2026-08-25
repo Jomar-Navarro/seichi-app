@@ -1,4 +1,6 @@
 import { Suspense } from "react";
+import Link from "next/link";
+import { Printer } from "lucide-react";
 import { redirect } from "next/navigation";
 import { getAnalyticsData } from "../action";
 import { getAccounts } from "../conti/actions";
@@ -8,24 +10,8 @@ import AnalyticsTabs from "@/components/features/AnalyticsTabs";
 import AccountSelector from "@/components/features/AccountSelector";
 import { getSelectedAccount } from "@/lib/accounts-server";
 import { getI18n } from "@/lib/i18n/server";
-import { DISPLAY_CURRENCY, capitalize, formatDate, formatMoney } from "@/lib/i18n/format";
-import type { Locale } from "@/lib/i18n/config";
-import type { Dictionary } from "@/lib/i18n/dictionaries/it";
-
-/**
- * L'intestazione del periodo: "Ultima settimana", "2026", "Agosto 2026".
- *
- * ⚠️ `MESI_LUNGHI` non esiste più: era un array di dodici nomi di mese in
- * italiano, e `Intl` li conosce per ogni lingua. La maiuscola iniziale la mette
- * `capitalize`, perché `Intl` restituisce "agosto" minuscolo mentre qui il
- * design vuole "Agosto". L'anno da solo non si traduce.
- */
-function periodoLabel(periodo: string, locale: Locale, t: Dictionary): string {
-	const now = new Date();
-	if (periodo === "settimana") return t.analytics.lastWeek;
-	if (periodo === "anno") return String(now.getFullYear());
-	return capitalize(formatDate(now, locale, { month: "long", year: "numeric" }));
-}
+import { periodoLabel } from "@/lib/analytics";
+import { DISPLAY_CURRENCY, formatMoney } from "@/lib/i18n/format";
 
 export default async function AnalyticsPage({
 	searchParams,
@@ -97,26 +83,46 @@ export default async function AnalyticsPage({
 			</div>
 
 			{/*
-				Il selettore conti, lo stesso della home.
+				Il selettore conti e l'ingresso al report, sulla STESSA riga.
+
+				⚠️ Il collegamento stava su una riga propria, sotto i tab, e aggiungeva
+				un'altra fascia di pagina per una sola parola mentre accanto al chip
+				restava metà riga vuota. Su uno schermo da telefono lo spazio
+				verticale è la risorsa scarsa: un comando secondario si mette dove uno
+				spazio esiste già, non se ne apre uno nuovo.
+
 				⚠️ `keepParams` conserva il periodo: senza, scegliere un conto mentre
 				si guarda l'anno riportava al mese, cioè cambiava DUE variabili per un
 				tocco solo — e quella non scelta cambia in silenzio.
+
+				⚠️ `ml-auto` e non `justify-between`: senza conti il selettore non viene
+				reso affatto, e `justify-between` con un figlio solo lo appoggerebbe a
+				SINISTRA — il comando salterebbe da un lato all'altro a seconda di
+				quanti conti hai.
 			*/}
-			{accounts.length > 0 && (
-				<div className="mb-4">
+			<div className="flex items-center gap-3 mb-4">
+				{accounts.length > 0 && (
 					<AccountSelector
 						accounts={accounts}
 						selectedId={accountId}
 						basePath="/analisi"
 						keepParams={{ periodo }}
 					/>
-				</div>
-			)}
+				)}
+				<Link
+					href={`/analisi/report?periodo=${periodo}${accountId ? `&conto=${accountId}` : ""}`}
+					className="ml-auto shrink-0 inline-flex items-center gap-1.5 text-[12.5px] font-medium text-secondary"
+				>
+					<Printer size={13} className="text-muted" />
+					{t.analytics.report.open}
+				</Link>
+			</div>
 
 			{/* Tab selector — useSearchParams richiede Suspense */}
 			<Suspense fallback={<div className="h-10 rounded-2xl segment-tab" />}>
 				<AnalyticsTabs />
 			</Suspense>
+
 
 			{/* KPI Flusso netto */}
 			<div className="mt-5 mb-4">

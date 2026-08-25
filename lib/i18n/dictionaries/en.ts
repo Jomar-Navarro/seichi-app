@@ -507,11 +507,21 @@ export const en: Dictionary = {
 		legendIncome: "Income",
 		legendExpenses: "Money out",
 		spendingByCategory: "Spending by category",
+		spendingLabel: "Expenses",
 		noSpending: "No spending {window}",
 		windows: {
 			settimana: "this week",
 			mese: "this month",
 			anno: "this year",
+		},
+
+		report: {
+			open: "Printable report",
+			title: "Report",
+			print: "Print",
+			generatedOn: "generated on {date}",
+			flowExplain: "income minus outgoings for the period — not the balance of your accounts",
+			trendTitle: "Trend",
 		},
 	},
 

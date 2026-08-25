@@ -761,6 +761,16 @@ export async function getAnalyticsData(periodo: string = "mese", accountId?: str
 
 	return {
 		spese: Object.values(spesePerCategoria ?? {}),
+		/*
+		 * ⚠️ Entrate e uscite del periodo escono di qui, e NON è un dato nuovo:
+		 * sono i due addendi di `saldoMese`, già calcolati sopra con
+		 * `sommaUscite()`. Li usa il report stampabile (23b), che per regola non
+		 * introduce un solo numero proprio — ricalcolarli là avrebbe creato la
+		 * quarta definizione di "uscita" dopo le tre che la review della 20a ha
+		 * dovuto unificare, e le tre divergevano già fra loro.
+		 */
+		entrate: entrateCorrente,
+		uscite: usciteCorrente,
 		saldoMese,
 		variazionePct,
 		trend,

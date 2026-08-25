@@ -2876,6 +2876,104 @@ Il metodo che ha retto, e che vale la pena riusare:
   virgolette dentro i campi. Non promette la re-importabilità — promette che le
   due metà del progetto non si contraddicono sul formato.
 
+#### Emerso implementando la 23b (2026-08-25)
+
+Nessuna migration, **zero dipendenze**. `/analisi/report` + `window.print()`.
+
+##### ⚠️ Stampare un'app che può essere in tema scuro
+
+La via ovvia — un `@media print` che ridichiara i token chiari — significava una
+seconda lista di **43 valori** da tenere allineata a mano: esattamente ciò che la
+Fase 18 rifiutò quando scelse due soli blocchi invece di duplicare la palette
+dentro una media query.
+
+La soluzione è **condividere il selettore**, non i valori: `:root, .paper { … }`.
+Funziona per come cascatano le custom properties — `.dark` le imposta su `<html>`
+e i figli le ereditano, ma una dichiarazione su un elemento più interno vince per
+quel sottoalbero. `.paper` sul contenitore del report riporta al chiaro tutto ciò
+che sta dentro, **senza un solo valore duplicato**. E vale sempre, non solo in
+stampa: un documento è color carta, così ciò che vedi è ciò che stampi.
+
+Due trappole dentro quella soluzione, e nessuna delle due era prevedibile
+leggendo il codice:
+
+- ⚠️⚠️ **Ridefinire i token NON basta per il testo.** La proprietà `color` il
+  documento se l'è già risolta più in alto (il contenitore di `(main)` fa
+  `color: var(--text-primary)` con il valore del tema scuro), e l'eredità porta
+  giù il **colore calcolato**, non la variabile. Ogni elemento senza un colore
+  proprio finiva con l'inchiostro chiaro su carta bianca: luminanza 0,91 su 1,00.
+  Serve `.paper { color: var(--text-primary) }` — il token si condivide nel
+  blocco comune, la **proprietà** va dichiarata a parte. ⚠️ Non si può metterla
+  nel blocco condiviso: là finirebbe anche su `<html>` e forzerebbe l'inchiostro
+  chiaro sull'intera app in tema scuro.
+- ⚠️⚠️ **Un documento non può essere di VETRO.** `--card` è
+  `rgba(255,255,255,0.45)`: il vetro funziona solo sopra la superficie per cui è
+  tarato, e sopra la pagina scura quel 45% diventa **grigio medio**, con i testi
+  `--text-muted` quasi invisibili. Il fondo del foglio è ora `--color-tsuki`, che
+  è la carta del progetto e **non è ridefinita in `.dark`**: un foglio è un
+  foglio in entrambi i temi.
+
+##### ⚠️ La verifica che passava sopra un difetto vero
+
+Il controllo del tema scuro leggeva `backgroundColor` e ne calcolava la luminanza
+con `match(/\d+/g)`, cioè prendendo i primi tre numeri e **buttando via
+l'alpha**: su `rgba(255,255,255,0.45)` vedeva bianco pieno e dichiarava «fondo
+chiaro». Il difetto si è visto **guardando lo screenshot**.
+
+**La regola: un controllo che misura la proprietà giusta nel modo sbagliato non
+fallisce mai — e quindi non protegge da niente.** Ora il controllo confronta
+anche `alpha === 1`, ed è stato messo alla controprova rimettendo il vetro:
+diventa rosso, mentre «fondo chiaro» continua a passare. È la dimostrazione in
+una riga di cosa fosse cieco.
+
+##### Il report non introduce un solo numero — e proprio per questo ne ha corretto uno
+
+`entrate` e `uscite` escono ora da `getAnalyticsData()`, che le calcolava già:
+ricalcolarle avrebbe creato la **quarta** definizione di "uscita" dopo le tre che
+la review della 20a ha dovuto unificare.
+
+⚠️ E mettendole sul foglio è comparsa una collisione che nessuno vedeva: la card
+diceva **«Uscite € 785,30»** e il donut, due dita più sotto, **«Uscite
+€ 733,40»**. La differenza sono esattamente i **51,90 di abbonamenti** — la card
+somma `spesa + abbonamento` (come il Flusso e la legenda del grafico), il donut
+solo `spesa`, ma al centro portava `t.types.spesa`, che in italiano rende
+"Uscite": **la parola larga sopra il numero stretto**, mentre dalla 20a "uscite"
+significa deliberatamente l'insieme che comprende gli abbonamenti.
+
+Corretto in `t.analytics.spendingLabel` ("Spese"), quindi **anche su `/analisi`**,
+dove il difetto viveva da sempre invisibile perché niente gli stava accanto. È il
+gemello della regola della #9: *aggiungere un elemento accanto a un testo può
+rendere quel testo ambiguo senza toccarlo.*
+
+##### Emerso dal code-review — 8 rilievi, 7 applicati
+
+I due che valgono una regola:
+
+- ⚠️ **Un documento che non sa dichiarare il proprio ambito non si stampa.** Con
+  `getAccounts()` fallita l'intestazione scriveva "Tutti i conti" — perché il
+  nome non si risolveva — sopra numeri che restavano filtrati sul conto
+  ricordato. Su `/analisi` degradare è giusto (sparisce il chip, i dati restano);
+  qui l'affermazione finisce **stampata e archiviata**. Ora, se un conto è
+  selezionato e i conti non si leggono, la pagina si ferma.
+- ⚠️ **`--background` è un `radial-gradient`, non un colore**, applicato con uno
+  stile inline che nessuna classe scavalca: con «Grafica di sfondo» attiva
+  finiva stampato dietro il foglio, su ogni pagina. In stampa si spengono le sole
+  `background-image`, così i colori — e la carta — restano.
+
+Il resto: `pb-36` (lo spazio della bottom nav) che poteva generare un foglio
+bianco in più; `-webkit-backdrop-filter` non azzerato, cioè la card del grafico
+ancora sfocata **proprio su iOS**, che è il percorso per cui la fase esiste; il
+ritorno a `/analisi` che perdeva il conto e poteva mostrarne un altro;
+`getAccounts()` (aggregazione dei saldi su tutto l'archivio) usata per ricavare
+un nome, al posto di `getAccountOptions()`; e `AnalyticsTabs` che teneva la
+propria copia dei tre periodi nella stessa PR che ha estratto `ANALYTICS_PERIODS`.
+
+⚠️ **Il residuo dichiarato**: `ResponsiveContainer` di Recharts si dimensiona da
+un `ResizeObserver`, e non è dimostrato che rimisuri prima dello scatto di
+stampa a larghezza di pagina. Sotto emulazione lo fa (svg 290 → 340px), quindi il
+meccanismo funziona, ma l'unica prova che conta è **una stampa vera**. Va guardato
+lì, insieme a tutto il resto: `collauda-app` gira su `localhost` e non stampa.
+
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 
 Il guasto è emerso guardando a occhio una data in `/impostazioni/ricorrenti`: una
@@ -3652,8 +3750,11 @@ Seguire questo ordine, non saltare fasi:
     dipendenze nuove**. Due PR: **23a ✅ export CSV** (issue #37) — Route Handler
     con `Content-Disposition`, colonne leggibili, re-importabilità NON promessa.
     Implementata e collaudata il 2026-08-25 — vedi "Emerso implementando la 23a";
-    **23b report stampabile** (issue #60) — `@media print` + `window.print()`,
-    nessuna libreria PDF
+    **23b ✅ report stampabile** (issue #60) — `@media print` + `window.print()`,
+    nessuna libreria PDF, i grafici Recharts restano SVG. ⚠️ Il nodo era stampare
+    un'app che può essere in tema scuro: risolto condividendo il SELETTORE dei
+    token chiari (`:root, .paper`) invece di ricopiarne 43. Implementata e
+    collaudata il 2026-08-25 — vedi "Emerso implementando la 23b"
 24. AI Financial Coach — suggerimenti personalizzati basati su metodologie (50/30/20, ecc.) via Claude API
 25. Blocco app — PIN / biometrico (sezione "Sicurezza" del mockup impostazioni, saltata in Fase 13)
 26. PWA: manifest.json + Service Worker
