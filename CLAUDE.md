@@ -3081,11 +3081,24 @@ ritorno a `/analisi` che perdeva il conto e poteva mostrarne un altro;
 un nome, al posto di `getAccountOptions()`; e `AnalyticsTabs` che teneva la
 propria copia dei tre periodi nella stessa PR che ha estratto `ANALYTICS_PERIODS`.
 
-⚠️ **Il residuo dichiarato**: `ResponsiveContainer` di Recharts si dimensiona da
-un `ResizeObserver`, e non è dimostrato che rimisuri prima dello scatto di
-stampa a larghezza di pagina. Sotto emulazione lo fa (svg 290 → 340px), quindi il
-meccanismo funziona, ma l'unica prova che conta è **una stampa vera**. Va guardato
-lì, insieme a tutto il resto: `collauda-app` gira su `localhost` e non stampa.
+##### La stampa vera — fatta il 2026-08-25, ed è ciò che chiude la fase
+
+Tre criteri su otto non erano raggiungibili da `localhost` con un browser
+headless, e sono stati verificati **a mano dal telefono sull'IP di LAN**:
+stampa partendo dal tema scuro, resa con «Grafica di sfondo» disattivata, e il
+percorso reale Condividi → Stampa → Salva su File.
+
+⚠️ **Con essa si chiude anche l'unico residuo del code-review**:
+`ResponsiveContainer` di Recharts si dimensiona da un `ResizeObserver`, e non era
+dimostrato che rimisurasse prima dello scatto di stampa a larghezza di pagina —
+sotto emulazione lo faceva (svg 290 → 340px), ma l'emulazione non è la stampa.
+Sulla carta i grafici escono corretti, quindi il `beforeprint` che era stato
+tenuto pronto **non serve** e non è stato aggiunto.
+
+⚠️ Vale come metodo, e conferma la nota della Fase 22: `collauda-app` gira su
+`localhost` e **non stampa**. Ogni fase che tocca un'API del browser — la stampa
+quanto `crypto.randomUUID()` — ha una parte di collaudo che nessun driver può
+fare, e va prevista dall'inizio invece di scoprirla alla fine.
 
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 
