@@ -2945,6 +2945,26 @@ dove il difetto viveva da sempre invisibile perché niente gli stava accanto. È
 gemello della regola della #9: *aggiungere un elemento accanto a un testo può
 rendere quel testo ambiguo senza toccarlo.*
 
+##### Due rifiniture chieste guardando l'app, non un controllo
+
+- ⚠️ **La bottom nav non deve esserci sul report, non solo in stampa.** `no-print`
+  la toglie dalla carta ma non dallo schermo, e siccome è `fixed` galleggiava
+  sopra il documento mentre si scorre — coprendo proprio il donut delle spese,
+  cioè la parte che un'anteprima serve a controllare. Ora `BottomNav` restituisce
+  `null` sulle rotte che sono un DOCUMENTO (`DOCUMENT_ROUTES`), e il report ha
+  perso i 144px che le riservava: spazio vuoto per un elemento inesistente.
+  ⚠️ Nascondere lì è più economico che spostare il report fuori dal gruppo
+  `(main)`, che vorrebbe un layout proprio e un secondo controllo di
+  autenticazione per ottenere la stessa cosa.
+- **Il comando "Report stampabile" sta sulla riga del selettore conti.** Stava su
+  una fascia propria sotto i tab, per una parola sola, mentre accanto al chip
+  restava metà riga vuota: su un telefono lo spazio verticale è la risorsa
+  scarsa, e un comando secondario si mette dove uno spazio esiste già invece di
+  aprirne uno nuovo. ⚠️ `ml-auto` e non `justify-between`: senza conti il
+  selettore non viene reso affatto, e `justify-between` con un figlio solo lo
+  appoggerebbe a sinistra — il comando cambierebbe lato a seconda di quanti conti
+  hai.
+
 ##### Emerso dal code-review — 8 rilievi, 7 applicati
 
 I due che valgono una regola:
