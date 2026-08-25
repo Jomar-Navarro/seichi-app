@@ -803,6 +803,13 @@ export const it = {
 		title: "Analisi",
 		lastWeek: "Ultima settimana",
 		/**
+		 * ⚠️ Il TITOLO del periodo, non l'etichetta del tab (che è "Tutto").
+		 * Su un foglio stampato "Tutto" da solo non dice tutto DI COSA: l'unica
+		 * riga che colloca il documento nel tempo è questa, e va letta senza lo
+		 * schermo intorno.
+		 */
+		allTime: "Tutto lo storico",
+		/**
 		 * ⚠️ "Flusso", non più "Flusso netto" — ed è la stessa parola della home
 		 * (`t.home.flowTitle`) perché è **lo stesso identico numero**, calcolato
 		 * dalla stessa `sommaUscite()`.
@@ -827,6 +834,7 @@ export const it = {
 			settimana: "Settimana",
 			mese: "Mese",
 			anno: "Anno",
+			tutto: "Tutto",
 		},
 		legendIncome: "Entrate",
 		/**
@@ -868,6 +876,12 @@ export const it = {
 			settimana: "questa settimana",
 			mese: "questo mese",
 			anno: "quest'anno",
+			/**
+			 * ⚠️ Senza questa voce `SpendingPieChart` ripiegava su `mese`, e sotto
+			 * l'intestazione "Tutto lo storico" compariva "Nessuna spesa questo
+			 * mese". Una frase FALSA — e sul report finisce stampata e archiviata.
+			 */
+			tutto: "in tutto lo storico",
 		},
 
 		/** Il report stampabile — Fase 23b. */

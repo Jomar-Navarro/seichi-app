@@ -154,7 +154,13 @@ export default async function AnalyticsPage({
 							</svg>
 							{Math.abs(analytics.variazionePct)}%
 						</span>
-					) : (
+					) : periodo === "tutto" ? null : (
+						/*
+						 * ⚠️ Su «tutto» questa riga NON si mostra: `variazionePct` è null per
+						 * costruzione — prima di tutta la storia non c'è niente con cui
+						 * confrontarsi — e la frase di ripiego dice "— primo mese", che su un
+						 * arco di quattro anni è semplicemente falsa.
+						 */
 						<span className="text-[12px] font-medium text-muted">{t.analytics.firstMonth}</span>
 					)}
 				</div>

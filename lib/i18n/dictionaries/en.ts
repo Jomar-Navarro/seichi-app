@@ -496,6 +496,7 @@ export const en: Dictionary = {
 	analytics: {
 		title: "Analytics",
 		lastWeek: "Last week",
+		allTime: "All time",
 		// "Flow", same word as the home card: it is the same number. See it.ts.
 		netFlow: "Flow",
 		firstMonth: "— first month",
@@ -503,6 +504,7 @@ export const en: Dictionary = {
 			settimana: "Week",
 			mese: "Month",
 			anno: "Year",
+			tutto: "All",
 		},
 		legendIncome: "Income",
 		legendExpenses: "Money out",
@@ -513,6 +515,7 @@ export const en: Dictionary = {
 			settimana: "this week",
 			mese: "this month",
 			anno: "this year",
+			tutto: "ever",
 		},
 
 		report: {

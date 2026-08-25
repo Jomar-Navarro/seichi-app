@@ -2945,6 +2945,99 @@ dove il difetto viveva da sempre invisibile perché niente gli stava accanto. È
 gemello della regola della #9: *aggiungere un elemento accanto a un testo può
 rendere quel testo ambiguo senza toccarlo.*
 
+##### Il quarto periodo — «tutto», chiesto usando l'app
+
+Notato dopo il merge della 23a: **l'export CSV accettava `periodo=tutto`, il
+report no.** Le due liste di finestre restano diverse di proposito — l'analisi
+ragiona per periodi di CALENDARIO (settimana, mese, anno), la lista per finestre
+MOBILI (7g, 30g, 3m) — ma la stessa fase offriva l'intera storia in un formato e
+non nell'altro. Aggiunto a `ANALYTICS_PERIODS`, quindi **quarto tab su
+`/analisi`** e non solo nel report: una finestra che il report ha e la pagina no
+contraddirebbe la regola per cui il report è *la vista che stavi guardando*.
+
+- Il trend di «tutto» si raggruppa **per ANNO** (su una storia lunga i mesi sono
+  illeggibili) e parte dalla data del **primo movimento**, chiesta al database:
+  un inizio fisso riempirebbe il grafico di anni vuoti precedenti all'utente.
+- Nessun periodo precedente con cui confrontarsi → `variazionePct` esce `null`,
+  che la UI già sa mostrare.
+
+##### ⚠️⚠️ …e «tutto» ha fatto emergere un troncamento SILENZIOSO
+
+Fino a qui ogni query dell'analisi aveva un limite inferiore di data. «Tutto» lo
+toglie, e **PostgREST tronca a 1000 righe senza dirlo**: i grafici avrebbero
+mostrato le prime mille righe con un totale più basso del vero e nessun errore.
+Il rischio è arrivato col periodo nuovo ma **non era nato lì** — anche un anno
+molto movimentato poteva superarle. Chiuso paginando la lettura
+(`leggiTutte`, blocchi da 500) per **tutti** i periodi, non solo per quello nuovo.
+
+⚠️⚠️ **E la prima versione del lettore paginato aveva il difetto che il
+code-review della 23a aveva appena fatto correggere**: paginava **senza
+ordinamento totale**. Senza `order by` ogni pagina è una query a sé, Postgres può
+ordinare diversamente a ogni giro, e con gli offset una riga finisce in due
+blocchi e un'altra in nessuno.
+
+Misurato abbassando `ANALYTICS_CHUNK` a 5: il Flusso di «tutto» usciva
+**€ 2.766,12** invece di € 6.068,95. Con `.order("id")` i due valori coincidono a
+blocchi da 5 (49 giri) e da 500 (1 giro), su tutti e tre i periodi.
+
+**La lezione, e vale più della correzione: il difetto non stava in
+`getTransactions`, stava nella PAGINAZIONE.** Averlo corretto là non ha protetto
+il lettore scritto poche ore dopo — è la "migrazione a campione" che questo
+documento registra dalla Fase 18, applicata a se stessi nella stessa giornata.
+Chi scrive una nuova lettura a blocchi in questo progetto se lo ritrova identico.
+
+⚠️ Nota di metodo: **il difetto l'ha trovato l'iniezione del guasto, non un
+controllo**. Abbassare la soglia è ormai il gesto standard di questo progetto
+(`ATTACHMENT_MAX_BYTES` in Fase 22, `EXPORT_CHUNK` in 23a) e qui ha pagato per la
+terza volta.
+
+⚠️ E un OK **vuoto**: la prova che l'asse del trend mostrasse gli anni faceva
+`assi.every(…)` su un array **vuoto**, che in JavaScript è `true`. Passava senza
+guardare niente. Che l'asse dica davvero 2023-2026 si è visto **guardando lo
+screenshot**. Un insieme vuoto soddisfa qualunque `every`: un controllo che può
+ricevere zero elementi deve pretendere `length > 0` prima di dichiararsi
+superato.
+
+##### La seconda code-review — quella sul periodo «tutto» (6 rilievi, tutti applicati)
+
+⚠️ Il batch di «tutto» era stato collaudato ma **non ancora passato da una
+review**, ed è quello in cui mi ero già infilato il difetto della paginazione.
+Vale come regola di processo: *una review copre il diff che esisteva quando è
+stata eseguita*, esattamente come una guardia di migration copre i successori che
+esistevano quando è stata scritta.
+
+- ⚠️ **`analytics.windows` non aveva la chiave `tutto`**, quindi
+  `SpendingPieChart` ripiegava su `mese`: sotto l'intestazione "Tutto lo storico"
+  compariva **"Nessuna spesa questo mese"**. Terza volta in questa fase che una
+  frase falsa finirebbe **stampata e archiviata**, e la seconda che nasce da un
+  ripiego silenzioso di un dizionario indicizzato con un valore variabile.
+- ⚠️ **L'errore della query d'ancoraggio veniva scartato.** Su una lettura
+  fallita `primoAnno` ripiegava sull'anno corrente: «tutto» diventava in silenzio
+  «quest'anno» per KPI, trend e torta. Ogni altra query della funzione l'errore
+  lo restituisce — questa era l'unica a non farlo.
+- ⚠️ **«— primo mese» su un arco di quattro anni.** Con `variazionePct` null per
+  costruzione, `/analisi` cadeva nel ramo di ripiego e mostrava quella frase. Il
+  commento in `action.ts` diceva "nessuna freccia": **descriveva un
+  comportamento che la pagina non aveva**. Su «tutto» ora non si mostra nulla.
+- **L'ancora non filtrava per tipo** mentre trend e torta escludono
+  `trasferimento`/`disinvestimento`: un trasferimento più vecchio di tutto il
+  resto avrebbe aggiunto colonne d'anno strutturalmente vuote — proprio ciò che
+  partire dal primo movimento serve a evitare.
+- **Una data futura** (il form la accetta) dava `anni = 0` e una finestra
+  `rangeStart > rangeEnd`: pagina di zeri su un archivio pieno. Chiuso con
+  `Math.min(primoAnno, anno corrente)`.
+- **Il lettore a blocchi non distingue "fine dati" da "pagina tagliata dal
+  server"**: se il *Max rows* di PostgREST scendesse sotto 500, il primo blocco
+  tornerebbe già corto e la lettura si fermerebbe lì, reintroducendo il
+  troncamento silenzioso che il lettore esiste per impedire. Il vincolo è ora
+  scritto sulla costante, insieme al fusibile `ANALYTICS_MAX_CHUNKS` che l'export
+  aveva già.
+
+⚠️ Effetto collaterale dell'`.order("id")`: la legenda del donut ha ora un ordine
+**deterministico** dove prima dipendeva da come il database restituiva le righe.
+Resta un ordine arbitrario (per id del movimento più vecchio) e non per importo:
+è una scelta di prodotto preesistente, non toccata qui.
+
 ##### Due rifiniture chieste guardando l'app, non un controllo
 
 - ⚠️ **La bottom nav non deve esserci sul report, non solo in stampa.** `no-print`

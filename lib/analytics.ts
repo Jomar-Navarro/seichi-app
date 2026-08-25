@@ -13,7 +13,14 @@ import type { Dictionary } from "@/lib/i18n/dictionaries/it";
  * titolo; dentro un documento stampato diventerebbe un foglio che dichiara un
  * arco di tempo e ne mostra un altro.
  */
-export const ANALYTICS_PERIODS = ["settimana", "mese", "anno"] as const;
+/*
+ * ⚠️ "tutto" è arrivato per ULTIMO, e per una ragione che vale registrare:
+ * l'export CSV della 23a lo accettava già (`TRANSACTION_PERIODS`) mentre
+ * l'analisi no. Le due liste restano diverse di proposito — qui finestre di
+ * CALENDARIO, là finestre MOBILI (7g, 30g, 3m) — ma la stessa fase offriva
+ * l'intera storia in un formato e non nell'altro.
+ */
+export const ANALYTICS_PERIODS = ["settimana", "mese", "anno", "tutto"] as const;
 
 export type AnalyticsPeriod = (typeof ANALYTICS_PERIODS)[number];
 
@@ -36,6 +43,7 @@ export function isAnalyticsPeriod(value: string | undefined): value is Analytics
 export function periodoLabel(periodo: string, locale: Locale, t: Dictionary): string {
 	const now = new Date();
 	if (periodo === "settimana") return t.analytics.lastWeek;
+	if (periodo === "tutto") return t.analytics.allTime;
 	if (periodo === "anno") return String(now.getFullYear());
 	return capitalize(formatDate(now, locale, { month: "long", year: "numeric" }));
 }
