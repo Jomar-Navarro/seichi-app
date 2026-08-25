@@ -3,7 +3,7 @@ import { Search, ChevronDown, Check, X } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { TRANSACTION_TYPES, type Account, type Category } from "@/types";
 import { useI18n } from "./I18nProvider";
-import { categoryTypeFor } from "@/lib/transaction-utils";
+import { TRANSACTION_PERIODS, categoryTypeFor } from "@/lib/transaction-utils";
 
 interface FilterBarProps {
 	search: string;
@@ -31,7 +31,6 @@ interface FilterBarProps {
  * legge direttamente `t.types`, che è la stessa fonte usata dalla lista e dalla
  * pagina categorie.
  */
-const PERIOD_IDS = ["7d", "30d", "3m", "tutto"] as const;
 
 export default function FilterBar({
 	search,
@@ -60,7 +59,7 @@ export default function FilterBar({
 		})),
 	];
 
-	const periodoOptions = PERIOD_IDS.map((id) => ({
+	const periodoOptions = TRANSACTION_PERIODS.map((id) => ({
 		value: id,
 		label: t.transactions.periods[id],
 	}));

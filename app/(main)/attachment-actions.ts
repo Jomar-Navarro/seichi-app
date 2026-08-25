@@ -93,13 +93,29 @@ export async function getAttachments(
  */
 const IN_CHUNK = 100;
 
-/** Il conteggio per una lista di movimenti — per il segnaposto nella lista. */
-export async function getAttachmentCounts(
+/**
+ * Il conteggio, con l'esito della LETTURA accanto al risultato.
+ *
+ * ⚠️ I due chiamanti hanno bisogni OPPOSTI davanti allo stesso guasto, e per
+ * questo la funzione dice anche se ha finito:
+ *
+ *   · la LISTA vuole degradare — una graffetta in meno è meglio di una lista
+ *     che non si apre, e lo schermo resta lì a essere ricaricato;
+ *   · l'EXPORT no. Là un conteggio mancante diventa uno **zero scritto dentro
+ *     un file salvato**, cioè una lettura fallita travestita da fatto sui
+ *     propri dati — la stessa classe che il code-review della Fase 22 ha già
+ *     corretto su `getAttachments`, che a una query fallita rispondeva con un
+ *     elenco vuoto ("nessuna ricevuta").
+ *
+ * Restituire l'esito invece di scegliere per tutti è ciò che permette a
+ * ciascuno di decidere: nessuno dei due comportamenti è giusto in assoluto.
+ */
+async function countAttachments(
 	transactionIds: string[],
-): Promise<Record<string, number>> {
-	if (transactionIds.length === 0) return {};
+): Promise<{ counts: Record<string, number>; complete: boolean }> {
+	if (transactionIds.length === 0) return { counts: {}, complete: true };
 	const { supabase, user } = await requireUser();
-	if (!user) return {};
+	if (!user) return { counts: {}, complete: false };
 
 	const counts: Record<string, number> = {};
 
@@ -111,12 +127,8 @@ export async function getAttachmentCounts(
 			.in("transaction_id", transactionIds.slice(i, i + IN_CHUNK));
 
 		if (error) {
-			// ⚠️ Degrada, non blocca: il segnaposto è un di più, e la lista movimenti
-			// deve restare leggibile anche se questa query fallisce. Si restituisce
-			// ciò che si è riusciti a contare: una graffetta in meno è meglio di una
-			// lista che non si apre.
-			console.error("[attachments] getAttachmentCounts:", error.message);
-			return counts;
+			console.error("[attachments] countAttachments:", error.message);
+			return { counts, complete: false };
 		}
 
 		for (const row of data ?? []) {
@@ -124,7 +136,34 @@ export async function getAttachmentCounts(
 		}
 	}
 
-	return counts;
+	return { counts, complete: true };
+}
+
+/**
+ * Il conteggio per la LISTA movimenti — degrada in silenzio.
+ *
+ * ⚠️ Degrada e non blocca: il segnaposto è un di più, e la lista deve restare
+ * leggibile anche se questa query fallisce. Si mostra ciò che si è riusciti a
+ * contare. L'export usa `getAttachmentCountsChecked` qui sotto, che invece
+ * l'esito lo riporta.
+ */
+export async function getAttachmentCounts(
+	transactionIds: string[],
+): Promise<Record<string, number>> {
+	return (await countAttachments(transactionIds)).counts;
+}
+
+/**
+ * Il conteggio per l'EXPORT (Fase 23a) — dice anche se la lettura è riuscita.
+ *
+ * ⚠️ Chi scrive un file deve poter distinguere "zero ricevute" da "non sono
+ * riuscito a contarle": la prima è un fatto, la seconda diventa una bugia nel
+ * momento in cui finisce in una colonna e l'utente salva il file.
+ */
+export async function getAttachmentCountsChecked(
+	transactionIds: string[],
+): Promise<{ counts: Record<string, number>; complete: boolean }> {
+	return countAttachments(transactionIds);
 }
 
 /**

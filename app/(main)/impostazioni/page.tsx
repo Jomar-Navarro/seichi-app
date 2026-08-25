@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+	Download,
 	Fingerprint,
 	Info,
 	KeyRound,
@@ -130,12 +131,18 @@ export default async function ImpostazioniPage() {
 				/>
 			</SettingsGroup>
 
-			{/* Dati — import (Fase 21); l'export arriverà qui accanto (Fase 23) */}
+			{/* Dati — import (Fase 21) ed export (Fase 23a): le due direzioni, accanto. */}
 			<SettingsGroup label={t.settings.groups.data}>
 				<SettingsRow
 					icon={<Upload size={17} className="text-secondary" />}
 					label={t.settings.importData}
 					href="/impostazioni/importa"
+					chevron
+				/>
+				<SettingsRow
+					icon={<Download size={17} className="text-secondary" />}
+					label={t.settings.exportData}
+					href="/impostazioni/esporta"
 					chevron
 				/>
 			</SettingsGroup>

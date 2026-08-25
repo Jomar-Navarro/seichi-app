@@ -2688,6 +2688,194 @@ con il conteggio prima e dopo: 1+1 → 0+0. Il database è di produzione, quindi
 collaudo non finisce quando il referto è verde ma quando i dati sono come li ha
 trovati.
 
+### Fase 23 — export CSV e report mensile (issue #37)
+
+Progettata il 2026-08-25 prima di scrivere codice. **Nessuna migration: lo schema
+non cambia.** Due PR — **23a** export CSV, **23b** report stampabile — con la
+dipendenza a senso unico di sempre: la 23a è un prodotto finito da sola.
+
+⚠️ **Zero dipendenze nuove**, ed è una scelta, non un vanto: vale la regola in
+testa a `lib/import/csv.ts` — *una dipendenza si aggiunge quando serve, non
+quando è comoda*.
+
+#### Il CSV parla alla PERSONA, e la re-importabilità NON è promessa
+
+Colonne leggibili — nomi, non uuid: data, tipo, categoria, conto, conto di
+destinazione, importo, note, **numero di ricevute**. Un CSV non può portare i
+file allegati, e tacerlo lascerebbe credere che l'export sia completo: la colonna
+dice "2" e non porta niente, che è la verità. Riusa `getAttachmentCounts()`.
+
+La strada "esporta ciò che il tuo import rilegge" è stata **scartata**, e i tre
+motivi vanno tenuti perché sembra sempre una buona idea:
+
+- una riga inserita a mano ha `import_key` **NULL**, e lì i NULL restano
+  *distinti* (all'opposto di `budgets`) → reimportando il proprio export quelle
+  righe si duplicherebbero mentre le altre no. **Metà file idempotente è peggio
+  di nessuna idempotenza**;
+- l'import non crea le categorie mancanti: su un altro account i nomi non
+  risolvono;
+- per essere rileggibile il file dovrebbe portare uuid, cioè diventare
+  illeggibile nel foglio di calcolo, che è l'uso reale.
+
+⚠️ Il rischio non è tecnico ma di **aspettativa**: un file con esattamente le
+colonne che l'import chiede *invita* a reimportarlo. La pagina non dice mai
+"backup" — dice "esporta i tuoi movimenti" e rimanda a `/impostazioni/importa`
+per la strada opposta.
+
+**Formato**: date sempre **ISO** (`parseDate` ha già pagato l'ambiguità di
+`03/04/2026`); separatore e decimali **secondo il locale** (`;` + virgola in
+italiano), perché lo scopo del file è aprirsi bene nel foglio di calcolo di
+*quell'* utente. Residuo dichiarato: un file italiano in un Excel inglese chiede
+la procedura guidata.
+
+⚠️ **Il BOM va scritto.** Excel su Windows apre un UTF-8 senza BOM come latin-1:
+"Caffè" → "CaffÃ¨". È il mojibake che `repairMojibake()` esiste per *riparare*
+nei file altrui, prodotto stavolta da noi. `parseCsv` il BOM lo toglie già.
+
+⚠️⚠️ **Un campo che inizia con `=`, `+`, `-` o `@` è una FORMULA per Excel.**
+`notes` e i nomi di categoria e conto sono testo dell'utente: è il **terzo** punto
+dell'app in cui quel testo diventa sintassi, dopo `.or()` in `getTransactions`
+(da cui `isAccountId()`) e la query string della Fase 22. La difesa sta sulle
+sole colonne di **testo libero**, mai su quelle numeriche — un importo `-12,50`
+comincia con un meno legittimamente.
+
+#### Il download è un Route Handler, e non viola la regola
+
+`/impostazioni/esporta/download`, accanto alla pagina che lo comanda. La regola
+*"Server Actions per tutte le operazioni DB — mai chiamate API REST dirette"*
+vieta al **client** di parlare con Supabase, non a noi di avere una rotta nostra
+(ce ne sono già quattro, tutte auth). Scritto qui, o alla rilettura sembra uno
+strappo.
+
+⚠️ **Il fattore decisivo è il telefono.** Una server action dovrebbe
+materializzare il file come stringa, rispedirlo nel canale RSC e farlo scaricare
+da un `<a download>` su un `blob:` — inaffidabile su iOS Safari. Un
+`Content-Disposition: attachment` lo scarica il browser da sé.
+
+Tre obblighi del handler: `requireUser()` (è un URL pubblico), validazione dei
+filtri dalla query string (`isAccountId()` sul conto, insiemi noti per gli
+altri), e **`Cache-Control: private, no-store`** — contiene l'intera storia
+finanziaria di una persona; il precedente sta in `next.config.ts`.
+
+**Il tetto si pagina, non si tronca**: blocchi da 1000 finché la risposta è
+piena. Qui non c'è una schermata dove scrivere "ho guardato N righe" come in 21c
+— un file che finisce prima non ha modo di dirlo.
+
+#### Il report: lo stampa il BROWSER
+
+`/analisi/report`, raggiungibile da `/analisi` — è una vista del mese, non una
+configurazione. `window.print()` e nient'altro: i grafici Recharts sono già SVG
+nel DOM, quindi restano **vettoriali** (html2canvas li rasterizzerebbe), e su iOS
+si salva con Condividi → Stampa. Rinuncia dichiarata: **niente report generato
+dal server**, quindi un PDF spedito per email sarebbe un lavoro nuovo.
+
+Tre trappole, tutte figlie di fasi precedenti:
+
+- ⚠️ **il tema scuro stampa un foglio nero** — `@media print` forza i token
+  chiari a prescindere da `.dark`;
+- ⚠️⚠️ **il browser non stampa gli sfondi** salvo spunta esplicita: ogni
+  pastiglia d'accento con sopra `--on-accent` diventa **bianco su bianco**. In
+  stampa si usano gli inchiostri `--ink-*` su fondo bianco, mai il riempimento.
+  È la trappola accento/inchiostro della Fase 18 in una veste dove il colore non
+  è sbagliato ma **assente**;
+- ⚠️ **Recharts anima al mount**: stampando subito si cattura un grafico a metà.
+  `isAnimationActive={false}` nella vista report.
+
+#### ⚠️ Il report non introduce un solo numero nuovo
+
+Ogni cifra viene da `getDashboardTotals`/`getAnalyticsData` e da `sommaUscite()`.
+Non si riscrive un filtro: la 20a ha già registrato che tre `filter` scritti a
+mano erano tre occasioni di divergere, e divergevano. I nomi restano quelli
+corretti a caro prezzo — **"Flusso"**, **"Uscite"**, **"Capitale versato"** — e i
+trasferimenti non entrano nel flusso.
+
+⚠️ **Qui conta più che altrove perché un PDF si ARCHIVIA.** Una parola sbagliata
+su una schermata si corregge col deploy successivo; la stessa parola su un file
+salvato resta per sempre, e nessuna correzione la raggiunge.
+
+Per lo stesso motivo, se il report è filtrato per conto **deve scriverlo
+nell'intestazione**: sullo schermo lo spiega il chip accanto, un foglio stampato
+viaggia da solo. E il nome del file porta periodo e conto
+(`seichi-movimenti-2026-08.csv`) — tre export nella cartella Download devono
+essere distinguibili senza aprirli.
+
+#### Emerso implementando la 23a (2026-08-25)
+
+Implementata e collaudata: 31 prove sul serializzatore, 25 nel browser, zero
+errori console. Cinque rilievi dal code-review, quattro corretti.
+
+- ⚠️⚠️ **La paginazione poteva PERDERE righe, e il difetto era PREESISTENTE.**
+  `getTransactions` ordinava per `date desc` e basta, ma `date` non è univoca —
+  sui dati veri **162 righe su 242** la condividono, fino a 8 nello stesso giorno,
+  perché l'import della Fase 21 scrive movimenti datati al giorno. Con un solo
+  criterio Postgres è libero di ordinare le righe a pari merito diversamente a
+  ogni query, e **le pagine sono query distinte**: basta che due giri non
+  concordino a cavallo di un confine perché una riga compaia due volte e un'altra
+  mai. Chiuso con `id` come secondo ordinamento — una riga, e vale anche per
+  `/transazioni`, dove il difetto vive dalla 21c.
+  ⚠️ Non si vede sui dati di prova, dove una pagina basta a coprire tutto: si
+  vede solo con più pagine **e** con date ripetute.
+
+- ⚠️ **Due volte la stessa classe: una lettura fallita travestita da fatto.** Il
+  `count` dei movimenti scartava l'errore, quindi un guasto di rete faceva
+  sparire il comando dicendo "non c'è niente da esportare"; e il conteggio delle
+  ricevute degradava a mappa parziale, che nel file diventa uno **zero scritto in
+  una colonna e salvato su disco**. È la classe già corretta in Fase 22 su
+  `getAttachments`, e la differenza fra i due contesti è ciò che detta la cura:
+  in una lista un dato mancante si ricarica, **in un file si archivia**. Da qui
+  `getAttachmentCountsChecked()` accanto a `getAttachmentCounts()`: i due
+  chiamanti hanno bisogni opposti davanti allo stesso guasto, e nessuno dei due
+  comportamenti è giusto in assoluto.
+
+- ⚠️ **`t.typesSingular` non contiene `trasferimento` né `disinvestimento`**, e
+  `lookup()` ha come ripiego l'**id del database**: la colonna Tipo usciva mista,
+  cinque etichette e due id minuscoli — e in un file INGLESE con due parole
+  italiane dentro. Trovato leggendo l'output, non da un controllo: ogni riga era
+  sintatticamente perfetta. Si usa `t.transactionTypes[…].label`, che i tipi di
+  MOVIMENTO li ha tutti e sette. **La regola: prima di indicizzare un dizionario
+  con un valore del database, verificare che quel dizionario copra tutti i valori
+  possibili — un ripiego silenzioso non è una difesa, è un difetto rinviato.**
+
+- ⚠️ **Un filtro VALIDO poteva produrre un file vuoto.** Cambiando tipo, la
+  categoria selezionata restava e veniva spedita: tipo e categoria incompatibili
+  danno zero righe, cioè un CSV con la sola intestazione — l'affermazione falsa
+  che il rifiuto dei filtri malformati esiste per impedire, ottenuta però con
+  parametri legittimi. Qui la scelta è **opposta** a quella della barra filtri, di
+  proposito: là il chip nomina la categoria e la lista dice "nessun movimento con
+  questi filtri", quindi lo scarto è visibile e correggibile; un file no.
+
+- **Il segno dei trasferimenti resta positivo senza conto scelto, ed è un
+  compromesso dichiarato.** Sommare la colonna Importo sovrastima. Non è
+  risolvibile lì dentro: senza un punto di vista il segno di un trasferimento non
+  esiste — è la stessa ragione per cui la lista lo lascia neutro — e sia azzerarlo
+  sia svuotare la cella perderebbe un dato vero. Chi vuole un totale sommabile
+  esporta **un conto per volta**: verificato che lo stesso trasferimento esce
+  `−400` guardando Trade Republic e `+400` guardando il Conto principale.
+
+#### ⚠️ Il collaudo: settima e ottava volta che a sbagliare è la VERIFICA
+
+- **Playwright non traduce il `locale` del contesto in `Accept-Language` per
+  `context.request`.** Il giro inglese scaricava quindi un file *italiano* e il
+  KO dichiarava rotto il codice mentre a non parlare inglese era la richiesta. Il
+  file inglese va preso con un **click vero** nella pagina.
+- **Il confronto fra le due lingue misurava due filtri diversi**: l'italiano su
+  "tutto", l'inglese sul default a 30 giorni — 20 righe contro 242.
+
+Il metodo che ha retto, e che vale la pena riusare:
+
+- ⚠️ **il referto verde è stato messo alla controprova** disattivando la guardia
+  sulle formule e togliendo il BOM: sette controlli sono diventati rossi, poi
+  ripristinati. *Un elenco di soli OK non distingue passato da non eseguito*;
+- ⚠️ **la paginazione si prova abbassando la soglia**, non sperando che i dati
+  bastino: 242 righe stanno sotto `EXPORT_CHUNK = 500`, quindi il ciclo girava
+  una volta sola. Con blocchi da 7 (35 giri) escono le stesse 242 righe. È lo
+  stesso gesto con cui la Fase 22 ha provato il rifiuto degli allegati abbassando
+  `ATTACHMENT_MAX_BYTES`;
+- **il giro completo**: ciò che l'export scrive viene riletto da `parseCsv()` e
+  `parseAmount()` dell'import, in entrambe le lingue, con accenti, `;` e
+  virgolette dentro i campi. Non promette la re-importabilità — promette che le
+  due metà del progetto non si contraddicono sul formato.
+
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 
 Il guasto è emerso guardando a occhio una data in `/impostazioni/ricorrenti`: una
@@ -3459,7 +3647,13 @@ Seguire questo ordine, non saltare fasi:
     perde i file, e in SQL lo Storage non si tocca. Motivazioni, i cinque
     percorsi di cancellazione e la guardia scaduta: sezione "Fase 22" sopra.
     Migration `20260818_attachments.sql`
-23. Export dati / report PDF mensile — complementa l'import (Fase 21)
+23. Export CSV e report mensile — complementa l'import (Fase 21). **Progettata
+    il 2026-08-25**, sezione "Fase 23" sopra. Nessuna migration, **zero
+    dipendenze nuove**. Due PR: **23a ✅ export CSV** (issue #37) — Route Handler
+    con `Content-Disposition`, colonne leggibili, re-importabilità NON promessa.
+    Implementata e collaudata il 2026-08-25 — vedi "Emerso implementando la 23a";
+    **23b report stampabile** (issue #60) — `@media print` + `window.print()`,
+    nessuna libreria PDF
 24. AI Financial Coach — suggerimenti personalizzati basati su metodologie (50/30/20, ecc.) via Claude API
 25. Blocco app — PIN / biometrico (sezione "Sicurezza" del mockup impostazioni, saltata in Fase 13)
 26. PWA: manifest.json + Service Worker

@@ -139,7 +139,25 @@ export async function getTransactions(opts: {
 		.from("transactions")
 		.select("*, categories(name, icon, color)")
 		.eq("user_id", user.id)
-		.order("date", { ascending: false });
+		.order("date", { ascending: false })
+		/*
+		 * ⚠️ Il secondo ordinamento NON è cosmetico: senza, la paginazione può
+		 * duplicare o PERDERE righe.
+		 *
+		 * `date` non è univoca — l'import della Fase 21 scrive decine di movimenti
+		 * con la stessa data (162 righe su 242 sui dati veri, fino a 8 nello stesso
+		 * giorno) — e con un solo criterio di ordinamento Postgres è libero di
+		 * restituire le righe a pari merito in un ordine diverso a ogni query. Le
+		 * pagine sono query DISTINTE: basta che due giri ordinino diversamente le
+		 * righe a cavallo di un confine perché una compaia due volte e un'altra non
+		 * compaia affatto.
+		 *
+		 * Il guasto è silenzioso in entrambi i consumatori — la lista mostrerebbe un
+		 * doppione, l'export (23a) scriverebbe un file incompleto senza dirlo — e non
+		 * si vede sui dati di prova, dove una pagina sola basta a coprire tutto.
+		 * `id` è la chiave primaria, quindi basta lui a rendere l'ordine totale.
+		 */
+		.order("id", { ascending: false });
 
 	if (tipo) query = query.eq("type", tipo);
 
