@@ -840,6 +840,7 @@ export const en: Dictionary = {
 		},
 
 		importData: "Import transactions",
+		exportData: "Export transactions",
 		manageCategories: "Manage categories",
 		recurringTransactions: "Recurring transactions",
 		recurringTitle: "Recurring",
@@ -985,6 +986,38 @@ export const en: Dictionary = {
 			sameAccount: "The source and destination accounts must be different",
 			badCategory: "The category doesn't match the chosen type",
 			nothingToImport: "Nothing left to import",
+		},
+	},
+
+	export: {
+		title: "Export transactions",
+		intro: "Download your movements as a CSV file, to open in Excel or a spreadsheet.",
+		notBackup:
+			"This is not a backup: receipts are left out, and to put data back into Seichi you go through Import transactions.",
+		filters: "What to export",
+		fields: {
+			period: "Period",
+			type: "Type",
+			account: "Account",
+			category: "Category",
+		},
+		download: "Download the CSV file",
+		nothing: "There are no movements to export yet.",
+
+		columns: {
+			date: "Date",
+			type: "Type",
+			category: "Category",
+			account: "Account",
+			toAccount: "Destination account",
+			amount: "Amount",
+			notes: "Notes",
+			attachments: "Receipts",
+		},
+
+		errors: {
+			badFilter: "Invalid filter: go back and try again.",
+			failed: "The file could not be prepared. Please try again.",
 		},
 	},
 };

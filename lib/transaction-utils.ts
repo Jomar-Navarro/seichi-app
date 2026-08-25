@@ -51,6 +51,24 @@ export const TRANSACTIONS_PAGE_SIZE = 50;
 export const SEARCH_SCAN_LIMIT = 500;
 
 /**
+ * Le finestre temporali del filtro movimenti.
+ *
+ * ⚠️ Sta qui e non dentro `Filterbar` perché ha un SECONDO lettore: l'export
+ * (Fase 23a) valida con questo elenco il parametro che arriva dalla query
+ * string. Scritta a mano due volte, la lista sarebbe la terza occasione di
+ * divergere in questo file — dopo `categoryTypeFor`, che è nato proprio così.
+ *
+ * ⚠️ E la validazione all'ingresso dell'export non è cerimonia: `getTransactions`
+ * su un periodo che non riconosce non lascia passare tutto, calcola
+ * `new Date()` senza scostamento e filtra **al giorno corrente**. Su una lista si
+ * vedrebbe; dentro un file scaricato diventerebbe un CSV quasi vuoto che si legge
+ * come "non hai movimenti".
+ */
+export const TRANSACTION_PERIODS = ["7d", "30d", "3m", "tutto"] as const;
+
+export type TransactionPeriod = (typeof TRANSACTION_PERIODS)[number];
+
+/**
  * Di quale TIPO sono le categorie che un movimento di questo tipo può usare.
  *
  * Coincide col tipo del movimento per tutti tranne uno: un `disinvestimento` usa

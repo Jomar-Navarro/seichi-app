@@ -1312,6 +1312,7 @@ export const it = {
 		},
 
 		importData: "Importa transazioni",
+		exportData: "Esporta transazioni",
 		manageCategories: "Gestisci categorie",
 		recurringTransactions: "Transazioni ricorrenti",
 		/** Titolo della pagina dedicata: lì il contesto rende superfluo "Transazioni". */
@@ -1507,6 +1508,78 @@ export const it = {
 			sameAccount: "Il conto di partenza e quello di arrivo devono essere diversi",
 			badCategory: "La categoria non corrisponde al tipo scelto",
 			nothingToImport: "Non è rimasto niente da importare",
+		},
+	},
+
+	/**
+	 * Export dei movimenti in CSV — Fase 23a.
+	 *
+	 * ⚠️ La chiave è `export`, che è una parola riservata di JavaScript: come
+	 * proprietà di un oggetto è legale, e c'è già il precedente di `import` qui
+	 * sopra. Le due sezioni si chiamano come le due direzioni che descrivono.
+	 */
+	export: {
+		title: "Esporta transazioni",
+		/**
+		 * ⚠️ Due frasi, e la seconda è la più importante: dice cosa il file NON è.
+		 * Un CSV con le colonne che l'import si aspetta *invita* a reimportarlo, e
+		 * il risultato sarebbe la duplicazione delle righe inserite a mano. Vedi la
+		 * nota in testa a `lib/export/csv.ts`.
+		 */
+		intro: "Scarica i tuoi movimenti in un file CSV, da aprire in Excel o in un foglio di calcolo.",
+		notBackup:
+			"Non è un backup: le ricevute restano fuori, e per rimettere dei dati dentro Seichi si passa da Importa transazioni.",
+		filters: "Cosa esportare",
+		/**
+		 * Le etichette dei quattro selettori.
+		 *
+		 * ⚠️ Stanno qui e non prese in prestito da `t.accounts` o `t.categories`,
+		 * benché siano le stesse parole: `Select` compone il segnaposto come
+		 * "Seleziona {etichetta}", quindi un'etichetta scritta per un'altra
+		 * schermata potrebbe smettere di comporre una frase valida senza che
+		 * nessuno guardi questa pagina. Stesso precedente di `t.import.mapping`.
+		 */
+		fields: {
+			period: "Periodo",
+			type: "Tipo",
+			account: "Conto",
+			category: "Categoria",
+		},
+		download: "Scarica il file CSV",
+		/** ⚠️ Compare solo con zero conti o zero movimenti: un pulsante vivo che scarica un file vuoto è peggio. */
+		nothing: "Non c'è ancora nessun movimento da esportare.",
+
+		/**
+		 * Le intestazioni delle colonne del file.
+		 *
+		 * ⚠️ Stanno nel dizionario come ogni altra parola, e la conseguenza va
+		 * detta: **cambiando lingua cambiano le intestazioni**, quindi due export
+		 * fatti in due lingue non si impilano in un solo foglio. È il prezzo della
+		 * leggibilità, ed è coerente con la decisione di fondo — questo file parla
+		 * alla persona, non a una macchina che si aspetta uno schema fisso.
+		 */
+		columns: {
+			date: "Data",
+			type: "Tipo",
+			category: "Categoria",
+			account: "Conto",
+			toAccount: "Conto di arrivo",
+			amount: "Importo",
+			notes: "Note",
+			/** Il NUMERO di ricevute: un CSV non può portare i file. Vedi `notBackup`. */
+			attachments: "Ricevute",
+		},
+
+		errors: {
+			/**
+			 * ⚠️ Un filtro non riconosciuto viene RIFIUTATO, non ignorato — al
+			 * contrario della lista movimenti, che degrada a "nessun filtro".
+			 * Là il chip resta a schermo a dire cosa si sta guardando; un file
+			 * scaricato non ha un'interfaccia che lo corregga, e un CSV vuoto si
+			 * legge come "non hai movimenti".
+			 */
+			badFilter: "Filtro non valido: torna indietro e riprova.",
+			failed: "Non è stato possibile preparare il file. Riprova.",
 		},
 	},
 };
