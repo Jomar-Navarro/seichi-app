@@ -119,16 +119,25 @@ export default function HomeHero({
 					risponde per prima — "quanto ho" invece di "come sto andando".
 
 					⚠️ Ma l'ordine è anche il VERSO delle frasi: il suggerimento
-					"scorri →" viveva su `flowExplain` e puntava ai saldi. Con i saldi
-					a sinistra quella freccia indicherebbe una pagina che non c'è, quindi
-					si è spostata sulle due frasi della card saldo. È la regola già
-					registrata due volte: *spostare un elemento può rendere falso il testo
-					accanto senza toccarlo*.
+					"per i saldi, scorri →" viveva su `flowExplain`, e con i saldi a
+					sinistra avrebbe indicato una pagina che non c'è. Tolto — non
+					spostato sull'altra card, ed è la parte che è costata un tentativo:
 
-					⚠️ E il suggerimento ora compare SOLO quando c'è davvero una seconda
-					pagina, perché vive sulla card che si rende solo con dei conti. Prima
-					stava sul flusso, che si rende SEMPRE: senza conti diceva "scorri →"
-					verso il nulla. Difetto preesistente, chiuso di conseguenza.
+					· ⚠️ **due frecce sulla stessa card sono due gesti diversi.** La card
+					  saldo ha già "Vedi il dettaglio dei conti →", che NAVIGA. Un secondo
+					  → che significa *scorri di lato* usa lo stesso simbolo per un'altra
+					  azione, e a distinguerli resta solo la parola accanto.
+					· ⚠️ per fare spazio al suggerimento avevo cancellato *«gli archiviati
+					  restano fuori»*, che è un FATTO sul numero (20a: il saldo li
+					  esclude). Barattare un'informazione per un aiuto al gesto è il
+					  verso sbagliato dello scambio.
+
+					A insegnare lo scorrimento restano i PUNTINI qui sotto, che sono anche
+					comandi — l'unica affordance che non compete con un collegamento.
+
+					⚠️ Conseguenza buona e non cercata: il vecchio suggerimento stava sul
+					flusso, che si rende SEMPRE, mentre la seconda pagina esiste solo con
+					dei conti — senza, la home diceva "scorri →" verso il nulla.
 				*/}
 				{showBalance && (
 					<div className="snap-center shrink-0 w-full px-5">

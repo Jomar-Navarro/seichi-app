@@ -520,8 +520,8 @@ export const it = {
 		balanceHeading: "Saldo",
 		activeCount: { one: "{n} conto attivo", other: "{n} conti attivi" },
 		/** Card saldo nel carosello della home: cosa somma, detto esplicitamente. */
-		balanceExplainAll: "somma dei saldi sui conti attivi — per il flusso, scorri →",
-		balanceExplainOne: "giacenza attuale di questo conto — per il flusso, scorri →",
+		balanceExplainAll: "somma dei saldi sui conti attivi — gli archiviati restano fuori",
+		balanceExplainOne: "giacenza attuale di questo conto",
 		seeDetail: "Vedi il dettaglio dei conti",
 
 		archivedSection: { one: "Archiviato · {n}", other: "Archiviati · {n}" },
