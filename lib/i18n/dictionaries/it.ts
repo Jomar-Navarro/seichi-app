@@ -786,6 +786,17 @@ export const it = {
 		negativeNote: "hai liquidato più di quanto versato: la differenza è guadagno",
 		vsLastMonth: "rispetto al mese scorso",
 		composition: "Composizione",
+		/**
+		 * ⚠️ La ripartizione per ASSET, che è un'altra partizione da
+		 * "Composizione" — quella divide per POSIZIONE, cioè per categoria.
+		 *
+		 * Due titoli diversi perché sono due numeri diversi: i denominatori sono
+		 * separati (vedi `getInvestments`) e i totali positivi non coincidono
+		 * quando una posizione mescola più asset. Chiamarle entrambe
+		 * "Composizione" avrebbe messo la stessa parola sopra due cifre diverse —
+		 * il difetto che il report della 23b ha appena fatto correggere altrove.
+		 */
+		byTypeTitle: "Per tipologia",
 		total: "Totale",
 		positions: "Posizioni",
 		invested: "Investito",

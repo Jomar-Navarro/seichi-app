@@ -481,6 +481,7 @@ export const en: Dictionary = {
 		negativeNote: "you took out more than you put in: the difference is gain",
 		vsLastMonth: "vs last month",
 		composition: "Composition",
+		byTypeTitle: "By asset class",
 		total: "Total",
 		positions: "Positions",
 		invested: "Invested",

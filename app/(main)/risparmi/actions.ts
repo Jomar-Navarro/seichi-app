@@ -62,12 +62,13 @@ export async function getGoals(): Promise<{ data: GoalWithProgress[] } | { error
  * ⚠️ Non è la stessa aggregazione fatta due volte. La decisione dell'import è
  * per GRUPPO ma `investment_type` sta sulla RIGA, quindi una sola categoria
  * "ETF" contiene davvero righe di asset diversi: la posizione ha un solo nome e
- * più tipologie dentro. È il motivo per cui il badge di una posizione può non
- * corrispondere al suo nome — dice la tipologia della prima riga, non l'unica.
+ * più tipologie dentro.
  *
- * ⚠️ Il badge di posizione lo fissano solo le righe di ACQUISTO, e solo la
- * prima non nulla: le righe arrivano in ordine di data decrescente, quindi
- * senza quella guardia una vendita recente lo sovrascriverebbe.
+ * ⚠️ Da qui il badge di posizione (#56): `investment_type` è valorizzato SOLO
+ * quando la posizione ha una tipologia sola, e `typeCount` dice quante ne ha —
+ * prima era la tipologia della PRIMA riga d'acquisto, e su una posizione mista
+ * descriveva un altro asset (la card "ETF" mostrava "Crypto"). Su una posizione
+ * mista non esiste un badge corretto: a dirlo è la sezione "Per tipologia".
  *
  * @param accountId conto su cui restringere, o `null`/assente per tutti (#53).
  *   Filtra su `account_id`, cioè il conto su cui il movimento AGISCE — per un
@@ -105,9 +106,22 @@ export async function getInvestments(
 	let thisMonthContrib = 0;
 	let lastMonthContrib = 0;
 
+	/**
+	 * ⚠️ `types` è un INSIEME, non una stringa, ed è la correzione della #56.
+	 *
+	 * Una posizione è una CATEGORIA, e la decisione dell'import è per gruppo:
+	 * una sola categoria "ETF" raccoglie davvero righe di asset diversi,
+	 * perché `investment_type` sta sulla riga. Tenendo la tipologia della
+	 * PRIMA riga d'acquisto, la card mostrava un badge che descriveva un altro
+	 * asset — numero giusto, etichetta accanto sbagliata.
+	 *
+	 * Con l'insieme la domanda diventa esprimibile: una tipologia sola → il
+	 * badge è vero e si mostra; più d'una → non esiste UN badge corretto, e a
+	 * dirlo è la sezione "Per tipologia" (#61).
+	 */
 	const catMap = new Map<string, {
 		name: string; icon: string; color: string;
-		investment_type: string | null; total: number;
+		types: Set<string>; total: number;
 	}>();
 
 	for (const tx of txns ?? []) {
@@ -121,22 +135,32 @@ export async function getInvestments(
 		if (d >= firstOfThisMonth) thisMonthContrib += signed;
 		else if (d >= firstOfLastMonth) lastMonthContrib += signed;
 
+		/*
+		 * ⚠️ Si contano le righe di ENTRAMBI i versi: una vendita descrive un asset
+		 * che la posizione contiene quanto un acquisto. La vecchia guardia "solo un
+		 * acquisto fissa la tipologia" serviva a impedire che una vendita senza
+		 * tipologia SOVRASCRIVESSE quella giusta — con un insieme nulla viene
+		 * sovrascritto, quindi il problema non esiste più.
+		 *
+		 * ⚠️⚠️ Ma SOLO le tipologie NOTE entrano nell'insieme, e il ripiego
+		 * "altro" no: *sconosciuta* non è *diversa*. Il `TransactionForm` non
+		 * scrive mai `investment_type` (lo fa solo l'import), quindi un movimento
+		 * aggiunto a mano su una posizione importata tutta ETF avrebbe portato
+		 * l'insieme a due elementi: il badge "ETF" — corretto — sarebbe sparito, e
+		 * nella sezione per tipologia sarebbe comparsa una riga "Altro" che non
+		 * descrive un asset ma un dato mancante. È l'istinto giusto della vecchia
+		 * guardia, conservato senza il difetto che aveva.
+		 */
 		const existing = catMap.get(tx.category_id);
 		if (existing) {
 			existing.total += signed;
-			// ⚠️ Solo un ACQUISTO può fissare la tipologia, e solo se non c'è già:
-			// le righe arrivano in ordine di data decrescente, quindi senza questa
-			// guardia una vendita recente con `investment_type` null sovrascriverebbe
-			// la tipologia stabilita dagli acquisti.
-			if (existing.investment_type === null && tx.type === "investimento") {
-				existing.investment_type = tx.investment_type ?? null;
-			}
+			if (tx.investment_type) existing.types.add(tx.investment_type);
 		} else {
 			catMap.set(tx.category_id, {
 				name: cat.name,
 				icon: cat.icon,
 				color: cat.color,
-				investment_type: tx.type === "investimento" ? (tx.investment_type ?? null) : null,
+				types: new Set(tx.investment_type ? [tx.investment_type] : []),
 				total: signed,
 			});
 		}
@@ -172,8 +196,8 @@ export async function getInvestments(
 	 * è per GRUPPO: una sola categoria "ETF" contiene davvero righe di asset
 	 * diversi. Aggregando per categoria — come faceva la prima stesura, per far
 	 * quadrare le vendite — quelle righe collassavano tutte sulla tipologia della
-	 * prima, cancellando una distinzione **vera**, presente nei dati e visibile
-	 * nell'app: la posizione "ETF" mostra il badge "Crypto" proprio per questo.
+	 * prima, cancellando una distinzione **vera**, presente nei dati — ed è la
+	 * stessa radice del badge sbagliato della #56, chiusa insieme a questa.
 	 *
 	 * Le vendite quadrano lo stesso perché l'import ora scrive
 	 * `investment_type` anche su `disinvestimento` (vedi `importa/actions.ts`).
@@ -220,7 +244,15 @@ export async function getInvestments(
 			name: cat.name,
 			icon: cat.icon,
 			color: cat.color,
-			investment_type: cat.investment_type,
+			/*
+			 * ⚠️ `size === 0` NON è un caso misto: è una posizione di cui non si
+			 * conosce l'asset (righe tutte inserite a mano). Là il badge continua a
+			 * mostrare il ripiego "Altro", che e vero: nessuna tipologia
+			 * registrata. Nasconderlo direbbe invece che la posizione ne ha
+			 * diverse. È il componente a distinguere i due casi con `typeCount <= 1`.
+			 */
+			investment_type: cat.types.size === 1 ? [...cat.types][0] : null,
+			typeCount: cat.types.size,
 			total: cat.total,
 			pct: shareOf(cat.total, basePos),
 		}))

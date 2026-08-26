@@ -229,17 +229,33 @@ export default function InvestimentiTab({
 								<div className="flex-1 min-w-0">
 									<p className="text-[13.5px] font-semibold truncate">{pos.name}</p>
 									<div className="flex items-center gap-1.5 mt-0.5">
-										<span
-											className="text-[10.5px] font-medium px-1.75 py-px rounded-full"
-											style={{
-												// Tinta dall'accento, testo dall'inchiostro: sulla pastiglia
-												// chiara l'accento pieno non arriva a 4,5:1.
-												background: `color-mix(in srgb, ${accent} 13%, transparent)`,
-												color: pos.ink,
-											}}
-										>
-											{pos.typeLabel}
-										</span>
+										{/*
+											⚠️ Il badge compare SOLO se la posizione ha una tipologia sola (#56).
+
+											Una categoria raccoglie righe di asset diversi — la decisione
+											dell'import è per gruppo, `investment_type` sta sulla riga — quindi
+											su una posizione mista NON esiste un badge corretto: quella "ETF"
+											dichiarava "Crypto", che era la tipologia della prima riga
+											d'acquisto. A dire cosa contiene è ora la sezione "Per tipologia".
+
+											⚠️ `<= 1` e non `=== 1`: zero tipologie NOTE significa "non si sa"
+											(righe inserite a mano, dove il form non scrive `investment_type`),
+											non "sono diverse". Là il ripiego "Altro" è un'affermazione vera, e
+											nasconderlo direbbe che la posizione ne contiene più d'una.
+										*/}
+										{pos.typeCount <= 1 && (
+											<span
+												className="text-[10.5px] font-medium px-1.75 py-px rounded-full"
+												style={{
+													// Tinta dall'accento, testo dall'inchiostro: sulla pastiglia
+													// chiara l'accento pieno non arriva a 4,5:1.
+													background: `color-mix(in srgb, ${accent} 13%, transparent)`,
+													color: pos.ink,
+												}}
+											>
+												{pos.typeLabel}
+											</span>
+										)}
 										{/* ⚠️ Niente "0%" su una posizione liquidata: la percentuale è
 										    la quota del capitale ancora versato, e per un netto
 										    negativo quella quota non esiste. Scrivere 0% direbbe "pesa
@@ -278,6 +294,65 @@ export default function InvestimentiTab({
 					);
 				})}
 			</div>
+
+			{/*
+				Per tipologia (#61).
+
+				⚠️ Esiste perché l'intestazione DICHIARAVA «N tipologie» e poi la
+				pagina non le mostrava: `byType` veniva calcolato per intero —
+				etichetta, colore, totale, percentuale, con il denominatore separato
+				introdotto dalla 21b — e il componente ne usava solo `.length`.
+				L'app contava ad alta voce una ripartizione che poi buttava via.
+
+				⚠️ E la partizione buttata era proprio quella informativa dopo un
+				import: la decisione è per GRUPPO, quindi le posizioni tendono a una
+				voce sola — la vista per categoria collassa esattamente quando
+				l'altra diventa interessante.
+
+				Sotto le due, e non un secondo donut: una fetta al 100% non è una
+				composizione, e il problema non era il numero di fette.
+			*/}
+			{byType.length >= 2 && (
+				<>
+					<p className="text-[14.5px] font-semibold mt-5 mb-3 text-foreground">
+						{t.investments.byTypeTitle}
+					</p>
+					<div className="rounded-[20px] px-3.5 py-1 bg-surface border border-subtle backdrop-blur-[18px] shadow-[inset_0_1px_0_var(--shadow-inset)]">
+						{byType.map((slice) => (
+							<div
+								key={slice.type}
+								className="flex items-center justify-between py-2.5 border-b border-subtle last:border-b-0"
+							>
+								<div className="flex items-center gap-2.25 min-w-0">
+									<span
+										className="inline-block w-2 h-2 rounded-full shrink-0"
+										/*
+										 * ⚠️ `var(--color-…)` e NON `slice.color` nudo: `INVESTMENT_TYPE_COLOR`
+										 * contiene NOMI DI TOKEN ("ao", "kin"), non colori CSS.
+										 * `background: ao` è una dichiarazione invalida — il pallino non si
+										 * disegna e basta, senza un errore da nessuna parte.
+										 *
+										 * ⚠️ È la famiglia di difetti che questo progetto insegue dalla Fase 18
+										 * (*una variabile CSS inesistente non fa rumore*), in una veste che
+										 * `audit:tokens` NON vede: lo script confronta le `var(--…)` scritte e
+										 * le classi Tailwind generate, e qui non c'è né l'una né l'altra.
+										 */
+										style={{ background: `var(--color-${slice.color})` }}
+									/>
+									<span className="text-[12.5px] text-foreground truncate">{slice.label}</span>
+								</div>
+								<div className="flex items-center gap-2.5 shrink-0">
+									<span className="text-[12.5px] font-semibold">{money(slice.total)}</span>
+									{/* Stessa regola delle posizioni: niente 0% su un netto negativo. */}
+									{slice.total > 0 && (
+										<span className="text-[11px] text-muted w-8 text-right">{slice.pct}%</span>
+									)}
+								</div>
+							</div>
+						))}
+					</div>
+				</>
+			)}
 		</>
 	);
 }
