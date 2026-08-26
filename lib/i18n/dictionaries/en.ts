@@ -301,7 +301,7 @@ export const en: Dictionary = {
 		greeting: "Welcome back",
 		error: "Something went wrong",
 		flowTitle: "Flow",
-		flowExplain: "money in minus money out this month — swipe for your balances →",
+		flowExplain: "money in minus money out this month — not your account balances",
 		cards: {
 			income: "Income",
 			expenses: "Spending",
@@ -327,8 +327,8 @@ export const en: Dictionary = {
 		fieldLabel: "Account",
 		balanceHeading: "Balance",
 		activeCount: { one: "{n} active account", other: "{n} active accounts" },
-		balanceExplainAll: "the sum of your active accounts — archived ones stay out",
-		balanceExplainOne: "what this account holds right now",
+		balanceExplainAll: "the sum of your active accounts — swipe for your flow →",
+		balanceExplainOne: "what this account holds right now — swipe for your flow →",
 		seeDetail: "See your accounts in detail",
 
 		archivedSection: { one: "Archived · {n}", other: "Archived · {n}" },

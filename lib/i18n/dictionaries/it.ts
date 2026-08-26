@@ -478,7 +478,7 @@ export const it = {
 		 * nella tassonomia dell'app sono un tipo a sé e non hanno una card: dire
 		 * "spese" escluderebbe l'affitto dalla frase mentre è dentro al calcolo.
 		 */
-		flowExplain: "entrate meno uscite di questo mese — per i saldi, scorri →",
+		flowExplain: "entrate meno uscite di questo mese — non il saldo dei tuoi conti",
 		/**
 		 * ⚠️ "Spese" e non `t.types.spesa` ("Uscite"): le card della home e il
 		 * filtro dei movimenti usano due parole diverse già in italiano.
@@ -520,8 +520,8 @@ export const it = {
 		balanceHeading: "Saldo",
 		activeCount: { one: "{n} conto attivo", other: "{n} conti attivi" },
 		/** Card saldo nel carosello della home: cosa somma, detto esplicitamente. */
-		balanceExplainAll: "somma dei saldi sui conti attivi — gli archiviati restano fuori",
-		balanceExplainOne: "giacenza attuale di questo conto",
+		balanceExplainAll: "somma dei saldi sui conti attivi — per il flusso, scorri →",
+		balanceExplainOne: "giacenza attuale di questo conto — per il flusso, scorri →",
 		seeDetail: "Vedi il dettaglio dei conti",
 
 		archivedSection: { one: "Archiviato · {n}", other: "Archiviati · {n}" },

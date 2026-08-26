@@ -15,7 +15,8 @@ interface HomeHeroProps {
 }
 
 /**
- * Le due cifre della home, affiancate in un carosello: **flusso** e **giacenza**.
+ * Le due cifre della home, affiancate in un carosello: **giacenza** e **flusso**,
+ * in quest'ordine (vedi la nota sul carosello più sotto).
  *
  * ⚠️ Averle alla pari è il punto, non un vezzo. La 20a aveva cancellato il
  * "Saldo totale" dalla home perché *contraddiceva* la pagina conti: era
@@ -109,14 +110,26 @@ export default function HomeHero({
 				onScroll={onScroll}
 				className="flex overflow-x-auto -mx-5 pt-4 -mt-4 pb-8 -mb-8 snap-x snap-mandatory scrollbar-none"
 			>
-				<div className="snap-center shrink-0 w-full px-5">
-					<FlowCard
-						flussoMese={flussoMese}
-						monthLabel={monthLabel}
-						hidden={hidden}
-						onToggleHidden={() => setHidden((h) => !h)}
-					/>
-				</div>
+				{/*
+					⚠️ La GIACENZA viene prima, il flusso dopo — chiesto usando l'app.
+
+					Non cambia nulla di ciò che la 20a ha deciso: la regola vieta la
+					CONTRADDIZIONE, non l'ordine, e i due numeri restano quelli di prima
+					con le stesse spiegazioni. Cambia solo quale domanda la home
+					risponde per prima — "quanto ho" invece di "come sto andando".
+
+					⚠️ Ma l'ordine è anche il VERSO delle frasi: il suggerimento
+					"scorri →" viveva su `flowExplain` e puntava ai saldi. Con i saldi
+					a sinistra quella freccia indicherebbe una pagina che non c'è, quindi
+					si è spostata sulle due frasi della card saldo. È la regola già
+					registrata due volte: *spostare un elemento può rendere falso il testo
+					accanto senza toccarlo*.
+
+					⚠️ E il suggerimento ora compare SOLO quando c'è davvero una seconda
+					pagina, perché vive sulla card che si rende solo con dei conti. Prima
+					stava sul flusso, che si rende SEMPRE: senza conti diceva "scorri →"
+					verso il nulla. Difetto preesistente, chiuso di conseguenza.
+				*/}
 				{showBalance && (
 					<div className="snap-center shrink-0 w-full px-5">
 						<AccountsBalanceCard
@@ -127,6 +140,14 @@ export default function HomeHero({
 						/>
 					</div>
 				)}
+				<div className="snap-center shrink-0 w-full px-5">
+					<FlowCard
+						flussoMese={flussoMese}
+						monthLabel={monthLabel}
+						hidden={hidden}
+						onToggleHidden={() => setHidden((h) => !h)}
+					/>
+				</div>
 			</div>
 
 			{/*
