@@ -1,0 +1,120 @@
+-- ============================================================================
+-- 20260819 — I tre indici di FK rimasti fuori dalla #43 (issue #55)
+-- ============================================================================
+--
+-- La #43 aveva stabilito la regola: un indice su una colonna di FK **non serve
+-- alle SELECT ma alle CANCELLAZIONI IN CASCATA**. Senza, ogni `delete` sulla
+-- tabella referenziata deve scandire per intero quella referenziante per
+-- decidere cosa propagare — e lo fa in silenzio, senza errori e senza avvisi.
+--
+-- Gli indici erano stati aggiunti su `transactions` e `categories`. Tre no:
+--
+--   budgets_category_id_fkey          budgets          CASCADE
+--   recurring_rules_category_id_fkey  recurring_rules  SET NULL
+--   recurring_rules_user_id_fkey      recurring_rules  CASCADE
+--
+-- Non sono ipotetici: `deleteCategory()` tocca ENTRAMBE le FK su `category_id`
+-- ed è un'operazione che l'utente fa davvero; `delete_current_user()` cancella
+-- `recurring_rules` per `user_id`.
+--
+-- ⚠️ Gli indici che ci sono già NON coprono questi casi, e vale scritto perché
+-- a un'occhiata sembrano bastare: su `budgets` esistono
+-- `(user_id, category_id, valid_from)` e la gemella `DESC`, ma un indice serve
+-- il controllo di integrità solo se **comincia** con la colonna cercata. Qui la
+-- prima colonna è `user_id`, quindi per una ricerca per `category_id` sono
+-- inutilizzabili.
+--
+-- ⚠️ Le FK COMPOSITE `(user_id, account_id)` della 20b non vanno toccate,
+-- benché al prossimo audit ricompaiano nella stessa lista di "FK senza indice":
+-- il controllo cerca per `account_id`, e quell'indice esiste già su tutte e tre
+-- le tabelle che le usano. Un indice sulla coppia sarebbe spazio sprecato.
+--
+-- ⚠️ NESSUNA GUARDIA in testa a questo file, ed è deliberato — al contrario
+-- della `20260727`, `20260728` e `20260809`. Quelle guardie esistono perché
+-- quei file **ridefiniscono** strutture o funzioni che migration successive
+-- hanno sostituito, quindi rieseguirli riporta indietro il database. Questo file
+-- è puramente ADDITIVO e ogni istruzione è `if not exists`: rieseguirlo è un
+-- no-op, non un ritorno al passato.
+--
+-- ⚠️ E NIENTE `concurrently`, benché sia la forma consigliata in produzione:
+-- il SQL Editor di Supabase esegue lo script come **una sola transazione**, e
+-- `create index concurrently` non può girare dentro un blocco transazionale —
+-- fallirebbe con `25001`. Le due tabelle hanno decine di righe, quindi il lock
+-- di un `create index` normale dura meno di un battito. Se un domani diventassero
+-- grandi, questi tre comandi vanno staccati e lanciati uno per volta fuori
+-- transazione.
+-- ============================================================================
+
+create index if not exists budgets_category_id_idx
+	on public.budgets (category_id);
+
+create index if not exists recurring_rules_category_id_idx
+	on public.recurring_rules (category_id);
+
+create index if not exists recurring_rules_user_id_idx
+	on public.recurring_rules (user_id);
+
+-- ============================================================================
+-- CONTROPROVA — da eseguire A PARTE, in una query nuova, togliendo i `--`.
+-- ============================================================================
+--
+-- ⚠️⚠️ RESTA COMMENTATA, e non è pigrizia: il blocco termina con un
+-- `raise exception` deliberato — l'unico modo di far vedere il referto (il SQL
+-- Editor mostra sempre l'errore, i `notice` no). Ma siccome l'editor esegue lo
+-- script come UNA transazione, lasciarlo eseguibile qui farebbe rollback anche
+-- dei `create index` qui sopra, cioè della migration stessa.
+--
+-- ⚠️ Il sintomo sarebbe ingannevole: l'editor stamperebbe il messaggio di
+-- successo previsto mentre in realtà ha appena annullato tutto. È l'errore
+-- commesso davvero nella 21b il 2026-08-20, e l'unico indizio era il
+-- `Failed to run sql query` che lo precedeva.
+--
+-- do $$
+-- declare
+-- 	v_mancanti text;
+-- begin
+-- 	-- 1 · i tre indici esistono?
+-- 	select string_agg(atteso, ', ')
+-- 	  into v_mancanti
+-- 	  from (values
+-- 			('budgets_category_id_idx'),
+-- 			('recurring_rules_category_id_idx'),
+-- 			('recurring_rules_user_id_idx')
+-- 		) as t(atteso)
+-- 	 where not exists (
+-- 			select 1 from pg_indexes
+-- 			 where schemaname = 'public' and indexname = t.atteso
+-- 		);
+--
+-- 	if v_mancanti is not null then
+-- 		raise exception 'INDICI MANCANTI: %', v_mancanti;
+-- 	end if;
+--
+-- 	-- 2 · ⚠️ Il controllo sulla PRIMA colonna NON si fa sul testo di indexdef.
+-- 	--     Una regex che pretende le sole parentesi verifica che l'indice sia
+-- 	--     a colonna SINGOLA, che è un'altra domanda: un indice legittimo
+-- 	--     (user_id, active) risulterebbe sbagliato pur coprendo benissimo la
+-- 	--     FK. La domanda giusta è POSIZIONALE, e la fa il controllo 3 qui
+-- 	--     sotto leggendo pg_index.indkey[0].
+--
+--
+-- 	-- 3 · nessuna FK di queste due tabelle resta senza un indice che la copra
+-- 	select string_agg(conname, ', ')
+-- 	  into v_mancanti
+-- 	  from pg_constraint c
+-- 	  join pg_class t on t.oid = c.conrelid
+-- 	 where c.contype = 'f'
+-- 	   and t.relname in ('budgets', 'recurring_rules')
+-- 	   and array_length(c.conkey, 1) = 1
+-- 	   and not exists (
+-- 			select 1 from pg_index i
+-- 			 where i.indrelid = c.conrelid
+-- 			   and i.indkey[0] = c.conkey[1]
+-- 		);
+--
+-- 	if v_mancanti is not null then
+-- 		raise exception 'FK ANCORA SCOPERTE: %', v_mancanti;
+-- 	end if;
+--
+-- 	raise exception 'TUTTO A POSTO — tre indici presenti, prima colonna giusta, nessuna FK a colonna singola scoperta su budgets e recurring_rules.';
+-- end $$;

@@ -336,7 +336,25 @@ export interface InvestmentPosition {
 	name: string;
 	icon: string;
 	color: string;
+	/**
+	 * La tipologia della posizione — **solo se ne ha UNA SOLA** (#56).
+	 *
+	 * ⚠️ Prima era la tipologia della prima riga d'acquisto, e su una posizione
+	 * MISTA quella riga descrive un altro asset: la card "ETF" mostrava il
+	 * badge "Crypto". Il numero era giusto, l'etichetta accanto no.
+	 *
+	 * La causa sta nella Fase 21: la decisione dell'import è per GRUPPO, quindi
+	 * una categoria sola raccoglie righe di asset diversi, mentre
+	 * `investment_type` sta sulla RIGA perché il file di Trade Republic
+	 * distingue movimento per movimento. Un dato per-riga non ha un posto solo
+	 * dove stare.
+	 *
+	 * Ora è `null` quando le tipologie sono più d'una, e il badge sparisce: a
+	 * dirlo è la sezione "Per tipologia", che le mostra tutte (#61).
+	 */
 	investment_type: string | null;
+	/** Quante tipologie distinte contiene: il badge si mostra solo se è 1. */
+	typeCount: number;
 	total: number;
 	pct: number;
 }
