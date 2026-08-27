@@ -3166,9 +3166,20 @@ righe conto, ripresentata su un altro componente.
 ### Fase 24 — AI Financial Coach (issue #66)
 
 Progettata per intero il 2026-08-27 prima di scrivere codice, come la 17, la 20 e
-la 23. Due PR con la dipendenza a senso unico di sempre: **24a disponibile**
-(nessuna chiamata API, nessuna chiave, nessuna dipendenza nuova), **24b coach**
-(chat). La 24a è un prodotto finito da sola.
+la 23. **Tre PR**, ciascuna un prodotto finito, con la dipendenza a senso unico
+di sempre:
+
+| | cosa consegna | costa |
+|---|---|---|
+| **24a** | *disponibile* — entrate del mese − uscite fisse previste | niente |
+| **24b** | la bolla, il pannello e le risposte che l'app sa già dare | niente |
+| **24c** | la chat aperta: chiave, SDK, modello, le tre guardie | ~0,7 ¢ a messaggio |
+
+⚠️ **Che la parte a pagamento sia l'ULTIMA non è un ordine di comodo.** Fino alla
+24b compresa il coach funziona senza una chiave API, senza una dipendenza nuova e
+senza che un solo dato lasci l'app. Se la 24c non venisse mai scritta, quello che
+resta è comunque un coach: è la stessa proprietà che rende la 20a un prodotto
+senza la 20b.
 
 #### 24a — «disponibile» non ha bisogno di un modello
 
@@ -3178,7 +3189,7 @@ già gli abbonamenti registrati nel mese *e* le occorrenze ancora da generare, e
 `dashboard_totals()` dà le entrate.
 
 Sta in una PR sua non per comodità di consegna, ma perché così **i numeri
-esistono prima del modello**. Quando arriva la 24b non c'è più niente da
+esistono prima del modello**. Quando arriva la 24c non c'è più niente da
 calcolare, e la decisione 4 dell'issue — *può il testo generato contenere cifre?*
 — è già risposta dalla struttura invece che da una convenzione.
 
@@ -3198,20 +3209,76 @@ versato»* — applicata prima di sbagliare invece che dopo.
   Vercel e fra mezzanotte e le 2 sbaglierebbe mese — la trappola già documentata
   nella 17a, e questo calcolo vive esattamente sui confini di mese.
 - **Il suggerimento è un tetto, non una raccomandazione con una percentuale.**
-  Vedi «Le rinunce dichiarate» qui sotto: le percentuali di metodo non sono
-  calcolabili onestamente su questo schema.
+  Vedi «Le rinunce dichiarate»: le percentuali di metodo non sono calcolabili
+  onestamente su questo schema.
 
-#### 24b — la chat
+#### 24b — il coach che non paga, ed è quasi tutto il coach
 
-Deciso il 2026-08-27: **conversazione vera, multi-turno**, non un referto che si
-rigenera. La scelta è vincolata dall'icona: ⚠️ **un fumetto di chat promette una
-conversazione**, ed è la stessa classe di *«Seleziona dal conto»* — un'etichetta
-non si sceglie da sola, si sceglie insieme a ciò che la seguirà. Se un domani il
-coach tornasse a essere un referto, va cambiata l'icona nello stesso commit.
+Deciso il 2026-08-27, chiedendo *«non c'è un modo per far sì che l'utilizzo sia
+gratis?»*. La risposta ha cambiato la forma della fase, ed è la stessa che ha
+prodotto la divisione 24a/24b portata un passo più in là: **quasi nulla di ciò
+che un coach dice ha bisogno di un modello.**
 
-##### ⚠️⚠️ La chat ha spostato il confine dei dati, e il consenso deve dirlo
+Sono aritmetica, e quindi gratuite *e* incapaci di sbagliare una cifra:
 
-La decisione «escono solo aggregati» è stata presa descrivendo un **referto**:
+- il consiglio d'apertura del pannello (disponibile, tasso di risparmio,
+  variazione rispetto al periodo precedente);
+- «hai sforato il budget X, sul globale ti restano Y»;
+- «a questo ritmo l'obiettivo Z arriva a marzo»;
+- «le uscite fisse si mangiano questa parte delle entrate».
+
+⚠️ **Come si sceglie il ramo, senza classificare la domanda.** Un instradamento a
+parole chiave sbaglierebbe in silenzio, e far classificare la domanda al modello
+costerebbe la chiamata che si sta cercando di evitare. Quindi non si classifica
+niente: **le risposte deterministiche sono DOMANDE PROPOSTE** (pastiglie sotto il
+messaggio d'apertura), e la tastiera è l'altro ramo. Il ramo lo sceglie il gesto,
+non un indovino.
+
+Conseguenza voluta: il percorso **predefinito** è quello gratuito. Chi apre la
+bolla, legge il consiglio e tocca due pastiglie non ha speso niente.
+
+⚠️ **Le risposte deterministiche sono CORNICE, quindi stanno nei dizionari** —
+frasi con `{segnaposto}` come ogni altra stringa dell'app. È il chiarimento che
+il criterio *«nessuna stringa fuori dai dizionari»* dell'issue richiede: solo il
+testo **generato** è un dato, e arriva nella 24c.
+
+**Le due voci non possono contraddirsi**, e non per attenzione di chi scrive:
+attingono agli stessi numeri e alle stesse etichette. È la ragione per cui questa
+PR viene prima — quando arriva il modello, il vocabolario è già fissato.
+
+##### La bolla, e le tre trappole che la circondano
+
+Decisa il 2026-08-27: **galleggia sopra la card Investimenti**, ancorata al
+contenuto e non alla finestra, quindi scorre con la pagina. Ingresso in home
+perché è la pagina che si apre dieci volte al giorno.
+
+- ⚠️ **NON dentro `HomeHero`**: quello è `overflow-x-auto`, e per specifica CSS
+  un asse non `visible` ritaglia **anche l'altro**. È la trappola già pagata due
+  volte in questo progetto — il `box-shadow` del carosello e le tendine della
+  barra filtri. La bolla è sorella della griglia 2×2, dentro il contenitore
+  `relative` della home.
+- ⚠️ **NON dentro una card con `backdrop-filter`**: quello crea un **contesto di
+  impilamento**, e nessuno z-index scritto dentro riesce a uscirne. È la ragione
+  per cui `Select` da solo non poteva farcela (Fase 21).
+- ⚠️ **Bersaglio ≥ 44×44px** e posizione da verificare a **375px**: sovrapponendo
+  un angolo di card, l'offset sbagliato copre una cifra. Si vede solo guardando
+  lo schermo, come la griglia del modale nella 21b.
+- **Il pannello si MONTA, non si nasconde** — regola del progetto: niente
+  `isOpen` con dentro `if (!isOpen) return null`, decide il chiamante.
+- ⚠️ **La bottom nav resta a quattro voci più il FAB**, come deciso nella 20a. La
+  bolla non è una quinta voce: sta nel contenuto, non nella navigazione.
+
+⚠️ **Un fumetto di chat promette una conversazione**, ed è la stessa classe di
+*«Seleziona dal conto»* — un'etichetta non si sceglie da sola, si sceglie insieme
+a ciò che la seguirà. In 24b la promessa è mantenuta solo a metà (pastiglie, non
+tastiera): **il campo di testo compare con la 24c**, e fino ad allora l'icona non
+deve suggerire che si possa scrivere.
+
+#### 24c — la chat aperta
+
+##### ⚠️⚠️ La chat sposta il confine dei dati, e il consenso deve dirlo
+
+La decisione «escono solo aggregati» era stata presa descrivendo un **referto**:
 totali per periodo, categorie con nome e importo, budget, obiettivi, capitale
 versato — mai note, mai righe singole, mai nomi dei conti, mai date di singoli
 movimenti.
@@ -3233,6 +3300,9 @@ tastiera. Il consenso deve dichiarare due cose, non una.
   ⚠️ Niente default: la regola della #43 — *un DEFAULT è un'affermazione sul
   mondo* — vale qui più che altrove, perché l'affermazione sarebbe «questa
   persona ha acconsentito».
+- ⚠️ **Il consenso si chiede alla 24c, non prima.** Chiederlo in 24b sarebbe
+  chiedere il permesso di spedire dati a un servizio che l'app non contatta
+  ancora.
 
 ##### Il modello non scrive MAI una cifra
 
@@ -3269,11 +3339,7 @@ letta» restano indistinguibili (Fase 22, il `remotePattern` delle ricevute).
 La chat vorrebbe il testo che arriva a pezzi. Ma la validazione è **sull'intera
 risposta**: mostrarla mentre arriva significherebbe poterla ritirare davanti
 all'utente, cioè far vedere un numero inventato e poi toglierlo. Peggio del
-silenzio di due secondi che si evita.
-
-⚠️ Conseguenza sul `max_tokens`: con il thinking adattivo di Opus 5 **i token di
-ragionamento contano dentro il tetto**, quindi un valore tarato sulla lunghezza
-della risposta troncherebbe a metà frase.
+silenzio di un secondo che si evita.
 
 ##### Il coach non calcola un solo numero proprio
 
@@ -3296,7 +3362,7 @@ citarli richiederebbe una cifra, che è già vietata.
 ```sql
 coach_conversations: id, user_id, locale, created_at
 coach_messages:      id, conversation_id, user_id, role, body, created_at
--- role: 'user' | 'assistant'
+-- role: 'user' | 'assistant' | 'snapshot'
 ```
 
 - ⚠️ **`body` conserva il testo COI SEGNAPOSTO**, non le cifre già sostituite. È
@@ -3320,9 +3386,87 @@ coach_messages:      id, conversation_id, user_id, role, body, created_at
   quindi non giustifica una RPC dedicata — ma va scritto, o la prossima lettura
   lo scambia per una dimenticanza.
 
+##### ⚠️ I numeri che cambiano a metà conversazione — e il ripiego che Haiku impone
+
+Registri una spesa in un altro tab e poi chiedi «quanto mi resta?». Il system
+prompt **non si riscrive**: lo farebbe invalidando la cache *e* riscrivendo la
+storia, cioè rispondendo a domande vecchie con numeri nuovi.
+
+Su Opus 5 la forma pulita esiste ed è di prima classe: un `{role: "system"}`
+dentro `messages`, che è **il canale operatore a prova di iniezione**. ⚠️ **Su
+Haiku 4.5 non c'è.** Il ripiego: una riga `role='snapshot'` in
+`coach_messages`, spedita come messaggio **utente** dentro un recinto esplicito e
+resa nella UI come un separatore («i numeri sono cambiati»), mai come una bolla
+dell'utente.
+
+⚠️ È un ripiego, e va scritto che lo è: un blocco che *dice* di venire dall'app,
+in un canale dove l'utente può scrivere, è distinguibile solo per convenzione. Ci
+si può appoggiare **solo perché i numeri sono già protetti altrove** — dai
+segnaposto e dal divieto di cifre. Il giorno in cui il modello salisse di livello,
+questo è il primo pezzo che diventa pulito.
+
+##### La cache del prompt va MISURATA, non supposta
+
+Lo snapshot sta nel `system`, con `cache_control`, perché è la parte stabile: la
+domanda dell'utente arriva dopo ed è l'unica cosa che cambia.
+
+⚠️ **Il prefisso minimo memorizzabile dipende dal modello (512–4096 token), e
+sotto quella soglia la cache semplicemente non scatta senza dirlo.** Con uno
+snapshot di poche categorie e un modello piccolo è uno scenario **probabile**,
+non teorico. Si verifica leggendo `usage.cache_read_input_tokens`: se resta zero
+su richieste con lo stesso prefisso, la cache non c'è — e il preventivo per
+messaggio va rifatto. È il metodo di sempre: non credere a un verde che nessuno
+ha guardato.
+
+##### Il modello, e cosa si è scelto di non avere
+
+**`claude-haiku-4-5`**, deciso il 2026-08-27 per il costo: ~0,7 ¢ a messaggio
+contro i ~3-4 ¢ di Opus 5, su un compito che è **più di forma che di
+ragionamento** — il coach sceglie parole su numeri che gli sono già stati dati.
+
+⚠️ Tre parametri del disegno per Opus **non esistono qui**, e sbagliarli non dà
+un avviso ma un 400:
+
+| | su Opus 5 | su Haiku 4.5 |
+|---|---|---|
+| `output_config.effort` | `low`…`max` | **errore** — non si manda |
+| `thinking` | adattivo, acceso di default | solo `budget_tokens`; qui **omesso** |
+| messaggi di sistema in conversazione | supportati | **non supportati** (vedi sopra) |
+| `fallbacks` server-side sul rifiuto | disponibili | non disponibili |
+
+Il thinking si omette di proposito: è la voce che domina il costo in uscita, e
+non serve a scegliere parole su numeri dati. Contesto 200K invece di 1M — per una
+chat con un tetto di turni non è un vincolo.
+
+⚠️⚠️ **Un modello piccolo viola le guardie più spesso, e ogni violazione è una
+seconda chiamata.** Il tasso di scarto va **misurato**, non sperato: se una
+risposta su cinque viene rifiutata, 0,7 ¢ diventano 0,84 ¢ e la qualità cala
+comunque. È il criterio giusto — *costo per risposta buona*, non per chiamata — e
+il segnale che dice quando salire di livello. Registrarlo è ciò che rende la
+scelta rivedibile invece che definitiva.
+
+##### La chiave
+
+- ⚠️ **`ANTHROPIC_API_KEY` è server-only**, mai `NEXT_PUBLIC_*`, e la chiamata
+  vive in una server action come ogni altra operazione di questo progetto.
+- ⚠️ **Non si controlla in `next.config.ts`**, e va scritto perché — o qualcuno
+  la aggiunge lì per simmetria con `NEXT_PUBLIC_SITE_URL`. Quel controllo esiste
+  perché le `NEXT_PUBLIC_*` sono sostituite come costanti **in compilazione**,
+  quindi un throw applicativo scatterebbe addosso a un utente. Una variabile
+  server-side si legge a runtime: la forma giusta è uno stato «coach non
+  configurato» leggibile — e con la 24b consegnata, quello stato è **un coach che
+  funziona lo stesso**, non una schermata rotta.
+- **`@anthropic-ai/sdk` è la prima dipendenza nuova da parecchie fasi**, e la
+  regola resta quella di `lib/import/csv.ts`: *una dipendenza si aggiunge quando
+  serve, non quando è comoda*. Qui serve — è l'SDK ufficiale, e riscrivere a mano
+  le chiamate a `/v1/messages` sarebbe codice nostro da tenere allineato a
+  un'API che cambia. ⚠️ Ed entra solo nella **24c**: fino a lì `package.json` non
+  si tocca.
+
 ##### Il tetto sta nel DATABASE, non nello stato del componente
 
-Una chat senza limite è una spesa senza limite. Due fusibili:
+Con l'ibrido il tetto protegge dall'incidente, non dall'uso normale: il percorso
+predefinito non consuma niente. Due fusibili:
 
 - **un tetto di messaggi al giorno per utente**, contato sulle righe;
 - **un tetto di turni per conversazione**, oltre il quale si apre una
@@ -3334,55 +3478,12 @@ Una chat senza limite è una spesa senza limite. Due fusibili:
 *l'annullamento dell'import viveva nello stato del componente*, e un controllo
 che vive quanto una schermata non è un controllo.
 
-##### La cache del prompt va MISURATA, non supposta
-
-Lo snapshot sta nel `system`, con `cache_control`, perché è la parte stabile: la
-domanda dell'utente arriva dopo ed è l'unica cosa che cambia.
-
-⚠️ **Il prefisso minimo memorizzabile dipende dal modello (512–4096 token), e
-sotto quella soglia la cache semplicemente non scatta senza dirlo.** Uno snapshot
-di poche categorie potrebbe non entrarci mai. Si verifica leggendo
-`usage.cache_read_input_tokens`: se resta zero su richieste con lo stesso
-prefisso, la cache non c'è. È il metodo di sempre — non credere a un verde che
-nessuno ha guardato.
-
-⚠️⚠️ **Quando i numeri cambiano a metà conversazione** (registri una spesa in un
-altro tab e poi chiedi «quanto mi resta?»), il system prompt **non si riscrive**:
-lo farebbe invalidando il prefisso *e* riscrivendo la storia, cioè rispondendo a
-domande vecchie con numeri nuovi. Si aggiunge un **messaggio di sistema in
-conversazione** (`{role: "system"}` dentro `messages`, supportato da Opus 5 senza
-beta header) che porta lo snapshot aggiornato: il prefisso resta valido e la
-conversazione registra *quando* i numeri sono cambiati.
-
-##### Il modello e la chiave
-
-- **`claude-opus-5`**, thinking adattivo (acceso di default su questo modello).
-- **`effort`**: si parte da `medium` — il coach sceglie parole su numeri già
-  dati, che è lavoro di forma più che di ragionamento — e si sale solo se la
-  qualità lo chiede. Da misurare, non da decidere a priori.
-- **`fallbacks` server-side** attivi: un rifiuto altrimenti si limita a fermare
-  la risposta.
-- ⚠️ **`stop_reason` si guarda PRIMA di leggere `content`**, o un rifiuto si
-  legge come una risposta vuota.
-- ⚠️ **`ANTHROPIC_API_KEY` è server-only**, mai `NEXT_PUBLIC_*`, e la chiamata
-  vive in una server action come ogni altra operazione di questo progetto.
-- ⚠️ **Non si controlla in `next.config.ts`**, e va scritto perché — o qualcuno
-  la aggiunge lì per simmetria con `NEXT_PUBLIC_SITE_URL`. Quel controllo esiste
-  perché le `NEXT_PUBLIC_*` sono sostituite come costanti **in compilazione**,
-  quindi un throw applicativo scatterebbe addosso a un utente. Una variabile
-  server-side si legge a runtime: la forma giusta è uno stato «coach non
-  configurato» leggibile, non un build che fallisce.
-- **`@anthropic-ai/sdk` è la prima dipendenza nuova da parecchie fasi**, e la
-  regola resta quella di `lib/import/csv.ts`: *una dipendenza si aggiunge quando
-  serve, non quando è comoda*. Qui serve — è l'SDK ufficiale, e riscrivere a mano
-  le chiamate a `/v1/messages` sarebbe codice nostro da tenere allineato a
-  un'API che cambia.
-
 ##### La lingua
 
-⚠️ **Il testo generato è un DATO, non una stringa di interfaccia**, e il criterio
-*«nessuna stringa fuori dai dizionari»* vale per la **cornice** — bottoni,
-intestazioni, messaggi d'errore, la schermata di consenso.
+⚠️ **Il testo generato è un DATO, non una stringa di interfaccia.** Le risposte
+deterministiche della 24b invece **sono** stringhe di interfaccia e stanno nei
+dizionari: la stessa bolla contiene le due nature, e la differenza è chi ha
+scritto la frase.
 
 È il rovescio esatto di `notifications.payload`: là il database tiene i fatti e
 la frase si compone alla lettura, quindi anche lo storico cambia lingua con
@@ -3394,29 +3495,7 @@ storico — si apre una conversazione nuova. Tradurre a posteriori significhereb
 una chiamata per ogni messaggio già scritto, per un'azione che nella vita di un
 account capita due volte.
 
-##### La bolla, e le tre trappole che la circondano
-
-Decisa il 2026-08-27: **galleggia sopra la card Investimenti**, ancorata al
-contenuto e non alla finestra, quindi scorre con la pagina. Ingresso in home
-perché è la pagina che si apre dieci volte al giorno.
-
-- ⚠️ **NON dentro `HomeHero`**: quello è `overflow-x-auto`, e per specifica CSS
-  un asse non `visible` ritaglia **anche l'altro**. È la trappola già pagata due
-  volte in questo progetto — il `box-shadow` del carosello e le tendine della
-  barra filtri. La bolla è sorella della griglia 2×2, dentro il contenitore
-  `relative` della home.
-- ⚠️ **NON dentro una card con `backdrop-filter`**: quello crea un **contesto di
-  impilamento**, e nessuno z-index scritto dentro riesce a uscirne. È la ragione
-  per cui `Select` da solo non poteva farcela (Fase 21).
-- ⚠️ **Bersaglio ≥ 44×44px** e posizione da verificare a **375px**: sovrapponendo
-  un angolo di card, l'offset sbagliato copre una cifra. Si vede solo guardando
-  lo schermo, come la griglia del modale nella 21b.
-- **Il pannello si MONTA, non si nasconde** — regola del progetto: niente
-  `isOpen` con dentro `if (!isOpen) return null`, decide il chiamante.
-- ⚠️ **La bottom nav resta a quattro voci più il FAB**, come deciso nella 20a. La
-  bolla non è una quinta voce: sta nel contenuto, non nella navigazione.
-
-##### Le rinunce dichiarate
+#### Le rinunce dichiarate
 
 - ⚠️ **Niente 50/30/20 con percentuali.** `abbonamento` contiene affitto **e**
   Spotify; `spesa` contiene la spesa alimentare **e** il ristorante. Un 50/30/20
@@ -3426,6 +3505,17 @@ perché è la pagina che si apre dieci volte al giorno.
   schema a sé, da prendere in chiaro e non scivolarci dentro. Il coach parla
   quindi di **Flusso, uscite fisse, disponibile e tasso di risparmio**, che i
   dati sostengono davvero, e cita le metodologie solo in modo qualitativo.
+- ⚠️ **Nessun piano gratuito di terzi**, ed è una rinuncia con un motivo preciso.
+  I piani gratuiti si pagano coi dati: le loro condizioni tipicamente riservano
+  l'uso degli input per addestrare i modelli, mentre l'API a pagamento di
+  Anthropic non lo fa per impostazione predefinita. Su un'app qualsiasi sarebbe
+  un dettaglio contrattuale; qui la schermata di consenso dovrebbe aggiungere
+  *«e questi dati possono servire ad addestrare un modello»* — e a quel punto la
+  decisione «solo aggregati» non protegge più granché. **Il risparmio si
+  pagherebbe esattamente nella valuta che questa fase esiste per custodire.**
+- **BYOK scartato per ora**: sposta il costo su ogni utente ma obbliga a
+  custodire la chiave di qualcun altro. Ha senso solo il giorno in cui le
+  registrazioni si aprono (issue #40), e va deciso allora.
 - **Niente consiglio automatico dal job notturno.** La 17b ha già deciso che il
   cron serve per *ciò che accade mentre non guardi*: un consiglio non è un
   evento, e generarlo per chi non apre mai la pagina è spesa senza lettore.
@@ -3434,7 +3524,7 @@ perché è la pagina che si apre dieci volte al giorno.
   transazioni o budget è una fase diversa, con una superficie di collaudo
   diversa.
 
-##### L'audit dei consumatori — fatto, e non è una formalità
+#### L'audit dei consumatori — fatto, e non è una formalità
 
 La fase **non aggiunge un tipo di transazione**, non crea una vista e non somma
 niente di nuovo: legge dalle funzioni esistenti. Nessun totale dell'app si muove,
@@ -4224,15 +4314,17 @@ Seguire questo ordine, non saltare fasi:
     token chiari (`:root, .paper`) invece di ricopiarne 43. Implementata e
     collaudata il 2026-08-25 — vedi "Emerso implementando la 23b"
 24. AI Financial Coach (issue #66) — **progettata il 2026-08-27**, sezione
-    "Fase 24" sopra. Due PR: **24a disponibile** — *entrate del mese − uscite
-    fisse previste*, il calcolo che la 17a aveva rimandato qui, **senza una sola
-    chiamata API**; **24b coach** — chat multi-turno via Claude API, con la bolla
-    che galleggia sulla card Investimenti in home. ⚠️ Il perno è che il modello
-    **non scrive mai una cifra**: riceve numeri già calcolati e produce prosa con
-    `{segnaposto}`, che `fill()` sostituisce — una qualunque cifra nel testo
-    grezzo fa scartare la risposta. Migration nuova (`coach_conversations`,
-    `coach_messages`, `profiles.coach_consent_at`) e prima dipendenza nuova da
-    parecchie fasi (`@anthropic-ai/sdk`)
+    "Fase 24" sopra. **Tre PR, e solo l'ultima costa**: **24a disponibile**
+    (*entrate del mese − uscite fisse previste*, il calcolo che la 17a aveva
+    rimandato qui); **24b il coach che non paga** — la bolla che galleggia sulla
+    card Investimenti in home, il consiglio d'apertura e le risposte che l'app sa
+    già dare, tutte aritmetica e tutte nei dizionari; **24c la chat aperta** —
+    `claude-haiku-4-5`, consenso, snapshot, le due tabelle e i tetti.
+    ⚠️ Il perno è che il modello **non scrive mai una cifra**: riceve numeri già
+    calcolati e produce prosa con `{segnaposto}`, che `fill()` sostituisce — una
+    qualunque cifra nel testo grezzo fa scartare la risposta. ⚠️ Senza la 24c
+    resta comunque un coach funzionante: `package.json` e `.env.local` non si
+    toccano fino a lì
 25. Blocco app — PIN / biometrico (sezione "Sicurezza" del mockup impostazioni, saltata in Fase 13)
 26. PWA: manifest.json + Service Worker
 27. Mobile nativo — comportamento su dispositivo reale (vedi sotto)
