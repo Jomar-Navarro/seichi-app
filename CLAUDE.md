@@ -3173,7 +3173,7 @@ di sempre:
 |---|---|---|
 | **24a** | *disponibile* — entrate del mese − uscite fisse previste | niente |
 | **24b** | la bolla, il pannello e le risposte che l'app sa già dare | niente |
-| **24c** | la chat aperta: chiave, SDK, modello, le tre guardie | ~0,7 ¢ a messaggio |
+| **24c** | la chat aperta: chiave, SDK, fornitore, le tre guardie | meno di $1 / mese |
 
 ⚠️ **Che la parte a pagamento sia l'ULTIMA non è un ordine di comodo.** Fino alla
 24b compresa il coach funziona senza una chiave API, senza una dipendenza nuova e
@@ -3386,69 +3386,129 @@ coach_messages:      id, conversation_id, user_id, role, body, created_at
   quindi non giustifica una RPC dedicata — ma va scritto, o la prossima lettura
   lo scambia per una dimenticanza.
 
-##### ⚠️ I numeri che cambiano a metà conversazione — e il ripiego che Haiku impone
+##### ⚠️ I numeri che cambiano a metà conversazione
 
 Registri una spesa in un altro tab e poi chiedi «quanto mi resta?». Il system
 prompt **non si riscrive**: lo farebbe invalidando la cache *e* riscrivendo la
 storia, cioè rispondendo a domande vecchie con numeri nuovi.
 
-Su Opus 5 la forma pulita esiste ed è di prima classe: un `{role: "system"}`
-dentro `messages`, che è **il canale operatore a prova di iniezione**. ⚠️ **Su
-Haiku 4.5 non c'è.** Il ripiego: una riga `role='snapshot'` in
-`coach_messages`, spedita come messaggio **utente** dentro un recinto esplicito e
-resa nella UI come un separatore («i numeri sono cambiati»), mai come una bolla
-dell'utente.
+La forma pulita esiste su Opus 5 ed è di prima classe: un `{role: "system"}`
+dentro `messages`, cioè **il canale operatore a prova di iniezione**. ⚠️ **Non è
+portabile**: Haiku 4.5 non lo ha, e gli altri fornitori hanno una nozione di
+«messaggio di sistema» diversa e per lo più non ripetibile a metà conversazione.
+
+Il ripiego, che funziona ovunque: una riga `role='snapshot'` in `coach_messages`,
+spedita come messaggio **utente** dentro un recinto esplicito e resa nella UI
+come un separatore («i numeri sono cambiati»), mai come una bolla dell'utente.
 
 ⚠️ È un ripiego, e va scritto che lo è: un blocco che *dice* di venire dall'app,
 in un canale dove l'utente può scrivere, è distinguibile solo per convenzione. Ci
 si può appoggiare **solo perché i numeri sono già protetti altrove** — dai
-segnaposto e dal divieto di cifre. Il giorno in cui il modello salisse di livello,
-questo è il primo pezzo che diventa pulito.
+segnaposto e dal divieto di cifre. Se il fornitore scelto offre un canale
+operatore vero, questo è il primo pezzo che diventa pulito.
 
 ##### La cache del prompt va MISURATA, non supposta
 
-Lo snapshot sta nel `system`, con `cache_control`, perché è la parte stabile: la
-domanda dell'utente arriva dopo ed è l'unica cosa che cambia.
+Lo snapshot sta nella parte stabile della richiesta, perché la domanda
+dell'utente arriva dopo ed è l'unica cosa che cambia.
 
-⚠️ **Il prefisso minimo memorizzabile dipende dal modello (512–4096 token), e
-sotto quella soglia la cache semplicemente non scatta senza dirlo.** Con uno
-snapshot di poche categorie e un modello piccolo è uno scenario **probabile**,
-non teorico. Si verifica leggendo `usage.cache_read_input_tokens`: se resta zero
-su richieste con lo stesso prefisso, la cache non c'è — e il preventivo per
-messaggio va rifatto. È il metodo di sempre: non credere a un verde che nessuno
-ha guardato.
+⚠️ **Ogni fornitore ha una soglia minima sotto la quale la cache non scatta, e
+non lo dice.** Sulla Claude API il prefisso minimo memorizzabile dipende dal
+modello (512–4096 token); altrove il meccanismo ha nomi e minimi diversi. Con uno
+snapshot di poche categorie è uno scenario **probabile**, non teorico: si
+verifica leggendo il contatore dei token letti da cache nella risposta, e se
+resta zero su richieste con lo stesso prefisso la cache non c'è — e il preventivo
+per messaggio va rifatto. È il metodo di sempre: non credere a un verde che
+nessuno ha guardato.
 
-##### Il modello, e cosa si è scelto di non avere
+##### Il fornitore — deciso il 2026-08-27 di NON deciderlo adesso
 
-**`claude-haiku-4-5`**, deciso il 2026-08-27 per il costo: ~0,7 ¢ a messaggio
-contro i ~3-4 ¢ di Opus 5, su un compito che è **più di forma che di
-ragionamento** — il coach sceglie parole su numeri che gli sono già stati dati.
+**Rinviato alla 24c**, e il rinvio è legittimo per una ragione strutturale: il
+fornitore tocca **una funzione sola**. Snapshot, segnaposto, divieto di cifre,
+catalogo chiuso e instradamento ibrido non dipendono da chi risponde. È la
+proprietà che rende questa scelta **reversibile invece che strutturale**, ed è lo
+stesso trattamento riservato a `DISPLAY_CURRENCY` nella Fase 19 — *quando si
+affronterà, basta seguirne i riferimenti*.
 
-⚠️ Tre parametri del disegno per Opus **non esistono qui**, e sbagliarli non dà
-un avviso ma un 400:
+⚠️⚠️ **Un piano GRATUITO è escluso, e non per preferenza.** Proposto il
+2026-08-27 — *«utilizziamo Gemini gratis allora»* — e a rispondere sono i termini
+di Google, non un'opinione:
+
+> *"You may use only **Paid Services** when making API Clients available to users
+> in the European Economic Area, Switzerland, or the United Kingdom."*
+
+Seichi è un'app italiana per utenti italiani: il piano gratuito **non è
+utilizzabile**, indipendentemente da cosa se ne pensi. E anche fuori dall'UE
+resterebbe escluso dalla riga successiva:
+
+> *"human reviewers may read, annotate, and process your API input and output"* …
+> *"**Do not submit sensitive, confidential, or personal information to the
+> Unpaid Services**."*
+
+Il payload del coach è **esattamente** quello: quanto guadagni, quanto spendi, in
+quali categorie, quali obiettivi hai. Useremmo il servizio contro l'istruzione
+esplicita di chi lo fornisce.
+
+⚠️ Sta scritto qui perché *«usiamo il piano gratuito»* è la prima idea che viene
+a chiunque guardi il costo — è venuta anche a noi, due volte — e senza il motivo
+registrato tornerà una terza. **E vale oltre Google: un piano gratuito si paga in
+dati.** La domanda da fare a un fornitore non è quanto costa, è cosa fa con ciò
+che gli mandi.
+
+I candidati veri, tutti a pagamento, con il profilo di un messaggio del coach
+(~4.000 token in ingresso di cui ~3.000 in cache, ~600 in uscita). ⚠️ **Prezzi
+letti il 2026-08-27** dalle pagine ufficiali: sono un'istantanea, non un fatto
+stabile.
+
+| | per messaggio | 5 msg/giorno |
+|---|---|---|
+| gpt-5-nano | ~0,03 ¢ | $0,05 / mese |
+| Gemini 3.1 Flash-Lite | ~0,19 ¢ | $0,29 / mese |
+| Gemini 3.5 Flash-Lite | ~0,27 ¢ | $0,41 / mese |
+| Haiku 4.5 | ~0,43 ¢ | $0,65 / mese |
+
+⚠️ **Due listini in giro sono PROMOZIONALI** — Gemini 3.7/3.6 Flash raddoppiano
+il 1° gennaio 2027 — e un prezzo con scadenza non è la base su cui si sceglie un
+fornitore. È la stessa forma del difetto dei DEFAULT: *un'affermazione sul mondo*
+che smette di essere vera senza che nessuno la riscriva.
+
+**A decidere NON sarà il prezzo**, e vale registrare perché: fra il più economico
+e il più caro ballano ~60 centesimi al mese, e con l'ibrido il percorso
+predefinito non chiama nessuno. Decideranno due cose misurabili:
+
+- ⚠️ **il tasso di scarto delle guardie.** Segnaposto, divieto di cifre e
+  catalogo chiuso sono *istruzioni*, e un modello piccolo le viola più spesso.
+  Ogni violazione è un riprova, cioè una seconda chiamata e il doppio
+  dell'attesa: il criterio è **costo per risposta buona**, non per chiamata, e a
+  queste cifre la differenza la fa l'attesa, non il conto;
+- la qualità percepita su domande vere, misurata su qualche caso reale.
+
+⚠️ **I parametri NON sono portabili, e sbagliarli non dà un avviso ma un 400.**
+Esempio già mappato, se la scelta cadesse su Haiku 4.5:
 
 | | su Opus 5 | su Haiku 4.5 |
 |---|---|---|
 | `output_config.effort` | `low`…`max` | **errore** — non si manda |
-| `thinking` | adattivo, acceso di default | solo `budget_tokens`; qui **omesso** |
-| messaggi di sistema in conversazione | supportati | **non supportati** (vedi sopra) |
+| `thinking` | adattivo, acceso di default | solo `budget_tokens` |
+| messaggi di sistema in conversazione | supportati | **non supportati** |
 | `fallbacks` server-side sul rifiuto | disponibili | non disponibili |
 
-Il thinking si omette di proposito: è la voce che domina il costo in uscita, e
-non serve a scegliere parole su numeri dati. Contesto 200K invece di 1M — per una
-chat con un tetto di turni non è un vincolo.
+Fuori dalla Claude API cambia tutto — nomi dei parametri, forma della risposta,
+motivo di terminazione, filtri di sicurezza che possono bloccare una risposta.
+⚠️ **La forma dell'API si LEGGE al momento di scriverla, non si ricorda**: vale
+la regola della Fase 17b, *una migration che indovina è peggio di una che manca*,
+applicata a un SDK invece che a uno schema.
 
-⚠️⚠️ **Un modello piccolo viola le guardie più spesso, e ogni violazione è una
-seconda chiamata.** Il tasso di scarto va **misurato**, non sperato: se una
-risposta su cinque viene rifiutata, 0,7 ¢ diventano 0,84 ¢ e la qualità cala
-comunque. È il criterio giusto — *costo per risposta buona*, non per chiamata — e
-il segnale che dice quando salire di livello. Registrarlo è ciò che rende la
-scelta rivedibile invece che definitiva.
+Comune a ogni fornitore, e quindi già deciso: **il thinking si spegne o si tiene
+al minimo** (è la voce che domina il costo in uscita, e non serve a scegliere
+parole su numeri dati), e **la risposta si guarda prima di leggerla** — un
+troncamento, un rifiuto o un blocco di sicurezza non sono una risposta vuota.
 
 ##### La chiave
 
-- ⚠️ **`ANTHROPIC_API_KEY` è server-only**, mai `NEXT_PUBLIC_*`, e la chiamata
-  vive in una server action come ogni altra operazione di questo progetto.
+- ⚠️ **La chiave è server-only**, mai `NEXT_PUBLIC_*`, qualunque sia il
+  fornitore, e la chiamata vive in una server action come ogni altra operazione
+  di questo progetto.
 - ⚠️ **Non si controlla in `next.config.ts`**, e va scritto perché — o qualcuno
   la aggiunge lì per simmetria con `NEXT_PUBLIC_SITE_URL`. Quel controllo esiste
   perché le `NEXT_PUBLIC_*` sono sostituite come costanti **in compilazione**,
@@ -3456,12 +3516,11 @@ scelta rivedibile invece che definitiva.
   server-side si legge a runtime: la forma giusta è uno stato «coach non
   configurato» leggibile — e con la 24b consegnata, quello stato è **un coach che
   funziona lo stesso**, non una schermata rotta.
-- **`@anthropic-ai/sdk` è la prima dipendenza nuova da parecchie fasi**, e la
-  regola resta quella di `lib/import/csv.ts`: *una dipendenza si aggiunge quando
-  serve, non quando è comoda*. Qui serve — è l'SDK ufficiale, e riscrivere a mano
-  le chiamate a `/v1/messages` sarebbe codice nostro da tenere allineato a
-  un'API che cambia. ⚠️ Ed entra solo nella **24c**: fino a lì `package.json` non
-  si tocca.
+- **L'SDK entra solo nella 24c**, e sarà quello ufficiale del fornitore scelto:
+  vale la regola di `lib/import/csv.ts` — *una dipendenza si aggiunge quando
+  serve, non quando è comoda* — e riscrivere a mano le chiamate HTTP sarebbe
+  codice nostro da tenere allineato a un'API che cambia. Fino alla 24c
+  `package.json` e `.env.local` **non si toccano**.
 
 ##### Il tetto sta nel DATABASE, non nello stato del componente
 
@@ -3477,6 +3536,10 @@ predefinito non consuma niente. Due fusibili:
 ⚠️ Nel database e non nel client per la ragione già pagata nella Fase 21:
 *l'annullamento dell'import viveva nello stato del componente*, e un controllo
 che vive quanto una schermata non è un controllo.
+
+⚠️ E i tetti servono **anche** contro il fornitore, non solo contro la bolletta:
+i limiti di frequenza esistono su ogni piano, e un 429 va reso come una frase che
+dice cosa è successo — non come una bolla vuota.
 
 ##### La lingua
 
@@ -3505,14 +3568,7 @@ account capita due volte.
   schema a sé, da prendere in chiaro e non scivolarci dentro. Il coach parla
   quindi di **Flusso, uscite fisse, disponibile e tasso di risparmio**, che i
   dati sostengono davvero, e cita le metodologie solo in modo qualitativo.
-- ⚠️ **Nessun piano gratuito di terzi**, ed è una rinuncia con un motivo preciso.
-  I piani gratuiti si pagano coi dati: le loro condizioni tipicamente riservano
-  l'uso degli input per addestrare i modelli, mentre l'API a pagamento di
-  Anthropic non lo fa per impostazione predefinita. Su un'app qualsiasi sarebbe
-  un dettaglio contrattuale; qui la schermata di consenso dovrebbe aggiungere
-  *«e questi dati possono servire ad addestrare un modello»* — e a quel punto la
-  decisione «solo aggregati» non protegge più granché. **Il risparmio si
-  pagherebbe esattamente nella valuta che questa fase esiste per custodire.**
+- ⚠️ **Nessun piano gratuito**, per i termini citati sopra e non per prudenza.
 - **BYOK scartato per ora**: sposta il costo su ogni utente ma obbliga a
   custodire la chiave di qualcun altro. Ha senso solo il giorno in cui le
   registrazioni si aprono (issue #40), e va deciso allora.
@@ -4319,7 +4375,9 @@ Seguire questo ordine, non saltare fasi:
     rimandato qui); **24b il coach che non paga** — la bolla che galleggia sulla
     card Investimenti in home, il consiglio d'apertura e le risposte che l'app sa
     già dare, tutte aritmetica e tutte nei dizionari; **24c la chat aperta** —
-    `claude-haiku-4-5`, consenso, snapshot, le due tabelle e i tetti.
+    **fornitore ancora da scegliere** (⚠️ nessun piano gratuito: i termini di
+    Google vietano il tier gratuito per utenti UE), consenso, snapshot, le due
+    tabelle e i tetti.
     ⚠️ Il perno è che il modello **non scrive mai una cifra**: riceve numeri già
     calcolati e produce prosa con `{segnaposto}`, che `fill()` sostituisce — una
     qualunque cifra nel testo grezzo fa scartare la risposta. ⚠️ Senza la 24c
