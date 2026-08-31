@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Lightbulb, Repeat, Wallet } from "lucide-react";
 import { getAvailableThisMonth, getGlobalBudget, setBudget } from "@/app/(main)/budget-actions";
 import { useI18n } from "@/components/features/I18nProvider";
@@ -40,6 +40,22 @@ export default function GlobalBudgetSection() {
 	 *  mostrerebbe vuoto a chi un limite ce l'ha, e basterebbe scriverci sopra
 	 *  per sostituirlo senza essersi accorti di nulla */
 	const [loadFailed, setLoadFailed] = useState(false);
+	/**
+	 * ⚠️ Il tocco sul suggerimento arriva DOPO il blur del campo.
+	 *
+	 * Se hai scritto qualcosa nel campo e poi tocchi il suggerimento, il browser
+	 * emette prima `blur` → `commit()`, che chiama `save()` e con `setSaving(true)`
+	 * **disabilita il bottone**: il tocco viene ingoiato e viene salvato il valore
+	 * DIGITATO invece di quello toccato — cioè l'opposto del gesto. Con tempi di
+	 * flush diversi le due scritture si accavallano e il campo può mostrare un
+	 * numero mentre il database ne contiene un altro.
+	 *
+	 * Il ref segna l'intenzione prima che il blur parta, e `commit()` gli cede il
+	 * passo. Non è una preferenza di stile: due strade che scrivono lo stesso
+	 * campo devono avere una precedenza dichiarata, non dedotta dall'ordine degli
+	 * eventi del browser.
+	 */
+	const suggerimentoPremuto = useRef(false);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -73,7 +89,20 @@ export default function GlobalBudgetSection() {
 
 				setLoading(false);
 			},
-		);
+		).catch((e) => {
+			/*
+			 * ⚠️ Senza questo ramo una server action che RIFIUTA — rete giù,
+			 * eccezione non gestita a monte — lascia `loading` a `true` per
+			 * sempre: campo disabilitato, le due righe ferme su "…", `loadFailed`
+			 * mai alzato e nessun messaggio. Un'attesa che non finisce e non si
+			 * spiega è la stessa classe già corretta nella Fase 21 (le server
+			 * action dell'import senza `try/finally`) e nella 22.
+			 */
+			if (cancelled) return;
+			setLoadFailed(true);
+			setError(e instanceof Error ? e.message : String(e));
+			setLoading(false);
+		});
 
 		return () => { cancelled = true; };
 	}, []);
@@ -96,6 +125,17 @@ export default function GlobalBudgetSection() {
 			}
 			setCurrent(parsed);
 			return true;
+		} catch (e) {
+			/*
+			 * ⚠️ `try/finally` senza `catch` spegneva `saving` e basta: una
+			 * promise rifiutata non arrivava mai a `setError`, quindi il tocco sul
+			 * suggerimento non faceva niente **e non diceva niente**. È il difetto
+			 * peggiore possibile qui — chi lo usa conclude che il comando non
+			 * esista, non che sia rotto — ed è quello già registrato nella Fase 22
+			 * per `crypto.randomUUID()`.
+			 */
+			setError(fill(t.budget.saveFailed, { reason: e instanceof Error ? e.message : String(e) }));
+			return false;
 		} finally {
 			setSaving(false);
 		}
@@ -107,6 +147,9 @@ export default function GlobalBudgetSection() {
 	 * altre righe di questa pagina non chiedono.
 	 */
 	async function commit() {
+		// Il suggerimento ha la precedenza: vedi la nota su `suggerimentoPremuto`.
+		if (suggerimentoPremuto.current) return;
+
 		const parsed = amount.trim() === "" ? null : Number(amount.replace(",", "."));
 
 		if (parsed === current) return;
@@ -261,9 +304,17 @@ export default function GlobalBudgetSection() {
 			{suggestion !== null && (
 				<button
 					type="button"
+					onPointerDown={() => { suggerimentoPremuto.current = true; }}
+					// Se il dito parte dal bottone e poi scivola via il click non
+					// arriva: senza questo, `commit()` resterebbe zittito per sempre.
+					onPointerLeave={() => { suggerimentoPremuto.current = false; }}
 					onClick={() => {
 						void (async () => {
-							if (await save(suggestion)) setAmount(String(suggestion));
+							try {
+								if (await save(suggestion)) setAmount(String(suggestion));
+							} finally {
+								suggerimentoPremuto.current = false;
+							}
 						})();
 					}}
 					disabled={saving}

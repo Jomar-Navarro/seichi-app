@@ -959,6 +959,12 @@ export const it = {
 		fixedOutflowsHint: "Abbonamenti di questo mese, fuori dal limite",
 		amountMustBePositive: "Inserisci un importo maggiore di zero",
 		readFailed: "Impossibile leggere il budget: {reason}",
+		/**
+		 * ⚠️ Una SCRITTURA fallita deve dirlo quanto una lettura. Senza, il tocco
+		 * sul suggerimento non faceva niente e non spiegava perché — e un gesto
+		 * muto si legge come «il comando non esiste», non come «è rotto».
+		 */
+		saveFailed: "Impossibile salvare il budget: {reason}",
 
 		/**
 		 * ⚠️ «Disponibile», mai «stipendio meno uscite fisse»: l'app non sa quale
