@@ -960,6 +960,30 @@ export const it = {
 		amountMustBePositive: "Inserisci un importo maggiore di zero",
 		readFailed: "Impossibile leggere il budget: {reason}",
 
+		/**
+		 * ⚠️ «Disponibile», mai «stipendio meno uscite fisse»: l'app non sa quale
+		 * `entrata` sia lo stipendio, quindi il numero è la somma di TUTTE le
+		 * entrate del mese. Vedi `getAvailableThisMonth()`.
+		 */
+		available: "Disponibile",
+		availableHint: "Entrate del mese meno uscite fisse",
+		/**
+		 * ⚠️ Compare quando il mese non ha ancora entrate registrate, ed è il caso
+		 * NORMALE nei primi giorni: senza questa riga «− € 52» si legge come un
+		 * buco nei conti invece che come «lo stipendio non è ancora arrivato».
+		 * Un numero vero che si fa capire male è il difetto che questa fase
+		 * esiste per non commettere.
+		 */
+		availableNoIncome: "Nessuna entrata registrata questo mese",
+		/**
+		 * Il suggerimento per il limite globale, rimandato qui dalla 17a.
+		 * ⚠️ È un TETTO, non una raccomandazione: quanto puoi spendere in spese
+		 * variabili senza intaccare il mese. Nessuna percentuale di metodo — il
+		 * 50/30/20 non è calcolabile onestamente su questa tassonomia.
+		 */
+		useAvailable: "Imposta il limite a {amount}",
+		useAvailableHint: "Quanto resta dopo le uscite fisse — un tetto, non un consiglio",
+
 		/** Intestazione neutra: la finestra temporale la porta ogni card. */
 		sectionTitle: "Budget",
 		/**

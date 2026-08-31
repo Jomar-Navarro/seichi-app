@@ -211,11 +211,94 @@ export async function getBudgetOverview(
 }
 
 /**
+ * Quanto resta in un mese dopo le uscite fisse, e l'ammontare delle uscite
+ * fisse stesse: i due numeri che stanno accanto al budget globale.
+ *
+ * ⚠️ **NON si chiama «stipendio meno fisse»**, e non è una differenza di stile:
+ * l'app non sa quale `entrata` sia lo stipendio. Non c'è una colonna che lo
+ * dica, e una regola ricorrente di tipo `entrata` è un indizio, non un fatto.
+ * Il numero è la somma di TUTTE le entrate registrate nel mese, e va chiamato
+ * così ovunque compaia. È la correzione già fatta tre volte in questo progetto
+ * — «spese totali» → «spese variabili» (17a), «Saldo totale» → «Saldo · N conti
+ * attivi» (20a), «Valore portafoglio» → «Capitale versato» (21b) — applicata
+ * prima di sbagliare invece che dopo.
+ *
+ * ⚠️ **Le entrate non si risommano qui**: le chiede a `dashboard_totals()`, la
+ * stessa funzione che alimenta la home. Riscrivere il filtro creerebbe una
+ * definizione concorrente di «entrata», che è esattamente il difetto che la
+ * review della 20a ha dovuto unificare in `sommaUscite()` dopo averlo trovato
+ * divergente in tre punti scritti a mano.
+ *
+ * ⚠️ **Rimpiazza `getFixedOutflows()`**, che restituiva il solo secondo numero
+ * ed era chiamata dallo stesso componente: tenerle entrambe avrebbe calcolato
+ * due volte le uscite fisse nella stessa schermata, in due richieste.
+ *
+ * ⚠️ **Nessun filtro per conto** (`p_account_id: null`), ed è voluto: il budget
+ * globale non appartiene a un conto — «€ 400 per la spesa» non si divide fra
+ * contanti e carta — quindi il disponibile che gli sta accanto deve guardare lo
+ * stesso insieme. È la stessa affermazione che il dizionario fa già a voce
+ * (`acrossAllAccounts`).
+ */
+export async function getAvailableThisMonth(clock: ClientClock): Promise<
+	{ data: { income: number; fixedOutflows: number; available: number } } | { error: string }
+> {
+	const { supabase, user, t } = await requireUser();
+	if (!user) return { error: t.errors.notAuthenticated };
+
+	const { start, end } = monthBoundsOf(clock.today);
+
+	/*
+	 * Due confini danno UN bucket: `dashboard_totals()` li consuma a coppie
+	 * (`generate_subscripts`), quindi la stessa funzione che in home produce sei
+	 * mesi qui produce il mese solo, senza una query nuova e senza un secondo
+	 * modo di sommare le entrate.
+	 *
+	 * ⚠️ I confini vengono dall'orologio del CLIENT — vedi la nota in testa a
+	 * questo file. Il numero vive accanto al budget globale, che i propri
+	 * confini li calcola già così: con due orologi diversi, nelle prime ore del
+	 * mese la stessa card mostrerebbe due mesi.
+	 */
+	const bounds = [
+		localMidnightInstant(start, clock.tzOffsetMinutes),
+		localMidnightInstant(end, clock.tzOffsetMinutes),
+	];
+
+	const [totals, fixed] = await Promise.all([
+		supabase.rpc("dashboard_totals", { p_bounds: bounds, p_account_id: null }),
+		readFixedOutflows(supabase, user.id, clock),
+	]);
+
+	if (totals.error) return { error: totals.error.message };
+	if ("error" in fixed) return fixed;
+
+	type TotalRow = { bucket_index: number | null; type: string; total: number | string };
+	const rows = (totals.data ?? []) as TotalRow[];
+
+	// `numeric` può arrivare come stringa a seconda di come PostgREST serializza:
+	// `Number()` al confine, una volta, come fa `getDashboardTotals`.
+	const income = Number(
+		rows.find((r) => r.bucket_index === 0 && r.type === "entrata")?.total ?? 0,
+	);
+
+	/*
+	 * ⚠️ Il risultato NON si azzera quando è negativo. Uscite fisse maggiori
+	 * delle entrate registrate è un fatto — e all'inizio del mese è pure il caso
+	 * normale, perché lo stipendio non è ancora arrivato. Sostituirlo con uno
+	 * zero direbbe «sei in pari» a chi non lo è; a spiegarlo è la frase accanto,
+	 * che distingue «nessuna entrata ancora» da «le fisse superano le entrate».
+	 * Stesso trattamento della posizione negativa in 21b: si mostra col segno.
+	 */
+	return {
+		data: { income, fixedOutflows: fixed.data, available: income - fixed.data },
+	};
+}
+
+/**
  * Quanto costano gli abbonamenti nel mese corrente.
  *
- * NON entra in nessun budget — le categorie `abbonamento` sono escluse per
- * scelta — e si mostra accanto al globale perché un limite di spesa che ignora
- * in silenzio affitto e utenze è un numero sbagliato che sembra giusto.
+ * NON entrano in nessun budget — le categorie `abbonamento` sono escluse per
+ * scelta — e si mostrano accanto al globale perché un limite di spesa che
+ * ignora in silenzio affitto e utenze è un numero sbagliato che sembra giusto.
  *
  * Somma due cose che non si sovrappongono:
  *   - le transazioni `abbonamento` già registrate nel mese
@@ -227,22 +310,11 @@ export async function getBudgetOverview(
  * fallimento mostrerebbe "uscite fisse € 0" come se fosse un dato vero, che è
  * esattamente il numero sbagliato dall'aria giusta che questa riga esiste per
  * evitare.
- */
-export async function getFixedOutflows(
-	clock: ClientClock,
-): Promise<{ data: number } | { error: string }> {
-	const { supabase, user, t } = await requireUser();
-	if (!user) return { error: t.errors.notAuthenticated };
-
-	return readFixedOutflows(supabase, user.id, clock);
-}
-
-/**
- * Il calcolo vero, che riceve il client invece di aprirsene uno.
  *
- * Stessa forma di `readBudgetsAt()`, e per lo stesso motivo: così `getBudgetOverview()`
- * può riusarlo senza passare dalla server action, che ripeterebbe autenticazione
- * e dizionario per nulla.
+ * Riceve il client invece di aprirsene uno, stessa forma di `readBudgetsAt()`:
+ * così `getBudgetOverview()` e `getAvailableThisMonth()` possono riusarlo senza
+ * passare da una server action, che ripeterebbe autenticazione e dizionario per
+ * nulla.
  */
 async function readFixedOutflows(
 	supabase: SupabaseServerClient,
