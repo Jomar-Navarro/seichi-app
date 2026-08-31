@@ -130,10 +130,22 @@ export default function GlobalBudgetSection() {
 	 * un obiettivo da raggiungere: la differenza sta anche nel testo che
 	 * accompagna il bottone.
 	 */
+	/*
+	 * ⚠️ Si propone l'euro INTERO PER DIFETTO, e la ragione si è vista solo
+	 * guardando lo schermo.
+	 *
+	 * La card arrotonda gli importi all'euro (`€ 52` per 51,90), quindi il
+	 * disponibile esatto 5855,68 si legge «€ 5856». Proponendo il valore esatto,
+	 * il bottone avrebbe detto «Imposta il limite a € 5856» e scritto nel campo
+	 * 5855.68: un comando che dichiara un numero e ne applica un altro.
+	 *
+	 * Per DIFETTO e non al più vicino: arrotondando si proporrebbe un tetto più
+	 * alto del disponibile reale — cioè un limite che, se speso tutto, manda il
+	 * mese in negativo. Un tetto si abbassa, non si alza.
+	 */
+	const proposta = available === null ? 0 : Math.floor(available);
 	const suggestion =
-		!loading && !loadFailed && current === null && available !== null && available > 0
-			? available
-			: null;
+		!loading && !loadFailed && current === null && proposta >= 1 ? proposta : null;
 
 	/** Il valore mostrato a destra, con i due stati di lettura già gestiti. */
 	function readout(value: number) {
