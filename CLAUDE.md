@@ -3317,6 +3317,58 @@ differiscono di un euro, e rispondono a due domande diverse (*quanto ho* contro
 card — «€ 51,90» e «€ 5855,68» — ma tocca anche la riga delle uscite fisse, che
 è della 17a e arrotonda dal primo giorno. Non fatto qui.
 
+#### Emerso dal code-review della 24a
+
+Quattro rilievi. Tre corretti, e sono **lo stesso difetto in tre punti**: un
+gesto che non fa niente e non dice niente — la classe già pagata in Fase 21
+(server action senza `try/finally`) e in Fase 22 (`crypto.randomUUID()` che
+falliva in silenzio).
+
+- ⚠️⚠️ **Il tocco sul suggerimento veniva ingoiato, e salvava il valore
+  SBAGLIATO.** Con del testo digitato nel campo, toccare il bottone fa emettere
+  al browser prima `blur` → `commit()`, che con `setSaving(true)` **disabilita
+  il bottone**: veniva scritto il valore *digitato* invece di quello *toccato*,
+  cioè l'opposto del gesto. E con tempi di flush diversi le due `setBudget` si
+  accavallano, lasciando il campo a mostrare un numero mentre il database ne
+  contiene un altro.
+
+  La regola che ne esce: **due strade che scrivono lo stesso campo devono avere
+  una precedenza DICHIARATA, non dedotta dall'ordine degli eventi del browser.**
+  Il ref `suggerimentoPremuto` segna l'intenzione prima che il blur parta.
+
+- ⚠️ **Il suggerimento falliva in silenzio**: `save()` aveva `try/finally` senza
+  `catch` e l'`onClick` faceva `void` della promise, quindi una `setBudget`
+  rifiutata non arrivava mai a `setError`. Ora c'è il ramo, con una voce nuova
+  nei dizionari — **una scrittura fallita deve dirlo quanto una lettura**, e
+  finora solo la lettura ce l'aveva (`readFailed`).
+
+- ⚠️ **Un caricamento rifiutato bloccava la card per sempre**:
+  `Promise.all(...).then(...)` senza `.catch` lasciava `loading` a `true`, il
+  campo disabilitato, le due righe ferme su "…" e `loadFailed` mai alzato.
+  Un'attesa che non finisce e non si spiega.
+
+##### Il quarto: segnalato due volte, per strade indipendenti
+
+«Disponibile **€ 5856**» tre righe sopra «Imposta il limite a **€ 5855**». Se ne
+sono accorti sia chi guardava l'app sia la review, il che dice che l'attrito è
+reale e non una pignoleria: due numeri adiacenti che differiscono di un euro.
+
+Non è un difetto — rispondono a due domande diverse (*quanto ho* contro *quanto
+imposto*) e il secondo è arrotondato per difetto apposta. La chiusura pulita è
+mostrare i **centesimi** su questa card («€ 51,90», «€ 5855,68»), che renderebbe
+il floor evidente da sé; tocca però anche la riga delle uscite fisse, che è
+della 17a e arrotonda dal primo giorno. **Lasciata aperta, non dimenticata.**
+
+##### ⚠️ E le tre correzioni NON sono provate
+
+Sono rami difensivi: si vedono solo quando qualcosa fallisce, e nessuno dei tre
+è stato acceso apposta. La regola di questo repo dice che *una difesa va provata
+disattivandola* — la 22 lo fece abbassando `ATTACHMENT_MAX_BYTES`, la 23a
+abbassando `EXPORT_CHUNK` — e qui non è stato fatto.
+
+Sta scritto perché la differenza fra «corretto» e «corretto e verificato» non si
+deduce dal diff, e fra un mese nessuno la ricostruisce.
+
 #### 24b — il coach che non paga, ed è quasi tutto il coach
 
 Deciso il 2026-08-27, chiedendo *«non c'è un modo per far sì che l'utilizzo sia
