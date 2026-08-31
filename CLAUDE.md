@@ -3212,6 +3212,111 @@ versato»* — applicata prima di sbagliare invece che dopo.
   Vedi «Le rinunce dichiarate»: le percentuali di metodo non sono calcolabili
   onestamente su questo schema.
 
+#### Emerso implementando la 24a (2026-08-31)
+
+Implementata sul branch `72-fase-24a-disponibile-e-budget-suggerito` e collaudata
+**nell'app vera**, non solo compilata. `tsc`, lint, `next build` e
+`npm run audit:tokens` verdi; sui dati veri **Entrate € 5907,58 − uscite fisse
+€ 51,90 = Disponibile € 5856**, zero errori console.
+
+- **`getFixedOutflows()` è sparita, sostituita da `getAvailableThisMonth()`.**
+  Era chiamata solo da `GlobalBudgetSection`, e la funzione nuova quel numero lo
+  restituisce già: tenerle entrambe avrebbe calcolato le uscite fisse **due
+  volte nella stessa schermata, in due richieste**. Le entrate arrivano da
+  `dashboard_totals()` con due soli confini — cioè un bucket — quindi non nasce
+  una seconda definizione di «entrata» accanto a quella della home.
+
+- ⚠️ **Il caso «zero entrate» era una trappola non prevista in progettazione.**
+  Il 2 del mese, con lo stipendio che arriva il 27, `entrate = 0` e il
+  disponibile è **− € 52**: vero, ma si legge come un buco nei conti invece che
+  come *«lo stipendio non è ancora arrivato»*. E nei primi giorni del mese è il
+  caso **normale**, non l'eccezione. Il sottotitolo cambia frase quando le
+  entrate sono zero (`availableNoIncome`). È la regola della fase in una veste
+  nuova: non un numero sbagliato che sembra giusto, ma **un numero vero che si
+  fa capire male**.
+
+- **Il suggerimento compare SOLO quando un limite non c'è.** Proporlo a chi ne ha
+  già impostato uno più basso significa invitarlo ad **alzarlo**, cioè a
+  spendere di più, e quel limite più basso è una scelta deliberata, non una
+  svista da correggere. Il disponibile è un tetto, non un obiettivo da
+  raggiungere.
+
+- ⚠️⚠️ **Il suggerimento si arrotonda per DIFETTO, e la ragione si è vista solo
+  guardando lo schermo.** La card arrotonda gli importi all'euro — 51,90 diventa
+  «€ 52» — quindi col valore esatto il bottone avrebbe detto *«Imposta il limite
+  a € 5856»* e scritto nel campo **5855,68**: un comando che dichiara un numero
+  e ne applica un altro. Per **difetto** e non al più vicino, perché
+  arrotondando si proporrebbe un tetto *più alto* del disponibile reale — un
+  limite che, se speso tutto, manda il mese in negativo. **Un tetto si abbassa,
+  non si alza.**
+
+- **L'icona del suggerimento è una lampadina, non una scintilla.** Quel numero è
+  aritmetica, non un modello: un'icona che promette l'AI su un calcolo
+  deterministico è la stessa classe del fumetto di chat sopra un referto —
+  *l'icona si sceglie insieme a ciò che fa*. Vale anche al contrario, quando
+  arriverà la 24c.
+
+##### ⚠️ Quattro volte a sbagliare è stata la VERIFICA, in un giro solo
+
+Nessuna delle quattro era un difetto dell'app, e tutte hanno prodotto un KO
+credibile:
+
+| | il driver | perché era falso |
+|---|---|---|
+| 1 | indicizzava le righe per `lines[0]` | la pastiglia icona contiene il glifo **`€` come testo**, quindi la prima riga è `"€"` e «Limite mensile» risultava MANCANTE mentre era a schermo |
+| 2 | `toNumber` pretendeva `,\d{2}` | la card scrive **«€ 52»**, non «€ 52,00» → `NaN` su un importo sano |
+| 3 | cercava un testo che *iniziasse* con «Entrate» | la card della home mette **l'importo sopra l'etichetta** |
+| 4 | confrontava i valori come esatti | erano **già arrotondati**: `5907,58 − 52 = 5855,58` contro «5856» dava uno scarto di 0,42 su un'app corretta |
+
+La regola nuova che ne esce, e vale per ogni collaudo futuro di questo repo:
+**un controllo che legge numeri FORMATTATI non può confrontarli come esatti.**
+Il confronto giusto è l'appartenenza all'intervallo degli arrotondamenti
+possibili — che un errore vero di qualche euro fa comunque fallire, mentre uno
+di centesimi non lo inventa.
+
+⚠️ E il quarto è quello che ha pagato: andando a capire *perché* diceva rosso è
+uscito il difetto vero dell'arrotondamento del suggerimento. È la regola già
+scritta due volte qui dentro — *un controllo che segnala un guasto va
+diagnosticato prima di crederci* — con il suo corollario di sempre.
+
+⚠️ **E il driver ha dovuto chiedere `/?conto=` esplicitamente.** Il conto scelto
+vive in un cookie (20b), quindi «aprire la home» non è uno stato determinato:
+senza il parametro vuoto avrebbe letto le entrate di **un conto** confrontandole
+con un disponibile calcolato su **tutti**. Un KO inventato dal collaudo, sulla
+stessa trappola che la 20b aveva già registrato.
+
+##### La prova che si autoescludeva, dichiarata e poi chiusa
+
+⚠️ Il ramo **positivo** del suggerimento non era provabile dal driver: l'account
+di collaudo ha un limite globale, quindi il bottone correttamente non compariva
+e restava verificato solo il ramo che lo **nasconde** — non quello per cui la
+funzione esiste. Provarlo richiedeva di azzerare il limite, cioè scrivere su un
+database di **produzione**, e il driver è sola lettura per scelta.
+
+È rimasta dichiarata come la prova `b2` della Fase 22 — *una prova che si
+autoesclude va lasciata dichiarata e ripresa, non archiviata come superata
+perché tutto il resto è verde* — ed è stata **chiusa a mano lo stesso giorno**
+svuotando il limite dall'app:
+
+- il campo mostra il segnaposto «nessuno» e il bottone **compare**;
+- dice **«Imposta il limite a € 5855»** mentre la riga sopra dice **«€ 5856»**,
+  che è l'arrotondamento per difetto documentato qui sopra visto funzionare: il
+  disponibile esatto è 5855,68;
+- il sottotitolo *«un tetto, non un consiglio»* è leggibile e la lampadina non
+  somiglia a un'icona di AI.
+
+⚠️ **E la prova a mano è arrivata in TEMA SCURO**, che il driver non rende mai
+(non ha il cookie del tema): pastiglia icona, inchiostri e contrasto reggono
+anche là. È la stessa lezione della Fase 22 — *ogni fase ha una parte di
+collaudo che nessun driver può fare*, e va prevista invece di scoprirla.
+
+⚠️ **Resta aperta una domanda di prodotto, non un difetto**: «Disponibile
+€ 5856» e «Imposta il limite a € 5855» sono due numeri adiacenti che
+differiscono di un euro, e rispondono a due domande diverse (*quanto ho* contro
+*quanto imposto*). La chiusura pulita sarebbe mostrare i centesimi su questa
+card — «€ 51,90» e «€ 5855,68» — ma tocca anche la riga delle uscite fisse, che
+è della 17a e arrotonda dal primo giorno. Non fatto qui.
+
 #### 24b — il coach che non paga, ed è quasi tutto il coach
 
 Deciso il 2026-08-27, chiedendo *«non c'è un modo per far sì che l'utilizzo sia
