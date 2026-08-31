@@ -555,6 +555,16 @@ export const en: Dictionary = {
 		fixedOutflowsHint: "This month's subscriptions, outside the limit",
 		amountMustBePositive: "Enter an amount greater than zero",
 		readFailed: "Could not read your budget: {reason}",
+		/** ⚠️ Vedi it.ts: una scrittura fallita deve dirlo quanto una lettura. */
+		saveFailed: "Could not save your budget: {reason}",
+
+		/** ⚠️ Mai "salary": vedi la nota in it.ts. Sono TUTTE le entrate del mese. */
+		available: "Available",
+		availableHint: "This month's income minus fixed outflows",
+		/** ⚠️ Vedi it.ts: nei primi giorni del mese è il caso normale, non un guasto. */
+		availableNoIncome: "No income recorded this month",
+		useAvailable: "Set the limit to {amount}",
+		useAvailableHint: "What's left after fixed outflows — a ceiling, not advice",
 
 		sectionTitle: "Budget",
 		variableExpenses: "Variable spending",
