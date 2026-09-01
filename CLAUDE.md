@@ -3310,12 +3310,11 @@ svuotando il limite dall'app:
 anche là. È la stessa lezione della Fase 22 — *ogni fase ha una parte di
 collaudo che nessun driver può fare*, e va prevista invece di scoprirla.
 
-⚠️ **Resta aperta una domanda di prodotto, non un difetto**: «Disponibile
-€ 5856» e «Imposta il limite a € 5855» sono due numeri adiacenti che
-differiscono di un euro, e rispondono a due domande diverse (*quanto ho* contro
-*quanto imposto*). La chiusura pulita sarebbe mostrare i centesimi su questa
-card — «€ 51,90» e «€ 5855,68» — ma tocca anche la riga delle uscite fisse, che
-è della 17a e arrotonda dal primo giorno. Non fatto qui.
+⚠️ **Ne è nata una domanda di prodotto**, non un difetto: «Disponibile € 5856» e
+«Imposta il limite a € 5855» sono due numeri adiacenti che differiscono di un
+euro, e rispondono a due domande diverse (*quanto ho* contro *quanto imposto*).
+Segnalata anche dal code-review, e **chiusa il 2026-09-01** mostrando i
+centesimi su questa card — vedi «Il quarto» più sotto.
 
 #### Emerso dal code-review della 24a
 
@@ -3354,20 +3353,35 @@ sono accorti sia chi guardava l'app sia la review, il che dice che l'attrito è
 reale e non una pignoleria: due numeri adiacenti che differiscono di un euro.
 
 Non è un difetto — rispondono a due domande diverse (*quanto ho* contro *quanto
-imposto*) e il secondo è arrotondato per difetto apposta. La chiusura pulita è
-mostrare i **centesimi** su questa card («€ 51,90», «€ 5855,68»), che renderebbe
-il floor evidente da sé; tocca però anche la riga delle uscite fisse, che è
-della 17a e arrotonda dal primo giorno. **Lasciata aperta, non dimenticata.**
+imposto*) e il secondo è arrotondato per difetto apposta.
 
-##### ⚠️ E le tre correzioni NON sono provate
+**Chiuso il 2026-09-01 mostrando i centesimi su questa card**: «€ 51,90» e
+«€ 1241,10» accanto a «Imposta il limite a € 1241», e il floor si legge da sé.
+⚠️ Le due righe non sono decorazione: sono i **due addendi di una sottrazione**
+che l'utente deve poter rifare a mente, e arrotondate non tornavano con le
+entrate. La riga «uscite fisse» della **home** resta a euro interi ed è corretto
+così: là è uno sguardo, qui è un conto — il resto dell'app continua a usare il
+`decimals = 0` di `formatMoney`.
 
-Sono rami difensivi: si vedono solo quando qualcosa fallisce, e nessuno dei tre
-è stato acceso apposta. La regola di questo repo dice che *una difesa va provata
-disattivandola* — la 22 lo fece abbassando `ATTACHMENT_MAX_BYTES`, la 23a
-abbassando `EXPORT_CHUNK` — e qui non è stato fatto.
+##### Le tre correzioni, provate iniettando il guasto (2026-09-01)
 
-Sta scritto perché la differenza fra «corretto» e «corretto e verificato» non si
-deduce dal diff, e fra un mese nessuno la ricostruisce.
+Erano rami difensivi: si vedono solo quando qualcosa fallisce, e per un giorno
+sono rimasti **dichiarati non provati**, perché *la differenza fra «corretto» e
+«corretto e verificato» non si deduce dal diff*. Accesi uno per uno con il gesto
+standard di questo repo — la 22 abbassò `ATTACHMENT_MAX_BYTES`, la 23a
+`EXPORT_CHUNK`:
+
+| guasto iniettato | cosa doveva succedere | esito |
+|---|---|---|
+| `setBudget` che solleva | il tocco sul suggerimento **dice** l'errore invece di tacere | *«Impossibile salvare il budget: guasto iniettato»*, e il campo NON si riempie di un valore mai salvato |
+| il caricamento che rifiuta | la card non resta appesa su «…» | messaggio mostrato, campo disabilitato, `loadFailed` alzato |
+| nessuno — si digita e poi si tocca | il **tocco** vince sul `blur` | nel campo *e nel database* finisce la proposta, non il valore digitato |
+
+⚠️ La terza è l'unica che scrive, ed è l'unica che conta davvero: verificata
+**dopo un ricaricamento**, perché lo stato dell'interfaccia sopravvive al gesto
+e quindi non può testimoniare sul gesto — la regola già scritta nella Fase 22
+per la riprova degli allegati. Il collaudo finisce rimettendo il limite globale
+al valore che l'utente aveva, e il database resta come è stato trovato.
 
 #### 24b — il coach che non paga, ed è quasi tutto il coach
 
