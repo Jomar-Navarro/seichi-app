@@ -191,10 +191,25 @@ export default function GlobalBudgetSection() {
 		!loading && !loadFailed && current === null && proposta >= 1 ? proposta : null;
 
 	/** Il valore mostrato a destra, con i due stati di lettura già gestiti. */
+	/**
+	 * ⚠️ **Con i CENTESIMI**, contro l'abitudine del resto dell'app — che
+	 * arrotonda all'euro (`formatMoney` ha `decimals = 0` di default).
+	 *
+	 * Qui le due righe non sono decorazione: sono i due addendi di una
+	 * sottrazione che l'utente deve poter rifare a mente. Arrotondate, la card
+	 * mostrava «€ 52» e «€ 5856» — che non tornano con le entrate — e soprattutto
+	 * il bottone sotto proponeva «€ 5855», un euro sotto il disponibile, senza
+	 * che nulla spiegasse perché. Due numeri adiacenti che differiscono di un
+	 * euro sono un attrito che si sono presi sia chi usa l'app sia il
+	 * code-review: col centesimo il floor si legge da sé.
+	 *
+	 * La riga «uscite fisse» della HOME resta a euro interi, ed è corretto: là è
+	 * uno sguardo, qui è un conto.
+	 */
 	function readout(value: number) {
 		if (loading) return "…";
 		if (loadFailed) return "—";
-		return formatMoney(value, { locale, currency: DISPLAY_CURRENCY });
+		return formatMoney(value, { locale, currency: DISPLAY_CURRENCY, decimals: 2 });
 	}
 
 	return (
