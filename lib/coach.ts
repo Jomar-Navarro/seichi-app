@@ -91,14 +91,24 @@ export function coachOpening(s: CoachSnapshot, locale: Locale, t: Dictionary): s
 				}),
 	);
 
-	const tasso = pct(s.month.saved + s.month.invested, s.month.income);
-	if (tasso !== null) {
+	/*
+	 * ⚠️ Con zero messo da parte NON si dice «stai mettendo da parte € 0,00»:
+	 * sarebbe un non-fatto travestito da osservazione. Si dice l'altra cosa, che
+	 * è vera e utile. E se non ci sono nemmeno entrate si tace: la prima riga
+	 * l'ha già detto, ripeterlo sarebbe rumore.
+	 */
+	const messoDaParte = s.month.saved + s.month.invested;
+	const tasso = pct(messoDaParte, s.month.income);
+	if (messoDaParte > 0 && tasso !== null) {
 		righe.push(
 			fill(t.coach.opening.savingsRate, {
+				amount: money(ctx, messoDaParte),
+				income: money(ctx, s.month.income),
 				pct: formatNumber(tasso, locale),
-				amount: money(ctx, s.month.saved + s.month.invested),
 			}),
 		);
+	} else if (s.month.income > 0) {
+		righe.push(t.coach.opening.savingsRateNone);
 	}
 
 	/*
@@ -216,6 +226,7 @@ export function coachReplies(s: CoachSnapshot, locale: Locale, t: Dictionary): C
 			? fill(a.fixedNoIncome, { fixed: money(ctx, s.fixedOutflows) })
 			: fill(a.fixed, {
 					fixed: money(ctx, s.fixedOutflows),
+					income: money(ctx, s.month.income),
 					pct: formatNumber(peso, locale),
 				});
 

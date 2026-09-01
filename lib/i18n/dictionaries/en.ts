@@ -587,8 +587,14 @@ export const en: Dictionary = {
 				"This month you took in {income} and have {fixed} of expected fixed outflows: {available} is left for variable spending.",
 			availableNoIncome:
 				"No income recorded this month yet, while {fixed} of fixed outflows are expected. The picture clears up once the first one lands.",
+			/** ⚠️ Percentuale fra parentesi per simmetria con it.ts, dove l'articolo
+			 *  davanti a una cifra variabile si rompe da solo. Qui non servirebbe —
+			 *  ed è precisamente il motivo per cui il difetto si vede solo in
+			 *  italiano. */
 			savingsRate:
-				"Between savings and investments you are setting aside {amount}, which is {pct}% of what came in.",
+				"Between savings and investments you are setting aside {amount} out of {income} that came in ({pct}%).",
+			savingsRateNone:
+				"You have not set anything aside this month yet, in savings or investments.",
 			/** ⚠️ Vedi it.ts: «so far» contro «all of last month» dichiara che il
 			 *  confronto mette un mese parziale accanto a uno intero. */
 			flowSoFar: "So far this month's flow is {flow}, against {previous} for all of last month.",
@@ -614,7 +620,7 @@ export const en: Dictionary = {
 			goalsNoTarget: "Your goals have no target set: you have {amount} put aside.",
 			goalsClosest: "The closest is {name}: {saved} of {target}, {missing} to go.",
 			fixed:
-				"Expected fixed outflows are {fixed}, which is {pct}% of what came in this month.",
+				"Expected fixed outflows are {fixed} out of {income} that came in this month ({pct}%).",
 			fixedNoIncome:
 				"Expected fixed outflows are {fixed}. With no income recorded, saying what share they are would mean nothing.",
 		},

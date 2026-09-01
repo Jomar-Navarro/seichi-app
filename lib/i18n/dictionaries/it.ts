@@ -1047,8 +1047,26 @@ export const it = {
 			/** ⚠️ All'inizio del mese è il caso NORMALE, non un buco nei conti. */
 			availableNoIncome:
 				"Questo mese non hai ancora registrato entrate, mentre di uscite fisse ne sono previste {fixed}. Il quadro si chiarisce quando arriva il primo incasso.",
+			/**
+			 * ⚠️ La percentuale sta fra parentesi, e NON dopo un articolo.
+			 *
+			 * «cioè il {pct}%» si rompe da sola in italiano: l'articolo cambia col
+			 * numero che segue — *il* 4%, *l'*8%, *lo* 0% — e il segnaposto non lo
+			 * sa. È la stessa classe di «Nuova investimento» (Fase 19), e come
+			 * quella **in inglese non esiste**: è esattamente il motivo per cui un
+			 * template pensato in inglese la nasconde. Si chiude togliendo la
+			 * costruzione, non irrobustendola.
+			 */
 			savingsRate:
-				"Fra risparmi e investimenti stai mettendo da parte {amount}, cioè il {pct}% di quello che è entrato.",
+				"Fra risparmi e investimenti stai mettendo da parte {amount} su {income} entrati ({pct}%).",
+			/**
+			 * ⚠️ Con zero da parte la frase precedente direbbe «stai mettendo da
+			 * parte € 0,00, cioè lo 0%»: un non-fatto travestito da osservazione.
+			 * Un coach che nota il nulla e lo dice come se fosse un dato smette di
+			 * essere creduto.
+			 */
+			savingsRateNone:
+				"Questo mese non hai ancora messo niente da parte, né in risparmi né in investimenti.",
 			/**
 			 * ⚠️ «Finora» e «l'intero mese scorso» non sono ornamenti: la frase
 			 * confronta un mese PARZIALE con uno INTERO, e senza dirlo il primo del
@@ -1077,8 +1095,9 @@ export const it = {
 			goalsNone: "Non hai obiettivi di risparmio attivi.",
 			goalsNoTarget: "I tuoi obiettivi non hanno un traguardo impostato: da parte hai {amount}.",
 			goalsClosest: "Il più vicino è {name}: {saved} di {target}, ne mancano {missing}.",
+			/** ⚠️ Percentuale fra parentesi: vedi la nota su `savingsRate`. */
 			fixed:
-				"Le uscite fisse previste sono {fixed}, cioè il {pct}% di quello che è entrato questo mese.",
+				"Le uscite fisse previste sono {fixed} su {income} entrati questo mese ({pct}%).",
 			fixedNoIncome:
 				"Le uscite fisse previste sono {fixed}. Senza entrate registrate, dirne il peso non significherebbe niente.",
 		},
