@@ -8,8 +8,11 @@ export default function HomeSkeleton() {
 				<div className="circle-3" />
 			</div>
 			{/* Header — rispecchia il layout reale: avatar tondo col saluto e il
-			    nome a SINISTRA, pastiglia della campanella a destra. Se diverge,
-			    la pagina salta a ogni caricamento freddo. */}
+			    nome a SINISTRA, e a destra DUE pastiglie — il coach e la campanella.
+			    Se diverge, la pagina salta a ogni caricamento freddo.
+			    ⚠️ La seconda è arrivata con la 24b, e per un commit non c'era: il
+			    Suspense è chiavato sull'id del conto, quindi lo scheletro ricompare
+			    a OGNI cambio conto e la pastiglia mancante spuntava ogni volta. */}
 			<div className="flex items-center justify-between mb-1">
 				<div className="flex items-center gap-3">
 					<div className="w-10.5 h-10.5 rounded-full zg-pulse shrink-0" style={{ background: "var(--surface-elevated)" }} />
@@ -18,7 +21,10 @@ export default function HomeSkeleton() {
 						<div className="h-3.5 w-24 rounded-full zg-pulse" style={{ background: "var(--surface-elevated)", animationDelay: "0.15s" }} />
 					</div>
 				</div>
-				<div className="w-10.5 h-10.5 rounded-[14px] zg-pulse shrink-0" style={{ background: "var(--surface-elevated)" }} />
+				<div className="flex items-center gap-2 shrink-0">
+					<div className="w-10.5 h-10.5 rounded-[14px] zg-pulse" style={{ background: "var(--surface-elevated)" }} />
+					<div className="w-10.5 h-10.5 rounded-[14px] zg-pulse" style={{ background: "var(--surface-elevated)", animationDelay: "0.05s" }} />
+				</div>
 			</div>
 
 			{/*

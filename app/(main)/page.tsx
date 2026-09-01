@@ -215,7 +215,16 @@ async function DashboardContent({
 					name={profile.displayName}
 					greeting={t.home.greeting}
 				/>
-				<div className="flex items-center gap-2">
+				{/*
+					⚠️ `shrink-0` sul gruppo, non sulle singole pastiglie: sono figli
+					flex con `min-width: auto`, quindi senza questo si comprimono in
+					tessere non quadrate invece di lasciar troncare il nome. Con una
+					pastiglia sola non si vedeva; con due il contenuto dell'header
+					supera i 320px e il difetto compare sui telefoni più stretti.
+					`ProfileMenu` il nome lo tronca già (`truncate max-w-36`), quindi
+					è lui a cedere — che è l'ordine giusto.
+				*/}
+				<div className="flex items-center gap-2 shrink-0">
 					<CoachBubble accountFiltered={!!accountId} />
 					<NotificationBell initialUnread={unreadCount} />
 				</div>
