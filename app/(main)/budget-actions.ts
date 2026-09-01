@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/auth";
 import { localMidnightInstant, monthBoundsOf, parseLocalDate } from "@/lib/dates";
 import { advanceDate } from "@/lib/recurring";
 import { budgetStatus } from "@/lib/budget";
+import { disponibileDaTotali } from "@/lib/totals";
 import type { ClientClock } from "@/lib/dates";
 import type {
 	BudgetAt,
@@ -289,7 +290,11 @@ export async function getAvailableThisMonth(clock: ClientClock): Promise<
 	 * Stesso trattamento della posizione negativa in 21b: si mostra col segno.
 	 */
 	return {
-		data: { income, fixedOutflows: fixed.data, available: income - fixed.data },
+		data: {
+			income,
+			fixedOutflows: fixed.data,
+			available: disponibileDaTotali(income, fixed.data),
+		},
 	};
 }
 

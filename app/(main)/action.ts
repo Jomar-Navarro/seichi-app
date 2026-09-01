@@ -5,6 +5,7 @@ import { formatDate, shortMonth } from "@/lib/i18n/format";
 import { requireUser } from "@/lib/auth";
 import { isAccountId, isUuid } from "@/lib/accounts";
 import { firstRunFrom, rollForwardPastToday } from "@/lib/recurring";
+import { flussoDaTotali } from "@/lib/totals";
 import type { Frequency } from "@/types";
 
 /**
@@ -619,7 +620,13 @@ export async function getDashboardTotals(accountId?: string | null) {
 	 * 20a ne toglie una. Con lui è sparito il bucket `null` della RPC, di cui era
 	 * l'unico consumatore.
 	 */
-	const flussoMese = entrateMese - speseMese - abbonaMese;
+	/*
+	 * ⚠️ La formula sta in `lib/totals.ts`, non più qui. Il coach (24b) parte
+	 * dagli stessi bucket e deve dire lo STESSO numero: scritta due volte,
+	 * sarebbe la quinta definizione di «uscita» dopo le tre che la review della
+	 * 20a ha dovuto unificare e la quarta che la 23b ha evitato di proposito.
+	 */
+	const flussoMese = flussoDaTotali(entrateMese, speseMese, abbonaMese);
 
 	// Trend ultimi 6 mesi per sparkline
 	function monthlyTrend(tipo: string): number[] {

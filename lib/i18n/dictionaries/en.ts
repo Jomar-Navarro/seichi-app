@@ -573,6 +573,63 @@ export const en: Dictionary = {
 		acrossAllAccounts: "budgets count every account, not just the one you filtered",
 	},
 
+	/** Il coach (Fase 24b). Vedi la nota in it.ts: qui è tutta cornice. */
+	coach: {
+		bubbleLabel: "Open the coach",
+		title: "Coach",
+		subtitle: "What your numbers say",
+		close: "Close",
+		loading: "Looking at your numbers…",
+		readFailed: "I can't read your numbers: {reason}",
+		hint: "Tap a question",
+		/** ⚠️ Vedi it.ts: compare solo con un filtro conto attivo sulla home. */
+		acrossAccounts: "These numbers cover every account, not just the one you selected.",
+		opening: {
+			available:
+				"This month you took in {income} and have {fixed} of expected fixed outflows: {available} is left for variable spending.",
+			alreadySpent: "You have already spent {spent} on variable expenses.",
+			availableNoIncome:
+				"No income recorded this month yet, while {fixed} of fixed outflows are expected. The picture clears up once the first one lands.",
+			/** ⚠️ Percentuale fra parentesi per simmetria con it.ts, dove l'articolo
+			 *  davanti a una cifra variabile si rompe da solo. Qui non servirebbe —
+			 *  ed è precisamente il motivo per cui il difetto si vede solo in
+			 *  italiano. */
+			savingsRate:
+				"Between savings and investments you are setting aside {amount} out of {income} that came in ({pct}%).",
+			savingsRateNone:
+				"You have not set anything aside this month yet, in savings or investments.",
+			/** ⚠️ Vedi it.ts: «so far» contro «all of last month» dichiara che il
+			 *  confronto mette un mese parziale accanto a uno intero. */
+			flowSoFar: "So far this month's flow is {flow}, against {previous} for all of last month.",
+		},
+		questions: {
+			available: "What have I got left?",
+			budget: "How are my budgets doing?",
+			goals: "Where are my goals?",
+			fixed: "How much do fixed outflows weigh?",
+		},
+		answers: {
+			available:
+				"Income {income} minus expected fixed outflows {fixed}: {available} left. You have already spent {spent} on variable expenses.",
+			availableNoIncome:
+				"With no income recorded there is nothing to work out yet: so far there are only {fixed} of expected fixed outflows.",
+			budgetNone:
+				"You have not set any limit. The global one lives in settings, the per-category ones in the category form.",
+			budgetGlobal: "On the global limit you have spent {spent} of {amount}.",
+			budgetOver: "You have gone over the limit on: {names}.",
+			budgetNear: "You are getting close to the limit on: {names}.",
+			budgetOk: "No category is near its limit.",
+			goalsNone: "You have no active savings goals.",
+			goalsNoTarget: "Your goals have no target set: you have {amount} put aside.",
+			goalsAllDone: "You have reached all of your goals.",
+			goalsClosest: "The closest is {name}: {saved} of {target}, {missing} to go.",
+			fixed:
+				"Expected fixed outflows are {fixed} out of {income} that came in this month ({pct}%).",
+			fixedNoIncome:
+				"Expected fixed outflows are {fixed}. With no income recorded, saying what share they are would mean nothing.",
+		},
+	},
+
 	jobHealth: {
 		recurring: {
 			rowLabel: "Automations stopped",

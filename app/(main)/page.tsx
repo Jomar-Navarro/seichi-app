@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import HomeHero from "@/components/features/HomeHero";
+import CoachBubble from "@/components/features/CoachBubble";
 import AccountSelector from "@/components/features/AccountSelector";
 import { getDashboardTotals, getTransactions } from "./action";
 import { getAccounts } from "./conti/actions";
@@ -230,39 +231,57 @@ async function DashboardContent({
 				selectedId={accountId}
 			/>
 
-			<div className="grid grid-cols-2 gap-3">
-				<SummaryCard
-					amount={result.entrateMese}
-					icon={entrata.icon}
-					color={entrata.color}
-					label={t.home.cards.income}
-					trend={result.entrateTrend}
-				/>
+			{/*
+				⚠️ Il contenitore `relative` esiste per la BOLLA del coach (Fase 24b),
+				che galleggia sopra la card Investimenti.
 
-				<SummaryCard
-					amount={result.speseMese}
-					icon={uscita.icon}
-					color={uscita.color}
-					label={t.home.cards.expenses}
-					trend={result.speseTrend}
-				/>
+				Sta QUI e non più in alto per una ragione precisa: ancorata al
+				contenitore della pagina, la sua posizione dipenderebbe dall'altezza
+				di tutto ciò che le sta sopra — intestazione, selettore conti,
+				carosello — e si sposterebbe con esse. Ancorata alla griglia, resta
+				dov'è disegnata.
 
-				<SummaryCard
-					amount={result.investimentiMese}
-					icon={investimento.icon}
-					color={investimento.color}
-					label={t.home.cards.investments}
-					trend={result.investimentiTrend}
-				/>
-
-				<SummaryCard
-					amount={result.risparmiMese}
-					icon={risparmio.icon}
-					color={risparmio.color}
-					label={showGoalProgress ? fill(t.home.cards.savingsWithProgress, { pct: risparmiProgress }) : t.home.cards.savings}
-					progress={showGoalProgress ? risparmiProgress : undefined}
-					trend={result.risparmiTrend}
-				/>
+				⚠️ E la bolla NON può stare dentro `HomeHero` né dentro una card:
+				il primo è `overflow-x-auto` e la ritaglierebbe, le seconde hanno
+				`backdrop-filter` e creano un contesto di impilamento da cui nessuno
+				z-index esce. Vedi la nota in testa a `CoachBubble`.
+			*/}
+			<div className="relative">
+				<div className="grid grid-cols-2 gap-3">
+					<SummaryCard
+						amount={result.entrateMese}
+						icon={entrata.icon}
+						color={entrata.color}
+						label={t.home.cards.income}
+						trend={result.entrateTrend}
+					/>
+	
+					<SummaryCard
+						amount={result.speseMese}
+						icon={uscita.icon}
+						color={uscita.color}
+						label={t.home.cards.expenses}
+						trend={result.speseTrend}
+					/>
+	
+					<SummaryCard
+						amount={result.investimentiMese}
+						icon={investimento.icon}
+						color={investimento.color}
+						label={t.home.cards.investments}
+						trend={result.investimentiTrend}
+					/>
+	
+					<SummaryCard
+						amount={result.risparmiMese}
+						icon={risparmio.icon}
+						color={risparmio.color}
+						label={showGoalProgress ? fill(t.home.cards.savingsWithProgress, { pct: risparmiProgress }) : t.home.cards.savings}
+						progress={showGoalProgress ? risparmiProgress : undefined}
+						trend={result.risparmiTrend}
+					/>
+				</div>
+				<CoachBubble accountFiltered={!!accountId} />
 			</div>
 
 			{/*
