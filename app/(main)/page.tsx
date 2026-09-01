@@ -194,8 +194,20 @@ async function DashboardContent({
 				posizionati con z-index auto e vince l'ordine nel DOM.
 			*/}
 			<div className="relative flex flex-col gap-4 px-5 pt-7 pb-32">
-			{/* Come nel mockup: a sinistra l'avatar col saluto e il nome (è il
-			    gruppo intero ad aprire il menu), a destra la sola campanella. */}
+			{/*
+				Come nel mockup: a sinistra l'avatar col saluto e il nome (è il
+				gruppo intero ad aprire il menu), a destra le due pastiglie.
+
+				⚠️ La campanella tiene il suo angolo e il coach le si affianca a
+				SINISTRA. La Fase 18 aveva rifatto questo header lasciando alla
+				campanella l'angolo tutto per sé; due pastiglie affiancate erano già
+				la forma prevista prima di allora, e questa è quella.
+
+				⚠️ Il coach è QUI e non dentro una card, dopo due tentativi sbagliati:
+				nel varco fra le card non era allineato a niente, e dentro la card
+				Investimenti sembrava un controllo di quella card — cioè di un numero,
+				non dell'app. Un assistente sta dove stanno gli altri comandi globali.
+			*/}
 			<div className="flex items-center justify-between mb-1">
 				<ProfileMenu
 					initials={profile.initials}
@@ -203,7 +215,19 @@ async function DashboardContent({
 					name={profile.displayName}
 					greeting={t.home.greeting}
 				/>
-				<NotificationBell initialUnread={unreadCount} />
+				{/*
+					⚠️ `shrink-0` sul gruppo, non sulle singole pastiglie: sono figli
+					flex con `min-width: auto`, quindi senza questo si comprimono in
+					tessere non quadrate invece di lasciar troncare il nome. Con una
+					pastiglia sola non si vedeva; con due il contenuto dell'header
+					supera i 320px e il difetto compare sui telefoni più stretti.
+					`ProfileMenu` il nome lo tronca già (`truncate max-w-36`), quindi
+					è lui a cedere — che è l'ordine giusto.
+				*/}
+				<div className="flex items-center gap-2 shrink-0">
+					<CoachBubble accountFiltered={!!accountId} />
+					<NotificationBell initialUnread={unreadCount} />
+				</div>
 			</div>
 
 			{/*
@@ -231,57 +255,39 @@ async function DashboardContent({
 				selectedId={accountId}
 			/>
 
-			{/*
-				⚠️ Il contenitore `relative` esiste per la BOLLA del coach (Fase 24b),
-				che galleggia sopra la card Investimenti.
+			<div className="grid grid-cols-2 gap-3">
+				<SummaryCard
+					amount={result.entrateMese}
+					icon={entrata.icon}
+					color={entrata.color}
+					label={t.home.cards.income}
+					trend={result.entrateTrend}
+				/>
 
-				Sta QUI e non più in alto per una ragione precisa: ancorata al
-				contenitore della pagina, la sua posizione dipenderebbe dall'altezza
-				di tutto ciò che le sta sopra — intestazione, selettore conti,
-				carosello — e si sposterebbe con esse. Ancorata alla griglia, resta
-				dov'è disegnata.
+				<SummaryCard
+					amount={result.speseMese}
+					icon={uscita.icon}
+					color={uscita.color}
+					label={t.home.cards.expenses}
+					trend={result.speseTrend}
+				/>
 
-				⚠️ E la bolla NON può stare dentro `HomeHero` né dentro una card:
-				il primo è `overflow-x-auto` e la ritaglierebbe, le seconde hanno
-				`backdrop-filter` e creano un contesto di impilamento da cui nessuno
-				z-index esce. Vedi la nota in testa a `CoachBubble`.
-			*/}
-			<div className="relative">
-				<div className="grid grid-cols-2 gap-3">
-					<SummaryCard
-						amount={result.entrateMese}
-						icon={entrata.icon}
-						color={entrata.color}
-						label={t.home.cards.income}
-						trend={result.entrateTrend}
-					/>
-	
-					<SummaryCard
-						amount={result.speseMese}
-						icon={uscita.icon}
-						color={uscita.color}
-						label={t.home.cards.expenses}
-						trend={result.speseTrend}
-					/>
-	
-					<SummaryCard
-						amount={result.investimentiMese}
-						icon={investimento.icon}
-						color={investimento.color}
-						label={t.home.cards.investments}
-						trend={result.investimentiTrend}
-					/>
-	
-					<SummaryCard
-						amount={result.risparmiMese}
-						icon={risparmio.icon}
-						color={risparmio.color}
-						label={showGoalProgress ? fill(t.home.cards.savingsWithProgress, { pct: risparmiProgress }) : t.home.cards.savings}
-						progress={showGoalProgress ? risparmiProgress : undefined}
-						trend={result.risparmiTrend}
-					/>
-				</div>
-				<CoachBubble accountFiltered={!!accountId} />
+				<SummaryCard
+					amount={result.investimentiMese}
+					icon={investimento.icon}
+					color={investimento.color}
+					label={t.home.cards.investments}
+					trend={result.investimentiTrend}
+				/>
+
+				<SummaryCard
+					amount={result.risparmiMese}
+					icon={risparmio.icon}
+					color={risparmio.color}
+					label={showGoalProgress ? fill(t.home.cards.savingsWithProgress, { pct: risparmiProgress }) : t.home.cards.savings}
+					progress={showGoalProgress ? risparmiProgress : undefined}
+					trend={result.risparmiTrend}
+				/>
 			</div>
 
 			{/*

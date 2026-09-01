@@ -13,15 +13,24 @@ import type { CoachSnapshot } from "@/types";
 /**
  * Il coach in home (Fase 24b).
  *
- * ⚠️ **La bolla è sorella della griglia 2×2, non figlia di una card.** Due
- * ragioni, ed entrambe questo progetto le ha già pagate:
+ * ⚠️ **Sta nell'header, accanto alla campanella**, e ci è arrivato dopo due
+ * tentativi sbagliati che vale la pena registrare perché la ragione è la stessa:
  *
- *   · dentro `HomeHero` verrebbe RITAGLIATA: quello è `overflow-x-auto`, e per
- *     specifica CSS un asse non `visible` ritaglia anche l'altro — è ciò che
- *     tagliava il `box-shadow` del carosello e le tendine della barra filtri;
- *   · dentro una card con `backdrop-filter` non potrebbe uscirne: quello crea
- *     un **contesto di impilamento**, e nessuno z-index scritto dentro lo
- *     scavalca. È la ragione per cui `Select` da solo non ce la faceva (Fase 21).
+ *   · **nel varco fra le card** non era allineato a niente — era *presso* un
+ *     angolo, spostato di qualche pixel. E quella strada non poteva funzionare:
+ *     l'angolo in alto a destra della card Investimenti **è** il centro
+ *     geometrico della griglia 2×2, quindi «sopra gli investimenti» e «non in
+ *     mezzo» si contendono lo stesso punto;
+ *   · **dentro la card Investimenti**, allineato al suo padding, sembrava un
+ *     controllo di quella card — cioè di *un numero*, non dell'app.
+ *
+ * Un assistente parla di tutto il quadro, quindi sta dove stanno gli altri
+ * comandi globali: in alto a destra, con la campanella. È anche l'unico posto in
+ * cui non deve difendersi da un ritaglio o da un contesto di impilamento —
+ * l'header non ha né `overflow` né `backdrop-filter`, mentre `HomeHero` è
+ * `overflow-x-auto` (ritaglierebbe: un asse non `visible` ritaglia anche
+ * l'altro) e le card hanno `backdrop-blur`, che diventa il blocco contenitore
+ * perfino dei discendenti `position: fixed` — cioè il pannello.
  *
  * ⚠️ L'icona è una **bussola**, non un fumetto di chat: in 24b si tocca, non si
  * scrive. Un fumetto prometterebbe una conversazione che il campo di testo —
@@ -39,14 +48,20 @@ export default function CoachBubble({ accountFiltered = false }: { accountFilter
 				onClick={() => setAperto(true)}
 				aria-label={t.coach.bubbleLabel}
 				/*
-				 * ⚠️ 48×48 e non meno: sopra i 44px di area toccabile della checklist
-				 * mobile (Fase 27). La posizione orizzontale è stata scelta GUARDANDO
-				 * lo schermo a 375px — galleggia sul bordo alto della card
-				 * Investimenti, dove non copre né l'importo né l'etichetta.
+				 * ⚠️ Stessa geometria ESATTA della campanella — `w-10.5 h-10.5`,
+				 * `rounded-[14px]`, `bg-surface`, `card-shadow` — perché le due
+				 * pastiglie stanno affiancate e due misure diverse a due pixel di
+				 * distanza si notano subito. Se la campanella cambia, questa la
+				 * segue.
+				 *
+				 * 42px è sotto i 44 della checklist mobile (Fase 27), e resta così
+				 * di proposito: il bersaglio è quello che l'app usa già per la
+				 * campanella, e farne uno più grande accanto sarebbe peggio che
+				 * essere coerenti. Il giorno in cui si alza, si alzano entrambe.
 				 */
-				className="absolute z-20 left-[42%] top-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full flex items-center justify-center bg-deep border border-subtle modal-shadow"
+				className="w-10.5 h-10.5 rounded-[14px] flex items-center justify-center bg-surface border border-subtle card-shadow active:opacity-80 cursor-pointer"
 			>
-				<Compass size={20} className="text-secondary" />
+				<Compass size={18} strokeWidth={1.6} className="text-secondary" />
 			</button>
 
 			{/*
