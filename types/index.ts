@@ -433,3 +433,64 @@ export const TRANSACTION_TYPES: TransactionType[] = [
 		icon: ArrowLeftRightIcon,
 	},
 ];
+
+/**
+ * I FATTI su cui il coach parla (Fase 24).
+ *
+ * ⚠️ Questo tipo è una **frontiera di riservatezza**, non una comodità. Nella
+ * 24c viaggerà verso un fornitore esterno, e la decisione presa progettando è
+ * che escano **solo aggregati**: mai note, mai righe singole, mai nomi dei
+ * conti, mai date di singoli movimenti.
+ *
+ * Quella decisione è affidata al TIPO e non alla disciplina di chi scrive: qui
+ * dentro non esiste un campo capace di contenere una nota o l'id di una riga,
+ * quindi l'errore non è mitigato — è **irrappresentabile**. È lo stesso
+ * precedente di `ProfileHeader` contro `AccountContext`, dove togliere `email`
+ * ha reso impossibile confondere una fotografia con un dato vivo.
+ *
+ * ⚠️ Restano dentro i **nomi di categorie e obiettivi**, che sono testo scritto
+ * dall'utente: senza, il consiglio non parlerebbe di niente. È per questo che la
+ * schermata di consenso della 24c mostrerà il payload VERO e non una sua
+ * descrizione — una descrizione diverge dal codice senza che nulla lo segnali.
+ *
+ * In 24b non esce nulla: gli stessi fatti servono alle risposte deterministiche,
+ * che l'app compone da sé. Il vocabolario è fissato adesso proprio perché quando
+ * arriverà il modello non ci sia niente da rinegoziare.
+ */
+export interface CoachSnapshot {
+	/** La valuta dell'utente, per comporre gli importi. */
+	currency: string;
+	/** Il mese corrente, secondo l'orologio del CLIENT (mai quello del server). */
+	month: {
+		income: number;
+		/** Spese variabili: le categorie `spesa`. */
+		variableExpenses: number;
+		/** Abbonamenti: affitto e utenze stanno qui, non fra le spese. */
+		subscriptions: number;
+		/** entrate − uscite, da `flussoDaTotali()`. Mai ricalcolato a mano. */
+		flow: number;
+		saved: number;
+		invested: number;
+	};
+	/** Il flusso del mese PRECEDENTE, per dire se si sta andando meglio o peggio. */
+	previousMonthFlow: number;
+	/** Uscite fisse previste nel mese: registrate + ancora da generare. */
+	fixedOutflows: number;
+	/**
+	 * Entrate del mese − uscite fisse previste.
+	 * ⚠️ NON si chiama «stipendio meno fisse»: l'app non sa quale entrata sia lo
+	 * stipendio. Può essere negativo, e all'inizio del mese di norma lo è.
+	 */
+	available: number;
+	/** Il limite globale in vigore, se impostato. Misura le sole spese VARIABILI. */
+	globalBudget: { amount: number; spent: number; status: BudgetStatus } | null;
+	/** I budget per categoria in vigore. Il nome è testo dell'utente. */
+	categoryBudgets: {
+		name: string;
+		amount: number;
+		spent: number;
+		status: BudgetStatus;
+	}[];
+	/** Gli obiettivi di risparmio. `target` è 0 se l'utente non l'ha fissato. */
+	goals: { name: string; target: number; saved: number; targetDate: string | null }[];
+}

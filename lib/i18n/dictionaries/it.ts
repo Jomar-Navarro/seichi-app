@@ -1023,6 +1023,68 @@ export const it = {
 	},
 
 	/**
+	 * Il coach (Fase 24b).
+	 *
+	 * ⚠️ Sono tutte stringhe di INTERFACCIA — cornice — e per questo stanno qui.
+	 * È il chiarimento che il criterio *«nessuna stringa fuori dai dizionari»*
+	 * richiedeva: in 24b non esiste testo generato. Arriverà nella 24c, e quello
+	 * sarà un **dato**, non una stringa: si conserva nel database coi segnaposto
+	 * e non si traduce a posteriori.
+	 */
+	coach: {
+		/** ⚠️ La bolla non è un fumetto di chat finché non c'è una tastiera (24c). */
+		bubbleLabel: "Apri il coach",
+		title: "Coach",
+		subtitle: "Quello che dicono i tuoi numeri",
+		close: "Chiudi",
+		loading: "Sto guardando i tuoi numeri…",
+		readFailed: "Non riesco a leggere i tuoi numeri: {reason}",
+		/** ⚠️ Dice cosa si può fare ORA: toccare, non scrivere. */
+		hint: "Tocca una domanda",
+		opening: {
+			available:
+				"Questo mese hai incassato {income} e hai {fixed} di uscite fisse previste: ti restano {available} per le spese variabili.",
+			/** ⚠️ All'inizio del mese è il caso NORMALE, non un buco nei conti. */
+			availableNoIncome:
+				"Questo mese non hai ancora registrato entrate, mentre di uscite fisse ne sono previste {fixed}. Il quadro si chiarisce quando arriva il primo incasso.",
+			savingsRate:
+				"Fra risparmi e investimenti stai mettendo da parte {amount}, cioè il {pct}% di quello che è entrato.",
+			/**
+			 * ⚠️ «Finora» e «l'intero mese scorso» non sono ornamenti: la frase
+			 * confronta un mese PARZIALE con uno INTERO, e senza dirlo il primo del
+			 * mese sembrerebbe un crollo. L'asimmetria si dichiara, non si nasconde
+			 * dietro una soglia arbitraria tipo «solo dopo il quindici».
+			 */
+			flowSoFar: "Finora il flusso del mese è {flow}, contro {previous} dell'intero mese scorso.",
+		},
+		questions: {
+			available: "Quanto mi resta?",
+			budget: "Come vanno i budget?",
+			goals: "A che punto sono gli obiettivi?",
+			fixed: "Quanto pesano le uscite fisse?",
+		},
+		answers: {
+			available:
+				"Entrate {income} meno uscite fisse previste {fixed}: restano {available}. Di spese variabili ne hai già fatte {spent}.",
+			availableNoIncome:
+				"Senza entrate registrate non c'è ancora un disponibile da calcolare: per ora ci sono solo {fixed} di uscite fisse previste.",
+			budgetNone:
+				"Non hai impostato nessun limite. Quello globale si mette nelle impostazioni, quelli per categoria nel form della categoria.",
+			budgetGlobal: "Sul limite globale hai speso {spent} di {amount}.",
+			budgetOver: "Hai superato il limite su: {names}.",
+			budgetNear: "Ti stai avvicinando al limite su: {names}.",
+			budgetOk: "Nessuna categoria è vicina al suo limite.",
+			goalsNone: "Non hai obiettivi di risparmio attivi.",
+			goalsNoTarget: "I tuoi obiettivi non hanno un traguardo impostato: da parte hai {amount}.",
+			goalsClosest: "Il più vicino è {name}: {saved} di {target}, ne mancano {missing}.",
+			fixed:
+				"Le uscite fisse previste sono {fixed}, cioè il {pct}% di quello che è entrato questo mese.",
+			fixedNoIncome:
+				"Le uscite fisse previste sono {fixed}. Senza entrate registrate, dirne il peso non significherebbe niente.",
+		},
+	},
+
+	/**
 	 * Stato del job giornaliero (issue #47).
 	 *
 	 * ⚠️ Il testo dice **cosa non funziona per l'utente**, non come si chiama il
