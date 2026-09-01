@@ -3,8 +3,8 @@
 import { requireUser } from "@/lib/auth";
 import { localMidnightInstant, monthBoundsOf } from "@/lib/dates";
 import { DISPLAY_CURRENCY } from "@/lib/i18n/format";
-import { flussoDaTotali } from "@/lib/totals";
-import { getAvailableThisMonth, getBudgetOverview } from "./budget-actions";
+import { disponibileDaTotali, flussoDaTotali } from "@/lib/totals";
+import { getBudgetOverview } from "./budget-actions";
 import { getGoals } from "./risparmi/actions";
 import type { ClientClock } from "@/lib/dates";
 import type { CoachSnapshot } from "@/types";
@@ -12,10 +12,11 @@ import type { CoachSnapshot } from "@/types";
 /**
  * I fatti su cui il coach parla, per il mese corrente (Fase 24b).
  *
- * ⚠️ **Il coach non calcola un solo numero proprio.** Disponibile e uscite fisse
- * arrivano da `getAvailableThisMonth()`, i budget da `getBudgetOverview()`, gli
- * obiettivi da `getGoals()`, il flusso da `flussoDaTotali()` — la stessa formula
- * che usa la home. Riscriverne anche uno solo creerebbe la quinta definizione di
+ * ⚠️ **Il coach non calcola un solo numero proprio.** Budget e uscite fisse
+ * arrivano da `getBudgetOverview()`, gli obiettivi da `getGoals()`, il flusso da
+ * `flussoDaTotali()` e il disponibile da `disponibileDaTotali()` — le stesse
+ * formule che usano la home e la card in impostazioni. Riscriverne anche una
+ * sola creerebbe la quinta definizione di
  * «uscita» dopo le tre che la review della 20a ha dovuto unificare, e allora il
  * coach direbbe un numero diverso da quello che l'utente vede due tocchi più in
  * là. È la configurazione peggiore: due schermate, due risposte.
@@ -56,14 +57,23 @@ export async function getCoachSnapshot(
 		localMidnightInstant(d, clock.tzOffsetMinutes),
 	);
 
-	const [avail, budget, goals, totals] = await Promise.all([
-		getAvailableThisMonth(clock),
+	/*
+	 * ⚠️ NON si chiama `getAvailableThisMonth()`: rifarebbe `dashboard_totals`
+	 * per il mese corrente — che è già il bucket 1 della chiamata qui sotto — e
+	 * rifarebbe le uscite fisse, che `getBudgetOverview()` restituisce già in
+	 * `fixedOutflowsThisMonth`. Erano tre andate e ritorni in più a ogni
+	 * apertura del pannello: la stessa duplicazione per cui `getFixedOutflows()`
+	 * è stata cancellata nella 24a, ricreata un livello più su.
+	 *
+	 * Il disponibile resta comunque UNA definizione sola, perché la sottrazione
+	 * vive in `disponibileDaTotali()` e non qui.
+	 */
+	const [budget, goals, totals] = await Promise.all([
 		getBudgetOverview(clock),
 		getGoals(),
 		supabase.rpc("dashboard_totals", { p_bounds: bounds, p_account_id: null }),
 	]);
 
-	if ("error" in avail) return avail;
 	if ("error" in budget) return budget;
 	if ("error" in goals) return goals;
 	if (totals.error) return { error: totals.error.message };
@@ -98,8 +108,8 @@ export async function getCoachSnapshot(
 				somma(PREC, "spesa"),
 				somma(PREC, "abbonamento"),
 			),
-			fixedOutflows: avail.data.fixedOutflows,
-			available: avail.data.available,
+			fixedOutflows: budget.data.fixedOutflowsThisMonth,
+			available: disponibileDaTotali(income, budget.data.fixedOutflowsThisMonth),
 			globalBudget: budget.data.global
 				? {
 						amount: budget.data.global.amount,

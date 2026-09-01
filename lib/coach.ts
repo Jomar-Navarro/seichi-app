@@ -92,6 +92,25 @@ export function coachOpening(s: CoachSnapshot, locale: Locale, t: Dictionary): s
 	);
 
 	/*
+	 * ⚠️ «Ti restano {available} per le spese variabili» diventa FALSO appena si
+	 * spende: `available` è entrate − uscite fisse, e non sottrae le spese
+	 * variabili già fatte. La frase da sola prometterebbe un margine intatto a
+	 * chi se l'è già mangiato — un numero vero che si fa capire male, la classe
+	 * corretta due volte in questa fase.
+	 *
+	 * Si aggiunge la riga che dice quanto ne è già andato, e SOLO se è andato
+	 * qualcosa: «ne hai già usati € 0,00» sarebbe di nuovo un non-fatto
+	 * enunciato come osservazione.
+	 */
+	if (s.month.income > 0 && s.month.variableExpenses > 0) {
+		righe.push(
+			fill(t.coach.opening.alreadySpent, {
+				spent: money(ctx, s.month.variableExpenses),
+			}),
+		);
+	}
+
+	/*
 	 * ⚠️ Con zero messo da parte NON si dice «stai mettendo da parte € 0,00»:
 	 * sarebbe un non-fatto travestito da osservazione. Si dice l'altra cosa, che
 	 * è vera e utile. E se non ci sono nemmeno entrate si tace: la prima riga
@@ -118,12 +137,22 @@ export function coachOpening(s: CoachSnapshot, locale: Locale, t: Dictionary): s
 	 * dopo il quindici»): lo dice la frase stessa — *finora* contro *tutto il
 	 * mese scorso* — che è l'unica forma onesta a qualunque giorno del mese.
 	 */
-	righe.push(
-		fill(t.coach.opening.flowSoFar, {
-			flow: money(ctx, s.month.flow),
-			previous: money(ctx, s.previousMonthFlow),
-		}),
-	);
+	/*
+	 * ⚠️ E si tace del tutto se il mese scorso non esiste. Al primo mese di
+	 * utilizzo `previousMonthFlow` è 0, e la frase direbbe «contro € 0,00
+	 * dell'intero mese scorso»: un'ASSENZA DI DATI enunciata come una misura,
+	 * che è peggio del silenzio. Un flusso precedente esattamente zero è
+	 * indistinguibile da «non c'era niente», ed è talmente raro che valga la
+	 * pena distinguerlo.
+	 */
+	if (s.previousMonthFlow !== 0) {
+		righe.push(
+			fill(t.coach.opening.flowSoFar, {
+				flow: money(ctx, s.month.flow),
+				previous: money(ctx, s.previousMonthFlow),
+			}),
+		);
+	}
 
 	return righe;
 }
@@ -197,12 +226,22 @@ export function coachReplies(s: CoachSnapshot, locale: Locale, t: Dictionary): C
 		obiettivi = fill(a.goalsNoTarget, {
 			amount: money(ctx, s.goals.reduce((acc, g) => acc + g.saved, 0)),
 		});
+	} else if (conTarget.every((g) => g.saved >= g.target)) {
+		/*
+		 * ⚠️ Tutti raggiunti: senza questo ramo il «più vicino» sarebbe un
+		 * obiettivo COMPLETO e la risposta direbbe «€ 500,00 di € 500,00, ne
+		 * mancano € 0,00» — cioè nasconderebbe proprio quello che avrebbe ancora
+		 * bisogno di attenzione, dicendo per giunta una cosa inutile.
+		 */
+		obiettivi = a.goalsAllDone;
 	} else {
 		/*
-		 * Il più vicino al traguardo, che è quello di cui vale la pena parlare:
-		 * elencarli tutti trasformerebbe una risposta in un tabulato.
+		 * Il più vicino al traguardo FRA QUELLI ANCORA APERTI: elencarli tutti
+		 * trasformerebbe una risposta in un tabulato, e includere i completi
+		 * lascerebbe vincere sempre chi non ha più niente da dire.
 		 */
-		const vicino = conTarget.reduce((best, g) =>
+		const aperti = conTarget.filter((g) => g.saved < g.target);
+		const vicino = aperti.reduce((best, g) =>
 			g.saved / g.target > best.saved / best.target ? g : best,
 		);
 		/*

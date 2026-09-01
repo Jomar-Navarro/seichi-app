@@ -281,7 +281,7 @@ async function DashboardContent({
 						trend={result.risparmiTrend}
 					/>
 				</div>
-				<CoachBubble />
+				<CoachBubble accountFiltered={!!accountId} />
 			</div>
 
 			{/*

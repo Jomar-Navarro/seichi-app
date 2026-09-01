@@ -3554,6 +3554,76 @@ pastiglie perfettamente funzionanti sono state dichiarate rotte. Ora si guarda i
 blocco della risposta: deve esistere, non essere vuoto e **cambiare** fra una
 domanda e l'altra.
 
+#### Emerso dal code-review della 24b
+
+Cinque rilievi, tutti applicati. Quattro sono rami degeneri — stati che i dati
+di collaudo non attraversavano — e il quinto è una contraddizione fra due
+schermate, cioè la cosa che questo progetto non perdona.
+
+##### ⚠️⚠️ Il coach ignorava il filtro conto della home
+
+La bolla galleggia su una home **filtrabile per conto**, ma lo snapshot chiede
+`p_account_id: null`. Con un conto selezionato, `HomeHero` diceva «Flusso € 120»
+e il coach un altro numero per lo stesso mese, sotto la stessa parola, a un
+tocco di distanza. È **letteralmente** il difetto di «Flusso netto» su
+`/analisi` (review della 20a), ricreato in verticale invece che in orizzontale.
+
+⚠️ **La correzione NON è filtrare.** Il coach deve guardare tutto, e per tre
+ragioni indipendenti: i budget valgono su tutti i conti *per costruzione* (17a —
+«un budget è un limite su una CATEGORIA, non su un conto»), le uscite fisse
+vengono da `recurring_rules`, e il disponibile deve coincidere con quello della
+card in impostazioni. Filtrarlo spezzerebbe tutte e tre.
+
+Quindi **si dichiara**, con la stessa mossa già fatta per i budget
+(`acrossAllAccounts`): con un filtro attivo il pannello dice che i suoi numeri
+valgono su tutti i conti. La regola sottostante è quella di sempre — *vietata la
+contraddizione, non la differenza di ambito, purché l'ambito sia detto*.
+
+##### ⚠️ «Ti restano X per le spese variabili» diventava falso spendendo
+
+`available` è entrate − uscite fisse: **non** sottrae le spese variabili già
+fatte. La frase d'apertura prometteva quindi un margine intatto a chi se l'era
+già mangiato. La risposta lunga aggiungeva `{spent}` proprio per questo, ma
+l'apertura no.
+
+Ora la riga sul già speso c'è anche in apertura, **e solo se qualcosa è stato
+speso**: «ne hai già usati € 0,00» sarebbe di nuovo un non-fatto enunciato come
+osservazione.
+
+##### Tre andate e ritorni ridondanti a ogni apertura
+
+`getAvailableThisMonth()` rifaceva `dashboard_totals` per il mese corrente — che
+è già il bucket 1 della chiamata del coach — e rifaceva le uscite fisse, che
+`getBudgetOverview()` restituisce già in `fixedOutflowsThisMonth` e che venivano
+scartate. **È la stessa duplicazione per cui `getFixedOutflows()` era stata
+cancellata nella 24a, ricreata un livello più su.**
+
+⚠️ Togliendola si rischiava di riscrivere `entrate − uscite fisse` in un secondo
+posto. Chiusa spostando anche quella sottrazione in `lib/totals.ts`
+(`disponibileDaTotali`): banale, e proprio per questo da scrivere una volta
+sola.
+
+##### I due rami degeneri che i dati di collaudo non toccavano
+
+- **Il «più vicino» al traguardo poteva essere un obiettivo COMPLETO**: con un
+  obiettivo al 100% la risposta diceva «€ 500,00 di € 500,00, ne mancano
+  € 0,00», nascondendo proprio quello che aveva ancora bisogno di attenzione.
+  Ora si sceglie fra gli aperti, e se sono tutti raggiunti lo dice.
+- **Al primo mese di utilizzo**: «contro € 0,00 dell'intero mese scorso», cioè
+  un'**assenza di dati enunciata come misura**. La riga ora tace. Le due frasi
+  sopra erano già ramificate per i loro casi degeneri; questa no.
+
+##### La controprova a schermo
+
+Il pannello funziona ancora dopo la rimozione della chiamata; senza filtro
+l'avviso **non** compare; con «Conto principale» selezionato **compare**; la
+risposta sugli obiettivi non è un obiettivo già chiuso. Zero errori console.
+
+⚠️ La prova del filtro tocca uno stato dell'utente — il cookie del conto
+selezionato — e finisce rimettendo «Tutti i conti». Nessuna scrittura sul
+database, e lo stato è come è stato trovato: la stessa disciplina del collaudo
+della 24a.
+
 #### 24c — la chat aperta
 
 ##### ⚠️⚠️ La chat sposta il confine dei dati, e il consenso deve dirlo

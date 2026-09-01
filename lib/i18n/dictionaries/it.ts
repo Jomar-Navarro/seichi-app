@@ -1041,9 +1041,29 @@ export const it = {
 		readFailed: "Non riesco a leggere i tuoi numeri: {reason}",
 		/** ⚠️ Dice cosa si può fare ORA: toccare, non scrivere. */
 		hint: "Tocca una domanda",
+		/**
+		 * ⚠️ Compare SOLO con un filtro conto attivo sulla home, e dichiara un
+		 * ambito diverso da quello della pagina sotto.
+		 *
+		 * La bolla galleggia su una home che può essere filtrata per conto, ma il
+		 * coach guarda tutto: i budget valgono su tutti i conti per costruzione
+		 * (17a), le uscite fisse arrivano dalle regole ricorrenti e il disponibile
+		 * deve coincidere con quello della card in impostazioni. Filtrarlo
+		 * spezzerebbe tutte e tre. Senza dirlo, invece, la home direbbe «Flusso
+		 * € 120» e il coach un altro numero sotto la stessa parola: è la stessa
+		 * mossa già fatta per i budget con `acrossAllAccounts`.
+		 */
+		acrossAccounts: "Questi numeri valgono su tutti i conti, non solo su quello selezionato.",
 		opening: {
 			available:
 				"Questo mese hai incassato {income} e hai {fixed} di uscite fisse previste: ti restano {available} per le spese variabili.",
+			/**
+			 * ⚠️ Compare solo se qualcosa è già stato speso. Senza questa riga,
+			 * «ti restano {available}» promette un margine intatto a chi se l'è già
+			 * mangiato: `available` è entrate − uscite fisse e non sottrae le spese
+			 * variabili.
+			 */
+			alreadySpent: "Di spese variabili ne hai già fatte {spent}.",
 			/** ⚠️ All'inizio del mese è il caso NORMALE, non un buco nei conti. */
 			availableNoIncome:
 				"Questo mese non hai ancora registrato entrate, mentre di uscite fisse ne sono previste {fixed}. Il quadro si chiarisce quando arriva il primo incasso.",
@@ -1094,6 +1114,7 @@ export const it = {
 			budgetOk: "Nessuna categoria è vicina al suo limite.",
 			goalsNone: "Non hai obiettivi di risparmio attivi.",
 			goalsNoTarget: "I tuoi obiettivi non hanno un traguardo impostato: da parte hai {amount}.",
+			goalsAllDone: "Hai raggiunto tutti i tuoi obiettivi.",
 			goalsClosest: "Il più vicino è {name}: {saved} di {target}, ne mancano {missing}.",
 			/** ⚠️ Percentuale fra parentesi: vedi la nota su `savingsRate`. */
 			fixed:

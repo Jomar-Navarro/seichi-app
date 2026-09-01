@@ -582,9 +582,12 @@ export const en: Dictionary = {
 		loading: "Looking at your numbers…",
 		readFailed: "I can't read your numbers: {reason}",
 		hint: "Tap a question",
+		/** ⚠️ Vedi it.ts: compare solo con un filtro conto attivo sulla home. */
+		acrossAccounts: "These numbers cover every account, not just the one you selected.",
 		opening: {
 			available:
 				"This month you took in {income} and have {fixed} of expected fixed outflows: {available} is left for variable spending.",
+			alreadySpent: "You have already spent {spent} on variable expenses.",
 			availableNoIncome:
 				"No income recorded this month yet, while {fixed} of fixed outflows are expected. The picture clears up once the first one lands.",
 			/** ⚠️ Percentuale fra parentesi per simmetria con it.ts, dove l'articolo
@@ -618,6 +621,7 @@ export const en: Dictionary = {
 			budgetOk: "No category is near its limit.",
 			goalsNone: "You have no active savings goals.",
 			goalsNoTarget: "Your goals have no target set: you have {amount} put aside.",
+			goalsAllDone: "You have reached all of your goals.",
 			goalsClosest: "The closest is {name}: {saved} of {target}, {missing} to go.",
 			fixed:
 				"Expected fixed outflows are {fixed} out of {income} that came in this month ({pct}%).",

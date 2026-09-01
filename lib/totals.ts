@@ -47,3 +47,20 @@ export function flussoDaTotali(
 ): number {
 	return entrate - usciteDaTotali(spese, abbonamenti);
 }
+
+/**
+ * Il DISPONIBILE di un mese: entrate − uscite fisse previste.
+ *
+ * ⚠️ La sottrazione è banale, ed è proprio per questo che va scritta una volta
+ * sola: `getAvailableThisMonth()` e lo snapshot del coach la fanno entrambi, e
+ * ricopiata sarebbe l'ennesima definizione concorrente — la classe di difetto
+ * che questo progetto ha già pagato quattro volte. Averla qui permette al coach
+ * di non richiamare la server action solo per rifare un `-`.
+ *
+ * ⚠️ Non si chiama «stipendio meno fisse»: l'app non sa quale `entrata` sia lo
+ * stipendio. E il risultato può essere NEGATIVO — all'inizio del mese è la
+ * norma, perché lo stipendio non è ancora arrivato.
+ */
+export function disponibileDaTotali(entrate: number, usciteFisse: number): number {
+	return entrate - usciteFisse;
+}

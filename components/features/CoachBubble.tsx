@@ -28,7 +28,7 @@ import type { CoachSnapshot } from "@/types";
  * che arriva con la 24c — ancora non offre. Quando arriverà, l'icona va
  * cambiata nello stesso commit.
  */
-export default function CoachBubble() {
+export default function CoachBubble({ accountFiltered = false }: { accountFiltered?: boolean }) {
 	const { t } = useI18n();
 	const [aperto, setAperto] = useState(false);
 
@@ -55,12 +55,20 @@ export default function CoachBubble() {
 				interno non sopravvive alla chiusura e non va ripulito a mano in un
 				effetto — regola del progetto, vale per ogni sheet dell'app.
 			*/}
-			{aperto && <CoachPanel onClose={() => setAperto(false)} />}
+			{aperto && (
+				<CoachPanel accountFiltered={accountFiltered} onClose={() => setAperto(false)} />
+			)}
 		</>
 	);
 }
 
-function CoachPanel({ onClose }: { onClose: () => void }) {
+function CoachPanel({
+	accountFiltered,
+	onClose,
+}: {
+	accountFiltered: boolean;
+	onClose: () => void;
+}) {
 	const { locale, t } = useI18n();
 	const [snapshot, setSnapshot] = useState<CoachSnapshot | null>(null);
 	const [errore, setErrore] = useState<string | null>(null);
@@ -141,6 +149,26 @@ function CoachPanel({ onClose }: { onClose: () => void }) {
 								</p>
 							))}
 						</div>
+
+						{/*
+							⚠️ La bolla galleggia su una home che può essere FILTRATA per
+							conto, ma il coach guarda tutto — e deve: i budget valgono su
+							tutti i conti per costruzione (17a), le uscite fisse vengono
+							dalle regole ricorrenti, e il disponibile deve coincidere con
+							quello della card in impostazioni. Filtrarlo spezzerebbe tutte
+							e tre.
+
+							Senza dirlo, però, la home direbbe "Flusso € 120" e il coach un
+							altro numero sotto la stessa parola, a un tocco di distanza:
+							esattamente il difetto che questo progetto ha pagato con
+							"Flusso netto" su /analisi. Si dichiara, come già fanno i budget
+							con `acrossAllAccounts`.
+						*/}
+						{accountFiltered && (
+							<p className="text-[11.5px] text-muted mt-4 leading-relaxed">
+								{t.coach.acrossAccounts}
+							</p>
+						)}
 
 						<p className="text-[11px] uppercase tracking-wider text-muted mt-6 mb-2.5">
 							{t.coach.hint}
