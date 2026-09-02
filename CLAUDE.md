@@ -4694,6 +4694,13 @@ si nota, una variabile CSS inesistente no.
 - Borders: 1px, opacità bassissima (`rgba(255,255,255,0.10)`)
 - Glass card: `background: rgba(255,255,255,0.06)`, `backdrop-filter: blur(12px)`
 - Shadows: soffuse e diffuse, mai nere
+- ⚠️ **Debito noto (issue #81, trovato il 2026-09-02): su Firefox `backdrop-filter` +
+  `border-radius` sullo stesso elemento non si ritagliano insieme in modo
+  affidabile** — resta un morso di quadrato chiaro esattamente sull'angolo
+  arrotondato. Chrome e Safari non ce l'hanno, ed è per questo che è rimasto
+  invisibile finché nessuno ha aperto l'app da Firefox: `collauda-app` guida
+  Chromium e non poteva vederlo. Riguarda **ogni** card `rounded-* +
+  backdrop-blur-*` — 50 occorrenze — non un componente isolato.
 - Typography: Inter, sentence case ovunque, mai title case
 - Icons: Lucide outline, stroke uniforme, mai filled
 
