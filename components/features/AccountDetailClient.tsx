@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Pencil } from "lucide-react";
 import { getTransactions } from "@/app/(main)/action";
 import { getAccountOptions } from "@/app/(main)/conti/actions";
@@ -68,8 +68,25 @@ export default function AccountDetailClient({ account }: AccountDetailClientProp
 		return () => { cancelled = true; };
 	}, [transactionSavedAt]);
 
+	/*
+	 * ⚠️ `requestId` è la guardia contro una CORSA fra due caricamenti.
+	 *
+	 * "Carica altri" parte (`loadPage(N, true)`); prima che risponda, un
+	 * movimento viene salvato altrove e `transactionSavedAt` fa scattare
+	 * l'effetto sotto, che riparte dalla prima pagina (`loadPage(0, false)`) e
+	 * sostituisce `transactions` con la lista fresca. Se la risposta del primo
+	 * "carica altri" arriva DOPO, il suo `.then` girerebbe comunque con
+	 * `append=true` e appenderebbe righe con un offset ormai sbagliato sopra
+	 * la lista appena azzerata — doppioni o buchi, a seconda dell'ordine.
+	 *
+	 * Ogni chiamata si numera; solo l'ULTIMA numerata può scrivere lo stato.
+	 * Una risposta che arriva quando non è più la più recente si scarta.
+	 */
+	const requestId = useRef(0);
+
 	const loadPage = useCallback(
 		async (offset: number, append: boolean) => {
+			const myRequest = ++requestId.current;
 			setLoading(true);
 			try {
 				const result = await getTransactions({
@@ -77,6 +94,8 @@ export default function AccountDetailClient({ account }: AccountDetailClientProp
 					limit: TRANSACTIONS_PAGE_SIZE,
 					offset,
 				});
+				if (myRequest !== requestId.current) return; // superata da una richiesta più recente
+
 				if ("error" in result) {
 					if (!append) setTransactions([]);
 					setHasMore(false);
@@ -90,12 +109,13 @@ export default function AccountDetailClient({ account }: AccountDetailClientProp
 				// la stessa nota in `/transazioni`.
 				if (rows.length > 0) {
 					const counts = await getAttachmentCounts(rows.map((r) => r.id));
+					if (myRequest !== requestId.current) return;
 					setAttachmentCounts((prev) => (append ? { ...prev, ...counts } : counts));
 				} else if (!append) {
 					setAttachmentCounts({});
 				}
 			} finally {
-				setLoading(false);
+				if (myRequest === requestId.current) setLoading(false);
 			}
 		},
 		[account.id],

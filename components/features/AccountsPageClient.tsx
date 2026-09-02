@@ -289,7 +289,28 @@ function ActiveAccountRow({
 
 	function onPointerDown(e: PointerEvent<HTMLButtonElement>) {
 		if (e.pointerType === "mouse" && e.button !== 0) return;
+		// ⚠️ Azzerato a ogni NUOVO gesto, non solo in `handleTap`: senza, un
+		// drag il cui click di chiusura il browser non sintetizza (capita su
+		// alcuni browser mobili dopo un pan) lascerebbe il flag acceso per
+		// sempre, e il primo tap genuino dopo quello swipe verrebbe ignorato
+		// in silenzio invece di navigare.
+		suppressClick.current = false;
 		drag.current = { x: e.clientX, y: e.clientY, axis: null, base: isOpen ? -TRAY_WIDTH : 0 };
+		/*
+		 * ⚠️ Senza la CATTURA, un dito che esce dai confini della riga prima di
+		 * sollevarsi (finisce sulla riga sotto, per esempio) può far perdere gli
+		 * eventi `pointermove`/`pointerup` successivi: `drag.current` resta
+		 * valorizzato, la riga si blocca a metà corsa e la transizione di
+		 * chiusura — soppressa finché `dragOffset !== null` — non parte mai.
+		 * `setPointerCapture` fissa il bersaglio di ogni evento successivo a
+		 * QUESTO bottone, indipendentemente da dove va il dito.
+		 */
+		try {
+			e.currentTarget.setPointerCapture(e.pointerId);
+		} catch {
+			// Alcuni browser rifiutano la cattura su un pointer già rilasciato:
+			// il drag funziona comunque per il caso comune, si ignora.
+		}
 	}
 
 	function onPointerMove(e: PointerEvent<HTMLButtonElement>) {
@@ -310,8 +331,14 @@ function ActiveAccountRow({
 		setDragOffset(next);
 	}
 
-	function onPointerUp() {
+	function onPointerUp(e: PointerEvent<HTMLButtonElement>) {
 		if (!drag.current) return;
+		try {
+			e.currentTarget.releasePointerCapture(e.pointerId);
+		} catch {
+			// Già rilasciata dal browser in alcuni casi (es. pointercancel): non
+			// c'è nulla da fare, e non è un errore da mostrare.
+		}
 		if (drag.current.axis === "x") {
 			const final = dragOffset ?? drag.current.base;
 			// Oltre il 40% dello scoperto si scatta aperto, altrimenti si richiude.

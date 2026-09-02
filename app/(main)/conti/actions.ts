@@ -348,17 +348,25 @@ export async function getAccount(
 }
 
 /**
- * Se un conto ha almeno un movimento agganciato — in uno qualunque dei TRE
- * modi in cui `transactions`/`recurring_rules` possono riferirlo.
+ * Se un conto ha almeno un movimento agganciato — in uno qualunque dei
+ * QUATTRO modi in cui questo schema può riferirlo.
  *
- * ⚠️ Non basta guardare `transactions.account_id`: sia `to_account_id`
- * (destinazione di un trasferimento) sia `recurring_rules.account_id` hanno
- * anche loro una FK `on delete no action` verso `accounts` — vedi la Fase
- * 20b e 20a nello schema. Un conto referenziato SOLO da una delle altre due
- * resterebbe comunque bloccato al DELETE: guardarne una sola direbbe "sì,
- * puoi eliminarlo" e poi fallirebbe in silenzio sul vincolo.
+ * ⚠️ Non basta guardare `transactions.account_id`: `to_account_id`
+ * (destinazione di un trasferimento), `recurring_rules.account_id` e
+ * `imports.account_id` hanno TUTTI una FK `on delete no action` verso
+ * `accounts` — vedi le Fasi 20b, 20a e 21 nello schema. Un conto referenziato
+ * SOLO da una di queste resterebbe comunque bloccato al DELETE: guardarne una
+ * sola direbbe "sì, puoi eliminarlo" e poi fallirebbe in silenzio sul vincolo.
  *
- * ⚠️ Tre query `count: "exact", head: true`, non tre `select("*")`: si chiede
+ * ⚠️ `imports` è il caso facile da dimenticare, perché non è un "movimento"
+ * nel senso ovvio: è il LOTTO da cui un import proviene, non le transazioni
+ * stesse. `deleteTransaction()` non tocca quella riga — solo `undoImport()`
+ * lo fa, cancellandola e facendo cascare le sue transazioni — quindi un conto
+ * può restare a zero transazioni pur avendo ancora un `imports.account_id`
+ * che lo referenzia, se le righe sono state tolte una per una invece che con
+ * "annulla import".
+ *
+ * ⚠️ Quattro query `count: "exact", head: true`, non `select("*")`: si chiede
  * solo l'header con il conteggio, senza trasferire una riga — il costo non
  * dipende da QUANTI movimenti ci siano, solo dal fatto che ce ne sia almeno
  * uno. Stesso accorgimento già usato in `setAccountArchived()`.
@@ -368,7 +376,7 @@ async function hasAnyMovement(
 	userId: string,
 	accountId: string,
 ): Promise<{ data: boolean } | { error: string }> {
-	const [asOrigin, asDestination, asRule] = await Promise.all([
+	const [asOrigin, asDestination, asRule, asImport] = await Promise.all([
 		supabase
 			.from("transactions")
 			.select("id", { count: "exact", head: true })
@@ -384,18 +392,47 @@ async function hasAnyMovement(
 			.select("id", { count: "exact", head: true })
 			.eq("user_id", userId)
 			.eq("account_id", accountId),
+		supabase
+			.from("imports")
+			.select("id", { count: "exact", head: true })
+			.eq("user_id", userId)
+			.eq("account_id", accountId),
 	]);
 
 	if (asOrigin.error) return { error: asOrigin.error.message };
 	if (asDestination.error) return { error: asDestination.error.message };
 	if (asRule.error) return { error: asRule.error.message };
+	if (asImport.error) return { error: asImport.error.message };
 
 	return {
 		data:
 			(asOrigin.count ?? 0) > 0 ||
 			(asDestination.count ?? 0) > 0 ||
-			(asRule.count ?? 0) > 0,
+			(asRule.count ?? 0) > 0 ||
+			(asImport.count ?? 0) > 0,
 	};
+}
+
+/**
+ * Quanti conti ATTIVI ha l'utente — il numero su cui poggia "non si può
+ * restare a zero conti attivi", condiviso da `canDeleteAccount()` e
+ * `deleteAccount()`. Scritta una volta per non farla divergere fra le due,
+ * che è esattamente la classe di difetto per cui l'issue #62 nasce nel primo
+ * finding: due punti che decidono la stessa cosa devono decidere la STESSA
+ * cosa.
+ */
+async function countActiveAccounts(
+	supabase: SupabaseServerClient,
+	userId: string,
+): Promise<{ data: number } | { error: string }> {
+	const { count, error } = await supabase
+		.from("accounts")
+		.select("id", { count: "exact", head: true })
+		.eq("user_id", userId)
+		.eq("archived", false);
+
+	if (error) return { error: error.message };
+	return { data: count ?? 0 };
 }
 
 /**
@@ -403,12 +440,20 @@ async function hasAnyMovement(
  * speranza di riuscire. Serve solo a decidere se MOSTRARE il comando: la
  * riverifica vera sta in `deleteAccount()`, che non si fida di questa lettura.
  *
+ * ⚠️ Controlla ENTRAMBE le ragioni per cui `deleteAccount()` può rifiutare —
+ * i movimenti E l'essere l'ultimo conto attivo — non solo la prima. Senza il
+ * secondo controllo, un utente con un conto solo e zero movimenti (il caso
+ * normale appena finito l'onboarding) vedrebbe comparire "Elimina", lo
+ * toccherebbe, confermerebbe, e riceverebbe un rifiuto per un motivo diverso
+ * da quello per cui il comando era comparso: un "Elimina" che il foglio ha
+ * appena promesso di mostrare solo quando è vero.
+ *
  * ⚠️ Chiamata UNA VOLTA, quando si apre il foglio "Modifica" — non a ogni
- * riga della lista `/conti`. Farlo per ogni riga costerebbe 3×N query a ogni
+ * riga della lista `/conti`. Farlo per ogni riga costerebbe 4×N query a ogni
  * apertura della pagina (N conti attivi), sulla stessa pagina per cui questo
  * progetto ha già dimezzato le richieste della home (vedi "Costo delle
  * richieste a Supabase"). Il vassoio dello swipe mostra sempre "Archivia"; se
- * il conto risulta senza movimenti, "Elimina" compare DENTRO il foglio.
+ * il conto risulta eliminabile, "Elimina" compare DENTRO il foglio.
  */
 export async function canDeleteAccount(
 	id: string,
@@ -416,6 +461,22 @@ export async function canDeleteAccount(
 	const { supabase, user, t } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 	if (!isAccountId(id)) return { error: t.accounts.errors.notFound };
+
+	const { data: account, error: accountError } = await supabase
+		.from("accounts")
+		.select("archived")
+		.eq("id", id)
+		.eq("user_id", user.id)
+		.maybeSingle();
+
+	if (accountError) return { error: accountError.message };
+	if (!account) return { error: t.accounts.errors.notFound };
+
+	if (!account.archived) {
+		const activeCount = await countActiveAccounts(supabase, user.id);
+		if ("error" in activeCount) return activeCount;
+		if (activeCount.data <= 1) return { data: false };
+	}
 
 	const result = await hasAnyMovement(supabase, user.id, id);
 	if ("error" in result) return result;
@@ -457,14 +518,9 @@ export async function deleteAccount(id: string): Promise<{ success: true } | { e
 	if (!account) return { error: t.accounts.errors.notFound };
 
 	if (!account.archived) {
-		const { count, error: countError } = await supabase
-			.from("accounts")
-			.select("id", { count: "exact", head: true })
-			.eq("user_id", user.id)
-			.eq("archived", false);
-
-		if (countError) return { error: countError.message };
-		if ((count ?? 0) <= 1) return { error: t.accounts.errors.lastAccount };
+		const activeCount = await countActiveAccounts(supabase, user.id);
+		if ("error" in activeCount) return { error: activeCount.error };
+		if (activeCount.data <= 1) return { error: t.accounts.errors.lastAccount };
 	}
 
 	const movement = await hasAnyMovement(supabase, user.id, id);
