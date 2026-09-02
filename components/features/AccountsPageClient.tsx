@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { Plus, RotateCcw } from "lucide-react";
+import { useRef, useState, type PointerEvent, type ReactNode } from "react";
+import { Archive, Pencil, Plus, RotateCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import AccountSheet from "./AccountSheet";
 import EmptyState from "@/components/UI/EmptyState";
@@ -26,12 +26,23 @@ interface AccountsPageClientProps {
 	accounts: AccountWithBalance[];
 }
 
+/**
+ * Quanto scoperto lascia il vassoio: due bottoni da 44×44 (checklist Fase 27),
+ * `gap-2` (8px) fra loro, `pr-3` (12px) di margine dal bordo destro della card.
+ */
+const TRAY_WIDTH = 44 * 2 + 8 + 12;
+
 export default function AccountsPageClient({ accounts }: AccountsPageClientProps) {
 	const { locale, t } = useI18n();
 	const router = useRouter();
 	const [sheetOpen, setSheetOpen] = useState(false);
 	const [editing, setEditing] = useState<AccountWithBalance | null>(null);
 	const [rowError, setRowError] = useState<string | null>(null);
+	/**
+	 * L'id del conto il cui vassoio è aperto — un solo vassoio per volta, come
+	 * chiede la issue #62. `null` = nessuno aperto.
+	 */
+	const [openId, setOpenId] = useState<string | null>(null);
 
 	const active = accounts.filter((a) => !a.archived);
 	const archived = accounts.filter((a) => a.archived);
@@ -76,6 +87,24 @@ export default function AccountsPageClient({ accounts }: AccountsPageClientProps
 		router.refresh();
 	}
 
+	/**
+	 * Archiviare dal vassoio dello swipe — stessa `setAccountArchived()` del
+	 * foglio "Modifica", solo raggiunta con un gesto più corto. Non disabilita
+	 * il bottone in base a `active.length`: se questo è l'ultimo conto attivo,
+	 * il server risponde con `errors.lastAccount` e lo si mostra come per
+	 * "riattiva" — un messaggio letto è meglio di un bottone spento senza
+	 * spiegazione, e qui il vassoio non ha spazio per scriverla accanto.
+	 */
+	async function archiveFromTray(id: string) {
+		setRowError(null);
+		const result = await setAccountArchived(id, true);
+		if ("error" in result && result.error) {
+			setRowError(result.error);
+			return;
+		}
+		router.refresh();
+	}
+
 	return (
 		<div className="flex flex-col flex-1">
 			<div className="flex items-start justify-between mb-1.5">
@@ -105,7 +134,19 @@ export default function AccountsPageClient({ accounts }: AccountsPageClientProps
 					/>
 				</div>
 			) : (
-				<div className="flex flex-col gap-3 mt-5">
+				<div className="relative flex flex-col gap-3 mt-5">
+					{/*
+						⚠️ Copre l'INTERO viewport, non solo la lista: "il tap altrove lo
+						chiude" (issue #62) vale anche per la card del saldo e per lo
+						spazio vuoto, non solo per le altre righe — quelle si chiudono da
+						sole (vedi `handleTap` nelle righe), qui serve per il resto.
+						z-20, sotto le righe (z-30) e ben sotto i fogli modali (z-40/50):
+						sparisce prima che "Modifica" possa aprirne uno.
+					*/}
+					{openId !== null && (
+						<div className="fixed inset-0 z-20" onClick={() => setOpenId(null)} />
+					)}
+
 					{/* Il saldo complessivo dei soli conti attivi. */}
 					<div className="rounded-3xl p-5 border border-subtle card-shadow bg-surface backdrop-blur-md">
 						<p className="text-sm text-muted mb-2">{t.accounts.balanceHeading}</p>
@@ -118,8 +159,24 @@ export default function AccountsPageClient({ accounts }: AccountsPageClientProps
 						</p>
 					</div>
 
+					{rowError && (
+						<p className="text-xs ml-1" style={{ color: "var(--ink-aka)" }}>
+							{rowError}
+						</p>
+					)}
+
 					{active.map((a) => (
-						<AccountRow key={a.id} account={a} locale={locale} onClick={() => openEdit(a)} />
+						<ActiveAccountRow
+							key={a.id}
+							account={a}
+							locale={locale}
+							isOpen={openId === a.id}
+							anyOpen={openId !== null}
+							onOpen={() => setOpenId(a.id)}
+							onClose={() => setOpenId(null)}
+							onEdit={() => openEdit(a)}
+							onArchive={() => void archiveFromTray(a.id)}
+						/>
 					))}
 
 					{archived.length > 0 && (
@@ -127,22 +184,13 @@ export default function AccountsPageClient({ accounts }: AccountsPageClientProps
 							<p className="text-xs text-muted font-medium mt-1 mb-0.5 ml-1 tracking-wide">
 								{plural(t.accounts.archivedSection, archived.length, locale)}
 							</p>
-							{/*
-								L'errore di "riattiva" compare qui, sopra le righe a cui si
-								riferisce. Senza, un fallimento era indistinguibile da un
-								successo: la riga restava archiviata e nessuno diceva perché.
-							*/}
-							{rowError && (
-								<p className="text-xs ml-1" style={{ color: "var(--ink-aka)" }}>
-									{rowError}
-								</p>
-							)}
 							{archived.map((a) => (
-								<AccountRow
+								<ArchivedAccountRow
 									key={a.id}
 									account={a}
 									locale={locale}
-									onClick={() => openEdit(a)}
+									anyOpen={openId !== null}
+									onCloseOthers={() => setOpenId(null)}
 									action={
 										/*
 											⚠️ `text-ao-ink` e non `--color-ao`: il mockup usava
@@ -185,37 +233,148 @@ export default function AccountsPageClient({ accounts }: AccountsPageClientProps
 }
 
 /**
- * ⚠️ La riga è un `div`, non un `button`, e il bottone sta DENTRO.
+ * La riga di un conto ATTIVO — swipeabile.
  *
- * La forma ovvia — riga cliccabile con "riattiva" annidato — sarebbe markup
- * interattivo dentro markup interattivo: HTML non valido, e con un
- * comportamento da tastiera indefinito. È lo stesso motivo per cui la riga
- * "Ripeti" del form movimento non può usare `<Switch>` e ne condivide il
- * disegno invece del markup.
+ * ⚠️ **Il vassoio si fa con `transform: translateX()`, non con
+ * `overflow-x`.** La riga ha `card-shadow` (`0 8px 24px`), e per specifica
+ * CSS un asse non `visible` ritaglia ANCHE l'altro: la riga perderebbe l'ombra
+ * su tutti e quattro i lati, sembrando piatta pur avendo le stesse classi. È
+ * la stessa trappola già pagata due volte in questo progetto — il carosello
+ * della home e la `FilterBar` della 21c.
+ *
+ * ⚠️ **La riga È un `button`**, non un `div` con un `button` dentro: qui non
+ * c'è nessun elemento interattivo annidato, perché i comandi del vassoio sono
+ * FRATELLI (un `div` assoluto a fianco), non figli. È lo stesso vincolo che
+ * regge `ArchivedAccountRow` — markup interattivo dentro markup interattivo
+ * è HTML non valido, con un comportamento da tastiera indefinito.
+ *
+ * ⚠️ **`touch-action: pan-y`, non `preventDefault` sul verticale.** Dice al
+ * browser di gestire lo scorrimento verticale per conto proprio; l'orizzontale
+ * lo intercetta questo componente. Senza, o si perde lo swipe orizzontale
+ * (il browser vince sempre lo scroll) o si perde lo scroll verticale
+ * dell'elenco (se si chiama `preventDefault` a occhi chiusi).
  */
-function AccountRow({
+function ActiveAccountRow({
 	account,
 	locale,
-	onClick,
-	action,
+	isOpen,
+	anyOpen,
+	onOpen,
+	onClose,
+	onEdit,
+	onArchive,
 }: {
 	account: AccountWithBalance;
 	locale: Parameters<typeof formatMoney>[1]["locale"];
-	onClick: () => void;
-	action?: ReactNode;
+	isOpen: boolean;
+	anyOpen: boolean;
+	onOpen: () => void;
+	onClose: () => void;
+	onEdit: () => void;
+	onArchive: () => void;
 }) {
 	const { t } = useI18n();
-	// Lookup su mappa e non `accountIcon(...)`: vedi ACCOUNT_ICON_FALLBACK.
+	const router = useRouter();
 	const Icon = (account.type && ACCOUNT_TYPE_ICON[account.type]) || ACCOUNT_ICON_FALLBACK;
 	const color = accountColor(account.type, account.color);
 
+	// Non-null SOLO durante un drag attivo: fuori da un drag, la posizione è
+	// interamente derivata da `isOpen`, non da uno stato locale che potrebbe
+	// disallinearsi se un'altra riga si apre e chiude questa da fuori.
+	const [dragOffset, setDragOffset] = useState<number | null>(null);
+	const drag = useRef<{ x: number; y: number; axis: "x" | "y" | null; base: number } | null>(null);
+	const suppressClick = useRef(false);
+
+	const offset = dragOffset ?? (isOpen ? -TRAY_WIDTH : 0);
+
+	function onPointerDown(e: PointerEvent<HTMLButtonElement>) {
+		if (e.pointerType === "mouse" && e.button !== 0) return;
+		drag.current = { x: e.clientX, y: e.clientY, axis: null, base: isOpen ? -TRAY_WIDTH : 0 };
+	}
+
+	function onPointerMove(e: PointerEvent<HTMLButtonElement>) {
+		if (!drag.current) return;
+		const dx = e.clientX - drag.current.x;
+		const dy = e.clientY - drag.current.y;
+
+		if (drag.current.axis === null) {
+			// Soglia di 6px prima di impegnarsi su un asse: sotto, un tremolio
+			// del dito verrebbe letto come una direzione a caso.
+			if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+			drag.current.axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+			if (drag.current.axis === "x") suppressClick.current = true;
+		}
+
+		if (drag.current.axis !== "x") return;
+		const next = Math.min(0, Math.max(-TRAY_WIDTH, drag.current.base + dx));
+		setDragOffset(next);
+	}
+
+	function onPointerUp() {
+		if (!drag.current) return;
+		if (drag.current.axis === "x") {
+			const final = dragOffset ?? drag.current.base;
+			// Oltre il 40% dello scoperto si scatta aperto, altrimenti si richiude.
+			if (final < -TRAY_WIDTH * 0.4) onOpen();
+			else onClose();
+		}
+		setDragOffset(null);
+		drag.current = null;
+	}
+
+	function handleTap() {
+		if (suppressClick.current) {
+			suppressClick.current = false;
+			return;
+		}
+		// Un vassoio aperto — questo o un altro — assorbe il primo tap per
+		// chiudersi, e non naviga: è il gemello del backdrop per le righe.
+		if (anyOpen) {
+			onClose();
+			return;
+		}
+		router.push(`/conti/${account.id}`);
+	}
+
 	return (
-		<div
-			className={`w-full flex items-center gap-3 p-4 rounded-3xl border border-subtle card-shadow bg-surface backdrop-blur-md ${
-				account.archived ? "opacity-55" : ""
-			}`}
-		>
-			<button onClick={onClick} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+		<div className="relative z-30">
+			<div className="absolute inset-0 flex items-center justify-end gap-2 pr-3 rounded-3xl">
+				<button
+					onClick={(e) => {
+						e.stopPropagation();
+						onClose();
+						onEdit();
+					}}
+					aria-label={t.common.edit}
+					className="w-11 h-11 rounded-2xl flex items-center justify-center bg-control border border-subtle shrink-0"
+				>
+					<Pencil size={17} className="text-secondary" />
+				</button>
+				<button
+					onClick={(e) => {
+						e.stopPropagation();
+						onClose();
+						onArchive();
+					}}
+					aria-label={t.accounts.archive}
+					className="w-11 h-11 rounded-2xl flex items-center justify-center bg-control border border-subtle shrink-0"
+				>
+					<Archive size={17} style={{ color: "var(--ink-aka)" }} />
+				</button>
+			</div>
+
+			<button
+				onPointerDown={onPointerDown}
+				onPointerMove={onPointerMove}
+				onPointerUp={onPointerUp}
+				onPointerCancel={onPointerUp}
+				onClick={handleTap}
+				aria-expanded={isOpen}
+				style={{ transform: `translateX(${offset}px)`, touchAction: "pan-y" }}
+				className={`relative w-full flex items-center gap-3 p-4 rounded-3xl border border-subtle card-shadow bg-surface backdrop-blur-md text-left ${
+					dragOffset === null ? "transition-transform duration-200" : ""
+				}`}
+			>
 				<span
 					className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
 					style={{ background: `color-mix(in srgb, ${color} 16%, transparent)` }}
@@ -228,7 +387,75 @@ function AccountRow({
 						{account.name}
 					</span>
 					<span className="block text-[11.5px] text-muted">
-						{account.archived ? t.accounts.archivedNote : accountTypeLabel(account.type, t)}
+						{accountTypeLabel(account.type, t)}
+					</span>
+				</span>
+
+				<span className="text-[14.5px] font-semibold text-foreground shrink-0">
+					{formatMoney(account.balance, { locale, currency: DISPLAY_CURRENCY, decimals: 2 })}
+				</span>
+			</button>
+		</div>
+	);
+}
+
+/**
+ * La riga di un conto ARCHIVIATO — niente swipe, deliberatamente.
+ *
+ * ⚠️ Decisione della issue #62: gli archiviati non diventano swipeabili. Il
+ * bottone "riattiva" resta SEMPRE VISIBILE — è l'unico gesto su questa riga,
+ * senza bisogno di scoprirlo — perché aggiungere anche lo swipe qui vorrebbe
+ * dire due modelli di interazione sulla stessa riga, che la issue chiede
+ * esplicitamente di non lasciare accadere. Il tap continua a portare a
+ * `/conti/[id]`, dove "Modifica" resta raggiungibile anche per un conto
+ * archiviato.
+ *
+ * ⚠️ La riga è un `div` con un `button` dentro, e "riattiva" è un secondo
+ * `button` FRATELLO: è la stessa forma di `AccountRow` prima di questa fase,
+ * perché il vincolo — niente markup interattivo annidato — non è cambiato.
+ */
+function ArchivedAccountRow({
+	account,
+	locale,
+	anyOpen,
+	onCloseOthers,
+	action,
+}: {
+	account: AccountWithBalance;
+	locale: Parameters<typeof formatMoney>[1]["locale"];
+	anyOpen: boolean;
+	onCloseOthers: () => void;
+	action?: ReactNode;
+}) {
+	const { t } = useI18n();
+	const router = useRouter();
+	const Icon = (account.type && ACCOUNT_TYPE_ICON[account.type]) || ACCOUNT_ICON_FALLBACK;
+	const color = accountColor(account.type, account.color);
+
+	function handleTap() {
+		if (anyOpen) {
+			onCloseOthers();
+			return;
+		}
+		router.push(`/conti/${account.id}`);
+	}
+
+	return (
+		<div className="relative z-30 w-full flex items-center gap-3 p-4 rounded-3xl border border-subtle card-shadow bg-surface backdrop-blur-md opacity-55">
+			<button onClick={handleTap} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+				<span
+					className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
+					style={{ background: `color-mix(in srgb, ${color} 16%, transparent)` }}
+				>
+					<Icon size={19} style={{ color }} />
+				</span>
+
+				<span className="flex-1 min-w-0">
+					<span className="block text-[14.5px] font-medium text-foreground truncate">
+						{account.name}
+					</span>
+					<span className="block text-[11.5px] text-muted">
+						{t.accounts.archivedNote}
 					</span>
 				</span>
 			</button>

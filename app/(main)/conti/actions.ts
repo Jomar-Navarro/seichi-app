@@ -3,7 +3,9 @@
 import { requireUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { plural } from "@/lib/i18n/format";
+import { isAccountId } from "@/lib/accounts";
 import { ACCOUNT_TYPES, type Account, type AccountWithBalance } from "@/types";
+import type { SupabaseServerClient } from "@/lib/supabase/server";
 
 /** Il limite è quello della colonna (`varchar(50)`): tagliarlo qui dà un messaggio. */
 const NAME_MAX = 50;
@@ -295,6 +297,192 @@ export async function setAccountArchived(id: string, archived: boolean) {
 
 	if (error) return { error: error.message };
 	if (!data) return { error: t.accounts.errors.notFound };
+
+	revalidatePath("/", "layout");
+	return { success: true as const };
+}
+
+/**
+ * UN conto, con il saldo — per la pagina di dettaglio `/conti/[id]` (issue #62).
+ *
+ * ⚠️ Stessa vista di `getAccounts()`, filtrata su un id: nessun numero nuovo,
+ * nessuna somma rifatta qui. È il vincolo che la issue pone esplicitamente per
+ * questa pagina — saldo, saldo iniziale e tipo vengono da `account_balances`,
+ * i movimenti da `getTransactions({ conto })`, il segno da `amountSign()`, che
+ * con un conto selezionato è già relativo a QUEL conto (20b).
+ */
+export async function getAccount(
+	id: string,
+): Promise<{ data: AccountWithBalance } | { error: string }> {
+	const { supabase, user, t } = await requireUser();
+	if (!user) return { error: t.errors.notAuthenticated };
+
+	// ⚠️ L'id arriva da un SEGMENTO DI URL: è input dell'utente quanto
+	// `?conto=` lo è per `getTransactions`. Un valore non-UUID farebbe fallire
+	// la query con un 22P02 invece di un "non trovato" pulito — si scarta
+	// prima, come fa `isAccountId()` altrove.
+	if (!isAccountId(id)) return { error: t.accounts.errors.notFound };
+
+	const { data, error } = await supabase
+		.from("account_balances")
+		.select("*")
+		.eq("id", id)
+		.eq("user_id", user.id)
+		.maybeSingle();
+
+	// ⚠️ Le due cause restano SEPARATE, e non per pignoleria: la 20a aveva già
+	// pagato il difetto di `assertOwnAccount()`, che rispondeva "Conto non
+	// trovato" anche a un guasto di rete. Un errore di lettura vero e un id
+	// che non esiste sono fatti diversi e non possono avere lo stesso testo
+	// solo perché arrivano dallo stesso `if`.
+	if (error) return { error: error.message };
+	if (!data) return { error: t.accounts.errors.notFound };
+
+	const account: AccountWithBalance = {
+		...data,
+		initial_balance: Number(data.initial_balance),
+		balance: Number(data.balance),
+	};
+
+	return { data: account };
+}
+
+/**
+ * Se un conto ha almeno un movimento agganciato — in uno qualunque dei TRE
+ * modi in cui `transactions`/`recurring_rules` possono riferirlo.
+ *
+ * ⚠️ Non basta guardare `transactions.account_id`: sia `to_account_id`
+ * (destinazione di un trasferimento) sia `recurring_rules.account_id` hanno
+ * anche loro una FK `on delete no action` verso `accounts` — vedi la Fase
+ * 20b e 20a nello schema. Un conto referenziato SOLO da una delle altre due
+ * resterebbe comunque bloccato al DELETE: guardarne una sola direbbe "sì,
+ * puoi eliminarlo" e poi fallirebbe in silenzio sul vincolo.
+ *
+ * ⚠️ Tre query `count: "exact", head: true`, non tre `select("*")`: si chiede
+ * solo l'header con il conteggio, senza trasferire una riga — il costo non
+ * dipende da QUANTI movimenti ci siano, solo dal fatto che ce ne sia almeno
+ * uno. Stesso accorgimento già usato in `setAccountArchived()`.
+ */
+async function hasAnyMovement(
+	supabase: SupabaseServerClient,
+	userId: string,
+	accountId: string,
+): Promise<{ data: boolean } | { error: string }> {
+	const [asOrigin, asDestination, asRule] = await Promise.all([
+		supabase
+			.from("transactions")
+			.select("id", { count: "exact", head: true })
+			.eq("user_id", userId)
+			.eq("account_id", accountId),
+		supabase
+			.from("transactions")
+			.select("id", { count: "exact", head: true })
+			.eq("user_id", userId)
+			.eq("to_account_id", accountId),
+		supabase
+			.from("recurring_rules")
+			.select("id", { count: "exact", head: true })
+			.eq("user_id", userId)
+			.eq("account_id", accountId),
+	]);
+
+	if (asOrigin.error) return { error: asOrigin.error.message };
+	if (asDestination.error) return { error: asDestination.error.message };
+	if (asRule.error) return { error: asRule.error.message };
+
+	return {
+		data:
+			(asOrigin.count ?? 0) > 0 ||
+			(asDestination.count ?? 0) > 0 ||
+			(asRule.count ?? 0) > 0,
+	};
+}
+
+/**
+ * Se QUESTO conto è eliminabile — cioè se `deleteAccount()` ha qualche
+ * speranza di riuscire. Serve solo a decidere se MOSTRARE il comando: la
+ * riverifica vera sta in `deleteAccount()`, che non si fida di questa lettura.
+ *
+ * ⚠️ Chiamata UNA VOLTA, quando si apre il foglio "Modifica" — non a ogni
+ * riga della lista `/conti`. Farlo per ogni riga costerebbe 3×N query a ogni
+ * apertura della pagina (N conti attivi), sulla stessa pagina per cui questo
+ * progetto ha già dimezzato le richieste della home (vedi "Costo delle
+ * richieste a Supabase"). Il vassoio dello swipe mostra sempre "Archivia"; se
+ * il conto risulta senza movimenti, "Elimina" compare DENTRO il foglio.
+ */
+export async function canDeleteAccount(
+	id: string,
+): Promise<{ data: boolean } | { error: string }> {
+	const { supabase, user, t } = await requireUser();
+	if (!user) return { error: t.errors.notAuthenticated };
+	if (!isAccountId(id)) return { error: t.accounts.errors.notFound };
+
+	const result = await hasAnyMovement(supabase, user.id, id);
+	if ("error" in result) return result;
+	return { data: !result.data };
+}
+
+/**
+ * Elimina DAVVERO un conto — l'unico posto in questo file che lo fa.
+ *
+ * ⚠️ Possibile SOLO a zero movimenti, ed è per questo che è una funzione a sé
+ * e non un terzo stato di `setAccountArchived()`: quella lascia sempre una
+ * riga leggibile — "un conto chiuso in banca non fa sparire ciò che ci hai
+ * speso" — questa la toglie. Le due convivono solo perché `on delete no
+ * action` rende la prima impraticabile quando c'è qualcosa da proteggere, e
+ * innocua — quindi permessa — quando non c'è niente da perdere.
+ *
+ * Il conteggio si VERIFICA PRIMA di tentare il DELETE, non ci si appoggia
+ * all'errore della FK: un `23503` mostrato all'utente è un messaggio Postgres
+ * grezzo, la stessa correzione già fatta una volta nella Fase 21.
+ *
+ * ⚠️ Rifiutato sull'ULTIMO conto ATTIVO, come `setAccountArchived()`: senza
+ * conti attivi il form movimento non avrebbe nulla da proporre. Un conto già
+ * archiviato non tocca quel conteggio — è già fuori dagli attivi — quindi
+ * eliminarlo non ha bisogno dello stesso controllo.
+ */
+export async function deleteAccount(id: string): Promise<{ success: true } | { error: string }> {
+	const { supabase, user, t } = await requireUser();
+	if (!user) return { error: t.errors.notAuthenticated };
+	if (!isAccountId(id)) return { error: t.accounts.errors.notFound };
+
+	const { data: account, error: accountError } = await supabase
+		.from("accounts")
+		.select("archived")
+		.eq("id", id)
+		.eq("user_id", user.id)
+		.maybeSingle();
+
+	if (accountError) return { error: accountError.message };
+	if (!account) return { error: t.accounts.errors.notFound };
+
+	if (!account.archived) {
+		const { count, error: countError } = await supabase
+			.from("accounts")
+			.select("id", { count: "exact", head: true })
+			.eq("user_id", user.id)
+			.eq("archived", false);
+
+		if (countError) return { error: countError.message };
+		if ((count ?? 0) <= 1) return { error: t.accounts.errors.lastAccount };
+	}
+
+	const movement = await hasAnyMovement(supabase, user.id, id);
+	if ("error" in movement) return { error: movement.error };
+	// ⚠️ Il messaggio è diverso da `lastAccount`: due cause diverse, due frasi
+	// diverse, o l'utente cerca il rimedio sbagliato per l'una o per l'altra.
+	if (movement.data) return { error: t.accounts.errors.hasMovements };
+
+	const { error } = await supabase
+		.from("accounts")
+		.delete()
+		.eq("id", id)
+		.eq("user_id", user.id);
+
+	if (error) {
+		console.error("[conti] deleteAccount:", error.message);
+		return { error: t.accounts.errors.saveFailed };
+	}
 
 	revalidatePath("/", "layout");
 	return { success: true as const };

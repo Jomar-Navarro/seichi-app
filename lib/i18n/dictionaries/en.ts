@@ -369,6 +369,11 @@ export const en: Dictionary = {
 		archiveBody:
 			"It disappears from the pickers, but its transactions stay and its history remains readable.",
 
+		/** ⚠️ Visible ONLY at zero transactions (issue #62) — see the note in it.ts. */
+		deleteConfirm: "Confirm deletion",
+		deleteBody:
+			"It has no linked transactions: deleting it loses nothing, but — unlike archiving — it cannot be undone.",
+
 		emptyTitle: "No accounts yet",
 		emptyDescription: "Add an account to know where your money actually is.",
 
@@ -385,6 +390,8 @@ export const en: Dictionary = {
 				one: "There is {n} active recurring rule on this account. Move it to another account or pause it, then try again.",
 				other: "There are {n} active recurring rules on this account. Move them to another account or pause them, then try again.",
 			},
+			/** ⚠️ Different from `lastAccount`: see the note in it.ts. */
+			hasMovements: "This account has linked transactions: it can't be deleted. You can archive it.",
 		},
 	},
 
