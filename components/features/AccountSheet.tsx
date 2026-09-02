@@ -1,9 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { X, Check, Archive } from "lucide-react";
+import { useEffect, useState } from "react";
+import { X, Check, Archive, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { createAccount, updateAccount, setAccountArchived } from "@/app/(main)/conti/actions";
+import {
+	canDeleteAccount,
+	createAccount,
+	deleteAccount,
+	setAccountArchived,
+	updateAccount,
+} from "@/app/(main)/conti/actions";
 import { useI18n } from "./I18nProvider";
 import { DISPLAY_CURRENCY, currencySymbol } from "@/lib/i18n/format";
 import {
@@ -68,6 +74,28 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 	const [loading, setLoading] = useState(false);
 	const [serverError, setServerError] = useState<string | null>(null);
 	const [confirmArchive, setConfirmArchive] = useState(false);
+	/**
+	 * Se questo conto è eliminabile — issue #62. `false` finché non si sa: un
+	 * "Elimina" mostrato per un istante e poi ritirato sarebbe peggio di un
+	 * mezzo secondo senza, perché insegna a non fidarsi dei comandi che
+	 * compaiono in questo foglio.
+	 */
+	const [canDelete, setCanDelete] = useState(false);
+	const [confirmDelete, setConfirmDelete] = useState(false);
+
+	/*
+	 * Una query sola, all'apertura del foglio — non a ogni riga della lista
+	 * `/conti`. Vedi la nota su `canDeleteAccount()` per il perché.
+	 */
+	useEffect(() => {
+		if (!account) return;
+		let cancelled = false;
+		canDeleteAccount(account.id).then((res) => {
+			if (cancelled) return;
+			setCanDelete("data" in res ? res.data : false);
+		});
+		return () => { cancelled = true; };
+	}, [account]);
 
 	const nameError = submitted && !name.trim();
 	// Il saldo iniziale può essere NEGATIVO — una carta di credito ha giacenza
@@ -131,6 +159,36 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 				return;
 			}
 			router.refresh();
+			onClose();
+		} finally {
+			setLoading(false);
+		}
+	}
+
+	/**
+	 * ⚠️ Dopo un'eliminazione riuscita si torna SEMPRE a `/conti`, non solo
+	 * `router.refresh()`. Il foglio può essere stato aperto dalla lista (dove
+	 * si è già lì) o da `/conti/[id]` (che interrogherebbe un conto appena
+	 * sparito): la destinazione giusta è la stessa in entrambi i casi, quindi
+	 * non serve che questo componente sappia da dove è stato aperto.
+	 */
+	async function handleDelete() {
+		if (!account) return;
+		if (!confirmDelete) {
+			setConfirmDelete(true);
+			return;
+		}
+		setLoading(true);
+		setServerError(null);
+		try {
+			const result = await deleteAccount(account.id);
+			if ("error" in result && result.error) {
+				setServerError(result.error);
+				setConfirmDelete(false);
+				return;
+			}
+			router.refresh();
+			router.push("/conti");
 			onClose();
 		} finally {
 			setLoading(false);
@@ -340,6 +398,34 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 							{(!canArchive || confirmArchive) && (
 								<p className="text-[11px] text-disabled -mt-3 text-center leading-relaxed">
 									{!canArchive ? t.accounts.errors.lastAccount : t.accounts.archiveBody}
+								</p>
+							)}
+						</>
+					)}
+
+					{/*
+						⚠️ "Elimina", ROSSO e diverso da "Archivia" — issue #62.
+						Compare SOLO a zero movimenti: `on delete no action` in quel
+						caso non ha niente da proteggere, quindi qui l'operazione è
+						sicura e irreversibile per un motivo opposto a quello per cui
+						"Archivia" è reversibile — non c'è storico da perdere.
+						Indipendente da `account.archived`: un conto già archiviato e
+						vuoto resta eliminabile, è anzi il caso reale per cui esiste.
+					*/}
+					{account && canDelete && (
+						<>
+							<button
+								onClick={handleDelete}
+								disabled={loading}
+								className="w-full flex items-center justify-center gap-2 py-3 text-[13px] font-medium disabled:opacity-40"
+								style={{ color: "var(--ink-aka)" }}
+							>
+								<Trash2 size={14} />
+								{confirmDelete ? t.accounts.deleteConfirm : t.common.delete}
+							</button>
+							{confirmDelete && (
+								<p className="text-[11px] text-disabled -mt-3 text-center leading-relaxed">
+									{t.accounts.deleteBody}
 								</p>
 							)}
 						</>

@@ -594,6 +594,16 @@ export const it = {
 		archiveBody:
 			"Sparirà dai selettori, ma i suoi movimenti restano e il suo storico resta consultabile.",
 
+		/**
+		 * "Elimina", diverso da "Archivia" e visibile SOLO a zero movimenti
+		 * (issue #62): qui `on delete no action` non ha niente da proteggere,
+		 * quindi cancellare non porta via alcuno storico — è la ragione per cui
+		 * questo comando può esistere accanto a uno che lo evita apposta.
+		 */
+		deleteConfirm: "Conferma eliminazione",
+		deleteBody:
+			"Non ha movimenti collegati: eliminarlo non fa sparire nulla, ma — a differenza di archiviare — non si può annullare.",
+
 		emptyTitle: "Ancora nessun conto",
 		emptyDescription: "Aggiungi un conto per sapere dove si trova il tuo denaro.",
 
@@ -620,6 +630,15 @@ export const it = {
 				one: "C'è {n} regola ricorrente attiva su questo conto. Spostala su un altro conto o mettila in pausa, poi riprova.",
 				other: "Ci sono {n} regole ricorrenti attive su questo conto. Spostale su un altro conto o mettile in pausa, poi riprova.",
 			},
+			/**
+			 * ⚠️ Diverso da `lastAccount`: due cause diverse devono avere due
+			 * frasi diverse, o l'utente cerca il rimedio sbagliato. Compare solo
+			 * per una corsa persa fra due schede — l'interfaccia mostra "Elimina"
+			 * già solo a zero movimenti, quindi in condizioni normali questo testo
+			 * non si vede mai.
+			 */
+			hasMovements:
+				"Questo conto ha dei movimenti collegati: non può essere eliminato. Puoi archiviarlo.",
 		},
 	},
 
