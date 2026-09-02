@@ -28,9 +28,13 @@ interface AccountsPageClientProps {
 
 /**
  * Quanto scoperto lascia il vassoio: due bottoni da 44×44 (checklist Fase 27),
- * `gap-2` (8px) fra loro, `pr-3` (12px) di margine dal bordo destro della card.
+ * `gap-2` (8px) fra loro, `pr-3` (12px) di margine dal bordo destro della
+ * card e `pl-3` (12px) di margine dal bordo che la riga trascina via — senza
+ * quest'ultimo la matita risultava incollata al bordo rivelato: la riga
+ * trasla di esattamente `TRAY_WIDTH`, quindi il primo bottone comincia dove
+ * finisce la riga, a meno di riservargli uno spazio vuoto prima.
  */
-const TRAY_WIDTH = 44 * 2 + 8 + 12;
+const TRAY_WIDTH = 44 * 2 + 8 + 12 + 12;
 
 export default function AccountsPageClient({ accounts }: AccountsPageClientProps) {
 	const { locale, t } = useI18n();
@@ -363,32 +367,50 @@ function ActiveAccountRow({
 		router.push(`/conti/${account.id}`);
 	}
 
+	/*
+	 * ⚠️ Il vassoio si disegna SOLO quando serve — aperto o mentre lo si sta
+	 * trascinando — non sempre "dietro, in attesa di essere rivelato".
+	 *
+	 * Le card di questo progetto sono vetro traslucido (`bg-surface` +
+	 * `backdrop-blur`, il linguaggio "Zen Glass"): la riga sopra NON è opaca
+	 * per disegno, quindi un vassoio disegnato in permanenza sotto una riga
+	 * CHIUSA resta visibile in trasparenza — le pastiglie di Modifica e
+	 * Archivia si vedevano "attraverso" il saldo su ogni riga a riposo, più
+	 * marcato in Firefox che rende il blur in modo diverso da Chrome. Alzare
+	 * l'opacità della riga avrebbe rotto la coerenza con ogni altra card
+	 * dell'app, che è vetro ovunque: la correzione giusta è non disegnare ciò
+	 * che deve restare nascosto, non nasconderlo meglio.
+	 */
+	const traySmontato = !isOpen && dragOffset === null;
+
 	return (
 		<div className="relative z-30">
-			<div className="absolute inset-0 flex items-center justify-end gap-2 pr-3 rounded-3xl">
-				<button
-					onClick={(e) => {
-						e.stopPropagation();
-						onClose();
-						onEdit();
-					}}
-					aria-label={t.common.edit}
-					className="w-11 h-11 rounded-2xl flex items-center justify-center bg-control border border-subtle shrink-0"
-				>
-					<Pencil size={17} className="text-secondary" />
-				</button>
-				<button
-					onClick={(e) => {
-						e.stopPropagation();
-						onClose();
-						onArchive();
-					}}
-					aria-label={t.accounts.archive}
-					className="w-11 h-11 rounded-2xl flex items-center justify-center bg-control border border-subtle shrink-0"
-				>
-					<Archive size={17} style={{ color: "var(--ink-aka)" }} />
-				</button>
-			</div>
+			{!traySmontato && (
+				<div className="absolute inset-0 flex items-center justify-end gap-2 px-3 rounded-3xl">
+					<button
+						onClick={(e) => {
+							e.stopPropagation();
+							onClose();
+							onEdit();
+						}}
+						aria-label={t.common.edit}
+						className="w-11 h-11 rounded-2xl flex items-center justify-center bg-control border border-subtle shrink-0"
+					>
+						<Pencil size={17} className="text-secondary" />
+					</button>
+					<button
+						onClick={(e) => {
+							e.stopPropagation();
+							onClose();
+							onArchive();
+						}}
+						aria-label={t.accounts.archive}
+						className="w-11 h-11 rounded-2xl flex items-center justify-center bg-control border border-subtle shrink-0"
+					>
+						<Archive size={17} style={{ color: "var(--ink-aka)" }} />
+					</button>
+				</div>
+			)}
 
 			<button
 				onPointerDown={onPointerDown}
