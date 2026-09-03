@@ -4779,12 +4779,44 @@ bisogno SOLO dell'anello, non della separazione in livelli.
   registrata più volte in questo documento (Fase 18, Fase 19): una correzione
   applicata "dove ci si è pensato" invece che ovunque serva è quella che
   lascia il difetto vivo altrove.
+- ⚠️⚠️ **Il primo giro cercava `border-subtle`, e la card degli obiettivi non
+  usa quella classe.** `GoalCard` colora il bordo con uno stile inline
+  (`borderColor: "var(--border)"`), non con la classe Tailwind — quindi era
+  invisibile a un grep mirato su `border-subtle` e i quadrati sono
+  sopravvissuti al primo giro, scoperti solo riguardando l'app dopo la
+  conferma "sono andate via" ("scherzavo, ci sono ancora negli obiettivi").
+  Da qui un **secondo giro** cercando ogni `border:`/`borderColor:` inline in
+  tutto il repo, non solo le classi Tailwind: ha trovato altri quindici siti,
+  fra cui uno vero **regresso introdotto dal primo giro stesso** — la card
+  budget "sforato" (`BudgetCards`) aveva il bordo base convertito in anello
+  (`ring-border`), ma lo stato sforato lo sovrascriveva ancora con
+  `style={{ borderColor: ... }}`, che senza una proprietà `border` non colora
+  più nulla: l'anello d'allarme era semplicemente sparito, letto dall'utente
+  come "la profondità è scomparsa". Stesso schema su cinque campi con stato
+  d'errore (`AccountSheet`, `CategorySheet`, `GoalSheet`, `PasswordInput`) —
+  ognuno sovrascriveva un `borderColor` che il proprio `ring-border` di base
+  aveva già reso muto. **La lezione: quando un bordo diventa un box-shadow, va
+  ricontrollato ogni punto che quel bordo lo sovrascriveva — un `borderColor`
+  su un elemento senza più `border` è un difetto silenzioso per costruzione,
+  della stessa famiglia della classe Tailwind inesistente.**
+  Altri siti dello stesso secondo giro: il banner di conferma password
+  (`LoginForm`), l'input di conferma eliminazione account
+  (`DeleteAccountFlow`), due avvisi di `ImportFlow`, l'avviso del job fermo
+  (`JobHealthNotice`), i tre tooltip di Recharts (`MonthlyLineChart`,
+  `SpendingPieChart`, `InvestimentiTab` — `contentStyle` è CSS inline, non una
+  classe), l'interruttore spento (`Switch`), il bottone elimina di
+  `TransactionForm` e la card tipo selezionata di `TransactionModal`.
+  ⚠️ **Un residuo dichiarato**: il riquadro trascina-file di `ImportFlow` ha un
+  bordo TRATTEGGIATO (`border-dashed`), e `box-shadow` non sa disegnare un
+  tratteggio — lasciato con un bordo vero e un commento che spiega perché, non
+  segnalato finora.
 - **Verificato**: `tsc`, lint, `next build` (tutte le 32 route) e
-  `npm run audit:tokens` puliti; le quattro utility nuove confermate nel CSS di
-  produzione (`.next/static/chunks/*.css`), incluse le varianti `lg:`/`xl:`.
-  ⚠️ **La riprova su Firefox vero resta da rifare dopo questo giro**: i due
-  test dal vivo che hanno isolato la causa erano su singoli elementi, non su
-  un giro completo dell'app.
+  `npm run audit:tokens` puliti in entrambi i giri; le quattro utility nuove
+  confermate nel CSS di produzione (`.next/static/chunks/*.css`), incluse le
+  varianti `lg:`/`xl:`. **Confermato su Firefox vero due volte**: dopo il
+  primo giro ("sono andate via" — poi smentito) e dopo il secondo, sui punti
+  esplicitamente segnalati (obiettivi, budget, transazioni home, navbar,
+  notifiche, chatbot).
 
 ### Layout responsive onboarding
 
