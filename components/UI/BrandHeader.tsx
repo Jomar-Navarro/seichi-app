@@ -9,9 +9,13 @@ export default function BrandHeader() {
 	return (
 		// Logo, Title, Subtitle
 		<div className="flex flex-col items-center text-center mb-6">
-			<div className="w-24 h-24 2xl:w-32 2xl:h-32 flex items-center justify-center border border-subtle rounded-3xl bg-surface-elevated backdrop-blur-md mb-4">
-				<Sprout size={40} className="text-midori 2xl:hidden" />
-				<Sprout size={54} className="text-midori hidden 2xl:block" />
+			{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
+			<div className="relative w-24 h-24 2xl:w-32 2xl:h-32 rounded-3xl ring-border overflow-hidden mb-4">
+				<div className="absolute inset-0 bg-surface-elevated backdrop-blur-md" />
+				<div className="relative w-full h-full flex items-center justify-center">
+					<Sprout size={40} className="text-midori 2xl:hidden" />
+					<Sprout size={54} className="text-midori hidden 2xl:block" />
+				</div>
 			</div>
 			<h1 className="text-5xl 2xl:text-7xl font-semibold mb-3 md:mb-3.5">
 				Seichi

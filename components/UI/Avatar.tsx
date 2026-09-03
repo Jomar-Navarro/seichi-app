@@ -13,7 +13,7 @@ interface AvatarProps {
 export default function Avatar({ src, initials, size = 60, className = "" }: AvatarProps) {
 	return (
 		<span
-			className={`relative rounded-full overflow-hidden flex items-center justify-center shrink-0 bg-control border border-subtle ${className}`}
+			className={`relative rounded-full overflow-hidden flex items-center justify-center shrink-0 bg-control ring-border ${className}`}
 			style={{ width: size, height: size }}
 		>
 			{src ? (

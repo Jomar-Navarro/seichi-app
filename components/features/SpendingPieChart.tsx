@@ -98,7 +98,8 @@ export default function SpendingPieChart({
 							<Tooltip
 								contentStyle={{
 									background: "var(--modal-bg)",
-									border: "1px solid var(--border)",
+									// issue #81 — anello (box-shadow), non bordo: il colore è traslucido.
+									boxShadow: "var(--border) 0px 0px 0px 1px inset",
 									borderRadius: 12,
 									fontSize: 12,
 									color: "var(--text-primary)",

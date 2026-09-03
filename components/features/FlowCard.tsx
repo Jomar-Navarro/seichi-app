@@ -64,7 +64,14 @@ export default function FlowCard({
 	 * l'ultima riga si appoggia in basso con `mt-auto`.
 	 */
 	return (
-		<div className="h-full flex flex-col rounded-3xl p-5 border border-subtle card-shadow bg-surface backdrop-blur-md">
+		/*
+			⚠️ TRE livelli — issue #81. `overflow-hidden` da solo non basta
+			(verificato da Firefox). Guscio → vetro → contenuto, stesso schema
+			di `AccountsBalanceCard`, che è la card gemella nello stesso carosello.
+		*/
+		<div className="relative h-full rounded-3xl overflow-hidden card-shadow-ring">
+			<div className="absolute inset-0 bg-surface backdrop-blur-md" />
+			<div className="relative h-full flex flex-col p-5">
 			<div className="flex items-center justify-between mb-3">
 				{/*
 					⚠️ Il mockup mette qui anche una pastiglia "Questo mese" con il
@@ -127,6 +134,7 @@ export default function FlowCard({
 			<p className="mt-auto text-[11.5px] leading-relaxed text-disabled">
 				{t.home.flowExplain}
 			</p>
+			</div>
 		</div>
 	);
 }

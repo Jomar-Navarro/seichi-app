@@ -129,7 +129,7 @@ export default async function ReportPage({
 				    e può mostrare un conto diverso da quello appena stampato. */}
 				<Link
 					href={`/analisi?periodo=${periodo}&conto=${accountId ?? ""}`}
-					className="w-10 h-10 rounded-2xl bg-card border border-subtle flex items-center justify-center active:opacity-80"
+					className="w-10 h-10 rounded-2xl bg-card ring-border flex items-center justify-center active:opacity-80"
 					aria-label={t.analytics.title}
 				>
 					<ArrowLeft size={17} className="text-secondary" />
@@ -145,7 +145,13 @@ export default async function ReportPage({
 
 				Vale già a schermo, di proposito: così ciò che vedi è ciò che stampi.
 			*/}
-			<article className="paper rounded-[26px] border border-subtle p-6 print:p-0 print:border-0 print:rounded-none">
+			{/*
+				issue #81 — l'anello (`ring-border`, box-shadow) sostituisce il bordo
+				a SCHERMO. In STAMPA `.paper * { box-shadow: none }` lo azzera già —
+				ma qui va bene così: `print:border-0` voleva zero bordo anche prima,
+				perché sulla carta è il margine di pagina a delimitare il foglio.
+			*/}
+			<article className="paper rounded-[26px] ring-border p-6 print:p-0 print:shadow-none print:rounded-none">
 				{/* Intestazione */}
 				<header className="print-block">
 					<p className="text-[11.5px] font-semibold tracking-[1.6px] uppercase text-disabled">
@@ -193,13 +199,20 @@ export default async function ReportPage({
 
 				{/* Entrate e uscite del periodo */}
 				<section className="print-block grid grid-cols-2 gap-3 mt-6">
-					<div className="rounded-2xl border border-subtle p-4">
+					{/*
+						issue #81 — `ring-border` è un box-shadow, e `.paper * { box-shadow:
+						none }` lo azzera in stampa: qui la separazione fra le due colonne
+						deve restare visibile sulla carta, quindi `print:border` la
+						ripristina come bordo VERO (in stampa il bug di Firefox non esiste,
+						è un rendering completamente diverso).
+					*/}
+					<div className="rounded-2xl ring-border p-4 print:border print:border-subtle">
 						<p className="text-[12px] text-muted">{t.analytics.legendIncome}</p>
 						<p className="text-[19px] font-semibold text-midori-ink mt-1">
 							{money(analytics.entrate)}
 						</p>
 					</div>
-					<div className="rounded-2xl border border-subtle p-4">
+					<div className="rounded-2xl ring-border p-4 print:border print:border-subtle">
 						<p className="text-[12px] text-muted">{t.analytics.legendExpenses}</p>
 						<p className="text-[19px] font-semibold text-aka-ink mt-1">
 							{money(analytics.uscite)}

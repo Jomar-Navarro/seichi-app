@@ -303,6 +303,51 @@ body {
 		var(--shadow-inset) 0px 1px 0px inset;
 }
 
+/*
+ * ⚠️⚠️ issue #81 — Firefox NON ritaglia correttamente un `border-radius` quando
+ * il colore del bordo è TRASLUCIDO (il nostro `--border` lo è sempre, in
+ * entrambi i temi): resta un piccolo quadrato opaco dell'angolo del
+ * border-box, visibile fuori dal raggio arrotondato. Non serve
+ * `backdrop-filter` per innescarlo — verificato dal vivo su un elemento che
+ * non ne ha alcuno (`RecentTransaction`) tanto quanto su uno che ne ha
+ * (`.deep-shadow` più sotto). Chrome e Safari non ce l'hanno.
+ *
+ * La correzione nota per questo bug: un `box-shadow: inset ... 1px` invece di
+ * un `border` vero. Un box-shadow SI ritaglia correttamente sull'angolo in
+ * Firefox, e non tocca il box model (nessuno scarto di 1px sul padding).
+ *
+ * Queste tre varianti "-ring" affiancano `card-shadow`/`modal-shadow`/
+ * `box-shadow` SENZA modificarle: un elemento che oggi usa l'ombra base senza
+ * bordo non deve guadagnarne uno. Si usa la variante "-ring" al posto della
+ * base ESATTAMENTE dove prima c'era anche `border border-subtle` (o
+ * `border-t/-l/-r border-subtle` su un angolo arrotondato).
+ */
+@utility card-shadow-ring {
+	box-shadow:
+		var(--shadow-drop) 0px 8px 24px,
+		var(--shadow-inset) 0px 1px 0px inset,
+		var(--border) 0px 0px 0px 1px inset;
+}
+
+@utility modal-shadow-ring {
+	box-shadow:
+		var(--shadow-drop) 0px -24px 70px,
+		var(--shadow-inset) 0px 1px 0px inset,
+		var(--border) 0px 0px 0px 1px inset;
+}
+
+@utility box-shadow-ring {
+	box-shadow:
+		var(--shadow-drop) 0px 14px 40px,
+		var(--shadow-inset) 0px 1px 0px inset,
+		var(--border) 0px 0px 0px 1px inset;
+}
+
+/* Lo stesso anello, per un elemento arrotondato che non ha alcuna ombra a caduta. */
+@utility ring-border {
+	box-shadow: inset 0 0 0 1px var(--border);
+}
+
 @utility transaction-type-card {
 	position: relative;
 	display: flex;
@@ -317,7 +362,8 @@ body {
 	width: 100%;
 	height: 100%;
 	background: var(--card);
-	border: 1px solid var(--border);
+	/* issue #81 — vedi la nota sopra: anello invece di bordo, sullo stesso arrotondamento. */
+	box-shadow: inset 0 0 0 1px var(--border);
 }
 
 @utility box-shadow {
@@ -356,11 +402,11 @@ body {
 	color: var(--cta-text);
 }
 
+/* issue #81 — anello invece di bordo (`--fab-border` è traslucido anche lui). */
 @utility fab {
 	background: var(--fab-bg);
 	color: var(--fab-text);
-	border: 1px solid var(--fab-border);
-	box-shadow: var(--fab-shadow);
+	box-shadow: var(--fab-shadow), var(--fab-border) 0px 0px 0px 1px inset;
 	backdrop-filter: blur(14px);
 }
 
@@ -402,11 +448,12 @@ body {
 
 .deep-shadow {
 	background: var(--surface-elevated);
-	border: 1px solid var(--border);
 	color: var(--text-primary);
+	/* issue #81 — anello invece di bordo: qui è dove si è visto per la prima volta. */
 	box-shadow:
 		var(--shadow-drop) 0px 18px 40px,
-		var(--shadow-inset) 0px 1px 0px inset;
+		var(--shadow-inset) 0px 1px 0px inset,
+		var(--border) 0px 0px 0px 1px inset;
 	backdrop-filter: blur(24px);
 	transition:
 		transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
@@ -415,8 +462,10 @@ body {
 }
 
 .segment-tab {
-	border: 1px solid var(--card-bd);
-	box-shadow: var(--shadow-inset) 0px 1px 0px inset;
+	/* issue #81 — `--card-bd` è traslucido come `--border`: stesso anello. */
+	box-shadow:
+		var(--shadow-inset) 0px 1px 0px inset,
+		var(--card-bd) 0px 0px 0px 1px inset;
 	background: var(--seg-bg);
 }
 

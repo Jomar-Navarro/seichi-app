@@ -79,8 +79,15 @@ function TransactionModalContent() {
 				onClick={handleClose}
 			/>
 
-			{/* Sheet */}
-			<div className="relative w-full flex flex-col h-dvh rounded-t-4xl backdrop-blur-2xl pt-3.5 px-6 pb-6.5 modal-shadow border-t border-l border-r border-subtle bg-modal">
+			{/*
+				Sheet — TRE livelli (issue #81, i quadrati di Firefox).
+				`overflow-hidden` da solo non basta (verificato da Firefox): guscio
+				(arrotonda, ritaglia) → vetro (sfoca) → contenuto (`h-full flex
+				flex-col`, il padding). Stesso schema di `BottomSheetShell`.
+			*/}
+			<div className="relative w-full h-dvh rounded-t-4xl overflow-hidden modal-shadow-ring">
+				<div className="absolute inset-0 bg-modal backdrop-blur-2xl" />
+				<div className="relative w-full h-full flex flex-col pt-3.5 px-6 pb-6.5">
 				{/* Handle */}
 				<div className="w-10 h-1 rounded-full mx-auto mb-1 bg-modal-handle" />
 
@@ -90,7 +97,7 @@ function TransactionModalContent() {
 						{step === "form" && !editingTransaction && (
 							<button
 								onClick={() => setStep("type")}
-								className="w-8 h-8 flex items-center justify-center rounded-xl shrink-0 bg-control border border-subtle"
+								className="w-8 h-8 flex items-center justify-center rounded-xl shrink-0 bg-control ring-border"
 							>
 								<ChevronLeft size={16} />
 							</button>
@@ -116,7 +123,7 @@ function TransactionModalContent() {
 					</div>
 					<button
 						onClick={handleClose}
-						className="w-8 h-8 flex items-center justify-center rounded-xl shrink-0 bg-control border border-subtle"
+						className="w-8 h-8 flex items-center justify-center rounded-xl shrink-0 bg-control ring-border"
 					>
 						<X size={15} />
 					</button>
@@ -178,11 +185,15 @@ function TransactionModalContent() {
 									key={type.id}
 									onClick={() => handleTypeSelect(type.id)}
 									className="transaction-type-card"
+									// issue #81 — anello (box-shadow) invece di bordo: qui il
+									// colore è traslucido (36%) come `.transaction-type-card`
+									// già corregge in `globals.css`, ma la selezione lo
+									// sovrascriveva con un `border` vero.
 									style={
 										isSelected
 											? {
 													background: `color-mix(in srgb, ${type.color} 14%, transparent)`,
-													border: `1px solid color-mix(in srgb, ${type.color} 36%, transparent)`,
+													boxShadow: `color-mix(in srgb, ${type.color} 36%, transparent) 0px 0px 0px 1px inset`,
 												}
 											: {}
 									}
@@ -239,6 +250,7 @@ function TransactionModalContent() {
 						transaction={editingTransaction ?? undefined}
 					/>
 				)}
+				</div>
 			</div>
 		</div>
 	);

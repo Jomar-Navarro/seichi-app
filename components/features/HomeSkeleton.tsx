@@ -77,7 +77,7 @@ export default function HomeSkeleton() {
 
 			{/* Recent list */}
 			<div
-				className="rounded-3xl overflow-hidden border border-subtle card-shadow"
+				className="rounded-3xl overflow-hidden card-shadow-ring"
 				style={{ background: "var(--card)" }}
 			>
 				{[0, 1, 2].map((i) => (

@@ -90,7 +90,7 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 					return (
 						<div
 							key={r.id}
-							className="rounded-[22px] px-4 py-3.5 bg-card border border-subtle card-shadow"
+							className="rounded-[22px] px-4 py-3.5 bg-card card-shadow-ring"
 							style={{ opacity: r.active ? 1 : 0.6 }}
 						>
 							<div className="flex items-start gap-3">
@@ -171,7 +171,10 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 			{pending && (
 				<div className="fixed inset-0 z-50 flex items-center justify-center px-8">
 					<div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={() => setPending(null)} />
-					<div className="relative w-full max-w-xs rounded-3xl p-6 bg-modal border border-subtle modal-shadow backdrop-blur-2xl">
+					{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
+					<div className="relative w-full max-w-xs rounded-3xl overflow-hidden modal-shadow-ring">
+						<div className="absolute inset-0 bg-modal backdrop-blur-2xl" />
+						<div className="relative p-6">
 						<h3 className="text-[17px] font-semibold mb-2">{t.recurring.deleteTitle}</h3>
 						<p className="text-[13px] text-muted leading-relaxed mb-5">
 							{t.recurring.deleteBody}
@@ -179,7 +182,7 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 						<div className="flex gap-2.5">
 							<button
 								onClick={() => setPending(null)}
-								className="flex-1 py-3 rounded-2xl text-sm font-semibold bg-control border border-subtle active:opacity-80"
+								className="flex-1 py-3 rounded-2xl text-sm font-semibold bg-control ring-border active:opacity-80"
 							>
 								{t.common.cancel}
 							</button>
@@ -192,6 +195,7 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 							>
 								{deleting ? t.common.deleting : t.common.delete}
 							</button>
+						</div>
 						</div>
 					</div>
 				</div>

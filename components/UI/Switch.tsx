@@ -28,10 +28,13 @@ const CTA_ON = { track: "var(--cta-bg)", knob: "var(--cta-text)" };
 export function SwitchVisual({ checked, on = CTA_ON }: SwitchVisualProps) {
 	return (
 		<span
-			className="relative block w-9.5 h-5.5 rounded-full shrink-0 border transition-colors"
+			// issue #81 — anello (box-shadow) invece di bordo quando spento:
+			// `--border` è traslucido. Acceso non ha bisogno di alcun bordo, il
+			// riempimento basta.
+			className="relative block w-9.5 h-5.5 rounded-full shrink-0 transition-colors"
 			style={{
 				background: checked ? on.track : "var(--switch-track-off)",
-				borderColor: checked ? "transparent" : "var(--border)",
+				boxShadow: checked ? undefined : "var(--border) 0px 0px 0px 1px inset",
 			}}
 		>
 			<span

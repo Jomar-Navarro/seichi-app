@@ -24,7 +24,7 @@ export default function PrintButton() {
 	return (
 		<button
 			onClick={() => window.print()}
-			className="no-print inline-flex items-center gap-2 h-10 px-4 rounded-2xl bg-card border border-subtle text-[13.5px] font-medium active:opacity-80"
+			className="no-print inline-flex items-center gap-2 h-10 px-4 rounded-2xl bg-card ring-border text-[13.5px] font-medium active:opacity-80"
 		>
 			<Printer size={15} className="text-secondary" />
 			{t.analytics.report.print}

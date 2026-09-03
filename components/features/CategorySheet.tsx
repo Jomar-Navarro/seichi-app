@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import BottomSheetShell from "@/components/UI/BottomSheetShell";
 import { ICON_MAP } from "@/lib/icon-map";
 import { GOAL_ICON_MAP } from "@/lib/goal-icons";
 import { CATEGORY_LIBRARY } from "@/lib/category-icons";
@@ -207,25 +208,14 @@ export default function CategorySheet({
 	}
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-end">
-			<div
-				className="absolute inset-0 bg-black/30 backdrop-blur-[2px]"
-				onClick={onClose}
-			/>
-
-			<div
-				className="relative w-full flex flex-col rounded-t-4xl pt-3.5 px-6 pb-8 modal-shadow border-t border-l border-r border-subtle bg-modal backdrop-blur-2xl"
-				style={{ maxHeight: "90dvh", overflowY: "auto" }}
-			>
-				<div className="w-10 h-1 rounded-full mx-auto mb-1 bg-modal-handle shrink-0" />
-
+		<BottomSheetShell onClose={onClose}>
 				<div className="flex items-center justify-between mt-4 mb-6 shrink-0">
 					<h2 className="text-xl font-semibold">
 						{category ? t.categories.editTitle : t.categories.newTitle}
 					</h2>
 					<button
 						onClick={onClose}
-						className="w-8 h-8 flex items-center justify-center rounded-xl bg-control border border-subtle"
+						className="w-8 h-8 flex items-center justify-center rounded-xl bg-control ring-border"
 					>
 						<X size={15} />
 					</button>
@@ -242,9 +232,9 @@ export default function CategorySheet({
 							placeholder={t.categories.namePlaceholder}
 							value={name}
 							onChange={(e) => setName(e.target.value)}
-							className="w-full rounded-[18px] px-4 py-3.5 text-base bg-input border border-subtle outline-none placeholder:text-muted/60"
+							className={`w-full rounded-[18px] px-4 py-3.5 text-base bg-input outline-none placeholder:text-muted/60 ${nameError ? "" : "ring-border"}`}
 							style={{
-								borderColor: nameError ? "var(--color-aka)" : undefined,
+								boxShadow: nameError ? "var(--color-aka) 0px 0px 0px 1px inset" : undefined,
 							}}
 						/>
 						{nameError && (
@@ -333,7 +323,7 @@ export default function CategorySheet({
 								})}
 							</div>
 
-							<div className="flex items-center rounded-2xl px-4 py-3.5 bg-input border border-subtle">
+							<div className="flex items-center rounded-2xl px-4 py-3.5 bg-input ring-border">
 								<span className="text-[14.5px] text-muted mr-1.5">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
 								<input
 									type="text"
@@ -436,7 +426,6 @@ export default function CategorySheet({
 							? t.categories.saveChanges
 							: t.categories.create}
 				</button>
-			</div>
-		</div>
+		</BottomSheetShell>
 	);
 }

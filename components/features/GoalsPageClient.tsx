@@ -53,7 +53,7 @@ export default function GoalsPageClient({ goals }: GoalsPageClientProps) {
 				</div>
 				<button
 					onClick={openCreate}
-					className="flex items-center gap-1.5 px-4 py-2.5 rounded-full text-[12.5px] font-semibold card-shadow border border-subtle shrink-0"
+					className="flex items-center gap-1.5 px-4 py-2.5 rounded-full text-[12.5px] font-semibold card-shadow-ring shrink-0"
 					style={{ background: "var(--surface-elevated)" }}
 				>
 					<Plus size={13} strokeWidth={2.2} />

@@ -32,7 +32,7 @@ export default function ResetPasswordForm() {
 	return (
 		<form onSubmit={handleSubmit} className="flex flex-col">
 			<div className="flex flex-col items-center text-center mb-7">
-				<span className="w-18 h-18 rounded-[26px] flex items-center justify-center mb-5 bg-control border border-subtle box-shadow">
+				<span className="w-18 h-18 rounded-[26px] flex items-center justify-center mb-5 bg-control box-shadow-ring">
 					<Lock size={34} className="text-foreground" strokeWidth={1.5} />
 				</span>
 				<h1 className="text-[21px] font-semibold">{t.auth.recovery.resetTitle}</h1>

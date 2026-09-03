@@ -99,14 +99,16 @@ export default function AccountSelector({
 
 	return (
 		<div className="relative">
+			{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
 			<button
 				onClick={() => setOpen((o) => !o)}
-				className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl border border-subtle bg-surface backdrop-blur-md text-xs font-medium text-secondary ${
-					open ? "z-50 relative" : ""
-				}`}
+				className={`relative rounded-2xl overflow-hidden ring-border ${open ? "z-50" : ""}`}
 			>
-				{selected ? selected.name : t.accounts.all}
-				<ChevronDown size={13} className={open ? "rotate-180 transition-transform" : "transition-transform"} />
+				<span className="absolute inset-0 bg-surface backdrop-blur-md" />
+				<span className="relative flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-secondary">
+					{selected ? selected.name : t.accounts.all}
+					<ChevronDown size={13} className={open ? "rotate-180 transition-transform" : "transition-transform"} />
+				</span>
 			</button>
 
 			{open && (
@@ -116,41 +118,45 @@ export default function AccountSelector({
 						onClick={() => setOpen(false)}
 						className="fixed inset-0 z-40 bg-black/35 backdrop-blur-[1.5px]"
 					/>
-					<div
-						className="absolute left-0 top-full mt-2 z-50 w-[min(20rem,calc(100vw-2.5rem))] rounded-3xl border border-subtle modal-shadow backdrop-blur-2xl overflow-hidden"
-						style={{ background: "color-mix(in srgb, var(--color-deep) 94%, transparent)" }}
-					>
-						<AccountRow
-							label={t.accounts.all}
-							sublabel={plural(t.accounts.activeCount, selectable.length, locale)}
-							amount={selectable.reduce((sum, a) => sum + a.balance, 0)}
-							active={selected === null}
-							onClick={() => choose(null)}
-							locale={locale}
+					{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
+					<div className="absolute left-0 top-full mt-2 z-50 w-[min(20rem,calc(100vw-2.5rem))] rounded-3xl overflow-hidden modal-shadow-ring">
+						<div
+							className="absolute inset-0 backdrop-blur-2xl"
+							style={{ background: "color-mix(in srgb, var(--color-deep) 94%, transparent)" }}
 						/>
-
-						<div className="h-px bg-subtle mx-4" />
-
-						{selectable.map((a) => (
+						<div className="relative">
 							<AccountRow
-								key={a.id}
-								label={a.name}
-								sublabel={accountTypeLabel(a.type, t)}
-								amount={a.balance}
-								active={a.id === selected?.id}
-								onClick={() => choose(a.id)}
+								label={t.accounts.all}
+								sublabel={plural(t.accounts.activeCount, selectable.length, locale)}
+								amount={selectable.reduce((sum, a) => sum + a.balance, 0)}
+								active={selected === null}
+								onClick={() => choose(null)}
 								locale={locale}
 							/>
-						))}
 
-						<Link
-							href="/conti"
-							onClick={() => setOpen(false)}
-							className="flex items-center justify-between px-4 py-3.5 border-t border-subtle text-xs font-semibold text-ao-ink"
-						>
-							{t.accounts.manage}
-							<ArrowRight size={14} />
-						</Link>
+							<div className="h-px bg-subtle mx-4" />
+
+							{selectable.map((a) => (
+								<AccountRow
+									key={a.id}
+									label={a.name}
+									sublabel={accountTypeLabel(a.type, t)}
+									amount={a.balance}
+									active={a.id === selected?.id}
+									onClick={() => choose(a.id)}
+									locale={locale}
+								/>
+							))}
+
+							<Link
+								href="/conti"
+								onClick={() => setOpen(false)}
+								className="flex items-center justify-between px-4 py-3.5 border-t border-subtle text-xs font-semibold text-ao-ink"
+							>
+								{t.accounts.manage}
+								<ArrowRight size={14} />
+							</Link>
+						</div>
 					</div>
 				</>
 			)}

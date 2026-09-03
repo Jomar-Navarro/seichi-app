@@ -71,7 +71,15 @@ export default function AccountsBalanceCard({
 	const { sign, integer, decimal } = splitAmount(amount, locale);
 
 	return (
-		<div className="h-full flex flex-col rounded-3xl p-5 border border-subtle card-shadow bg-surface backdrop-blur-md">
+		/*
+			⚠️ TRE livelli — issue #81. `overflow-hidden` da solo non basta
+			(verificato da Firefox). Guscio (arrotonda, ritaglia) → vetro
+			(sfoca) → contenuto (`h-full flex flex-col p-5`, portato qui perché
+			il guscio non deve avere padding: lo spazio va al contenuto).
+		*/
+		<div className="relative h-full rounded-3xl card-shadow-ring overflow-hidden">
+			<div className="absolute inset-0 bg-surface backdrop-blur-md" />
+			<div className="relative h-full flex flex-col p-5">
 			<div className="flex items-center justify-between gap-2 mb-3">
 				<div className="flex items-center gap-2 min-w-0">
 					<p className="text-sm text-muted shrink-0">{t.accounts.balanceHeading}</p>
@@ -81,7 +89,7 @@ export default function AccountsBalanceCard({
 						(selettore di periodo), che non abbiamo reso proprio per non avere
 						un comando inerte — vedi FlowCard.
 					*/}
-					<span className="px-2.5 py-1 rounded-full text-[11px] font-medium text-secondary bg-input border border-subtle truncate">
+					<span className="px-2.5 py-1 rounded-full text-[11px] font-medium text-secondary bg-input ring-border truncate">
 						{badge}
 					</span>
 				</div>
@@ -125,6 +133,7 @@ export default function AccountsBalanceCard({
 				{t.accounts.seeDetail}
 				<ArrowRight size={13} />
 			</Link>
+			</div>
 		</div>
 	);
 }

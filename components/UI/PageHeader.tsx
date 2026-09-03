@@ -25,7 +25,7 @@ export default async function PageHeader({ title, backHref, tone, className = "m
 		<div className={`flex items-center gap-3.5 ${className}`}>
 			<Link
 				href={backHref}
-				className="w-10 h-10 rounded-xl flex items-center justify-center bg-control border border-subtle shrink-0 active:opacity-80"
+				className="w-10 h-10 rounded-xl flex items-center justify-center bg-control ring-border shrink-0 active:opacity-80"
 				aria-label={t.common.back}
 			>
 				<ChevronLeft size={17} className="text-secondary" />

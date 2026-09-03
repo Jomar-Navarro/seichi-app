@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import BottomSheetShell from "@/components/UI/BottomSheetShell";
 import { GOAL_ICONS } from "@/lib/goal-icons";
 import { createGoal, updateGoal, deleteGoal } from "@/app/(main)/risparmi/actions";
 import { useI18n } from "./I18nProvider";
@@ -124,25 +125,14 @@ export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 	}
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-end">
-			<div
-				className="absolute inset-0 bg-black/30 backdrop-blur-[2px]"
-				onClick={onClose}
-			/>
-
-			<div
-				className="relative w-full flex flex-col rounded-t-4xl pt-3.5 px-6 pb-8 modal-shadow border-t border-l border-r border-subtle bg-modal backdrop-blur-2xl"
-				style={{ maxHeight: "90dvh", overflowY: "auto" }}
-			>
-				<div className="w-10 h-1 rounded-full mx-auto mb-1 bg-modal-handle shrink-0" />
-
+		<BottomSheetShell onClose={onClose}>
 				<div className="flex items-center justify-between mt-4 mb-6 shrink-0">
 					<h2 className="text-xl font-semibold">
 						{goal ? t.goals.editTitle : t.goals.newTitle}
 					</h2>
 					<button
 						onClick={onClose}
-						className="w-8 h-8 flex items-center justify-center rounded-xl bg-control border border-subtle"
+						className="w-8 h-8 flex items-center justify-center rounded-xl bg-control ring-border"
 					>
 						<X size={15} />
 					</button>
@@ -157,8 +147,8 @@ export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 							placeholder={t.goals.namePlaceholder}
 							value={form.name}
 							onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-							className="w-full rounded-[18px] px-4 py-3.5 text-[14.5px] bg-input border border-subtle outline-none placeholder:text-muted/60"
-							style={{ borderColor: nameError ? "var(--color-aka)" : undefined }}
+							className={`w-full rounded-[18px] px-4 py-3.5 text-[14.5px] bg-input outline-none placeholder:text-muted/60 ${nameError ? "" : "ring-border"}`}
+							style={nameError ? { boxShadow: "var(--color-aka) 0px 0px 0px 1px inset" } : undefined}
 						/>
 						{nameError && (
 							<p className="text-xs mt-1.5 ml-1" style={{ color: "var(--ink-aka)" }}>
@@ -174,8 +164,8 @@ export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 							<span className="text-muted opacity-60">{t.goals.optional}</span>
 						</label>
 						<div
-							className="flex items-center gap-2 rounded-[18px] px-4 py-3.5 bg-input border border-subtle"
-							style={{ borderColor: amountError ? "var(--color-aka)" : undefined }}
+							className={`flex items-center gap-2 rounded-[18px] px-4 py-3.5 bg-input ${amountError ? "" : "ring-border"}`}
+							style={amountError ? { boxShadow: "var(--color-aka) 0px 0px 0px 1px inset" } : undefined}
 						>
 							<span className="text-[14.5px] text-muted">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
 							<input
@@ -206,7 +196,7 @@ export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 							value={form.targetDate}
 							onChange={(iso) => setForm((f) => ({ ...f, targetDate: iso }))}
 							placeholder={t.goals.noDeadline}
-							className="rounded-[18px] px-4 py-3.5 bg-input border border-subtle"
+							className="rounded-[18px] px-4 py-3.5 bg-input ring-border"
 						/>
 					</div>
 
@@ -261,12 +251,16 @@ export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 					<button
 						onClick={handleDelete}
 						disabled={loading}
-						className="mt-3 w-full py-3.5 rounded-2xl text-sm font-semibold border disabled:opacity-50 transition-colors hover:bg-[color-mix(in_srgb,var(--color-aka)_8%,transparent)]"
+						// issue #81 — a riposo il colore è un `--color-aka` diluito al 35%,
+						// cioè traslucido: un `border` vero lì romperebbe l'angolo su
+						// Firefox. Solo `confirmDelete` (colore opaco) usa un bordo vero.
+						className={`mt-3 w-full py-3.5 rounded-2xl text-sm font-semibold disabled:opacity-50 transition-colors hover:bg-[color-mix(in_srgb,var(--color-aka)_8%,transparent)] ${confirmDelete ? "border" : ""}`}
 						style={{
 							color: "var(--ink-aka)",
-							borderColor: confirmDelete
-								? "var(--color-aka)"
-								: "color-mix(in srgb, var(--color-aka) 35%, transparent)",
+							borderColor: confirmDelete ? "var(--color-aka)" : undefined,
+							boxShadow: confirmDelete
+								? undefined
+								: "color-mix(in srgb, var(--color-aka) 35%, transparent) 0px 0px 0px 1px inset",
 							background: confirmDelete
 								? "color-mix(in srgb, var(--color-aka) 12%, transparent)"
 								: undefined,
@@ -275,7 +269,6 @@ export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 						{confirmDelete ? t.goals.deleteConfirm : t.goals.delete}
 					</button>
 				)}
-			</div>
-		</div>
+		</BottomSheetShell>
 	);
 }

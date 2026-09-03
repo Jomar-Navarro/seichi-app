@@ -120,7 +120,7 @@ export default function AccountsPageClient({ accounts }: AccountsPageClientProps
 				</div>
 				<button
 					onClick={openCreate}
-					className="flex items-center gap-1.5 px-4 py-2.5 rounded-full text-[12.5px] font-semibold card-shadow border border-subtle shrink-0"
+					className="flex items-center gap-1.5 px-4 py-2.5 rounded-full text-[12.5px] font-semibold card-shadow-ring shrink-0"
 					style={{ background: "var(--surface-elevated)" }}
 				>
 					<Plus size={13} strokeWidth={2.2} />
@@ -152,7 +152,10 @@ export default function AccountsPageClient({ accounts }: AccountsPageClientProps
 					)}
 
 					{/* Il saldo complessivo dei soli conti attivi. */}
-					<div className="rounded-3xl p-5 border border-subtle card-shadow bg-surface backdrop-blur-md">
+					{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
+					<div className="relative rounded-3xl card-shadow-ring overflow-hidden">
+						<div className="absolute inset-0 bg-surface backdrop-blur-md" />
+						<div className="relative p-5">
 						<p className="text-sm text-muted mb-2">{t.accounts.balanceHeading}</p>
 						<p className="font-semibold tracking-tight flex items-baseline gap-0.5">
 							<span className="text-2xl font-semibold mr-1">
@@ -161,6 +164,7 @@ export default function AccountsPageClient({ accounts }: AccountsPageClientProps
 							<span className="text-4xl">{sign}{integer}</span>
 							<span className="text-2xl font-medium text-muted">{decimal}</span>
 						</p>
+						</div>
 					</div>
 
 					{rowError && (
@@ -394,7 +398,7 @@ function ActiveAccountRow({
 							onEdit();
 						}}
 						aria-label={t.common.edit}
-						className="w-11 h-11 rounded-2xl flex items-center justify-center bg-control border border-subtle shrink-0"
+						className="w-11 h-11 rounded-2xl flex items-center justify-center bg-control ring-border shrink-0"
 					>
 						<Pencil size={17} className="text-secondary" />
 					</button>
@@ -405,13 +409,19 @@ function ActiveAccountRow({
 							onArchive();
 						}}
 						aria-label={t.accounts.archive}
-						className="w-11 h-11 rounded-2xl flex items-center justify-center bg-control border border-subtle shrink-0"
+						className="w-11 h-11 rounded-2xl flex items-center justify-center bg-control ring-border shrink-0"
 					>
 						<Archive size={17} style={{ color: "var(--ink-aka)" }} />
 					</button>
 				</div>
 			)}
 
+			{/*
+				⚠️ TRE livelli sulla riga — issue #81. `overflow-hidden` da solo
+				non basta (verificato da Firefox). Guscio (il `<button>`: arrotonda,
+				ritaglia, trasla) → vetro (assoluto, riempie, sfoca) → contenuto
+				(`p-4`, ciò che si vede).
+			*/}
 			<button
 				onPointerDown={onPointerDown}
 				onPointerMove={onPointerMove}
@@ -420,28 +430,31 @@ function ActiveAccountRow({
 				onClick={handleTap}
 				aria-expanded={isOpen}
 				style={{ transform: `translateX(${offset}px)`, touchAction: "pan-y" }}
-				className={`relative w-full flex items-center gap-3 p-4 rounded-3xl border border-subtle card-shadow bg-surface backdrop-blur-md text-left ${
+				className={`relative w-full rounded-3xl card-shadow-ring overflow-hidden text-left ${
 					dragOffset === null ? "transition-transform duration-200" : ""
 				}`}
 			>
-				<span
-					className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
-					style={{ background: `color-mix(in srgb, ${color} 16%, transparent)` }}
-				>
-					<Icon size={19} style={{ color }} />
-				</span>
-
-				<span className="flex-1 min-w-0">
-					<span className="block text-[14.5px] font-medium text-foreground truncate">
-						{account.name}
+				<span className="absolute inset-0 bg-surface backdrop-blur-md" />
+				<span className="relative flex items-center gap-3 p-4">
+					<span
+						className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
+						style={{ background: `color-mix(in srgb, ${color} 16%, transparent)` }}
+					>
+						<Icon size={19} style={{ color }} />
 					</span>
-					<span className="block text-[11.5px] text-muted">
-						{accountTypeLabel(account.type, t)}
-					</span>
-				</span>
 
-				<span className="text-[14.5px] font-semibold text-foreground shrink-0">
-					{formatMoney(account.balance, { locale, currency: DISPLAY_CURRENCY, decimals: 2 })}
+					<span className="flex-1 min-w-0">
+						<span className="block text-[14.5px] font-medium text-foreground truncate">
+							{account.name}
+						</span>
+						<span className="block text-[11.5px] text-muted">
+							{accountTypeLabel(account.type, t)}
+						</span>
+					</span>
+
+					<span className="text-[14.5px] font-semibold text-foreground shrink-0">
+						{formatMoney(account.balance, { locale, currency: DISPLAY_CURRENCY, decimals: 2 })}
+					</span>
 				</span>
 			</button>
 		</div>
@@ -490,7 +503,10 @@ function ArchivedAccountRow({
 	}
 
 	return (
-		<div className="relative z-30 w-full flex items-center gap-3 p-4 rounded-3xl border border-subtle card-shadow bg-surface backdrop-blur-md opacity-55">
+		/* ⚠️ TRE livelli — issue #81. Guscio (opacità, ritaglio) → vetro → contenuto. */
+		<div className="relative z-30 w-full rounded-3xl card-shadow-ring overflow-hidden opacity-55">
+			<div className="absolute inset-0 bg-surface backdrop-blur-md" />
+			<div className="relative flex items-center gap-3 p-4">
 			<button onClick={handleTap} className="flex items-center gap-3 flex-1 min-w-0 text-left">
 				<span
 					className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
@@ -514,6 +530,7 @@ function ArchivedAccountRow({
 					{formatMoney(account.balance, { locale, currency: DISPLAY_CURRENCY, decimals: 2 })}
 				</span>
 				{action}
+			</div>
 			</div>
 		</div>
 	);

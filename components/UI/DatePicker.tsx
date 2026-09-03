@@ -63,7 +63,7 @@ export default function DatePicker({
 	onChange,
 	min,
 	placeholder,
-	className = "rounded-2xl px-4 py-3 bg-card border border-subtle",
+	className = "rounded-2xl px-4 py-3 bg-card ring-border",
 }: DatePickerProps) {
 	const { locale } = useI18n();
 	const selected = value ? new Date(`${value}T12:00:00`) : null;
@@ -116,12 +116,12 @@ export default function DatePicker({
 			</button>
 
 			{open && (
-				<div className="absolute top-full mt-1 left-0 right-0 z-20 rounded-2xl bg-deep border border-subtle p-3">
+				<div className="absolute top-full mt-1 left-0 right-0 z-20 rounded-2xl bg-deep ring-border p-3">
 					<div className="flex items-center justify-between mb-2">
 						<button
 							type="button"
 							onClick={() => navigateMonth(-1)}
-							className="w-7 h-7 flex items-center justify-center rounded-xl bg-card border border-subtle"
+							className="w-7 h-7 flex items-center justify-center rounded-xl bg-card ring-border"
 						>
 							<ChevronLeft size={14} />
 						</button>
@@ -131,7 +131,7 @@ export default function DatePicker({
 						<button
 							type="button"
 							onClick={() => navigateMonth(1)}
-							className="w-7 h-7 flex items-center justify-center rounded-xl bg-card border border-subtle"
+							className="w-7 h-7 flex items-center justify-center rounded-xl bg-card ring-border"
 						>
 							<ChevronRight size={14} />
 						</button>
@@ -168,7 +168,7 @@ export default function DatePicker({
 										isSelected
 											? "btn-primary font-semibold"
 											: isToday
-												? "border border-subtle font-medium"
+												? "ring-border font-medium"
 												: "hover:bg-card"
 									}`}
 								>

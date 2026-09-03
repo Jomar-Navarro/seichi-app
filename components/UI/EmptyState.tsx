@@ -45,7 +45,7 @@ export default function EmptyState({
 			{actionLabel && onAction && (
 				<button
 					onClick={onAction}
-					className="px-[22px] py-3 rounded-full text-[13px] font-medium border border-subtle card-shadow"
+					className="px-[22px] py-3 rounded-full text-[13px] font-medium card-shadow-ring"
 					style={{ background: "var(--surface)", color: "var(--text-secondary)" }}
 				>
 					{actionLabel}

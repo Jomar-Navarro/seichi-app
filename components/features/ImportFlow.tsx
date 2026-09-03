@@ -293,7 +293,7 @@ export default function ImportFlow({ accounts, categories, previous }: Props) {
 
 	if (accounts.length === 0) {
 		return (
-			<p className="text-sm text-muted rounded-3xl bg-card border border-subtle p-5">
+			<p className="text-sm text-muted rounded-3xl bg-card ring-border p-5">
 				{t.import.file.noAccounts}
 			</p>
 		);
@@ -305,10 +305,11 @@ export default function ImportFlow({ accounts, categories, previous }: Props) {
 
 			{error && (
 				<p
-					className="text-[13px] rounded-2xl px-4 py-3 mb-4 border"
+					className="text-[13px] rounded-2xl px-4 py-3 mb-4"
+					// issue #81 — anello (box-shadow), non bordo: il colore è traslucido (30%).
 					style={{
 						color: "var(--ink-aka)",
-						borderColor: "color-mix(in srgb, var(--color-aka) 30%, transparent)",
+						boxShadow: "color-mix(in srgb, var(--color-aka) 30%, transparent) 0px 0px 0px 1px inset",
 						background: "color-mix(in srgb, var(--color-aka) 10%, transparent)",
 					}}
 				>
@@ -399,7 +400,10 @@ export default function ImportFlow({ accounts, categories, previous }: Props) {
 
 			{step === "riepilogo" && result && (
 				<div className="flex flex-col grow justify-center gap-6">
-					<div className="rounded-[26px] bg-surface border border-subtle card-shadow backdrop-blur-xl overflow-hidden">
+					{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
+					<div className="relative rounded-[26px] overflow-hidden card-shadow-ring">
+						<div className="absolute inset-0 bg-surface backdrop-blur-xl" />
+						<div className="relative">
 						<div className="flex items-center gap-3 p-4.5 border-b border-subtle">
 							<span className="w-9 h-9 rounded-xl bg-control flex items-center justify-center shrink-0">
 								<FileText size={16} className="text-secondary" />
@@ -426,6 +430,7 @@ export default function ImportFlow({ accounts, categories, previous }: Props) {
 								/>
 							)}
 						</div>
+						</div>
 					</div>
 
 					<button
@@ -441,7 +446,10 @@ export default function ImportFlow({ accounts, categories, previous }: Props) {
 
 			{step === "fatto" && outcome && (
 				<div className="flex flex-col grow justify-center gap-6">
-					<div className="rounded-[26px] bg-surface border border-subtle card-shadow backdrop-blur-xl p-6 flex flex-col gap-3.5">
+					{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
+					<div className="relative rounded-[26px] overflow-hidden card-shadow-ring">
+						<div className="absolute inset-0 bg-surface backdrop-blur-xl" />
+						<div className="relative p-6 flex flex-col gap-3.5">
 						<p className="text-lg font-semibold">{t.import.done.title}</p>
 						{outcome.imported === 0 ? (
 							<p className="text-sm text-muted">{t.import.done.nothing}</p>
@@ -454,19 +462,20 @@ export default function ImportFlow({ accounts, categories, previous }: Props) {
 						{outcome.skipped > 0 && (
 							<SummaryLine muted text={plural(t.import.done.skipped, outcome.skipped, locale)} />
 						)}
+						</div>
 					</div>
 
 					{outcome.importId && !undone && (
 						<div className="flex flex-col gap-3">
 							{confirmUndo ? (
-								<div className="rounded-[22px] border border-subtle bg-card p-4.5">
+								<div className="rounded-[22px] ring-border bg-card p-4.5">
 									<p className="text-sm font-semibold mb-1">{t.import.done.undoTitle}</p>
 									<p className="text-[12.5px] text-muted mb-4">{t.import.done.undoBody}</p>
 									<div className="flex gap-2.5">
 										<button
 											type="button"
 											onClick={() => setConfirmUndo(false)}
-											className="flex-1 h-11 rounded-2xl border border-subtle bg-control text-sm font-medium"
+											className="flex-1 h-11 rounded-2xl ring-border bg-control text-sm font-medium"
 										>
 											{t.import.done.undoCancel}
 										</button>
@@ -602,11 +611,25 @@ function FileStep({
 					if (dropped) onPick(dropped);
 				}}
 				onClick={() => inputRef.current?.click()}
-				className="rounded-[28px] border-[1.5px] border-dashed bg-card backdrop-blur-xl flex flex-col items-center justify-center text-center px-7 py-12 gap-4 cursor-pointer"
+				/*
+					⚠️ TRE livelli — issue #81. Guscio (bordo tratteggiato, ritaglio,
+					i gestori di drag) → vetro → contenuto. La `className` resta
+					sull'elemento con i gestori: gli eventi risalgono comunque da
+					qualunque figlio venga toccato.
+
+					⚠️ Il bordo qui resta VERO, non un anello: `box-shadow` non sa
+					disegnare `border-dashed`. Residuo dichiarato dell'issue #81 — non
+					segnalato finora, e se dovesse mostrarsi va risolto cambiando il
+					disegno (un bordo tratteggiato non arrotondato, o un pattern via
+					`background-image`), non forzando un box-shadow che non può renderlo.
+				*/
+				className="relative rounded-[28px] border-[1.5px] border-dashed overflow-hidden cursor-pointer"
 				style={{
 					borderColor: dragging ? "var(--color-midori)" : "var(--border)",
 				}}
 			>
+				<div className="absolute inset-0 bg-card backdrop-blur-xl" />
+				<div className="relative flex flex-col items-center justify-center text-center px-7 py-12 gap-4">
 				<span className="w-16 h-16 rounded-[20px] bg-control flex items-center justify-center">
 					{file ? (
 						<FileText size={26} className="text-secondary" />
@@ -629,6 +652,7 @@ function FileStep({
 						<p className="text-xs text-muted leading-relaxed max-w-55">{t.import.file.hint}</p>
 					</>
 				)}
+				</div>
 			</div>
 
 			<input
@@ -680,10 +704,11 @@ function FileStep({
 				*/}
 				{read?.source === "trade_republic" && (
 					<p
-						className="text-[12px] leading-relaxed mt-2.5 rounded-2xl px-3.5 py-2.5 border"
+						className="text-[12px] leading-relaxed mt-2.5 rounded-2xl px-3.5 py-2.5"
+						// issue #81 — anello (box-shadow), non bordo: il colore è traslucido (32%).
 						style={{
 							color: "var(--ink-kin)",
-							borderColor: "color-mix(in srgb, var(--color-kin) 32%, transparent)",
+							boxShadow: "color-mix(in srgb, var(--color-kin) 32%, transparent) 0px 0px 0px 1px inset",
 							background: "color-mix(in srgb, var(--color-kin) 10%, transparent)",
 						}}
 					>
@@ -695,7 +720,7 @@ function FileStep({
 			</div>
 
 			{needsMapping && (
-				<div className="mt-6 rounded-[22px] border border-subtle bg-card p-4.5 flex flex-col gap-4">
+				<div className="mt-6 rounded-[22px] ring-border bg-card p-4.5 flex flex-col gap-4">
 					<div>
 						<p className="text-sm font-semibold">{t.import.mapping.title}</p>
 						<p className="text-[12.5px] text-muted mt-1">{t.import.mapping.hint}</p>
@@ -860,7 +885,7 @@ function AccountPicker({
 						onChange={(e) => setName(e.target.value)}
 						placeholder={t.import.file.newAccountName}
 						maxLength={50}
-						className="flex-1 min-w-0 h-11 px-3.5 rounded-2xl bg-input border border-subtle text-sm"
+						className="flex-1 min-w-0 h-11 px-3.5 rounded-2xl bg-input ring-border text-sm"
 					/>
 					<button
 						type="button"
@@ -941,7 +966,7 @@ function ImportHistory({
 			)}
 			<div className="flex flex-col gap-2.5">
 				{items.map((it) => (
-					<div key={it.id} className="rounded-[20px] border border-subtle bg-card p-4">
+					<div key={it.id} className="rounded-[20px] ring-border bg-card p-4">
 						<div className="flex items-center gap-3">
 							<span className="w-8 h-8 rounded-[10px] bg-control flex items-center justify-center shrink-0">
 								<FileText size={14} className="text-secondary" />
@@ -962,7 +987,7 @@ function ImportHistory({
 									<button
 										type="button"
 										onClick={() => setConfirming(null)}
-										className="flex-1 h-10 rounded-xl border border-subtle bg-control text-[13px] font-medium"
+										className="flex-1 h-10 rounded-xl ring-border bg-control text-[13px] font-medium"
 									>
 										{t.import.done.undoCancel}
 									</button>
@@ -1068,8 +1093,23 @@ function GroupCard({
 		 * dalla pastiglia e dal FAB. Nessuno z-index scritto dentro `Select` può
 		 * rimediare — l'unico che può alzare la card è chi la disegna.
 		 */
+		/*
+		 * ⚠️ NIENTE `overflow-hidden` qui — issue #81 (i quadrati di Firefox).
+		 *
+		 * Sarebbe la correzione ovvia, e qui è quella SBAGLIATA: il commento sopra
+		 * spiega che il menu di `Select` esce da questa card innalzando lo z-index
+		 * suo, non il proprio — l'unico modo che ha di superare la `BottomNav`.
+		 * `overflow-hidden` ritaglierebbe quel menu esattamente al bordo della
+		 * card, qualunque z-index porti con sé. La correzione giusta è la stessa
+		 * separazione arrotonda/scorre usata per i bottom sheet — un guscio
+		 * esterno che ritaglia i propri angoli, un contenuto interno libero di
+		 * uscire — ma qui va progettata apposta, non riusata di corsa: lasciata
+		 * per un giro a sé. Il BORDO invece si corregge comunque (`ring-border`):
+		 * un box-shadow non ha bisogno di `overflow-hidden` per ritagliarsi bene
+		 * sull'angolo in Firefox, solo lo sfocamento ne ha bisogno.
+		 */
 		<div
-			className="relative rounded-[22px] border border-subtle bg-card backdrop-blur-xl"
+			className="relative rounded-[22px] ring-border bg-card backdrop-blur-xl"
 			style={{ zIndex: openMenus > 0 ? 60 : zIndex }}
 		>
 			<div className="p-4.5">

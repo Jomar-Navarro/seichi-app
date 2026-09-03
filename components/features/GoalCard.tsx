@@ -78,19 +78,26 @@ export default function GoalCard({ goal, onEdit }: GoalCardProps) {
 	const Icon = GOAL_ICON_MAP[goal.icon] ?? ICON_MAP[goal.icon];
 
 	return (
+		// ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. Il bordo era
+		// inline (`borderColor: "var(--border)"`, mai la classe `border-subtle`)
+		// e per questo era sfuggito al primo giro di correzioni: stesso bug,
+		// anello invece di bordo (`ring-border`), sul guscio.
 		<button
 			onClick={() => onEdit(goal)}
-			className="w-full text-left rounded-3xl p-4.5 border active:opacity-75 transition-opacity"
-			style={{
-				// Lo stato "completato" era cablato su valori chiari (marrone al 4%):
-				// giusto per caso in tema chiaro, invisibile in scuro.
-				background: completed ? "var(--seg-bg)" : "var(--surface)",
-				borderColor: "var(--border)",
-				backdropFilter: completed ? "none" : "blur(18px)",
-				WebkitBackdropFilter: completed ? "none" : "blur(18px)",
-				boxShadow: `inset 0 1px 0 ${completed ? "transparent" : "var(--shadow-inset)"}`,
-			}}
+			className="relative w-full text-left rounded-3xl overflow-hidden active:opacity-75 transition-opacity ring-border"
 		>
+			<div
+				className="absolute inset-0"
+				style={{
+					// Lo stato "completato" era cablato su valori chiari (marrone al 4%):
+					// giusto per caso in tema chiaro, invisibile in scuro.
+					background: completed ? "var(--seg-bg)" : "var(--surface)",
+					backdropFilter: completed ? "none" : "blur(18px)",
+					WebkitBackdropFilter: completed ? "none" : "blur(18px)",
+					boxShadow: `inset 0 1px 0 ${completed ? "transparent" : "var(--shadow-inset)"}`,
+				}}
+			/>
+			<div className="relative p-4.5">
 			<div className="flex items-center gap-3">
 				<span
 					className="w-10 h-10 shrink-0 rounded-2xl flex items-center justify-center"
@@ -143,6 +150,7 @@ export default function GoalCard({ goal, onEdit }: GoalCardProps) {
 					</span>
 				)}
 			</p>
+			</div>
 		</button>
 	);
 }

@@ -316,7 +316,7 @@ export default function MovimentiPage() {
 					<button
 						onClick={loadMore}
 						disabled={loading}
-						className="w-full mt-4 py-3 rounded-2xl bg-card border border-subtle text-sm font-medium text-secondary disabled:opacity-50"
+						className="w-full mt-4 py-3 rounded-2xl bg-card ring-border text-sm font-medium text-secondary disabled:opacity-50"
 					>
 						{loading ? t.common.loading : t.transactions.loadMore}
 					</button>

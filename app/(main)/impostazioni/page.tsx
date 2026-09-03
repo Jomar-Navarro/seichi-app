@@ -61,18 +61,22 @@ export default async function ImpostazioniPage() {
 			<PageHeader title={t.settings.title} backHref="/" className="mb-5.5" />
 
 			{/* Profilo */}
+			{/* ⚠️ TRE livelli — issue #81. Guscio (Link) → vetro → contenuto. */}
 			<Link
 				href="/impostazioni/profilo"
-				className="flex items-center gap-3.5 rounded-[26px] p-4.5 mb-6 bg-surface border border-subtle card-shadow backdrop-blur-xl active:opacity-80"
+				className="relative flex rounded-[26px] mb-6 card-shadow-ring overflow-hidden active:opacity-80"
 			>
+				<span className="absolute inset-0 bg-surface backdrop-blur-xl" />
+				<span className="relative flex items-center gap-3.5 p-4.5 w-full">
 				<Avatar src={account.avatarUrl} initials={account.initials} size={60} />
 				<div className="flex-1 min-w-0">
 					<p className="text-[16.5px] font-semibold truncate">{account.displayName}</p>
 					<p className="text-[12.5px] text-muted mt-0.5 truncate">{account.email}</p>
 				</div>
-				<span className="inline-flex items-center gap-1.5 py-2 px-3 rounded-full bg-control border border-subtle text-xs font-medium text-secondary shrink-0">
+				<span className="inline-flex items-center gap-1.5 py-2 px-3 rounded-full bg-control ring-border text-xs font-medium text-secondary shrink-0">
 					<Pencil size={12} />
 					{t.settings.editProfile}
+				</span>
 				</span>
 			</Link>
 

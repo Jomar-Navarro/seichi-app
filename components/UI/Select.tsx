@@ -115,7 +115,7 @@ export default function Select({
 				<button
 					ref={triggerRef}
 					onClick={toggle}
-					className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-card border border-subtle"
+					className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-card ring-border"
 				>
 					{selectedOption?.icon && (
 						<span className="shrink-0">{selectedOption.icon}</span>
@@ -143,7 +143,7 @@ export default function Select({
 					 * solo dentro le card dell'import.
 					 */
 					<div
-						className={`absolute ${openUp ? "bottom-full mb-1" : "top-full mt-1"} left-0 right-0 z-10 rounded-2xl bg-deep border border-subtle max-h-[min(320px,45vh)] overflow-y-auto`}
+						className={`absolute ${openUp ? "bottom-full mb-1" : "top-full mt-1"} left-0 right-0 z-10 rounded-2xl bg-deep ring-border max-h-[min(320px,45vh)] overflow-y-auto`}
 					>
 						{options.map((option) => (
 							<button
@@ -171,25 +171,35 @@ export default function Select({
 			<div className="text-xs tracking-[1.8px] uppercase text-muted mb-2.5 ms-1">
 				{title}
 			</div>
+			{/*
+				⚠️ DUE livelli, non uno — issue #81 (i quadrati di Firefox).
+				`overflow-hidden` da solo NON basta: provato guardando l'app vera da
+				Firefox, i quadrati restavano lo stesso. La correzione che ha retto è
+				separare `border-radius` da `backdrop-filter` su elementi diversi —
+				vedi la nota in `BottomSheetShell`, che segue lo stesso schema.
+			*/}
 			<button
 				ref={triggerRef}
 				onClick={toggle}
-				className="w-full flex items-center justify-between py-3.5 px-4 rounded-[20px] cursor-pointer text-inherit bg-input border border-subtle backdrop-blur-[20px] box-shadow"
+				className="relative w-full rounded-[20px] cursor-pointer text-inherit overflow-hidden box-shadow-ring"
 			>
-				<span className="flex items-center gap-3">
-					<span className="w-10 h-10 rounded-xl bg-input flex items-center justify-center text-lg text-foreground">
-						{selectedOption?.icon}
-					</span>
-					<span className="flex flex-col gap-1 text-start">
-						<span className="text-sm font-semibold">
-							{selectedOption?.label}
+				<span className="absolute inset-0 bg-input backdrop-blur-[20px]" />
+				<span className="relative flex items-center justify-between py-3.5 px-4">
+					<span className="flex items-center gap-3">
+						<span className="w-10 h-10 rounded-xl bg-input flex items-center justify-center text-lg text-foreground">
+							{selectedOption?.icon}
 						</span>
-						<span className="text-xs text-muted uppercase">
-							{selectedOption?.value}
+						<span className="flex flex-col gap-1 text-start">
+							<span className="text-sm font-semibold">
+								{selectedOption?.label}
+							</span>
+							<span className="text-xs text-muted uppercase">
+								{selectedOption?.value}
+							</span>
 						</span>
 					</span>
+					<ChevronDown size={17} className="text-muted" />
 				</span>
-				<ChevronDown size={17} className="text-muted" />
 			</button>
 
 			{isOpen && (
@@ -199,28 +209,43 @@ export default function Select({
 				 * l'alto — questa variante vive nelle pagine di onboarding, che non
 				 * hanno la bottom nav e tengono il campo in alto.
 				 */
-				<div className="absolute top-full mt-2 left-0 right-0 z-30 p-2 rounded-[20px] bg-deep border border-subtle backdrop-blur-[30px] input-shadow max-h-[min(340px,50vh)] overflow-y-auto">
-					{options.map((option) => (
-						<div
-							onClick={() => {
-								onChange(option.value);
-								setIsOpen(false);
-								onOpenChange?.(false);
-							}}
-							key={option.value}
-							className="flex items-center justify-between py-2.5 px-3 cursor-pointer"
-						>
-							<span className="flex items-center gap-3">
-								<span className="w-6 text-center text-sm text-foreground">
-									{option?.icon}
+				/*
+				 * ⚠️ TRE livelli — issue #81 (i quadrati di Firefox).
+				 *
+				 * `overflow-hidden` da solo NON basta (provato da Firefox: restava
+				 * lo stesso), e in più qui c'era un secondo motivo per separare:
+				 * `overflowY: auto` da solo sullo stesso elemento avrebbe spento lo
+				 * scroll insieme ai quadrati, perché è la STESSA proprietà su
+				 * entrambi gli assi. Guscio (arrotonda, ritaglia, NIENTE sfocatura
+				 * propria) → vetro (riempie esatto, sfoca, NIENTE angoli propri) →
+				 * contenuto (scroll, tetto d'altezza). Stesso schema di
+				 * `BottomSheetShell`.
+				 */
+				<div className="absolute top-full mt-2 left-0 right-0 z-30 rounded-[20px] overflow-hidden box-shadow-ring">
+					<div className="absolute inset-0 bg-deep backdrop-blur-[30px]" />
+					<div className="relative p-2 max-h-[min(340px,50vh)] overflow-y-auto">
+						{options.map((option) => (
+							<div
+								onClick={() => {
+									onChange(option.value);
+									setIsOpen(false);
+									onOpenChange?.(false);
+								}}
+								key={option.value}
+								className="flex items-center justify-between py-2.5 px-3 cursor-pointer"
+							>
+								<span className="flex items-center gap-3">
+									<span className="w-6 text-center text-sm text-foreground">
+										{option?.icon}
+									</span>
+									<span className="text-sm text-foreground">{option.label}</span>
 								</span>
-								<span className="text-sm text-foreground">{option.label}</span>
-							</span>
-							{option.value === selected && (
-								<Check size={17} className="text-midori" />
-							)}
-						</div>
-					))}
+								{option.value === selected && (
+									<Check size={17} className="text-midori" />
+								)}
+							</div>
+						))}
+					</div>
 				</div>
 			)}
 		</div>

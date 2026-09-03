@@ -24,7 +24,14 @@ export default function LoginForm({ onTabChange, notice }: LoginFormProps) {
 
 	return (
 		<div className="grow shrink basis-0 flex flex-col h-full overflow-y-auto pt-12 px-7 pb-7 md:py-18 md:px-20 lg:p-8">
-			<div className="w-full max-w-md xl:max-w-lg 2xl:max-w-xl mx-auto grow lg:grow-0 my-auto flex flex-col lg:bg-surface lg:border lg:border-subtle lg:rounded-2xl lg:px-8 lg:py-8 xl:px-10 xl:py-10 lg:backdrop-blur-sm">
+			{/*
+				⚠️ TRE livelli, ma solo `lg:` conta — issue #81. Sotto `lg:` questo
+				pannello non ha né arrotondamento né sfocatura: il vetro (sotto)
+				resta un `div` vuoto e innocuo, senza alcun effetto sul mobile.
+			*/}
+			<div className="relative w-full max-w-md xl:max-w-lg 2xl:max-w-xl mx-auto grow lg:grow-0 my-auto flex flex-col lg:rounded-2xl lg:overflow-hidden lg:ring-border">
+				<div className="absolute inset-0 lg:bg-surface lg:backdrop-blur-sm" />
+				<div className="relative flex flex-col lg:px-8 lg:py-8 xl:px-10 xl:py-10">
 				<div className="lg:hidden">
 					<BrandHeader />
 				</div>
@@ -48,14 +55,16 @@ export default function LoginForm({ onTabChange, notice }: LoginFormProps) {
 				<div className="grow flex flex-col">
 					{notice && (
 						<p
-							className="text-xs text-center rounded-2xl px-4 py-3 mb-4 border"
+							className="text-xs text-center rounded-2xl px-4 py-3 mb-4"
 							// Testo sull'inchiostro, fondo e bordo sull'accento: è la
 							// conferma di un'operazione di sicurezza appena riuscita, e
 							// sul proprio stesso fondo l'accento la lasciava a ~3,1:1.
+							// issue #81 — anello (box-shadow), non bordo: il colore è
+							// traslucido (28%).
 							style={{
 								color: "var(--ink-midori)",
 								background: "color-mix(in srgb, var(--color-midori) 12%, transparent)",
-								borderColor: "color-mix(in srgb, var(--color-midori) 28%, transparent)",
+								boxShadow: "color-mix(in srgb, var(--color-midori) 28%, transparent) 0px 0px 0px 1px inset",
 							}}
 						>
 							{notice}
@@ -124,6 +133,7 @@ export default function LoginForm({ onTabChange, notice }: LoginFormProps) {
 							variant="oauth"
 						/>
 					</div>
+				</div>
 				</div>
 			</div>
 		</div>

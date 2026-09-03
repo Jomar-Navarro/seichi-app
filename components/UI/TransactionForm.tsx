@@ -508,7 +508,7 @@ export default function TransactionForm({
 				{/* Descrizione */}
 				<div>
 					<p className="text-xs text-muted mb-1.5">{t.transactions.form.description}</p>
-					<div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-card border border-subtle">
+					<div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-card ring-border">
 						<Pencil size={14} className="text-muted shrink-0" />
 						<input
 							type="text"
@@ -549,7 +549,7 @@ export default function TransactionForm({
 					<button
 						type="button"
 						onClick={() => setIsRecurring((v) => !v)}
-						className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-card border border-subtle"
+						className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-card ring-border"
 					>
 						<Repeat size={14} className="text-muted shrink-0" />
 						<span className="text-sm flex-1 text-left">{t.transactions.form.repeat}</span>
@@ -618,7 +618,7 @@ export default function TransactionForm({
 							e.preventDefault();
 							handleKey(key);
 						}}
-						className={`flex items-center justify-center rounded-2xl bg-card border border-subtle text-lg font-medium ${recurring ? "h-12" : "h-14"}`}
+						className={`flex items-center justify-center rounded-2xl bg-card ring-border text-lg font-medium ${recurring ? "h-12" : "h-14"}`}
 					>
 						{key === "⌫" ? <Delete size={18} /> : key}
 					</button>
@@ -662,7 +662,7 @@ export default function TransactionForm({
 						<div className="flex gap-2">
 							<button
 								onClick={() => setIsDeleteConfirm(false)}
-								className="flex-1 py-3.5 rounded-2xl bg-card border border-subtle text-sm font-semibold"
+								className="flex-1 py-3.5 rounded-2xl bg-card ring-border text-sm font-semibold"
 							>
 								{t.common.cancel}
 							</button>
@@ -678,10 +678,11 @@ export default function TransactionForm({
 					) : (
 						<button
 							onClick={() => setIsDeleteConfirm(true)}
-							className="w-full py-3.5 rounded-2xl border text-sm font-semibold flex items-center justify-center gap-2"
+							className="w-full py-3.5 rounded-2xl text-sm font-semibold flex items-center justify-center gap-2"
+							// issue #81 — anello (box-shadow), non bordo: il colore è traslucido (40%).
 							style={{
-								borderColor:
-									"color-mix(in srgb, var(--color-aka) 40%, transparent)",
+								boxShadow:
+									"color-mix(in srgb, var(--color-aka) 40%, transparent) 0px 0px 0px 1px inset",
 								color: "var(--ink-aka)",
 							}}
 						>

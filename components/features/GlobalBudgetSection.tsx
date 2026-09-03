@@ -215,7 +215,7 @@ export default function GlobalBudgetSection() {
 	return (
 		<>
 			<div
-				className="rounded-[22px] bg-card border border-subtle card-shadow overflow-hidden"
+				className="rounded-[22px] bg-card card-shadow-ring overflow-hidden"
 				aria-busy={loading || saving}
 			>
 				{/*
@@ -259,7 +259,10 @@ export default function GlobalBudgetSection() {
 								if (e.key === "Enter") e.currentTarget.blur();
 							}}
 							aria-label={t.budget.limitAriaLabel}
-							className="w-20 px-2.5 py-1.5 rounded-lg text-right bg-input border border-subtle text-[13px] outline-none focus:border-muted placeholder:text-muted/60 disabled:opacity-50"
+							// issue #81 — bordo TRASPARENTE a riposo (l'anello lo sostituisce
+							// via box-shadow), bordo VERO solo a fuoco: `--text-muted` è
+							// opaco, quindi lì il bug di Firefox non si applica.
+							className="w-20 px-2.5 py-1.5 rounded-lg text-right bg-input border border-transparent ring-border text-[13px] outline-none focus:border-muted placeholder:text-muted/60 disabled:opacity-50"
 						/>
 						<span className="text-[13px] text-muted">{t.budget.perMonth}</span>
 					</span>
@@ -333,7 +336,7 @@ export default function GlobalBudgetSection() {
 						})();
 					}}
 					disabled={saving}
-					className="w-full mt-2 flex items-center gap-3 h-15.5 px-4 rounded-[22px] bg-card border border-subtle card-shadow text-left disabled:opacity-50"
+					className="w-full mt-2 flex items-center gap-3 h-15.5 px-4 rounded-[22px] bg-card card-shadow-ring text-left disabled:opacity-50"
 				>
 					<span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-control">
 						{/*

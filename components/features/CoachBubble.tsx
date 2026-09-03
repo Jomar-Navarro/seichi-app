@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Compass, X } from "lucide-react";
+import BottomSheetShell from "@/components/UI/BottomSheetShell";
 import { getCoachSnapshot } from "@/app/(main)/coach-actions";
 import { useI18n } from "@/components/features/I18nProvider";
 import { clientClock } from "@/lib/dates";
@@ -59,7 +60,7 @@ export default function CoachBubble({ accountFiltered = false }: { accountFilter
 				 * campanella, e farne uno più grande accanto sarebbe peggio che
 				 * essere coerenti. Il giorno in cui si alza, si alzano entrambe.
 				 */
-				className="w-10.5 h-10.5 rounded-[14px] flex items-center justify-center bg-surface border border-subtle card-shadow active:opacity-80 cursor-pointer"
+				className="w-10.5 h-10.5 rounded-[14px] flex items-center justify-center bg-surface card-shadow-ring active:opacity-80 cursor-pointer"
 			>
 				<Compass size={18} strokeWidth={1.6} className="text-secondary" />
 			</button>
@@ -122,18 +123,7 @@ function CoachPanel({
 	const risposta = risposte.find((r) => r.topic === scelto) ?? null;
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-end">
-			<div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={onClose} />
-
-			<div
-				role="dialog"
-				aria-modal="true"
-				aria-label={t.coach.title}
-				className="relative w-full flex flex-col rounded-t-4xl pt-3.5 px-6 pb-8 modal-shadow border-t border-l border-r border-subtle bg-modal backdrop-blur-2xl"
-				style={{ maxHeight: "90dvh", overflowY: "auto" }}
-			>
-				<div className="w-10 h-1 rounded-full mx-auto mb-1 bg-modal-handle shrink-0" />
-
+		<BottomSheetShell onClose={onClose} ariaLabel={t.coach.title}>
 				<div className="flex items-start justify-between mt-4 mb-5 shrink-0">
 					<div className="min-w-0">
 						<h2 className="text-xl font-semibold">{t.coach.title}</h2>
@@ -142,7 +132,7 @@ function CoachPanel({
 					<button
 						onClick={onClose}
 						aria-label={t.coach.close}
-						className="w-8 h-8 flex items-center justify-center rounded-xl bg-control border border-subtle shrink-0"
+						className="w-8 h-8 flex items-center justify-center rounded-xl bg-control ring-border shrink-0"
 					>
 						<X size={15} />
 					</button>
@@ -204,10 +194,10 @@ function CoachPanel({
 										type="button"
 										onClick={() => setScelto(attiva ? null : r.topic)}
 										aria-pressed={attiva}
-										className={`px-3.5 py-2.5 rounded-2xl text-[12.5px] border transition-colors ${
+										className={`px-3.5 py-2.5 rounded-2xl text-[12.5px] ring-border transition-colors ${
 											attiva
-												? "bg-tab border-subtle font-medium"
-												: "bg-control border-subtle text-secondary"
+												? "bg-tab font-medium"
+												: "bg-control text-secondary"
 										}`}
 									>
 										{r.question}
@@ -223,13 +213,12 @@ function CoachPanel({
 							sparita.
 						*/}
 						{risposta && (
-							<div className="mt-4 rounded-2xl bg-card border border-subtle p-4">
+							<div className="mt-4 rounded-2xl bg-card ring-border p-4">
 								<p className="text-[13.5px] leading-relaxed">{risposta.answer}</p>
 							</div>
 						)}
 					</>
 				)}
-			</div>
-		</div>
+		</BottomSheetShell>
 	);
 }

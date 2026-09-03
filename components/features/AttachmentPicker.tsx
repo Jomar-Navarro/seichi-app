@@ -367,7 +367,7 @@ export default function AttachmentPicker({
 								// dal bucket), e la guardia qui è ciò che rende il tipo onesto
 								// invece di costringere il visore ad accettare `null`.
 								onClick={() => a.url && setZoomed({ url: a.url })}
-								className="w-20 h-20 rounded-xl overflow-hidden bg-input border border-subtle flex items-center justify-center"
+								className="w-20 h-20 rounded-xl overflow-hidden bg-input ring-border flex items-center justify-center"
 								aria-label={t.attachments.open}
 							>
 								{a.url ? (
@@ -402,7 +402,7 @@ export default function AttachmentPicker({
 									confirming === a.id ? remove(a.id) : setConfirming(a.id)
 								}
 								onBlur={() => setConfirming((c) => (c === a.id ? null : c))}
-								className={`absolute -top-1.5 -right-1.5 rounded-full flex items-center justify-center border border-subtle ${
+								className={`absolute -top-1.5 -right-1.5 rounded-full flex items-center justify-center ring-border ${
 									confirming === a.id
 										? "px-2 h-6 bg-aka text-[10px] font-semibold"
 										: "w-6 h-6 bg-card"
@@ -426,7 +426,7 @@ export default function AttachmentPicker({
 							<button
 								type="button"
 								onClick={() => setZoomed({ url: p.preview })}
-								className="w-20 h-20 rounded-xl overflow-hidden bg-input border border-subtle"
+								className="w-20 h-20 rounded-xl overflow-hidden bg-input ring-border"
 								aria-label={t.attachments.open}
 							>
 								{/*
@@ -444,7 +444,7 @@ export default function AttachmentPicker({
 									confirming === p.key ? scarta(p.key) : setConfirming(p.key)
 								}
 								onBlur={() => setConfirming((c) => (c === p.key ? null : c))}
-								className={`absolute -top-1.5 -right-1.5 rounded-full flex items-center justify-center border border-subtle ${
+								className={`absolute -top-1.5 -right-1.5 rounded-full flex items-center justify-center ring-border ${
 									confirming === p.key
 										? "px-2 h-6 bg-aka text-[10px] font-semibold"
 										: "w-6 h-6 bg-card"
@@ -495,7 +495,7 @@ export default function AttachmentPicker({
 					<button
 						type="button"
 						onClick={() => setZoomed(null)}
-						className="absolute top-5 right-5 w-9 h-9 rounded-xl bg-control border border-subtle flex items-center justify-center"
+						className="absolute top-5 right-5 w-9 h-9 rounded-xl bg-control ring-border flex items-center justify-center"
 						aria-label={t.common.close}
 					>
 						<X size={16} />

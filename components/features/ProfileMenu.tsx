@@ -62,27 +62,31 @@ export default function ProfileMenu({ initials, avatarUrl, name, greeting }: Pro
 			{open && (
 				// Ancorato a sinistra, il lato da cui parte il trigger: altrimenti
 				// sulla Home il pannello uscirebbe dallo schermo.
-				<div className="absolute left-0 top-13 z-50 w-56 rounded-2xl bg-modal border border-subtle modal-shadow backdrop-blur-2xl overflow-hidden">
-					<ThemeToggle />
-					<Link
-						href="/impostazioni"
-						onClick={() => setOpen(false)}
-						className="flex items-center gap-3 px-4 h-12 border-b border-subtle active:opacity-80"
-					>
-						<Settings size={16} className="text-secondary" />
-						<span className="text-sm font-medium">{t.profileMenu.settings}</span>
-					</Link>
-					<form action={signOut}>
-						<button
-							type="submit"
-							className="flex items-center gap-3 px-4 h-12 w-full text-left active:opacity-80"
+				// ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto.
+				<div className="absolute left-0 top-13 z-50 w-56 rounded-2xl overflow-hidden modal-shadow-ring">
+					<div className="absolute inset-0 bg-modal backdrop-blur-2xl" />
+					<div className="relative">
+						<ThemeToggle />
+						<Link
+							href="/impostazioni"
+							onClick={() => setOpen(false)}
+							className="flex items-center gap-3 px-4 h-12 border-b border-subtle active:opacity-80"
 						>
-							<LogOut size={16} style={{ color: "var(--color-aka)" }} />
-							<span className="text-sm font-medium" style={{ color: "var(--ink-aka)" }}>
-								{t.profileMenu.signOut}
-							</span>
-						</button>
-					</form>
+							<Settings size={16} className="text-secondary" />
+							<span className="text-sm font-medium">{t.profileMenu.settings}</span>
+						</Link>
+						<form action={signOut}>
+							<button
+								type="submit"
+								className="flex items-center gap-3 px-4 h-12 w-full text-left active:opacity-80"
+							>
+								<LogOut size={16} style={{ color: "var(--color-aka)" }} />
+								<span className="text-sm font-medium" style={{ color: "var(--ink-aka)" }}>
+									{t.profileMenu.signOut}
+								</span>
+							</button>
+						</form>
+					</div>
 				</div>
 			)}
 		</div>
