@@ -25,7 +25,7 @@ export function SettingsGroup({ children, label, tone, className = "mb-6" }: Set
 				</p>
 			)}
 			<div
-				className="rounded-[22px] bg-card border border-subtle card-shadow overflow-hidden [&>*+*]:border-t [&>*+*]:border-subtle"
+				className="rounded-[22px] bg-card card-shadow-ring overflow-hidden [&>*+*]:border-t [&>*+*]:border-subtle"
 				style={tone ? { borderColor: tone } : undefined}
 			>
 				{children}

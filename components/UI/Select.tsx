@@ -115,7 +115,7 @@ export default function Select({
 				<button
 					ref={triggerRef}
 					onClick={toggle}
-					className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-card border border-subtle"
+					className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-card ring-border"
 				>
 					{selectedOption?.icon && (
 						<span className="shrink-0">{selectedOption.icon}</span>
@@ -143,7 +143,7 @@ export default function Select({
 					 * solo dentro le card dell'import.
 					 */
 					<div
-						className={`absolute ${openUp ? "bottom-full mb-1" : "top-full mt-1"} left-0 right-0 z-10 rounded-2xl bg-deep border border-subtle max-h-[min(320px,45vh)] overflow-y-auto`}
+						className={`absolute ${openUp ? "bottom-full mb-1" : "top-full mt-1"} left-0 right-0 z-10 rounded-2xl bg-deep ring-border max-h-[min(320px,45vh)] overflow-y-auto`}
 					>
 						{options.map((option) => (
 							<button
@@ -181,7 +181,7 @@ export default function Select({
 			<button
 				ref={triggerRef}
 				onClick={toggle}
-				className="relative w-full rounded-[20px] cursor-pointer text-inherit border border-subtle overflow-hidden box-shadow"
+				className="relative w-full rounded-[20px] cursor-pointer text-inherit overflow-hidden box-shadow-ring"
 			>
 				<span className="absolute inset-0 bg-input backdrop-blur-[20px]" />
 				<span className="relative flex items-center justify-between py-3.5 px-4">
@@ -221,7 +221,7 @@ export default function Select({
 				 * contenuto (scroll, tetto d'altezza). Stesso schema di
 				 * `BottomSheetShell`.
 				 */
-				<div className="absolute top-full mt-2 left-0 right-0 z-30 rounded-[20px] border border-subtle input-shadow overflow-hidden">
+				<div className="absolute top-full mt-2 left-0 right-0 z-30 rounded-[20px] overflow-hidden box-shadow-ring">
 					<div className="absolute inset-0 bg-deep backdrop-blur-[30px]" />
 					<div className="relative p-2 max-h-[min(340px,50vh)] overflow-y-auto">
 						{options.map((option) => (

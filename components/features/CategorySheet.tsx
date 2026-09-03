@@ -215,7 +215,7 @@ export default function CategorySheet({
 					</h2>
 					<button
 						onClick={onClose}
-						className="w-8 h-8 flex items-center justify-center rounded-xl bg-control border border-subtle"
+						className="w-8 h-8 flex items-center justify-center rounded-xl bg-control ring-border"
 					>
 						<X size={15} />
 					</button>
@@ -232,7 +232,7 @@ export default function CategorySheet({
 							placeholder={t.categories.namePlaceholder}
 							value={name}
 							onChange={(e) => setName(e.target.value)}
-							className="w-full rounded-[18px] px-4 py-3.5 text-base bg-input border border-subtle outline-none placeholder:text-muted/60"
+							className="w-full rounded-[18px] px-4 py-3.5 text-base bg-input ring-border outline-none placeholder:text-muted/60"
 							style={{
 								borderColor: nameError ? "var(--color-aka)" : undefined,
 							}}
@@ -323,7 +323,7 @@ export default function CategorySheet({
 								})}
 							</div>
 
-							<div className="flex items-center rounded-2xl px-4 py-3.5 bg-input border border-subtle">
+							<div className="flex items-center rounded-2xl px-4 py-3.5 bg-input ring-border">
 								<span className="text-[14.5px] text-muted mr-1.5">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
 								<input
 									type="text"

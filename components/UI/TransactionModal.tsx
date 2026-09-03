@@ -85,7 +85,7 @@ function TransactionModalContent() {
 				(arrotonda, ritaglia) → vetro (sfoca) → contenuto (`h-full flex
 				flex-col`, il padding). Stesso schema di `BottomSheetShell`.
 			*/}
-			<div className="relative w-full h-dvh rounded-t-4xl overflow-hidden modal-shadow border-t border-l border-r border-subtle">
+			<div className="relative w-full h-dvh rounded-t-4xl overflow-hidden modal-shadow-ring">
 				<div className="absolute inset-0 bg-modal backdrop-blur-2xl" />
 				<div className="relative w-full h-full flex flex-col pt-3.5 px-6 pb-6.5">
 				{/* Handle */}
@@ -97,7 +97,7 @@ function TransactionModalContent() {
 						{step === "form" && !editingTransaction && (
 							<button
 								onClick={() => setStep("type")}
-								className="w-8 h-8 flex items-center justify-center rounded-xl shrink-0 bg-control border border-subtle"
+								className="w-8 h-8 flex items-center justify-center rounded-xl shrink-0 bg-control ring-border"
 							>
 								<ChevronLeft size={16} />
 							</button>
@@ -123,7 +123,7 @@ function TransactionModalContent() {
 					</div>
 					<button
 						onClick={handleClose}
-						className="w-8 h-8 flex items-center justify-center rounded-xl shrink-0 bg-control border border-subtle"
+						className="w-8 h-8 flex items-center justify-center rounded-xl shrink-0 bg-control ring-border"
 					>
 						<X size={15} />
 					</button>

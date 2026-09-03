@@ -50,6 +50,16 @@ interface BottomSheetShellProps {
  * come prima: un foglio molto pieno poteva già far scorrere il manico fuori
  * vista. Non è una regressione introdotta qui, è il comportamento di sempre;
  * cambiarlo sarebbe un'altra decisione, non una correzione del rendering.
+ *
+ * ⚠️⚠️ Un TERZO difetto, trovato dopo, sullo stesso bug: Firefox non ritaglia
+ * bene un `border-radius` nemmeno con un `border` traslucido normale, senza
+ * alcun `backdrop-filter` di mezzo — verificato dal vivo disattivando SOLO la
+ * dichiarazione del bordo, su un elemento che non aveva sfocatura alcuna. Il
+ * guscio qui aveva ancora `border-t border-l border-r border-subtle`: fissava
+ * il primo bug (sfocatura+raggio) e ricreava il secondo (bordo+raggio) sullo
+ * stesso elemento. `modal-shadow-ring` sostituisce il bordo con un
+ * `box-shadow: inset`, che Firefox ritaglia correttamente da solo — vedi la
+ * nota in `globals.css`.
  */
 export default function BottomSheetShell({ onClose, children, ariaLabel }: BottomSheetShellProps) {
 	return (
@@ -58,7 +68,7 @@ export default function BottomSheetShell({ onClose, children, ariaLabel }: Botto
 
 			<div
 				{...(ariaLabel ? { role: "dialog", "aria-modal": true, "aria-label": ariaLabel } : {})}
-				className="relative w-full rounded-t-4xl modal-shadow border-t border-l border-r border-subtle overflow-hidden"
+				className="relative w-full rounded-t-4xl overflow-hidden modal-shadow-ring"
 			>
 				{/* Il vetro: riempie il guscio, non ha angoli propri da ritagliare. */}
 				<div className="absolute inset-0 bg-modal backdrop-blur-2xl" />

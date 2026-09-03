@@ -126,7 +126,7 @@ export default function FilterBar({
 	return (
 		<div className="space-y-3" ref={ref}>
 			{/* Search */}
-			<div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-card border border-subtle">
+			<div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-card ring-border">
 				<Search size={15} className="text-muted shrink-0" />
 				<input
 					type="text"
@@ -153,13 +153,13 @@ export default function FilterBar({
 				<div className="relative">
 					<button
 						onClick={() => setOpen(open === "periodo" ? null : "periodo")}
-						className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-card border border-subtle text-sm font-medium"
+						className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-card ring-border text-sm font-medium"
 					>
 						{periodoLabel}
 						<ChevronDown size={13} className={`text-muted transition-transform ${open === "periodo" ? "rotate-180" : ""}`} />
 					</button>
 					{open === "periodo" && (
-						<div className="absolute top-full mt-1.5 left-0 z-20 min-w-36 rounded-2xl bg-deep border border-subtle overflow-hidden card-shadow">
+						<div className="absolute top-full mt-1.5 left-0 z-20 min-w-36 rounded-2xl bg-deep overflow-hidden card-shadow-ring">
 							{periodoOptions.map((opt) => (
 								<button
 									key={opt.value}
@@ -178,13 +178,13 @@ export default function FilterBar({
 				<div className="relative">
 					<button
 						onClick={() => setOpen(open === "tipo" ? null : "tipo")}
-						className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-card border border-subtle text-sm font-medium"
+						className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-card ring-border text-sm font-medium"
 					>
 						{tipoLabel}
 						<ChevronDown size={13} className={`text-muted transition-transform ${open === "tipo" ? "rotate-180" : ""}`} />
 					</button>
 					{open === "tipo" && (
-						<div className="absolute top-full mt-1.5 left-0 z-20 min-w-40 rounded-2xl bg-deep border border-subtle overflow-hidden card-shadow">
+						<div className="absolute top-full mt-1.5 left-0 z-20 min-w-40 rounded-2xl bg-deep overflow-hidden card-shadow-ring">
 							{tipoOptions.map((opt) => (
 								<button
 									key={opt.value}
@@ -208,7 +208,7 @@ export default function FilterBar({
 					<div className="relative">
 						<button
 							onClick={() => setOpen(open === "categoria" ? null : "categoria")}
-							className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-card border border-subtle text-sm font-medium max-w-44"
+							className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-card ring-border text-sm font-medium max-w-44"
 						>
 							<span className="truncate">{categoriaLabel}</span>
 							<ChevronDown size={13} className={`text-muted shrink-0 transition-transform ${open === "categoria" ? "rotate-180" : ""}`} />
@@ -218,7 +218,7 @@ export default function FilterBar({
 							// decine, e senza tetto la tendina uscirebbe dallo schermo con
 							// le ultime voci irraggiungibili. Stessa difesa di `Select`
 							// nella Fase 21.
-							<div className="absolute top-full mt-1.5 left-0 z-20 min-w-44 max-h-64 overflow-y-auto rounded-2xl bg-deep border border-subtle card-shadow">
+							<div className="absolute top-full mt-1.5 left-0 z-20 min-w-44 max-h-64 overflow-y-auto rounded-2xl bg-deep card-shadow-ring">
 								{categoriaOptions.map((opt) => (
 									<button
 										key={opt.value}
@@ -246,13 +246,13 @@ export default function FilterBar({
 					<div className="relative">
 						<button
 							onClick={() => setOpen(open === "conto" ? null : "conto")}
-							className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-card border border-subtle text-sm font-medium"
+							className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-card ring-border text-sm font-medium"
 						>
 							{contoLabel}
 							<ChevronDown size={13} className={`text-muted transition-transform ${open === "conto" ? "rotate-180" : ""}`} />
 						</button>
 						{open === "conto" && (
-							<div className="absolute top-full mt-1.5 right-0 z-20 min-w-44 rounded-2xl bg-deep border border-subtle overflow-hidden card-shadow">
+							<div className="absolute top-full mt-1.5 right-0 z-20 min-w-44 rounded-2xl bg-deep overflow-hidden card-shadow-ring">
 								{contoOptions.map((opt) => (
 									<button
 										key={opt.value}
@@ -281,7 +281,7 @@ export default function FilterBar({
 				{onReset && (
 					<button
 						onClick={() => { onReset(); setOpen(null); }}
-						className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-subtle text-sm font-medium text-secondary"
+						className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl ring-border text-sm font-medium text-secondary"
 					>
 						<X size={13} className="text-muted shrink-0" />
 						{t.transactions.resetFilters}

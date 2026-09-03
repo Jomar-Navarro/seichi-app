@@ -69,7 +69,7 @@ export default function FlowCard({
 			(verificato da Firefox). Guscio → vetro → contenuto, stesso schema
 			di `AccountsBalanceCard`, che è la card gemella nello stesso carosello.
 		*/
-		<div className="relative h-full rounded-3xl border border-subtle card-shadow overflow-hidden">
+		<div className="relative h-full rounded-3xl overflow-hidden card-shadow-ring">
 			<div className="absolute inset-0 bg-surface backdrop-blur-md" />
 			<div className="relative h-full flex flex-col p-5">
 			<div className="flex items-center justify-between mb-3">

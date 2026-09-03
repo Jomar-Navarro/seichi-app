@@ -71,7 +71,7 @@ export default function PreferencePage() {
 			<div className="hidden lg:flex flex-col w-2/5 lg:p-10 xl:p-14 border-r border-subtle onboarding-blur">
 				<div className="flex items-center gap-2.5">
 					{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
-					<div className="relative w-9 h-9 rounded-xl border border-subtle overflow-hidden shrink-0">
+					<div className="relative w-9 h-9 rounded-xl ring-border overflow-hidden shrink-0">
 						<div className="absolute inset-0 bg-surface-elevated backdrop-blur-md" />
 						<div className="relative w-full h-full flex items-center justify-center">
 							<Sprout size={18} className="text-midori" />
@@ -136,8 +136,11 @@ export default function PreferencePage() {
 							Ritagliarlo taglierebbe la lista delle valute a metà. Stessa
 							classe del riquadro categoria in `ImportFlow`: rimandato a un
 							giro che progetti la separazione arrotonda/scorre apposta.
+							Il BORDO invece si corregge comunque (`ring-border`, un
+							box-shadow): non serve `overflow-hidden` per ritagliarsi bene
+							in Firefox, solo lo sfocamento ne ha bisogno.
 						*/}
-						<div className="w-full max-w-lg xl:bg-surface xl:border xl:border-subtle xl:rounded-2xl xl:px-10 xl:py-10 xl:backdrop-blur-sm">
+						<div className="w-full max-w-lg xl:bg-surface xl:ring-border xl:rounded-2xl xl:px-10 xl:py-10 xl:backdrop-blur-sm">
 							<Select title={t.settings.preferences.currency} options={currencies} selected={currency} onChange={setCurrency} />
 							<Select title={t.settings.preferences.language} options={languages} selected={language} onChange={setLanguage} />
 						</div>

@@ -300,7 +300,7 @@ async function DashboardContent({
 			*/}
 			<Link
 				href={accountId ? `/analisi?conto=${accountId}` : "/analisi"}
-				className="flex items-center justify-between px-4 py-3.5 rounded-2xl border border-subtle card-shadow"
+				className="flex items-center justify-between px-4 py-3.5 rounded-2xl card-shadow-ring"
 				style={{ background: "var(--surface)" }}
 			>
 				<div className="flex items-center gap-3">

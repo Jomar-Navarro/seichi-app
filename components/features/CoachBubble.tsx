@@ -60,7 +60,7 @@ export default function CoachBubble({ accountFiltered = false }: { accountFilter
 				 * campanella, e farne uno più grande accanto sarebbe peggio che
 				 * essere coerenti. Il giorno in cui si alza, si alzano entrambe.
 				 */
-				className="w-10.5 h-10.5 rounded-[14px] flex items-center justify-center bg-surface border border-subtle card-shadow active:opacity-80 cursor-pointer"
+				className="w-10.5 h-10.5 rounded-[14px] flex items-center justify-center bg-surface card-shadow-ring active:opacity-80 cursor-pointer"
 			>
 				<Compass size={18} strokeWidth={1.6} className="text-secondary" />
 			</button>
@@ -132,7 +132,7 @@ function CoachPanel({
 					<button
 						onClick={onClose}
 						aria-label={t.coach.close}
-						className="w-8 h-8 flex items-center justify-center rounded-xl bg-control border border-subtle shrink-0"
+						className="w-8 h-8 flex items-center justify-center rounded-xl bg-control ring-border shrink-0"
 					>
 						<X size={15} />
 					</button>
@@ -194,10 +194,10 @@ function CoachPanel({
 										type="button"
 										onClick={() => setScelto(attiva ? null : r.topic)}
 										aria-pressed={attiva}
-										className={`px-3.5 py-2.5 rounded-2xl text-[12.5px] border transition-colors ${
+										className={`px-3.5 py-2.5 rounded-2xl text-[12.5px] ring-border transition-colors ${
 											attiva
-												? "bg-tab border-subtle font-medium"
-												: "bg-control border-subtle text-secondary"
+												? "bg-tab font-medium"
+												: "bg-control text-secondary"
 										}`}
 									>
 										{r.question}
@@ -213,7 +213,7 @@ function CoachPanel({
 							sparita.
 						*/}
 						{risposta && (
-							<div className="mt-4 rounded-2xl bg-card border border-subtle p-4">
+							<div className="mt-4 rounded-2xl bg-card ring-border p-4">
 								<p className="text-[13.5px] leading-relaxed">{risposta.answer}</p>
 							</div>
 						)}

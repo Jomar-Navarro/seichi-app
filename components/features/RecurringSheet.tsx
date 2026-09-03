@@ -124,7 +124,7 @@ export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 					<h2 className="text-xl font-semibold">{t.recurring.editTitle}</h2>
 					<button
 						onClick={onClose}
-						className="w-8 h-8 flex items-center justify-center rounded-xl bg-control border border-subtle"
+						className="w-8 h-8 flex items-center justify-center rounded-xl bg-control ring-border"
 					>
 						<X size={15} />
 					</button>
@@ -134,7 +134,7 @@ export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 					{/* Importo */}
 					<div>
 						<label className="text-xs text-muted mb-1.5 block">{t.recurring.amount}</label>
-						<div className="flex items-center gap-2 rounded-2xl px-4 py-3 bg-card border border-subtle">
+						<div className="flex items-center gap-2 rounded-2xl px-4 py-3 bg-card ring-border">
 							<span className="text-sm text-muted">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
 							<input
 								type="text"
@@ -193,7 +193,7 @@ export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 							placeholder={t.recurring.descriptionPlaceholder}
 							value={notes}
 							onChange={(e) => setNotes(e.target.value)}
-							className="w-full rounded-2xl px-4 py-3 text-sm bg-card border border-subtle outline-none placeholder:text-muted/60"
+							className="w-full rounded-2xl px-4 py-3 text-sm bg-card ring-border outline-none placeholder:text-muted/60"
 						/>
 					</div>
 				</div>

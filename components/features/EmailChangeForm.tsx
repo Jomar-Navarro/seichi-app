@@ -61,7 +61,7 @@ export default function EmailChangeForm({ currentEmail }: { currentEmail: string
 
 				<div className="flex flex-col gap-1.5 mb-3.5">
 					<span className="text-[11.5px] text-disabled ml-0.5">{t.account.email.currentEmail}</span>
-					<p className="px-4 py-4 rounded-2xl bg-input border border-subtle text-sm text-muted truncate">
+					<p className="px-4 py-4 rounded-2xl bg-input ring-border text-sm text-muted truncate">
 						{currentEmail}
 					</p>
 				</div>
@@ -98,7 +98,7 @@ export default function EmailChangeForm({ currentEmail }: { currentEmail: string
 		<>
 			<p className="text-[13px] text-muted mb-5.5">{t.account.email.newEmailIntro}</p>
 
-			<div className="flex items-center gap-3 px-4 rounded-[18px] bg-input border border-subtle text-muted mb-6">
+			<div className="flex items-center gap-3 px-4 rounded-[18px] bg-input ring-border text-muted mb-6">
 				<Mail size={18} className="shrink-0" />
 				<input
 					type="email"

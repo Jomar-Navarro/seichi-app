@@ -63,7 +63,15 @@ export default function BottomNav() {
 						"linear-gradient(to top, color-mix(in srgb, var(--background-secondary) 96%, transparent) 0%, color-mix(in srgb, var(--background-secondary) 40%, transparent) 50%, transparent 100%)",
 				}}
 			/>
-			<div className="no-print fixed left-[50%] translate-[-50%] bottom-0 min-w-88 flex items-center justify-between py-2 px-4 rounded-3xl z-40 border border-subtle bg-surface backdrop-blur-[26px] box-shadow h-16">
+			{/*
+				issue #81 — l'anello sostituisce il bordo (box-shadow-ring), ma qui
+				NON si può aggiungere `overflow-hidden`: il FAB al centro esce sopra
+				questa barra con `-translate-y-4.5`, e ritagliare lo taglierebbe a
+				metà. Il ritaglio di `backdrop-filter` sull'angolo resta quindi un
+				residuo aperto, deliberatamente — è la stessa ragione per cui questa
+				barra era già esclusa dal giro precedente.
+			*/}
+			<div className="no-print fixed left-[50%] translate-[-50%] bottom-0 min-w-88 flex items-center justify-between py-2 px-4 rounded-3xl z-40 bg-surface backdrop-blur-[26px] box-shadow-ring h-16">
 				{NAV_ITEMS.slice(0, 2).map(({ href, icon: Icon, key }) => {
 					const active = pathname === href;
 					return (

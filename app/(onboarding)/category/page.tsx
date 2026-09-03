@@ -166,7 +166,7 @@ export default function CategoryPage() {
 			<div className="hidden lg:flex flex-col w-2/5 lg:p-10 xl:p-14 border-r border-subtle onboarding-blur">
 				<div className="flex items-center gap-2.5">
 					{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
-					<div className="relative w-9 h-9 rounded-xl border border-subtle overflow-hidden shrink-0">
+					<div className="relative w-9 h-9 rounded-xl ring-border overflow-hidden shrink-0">
 						<div className="absolute inset-0 bg-surface-elevated backdrop-blur-md" />
 						<div className="relative w-full h-full flex items-center justify-center">
 							<Sprout size={18} className="text-midori" />
@@ -223,7 +223,7 @@ export default function CategoryPage() {
 				<div className="hidden lg:flex flex-col grow px-14">
 					<div className="grow flex items-center justify-center py-8">
 						{/* ⚠️ TRE livelli, solo `xl:` conta — issue #81. Vedi la nota in LoginForm. */}
-						<div className="relative w-full max-w-lg xl:border xl:border-subtle xl:rounded-2xl xl:overflow-hidden">
+						<div className="relative w-full max-w-lg xl:rounded-2xl xl:overflow-hidden xl:ring-border">
 							<div className="absolute inset-0 xl:bg-surface xl:backdrop-blur-sm" />
 							<div className="relative xl:px-10 xl:py-10">
 								<CategoryGroups selected={selected} onChange={toggle} />

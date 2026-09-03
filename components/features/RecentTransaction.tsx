@@ -23,7 +23,7 @@ function EmptyState() {
 		<div className="flex flex-col items-center justify-center py-10 text-center">
 			<button
 				onClick={() => openTransactionModal()}
-				className="w-14 h-14 rounded-full bg-card border border-subtle flex items-center justify-center mb-4 card-shadow"
+				className="w-14 h-14 rounded-full bg-card card-shadow-ring flex items-center justify-center mb-4"
 			>
 				<Plus size={20} className="text-muted" />
 			</button>
@@ -80,7 +80,7 @@ export default function RecentTransaction({
 				movimenti e li mostra tutti), quindi non c'è nulla da lasciar
 				intuire — ed è a questo che serve una sfumatura.
 			*/}
-			<div className="bg-card border border-subtle rounded-3xl overflow-hidden card-shadow">
+			<div className="bg-card rounded-3xl overflow-hidden card-shadow-ring">
 				{transactions.length === 0 ? (
 					<div className="px-4 py-4">
 						<EmptyState />

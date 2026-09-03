@@ -120,7 +120,7 @@ export default function AccountsPageClient({ accounts }: AccountsPageClientProps
 				</div>
 				<button
 					onClick={openCreate}
-					className="flex items-center gap-1.5 px-4 py-2.5 rounded-full text-[12.5px] font-semibold card-shadow border border-subtle shrink-0"
+					className="flex items-center gap-1.5 px-4 py-2.5 rounded-full text-[12.5px] font-semibold card-shadow-ring shrink-0"
 					style={{ background: "var(--surface-elevated)" }}
 				>
 					<Plus size={13} strokeWidth={2.2} />
@@ -153,7 +153,7 @@ export default function AccountsPageClient({ accounts }: AccountsPageClientProps
 
 					{/* Il saldo complessivo dei soli conti attivi. */}
 					{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
-					<div className="relative rounded-3xl border border-subtle card-shadow overflow-hidden">
+					<div className="relative rounded-3xl card-shadow-ring overflow-hidden">
 						<div className="absolute inset-0 bg-surface backdrop-blur-md" />
 						<div className="relative p-5">
 						<p className="text-sm text-muted mb-2">{t.accounts.balanceHeading}</p>
@@ -398,7 +398,7 @@ function ActiveAccountRow({
 							onEdit();
 						}}
 						aria-label={t.common.edit}
-						className="w-11 h-11 rounded-2xl flex items-center justify-center bg-control border border-subtle shrink-0"
+						className="w-11 h-11 rounded-2xl flex items-center justify-center bg-control ring-border shrink-0"
 					>
 						<Pencil size={17} className="text-secondary" />
 					</button>
@@ -409,7 +409,7 @@ function ActiveAccountRow({
 							onArchive();
 						}}
 						aria-label={t.accounts.archive}
-						className="w-11 h-11 rounded-2xl flex items-center justify-center bg-control border border-subtle shrink-0"
+						className="w-11 h-11 rounded-2xl flex items-center justify-center bg-control ring-border shrink-0"
 					>
 						<Archive size={17} style={{ color: "var(--ink-aka)" }} />
 					</button>
@@ -430,7 +430,7 @@ function ActiveAccountRow({
 				onClick={handleTap}
 				aria-expanded={isOpen}
 				style={{ transform: `translateX(${offset}px)`, touchAction: "pan-y" }}
-				className={`relative w-full rounded-3xl border border-subtle card-shadow overflow-hidden text-left ${
+				className={`relative w-full rounded-3xl card-shadow-ring overflow-hidden text-left ${
 					dragOffset === null ? "transition-transform duration-200" : ""
 				}`}
 			>
@@ -504,7 +504,7 @@ function ArchivedAccountRow({
 
 	return (
 		/* ⚠️ TRE livelli — issue #81. Guscio (opacità, ritaglio) → vetro → contenuto. */
-		<div className="relative z-30 w-full rounded-3xl border border-subtle card-shadow overflow-hidden opacity-55">
+		<div className="relative z-30 w-full rounded-3xl card-shadow-ring overflow-hidden opacity-55">
 			<div className="absolute inset-0 bg-surface backdrop-blur-md" />
 			<div className="relative flex items-center gap-3 p-4">
 			<button onClick={handleTap} className="flex items-center gap-3 flex-1 min-w-0 text-left">

@@ -28,7 +28,7 @@ function BudgetCard({ budget }: { budget: BudgetWithSpending }) {
 	return (
 		/* ⚠️ TRE livelli — issue #81. Guscio (bordo, ritaglio) → vetro → contenuto. */
 		<div
-			className="relative min-w-39 rounded-3xl border border-subtle overflow-hidden"
+			className="relative min-w-39 rounded-3xl ring-border overflow-hidden"
 			style={
 				sforato
 					? { borderColor: "color-mix(in srgb, var(--color-aka) 35%, transparent)" }

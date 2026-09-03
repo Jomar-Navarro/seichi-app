@@ -88,7 +88,7 @@ export default function CategoryManager({ categories }: { categories: Category[]
 							</div>
 
 							{/* Card gruppo */}
-							<div className="rounded-[22px] bg-card border border-subtle card-shadow overflow-hidden">
+							<div className="rounded-[22px] bg-card card-shadow-ring overflow-hidden">
 								{items.map((cat) => {
 									const Icon = ICON_MAP[cat.icon] ?? GOAL_ICON_MAP[cat.icon];
 									return (
@@ -169,7 +169,7 @@ export default function CategoryManager({ categories }: { categories: Category[]
 					<div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={closeDialog} />
 
 					{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
-					<div className="relative w-full max-w-xs rounded-3xl border border-subtle modal-shadow overflow-hidden">
+					<div className="relative w-full max-w-xs rounded-3xl overflow-hidden modal-shadow-ring">
 						<div className="absolute inset-0 bg-modal backdrop-blur-2xl" />
 						<div className="relative p-6">
 						<h3 className="text-[17px] font-semibold mb-2">{t.categories.deleteTitle}</h3>
@@ -186,7 +186,7 @@ export default function CategoryManager({ categories }: { categories: Category[]
 						<div className="flex gap-2.5">
 							<button
 								onClick={closeDialog}
-								className="flex-1 py-3 rounded-2xl text-sm font-semibold bg-control border border-subtle active:opacity-80"
+								className="flex-1 py-3 rounded-2xl text-sm font-semibold bg-control ring-border active:opacity-80"
 							>
 								{t.common.cancel}
 							</button>

@@ -4,15 +4,22 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 
 /** Stile condiviso: un unico punto di verità per bottoni e link-bottone. */
-const BASE =
-	"w-full py-4.5 rounded-[22px] text-[15px] font-semibold border border-subtle transition-opacity";
+const BASE = "w-full py-4.5 rounded-[22px] text-[15px] font-semibold transition-opacity";
 
+/*
+ * issue #81 — l'anello (`box-shadow`) sostituisce il bordo, ma qui il colore
+ * dell'anello CAMBIA per variante (neutro ovunque, accento tinto per
+ * `danger`): non un solo token, quindi non basta una classe condivisa come
+ * `ring-border`. `danger` specifica il proprio box-shadow per intero, drop
+ * compreso — vedi `elevation` più sotto.
+ */
 const DANGER_STYLE: CSSProperties = {
 	background: "color-mix(in srgb, var(--color-aka) 20%, transparent)",
 	// Tinta dall'accento, etichetta dall'inchiostro: l'accento pieno su una
 	// campitura al 20% dava ~2,7:1, ed è il bottone che elimina l'account.
 	color: "var(--ink-aka)",
-	borderColor: "color-mix(in srgb, var(--color-aka) 32%, transparent)",
+	boxShadow:
+		"var(--shadow-drop) 0px 14px 40px, var(--shadow-inset) 0px 1px 0px inset, color-mix(in srgb, var(--color-aka) 32%, transparent) 0px 0px 0px 1px inset",
 };
 
 const SOLID_STYLE: CSSProperties = {
@@ -63,8 +70,13 @@ export default function SubmitButton({
 	const inactive = pending || disabled;
 	const ghost = variant === "ghost" && !danger;
 	const style = danger ? DANGER_STYLE : ghost ? GHOST_STYLE : SOLID_STYLE;
-	// L'ombra distingue l'azione principale: la secondaria resta piatta.
-	const elevation = ghost ? "" : "box-shadow";
+	/*
+	 * L'ombra distingue l'azione principale: la secondaria resta piatta. Il
+	 * ring (bordo) invece c'è SEMPRE — issue #81, `card-shadow-ring`-style:
+	 * `box-shadow-ring` porta drop + anello neutro (solid), `ring-border` il
+	 * solo anello (ghost). `danger` lo specifica per intero in `DANGER_STYLE`.
+	 */
+	const elevation = danger ? "" : ghost ? "ring-border" : "box-shadow-ring";
 
 	if (href && !inactive) {
 		return (

@@ -29,7 +29,7 @@ export default function LoginForm({ onTabChange, notice }: LoginFormProps) {
 				pannello non ha né arrotondamento né sfocatura: il vetro (sotto)
 				resta un `div` vuoto e innocuo, senza alcun effetto sul mobile.
 			*/}
-			<div className="relative w-full max-w-md xl:max-w-lg 2xl:max-w-xl mx-auto grow lg:grow-0 my-auto flex flex-col lg:border lg:border-subtle lg:rounded-2xl lg:overflow-hidden">
+			<div className="relative w-full max-w-md xl:max-w-lg 2xl:max-w-xl mx-auto grow lg:grow-0 my-auto flex flex-col lg:rounded-2xl lg:overflow-hidden lg:ring-border">
 				<div className="absolute inset-0 lg:bg-surface lg:backdrop-blur-sm" />
 				<div className="relative flex flex-col lg:px-8 lg:py-8 xl:px-10 xl:py-10">
 				<div className="lg:hidden">

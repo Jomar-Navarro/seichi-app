@@ -55,7 +55,7 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 		return (
 			<div className="grow shrink basis-0 flex flex-col h-full overflow-y-auto pt-12 px-7 pb-7 md:py-18 md:px-20 lg:p-8">
 				{/* ⚠️ TRE livelli, solo `lg:` conta — issue #81. Vedi la nota in LoginForm. */}
-			<div className="relative w-full max-w-md xl:max-w-lg 2xl:max-w-xl mx-auto my-auto lg:border lg:border-subtle lg:rounded-2xl lg:overflow-hidden">
+			<div className="relative w-full max-w-md xl:max-w-lg 2xl:max-w-xl mx-auto my-auto lg:rounded-2xl lg:overflow-hidden lg:ring-border">
 				<div className="absolute inset-0 lg:bg-surface lg:backdrop-blur-sm" />
 				<div className="relative lg:px-8 lg:py-8 xl:px-10 xl:py-10">
 					<div className="lg:hidden mb-8">
@@ -90,7 +90,7 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 	return (
 		<div className="grow shrink basis-0 flex flex-col h-full overflow-y-auto pt-12 px-7 pb-7 md:py-18 md:px-20 lg:p-8">
 			{/* ⚠️ TRE livelli, solo `lg:` conta — issue #81. Vedi la nota in LoginForm. */}
-			<div className="relative w-full max-w-md xl:max-w-lg 2xl:max-w-xl mx-auto my-auto lg:border lg:border-subtle lg:rounded-2xl lg:overflow-hidden">
+			<div className="relative w-full max-w-md xl:max-w-lg 2xl:max-w-xl mx-auto my-auto lg:rounded-2xl lg:overflow-hidden lg:ring-border">
 				<div className="absolute inset-0 lg:bg-surface lg:backdrop-blur-sm" />
 				<div className="relative lg:px-8 lg:py-8 xl:px-10 xl:py-10">
 				{/* BrandHeader — mobile only */}

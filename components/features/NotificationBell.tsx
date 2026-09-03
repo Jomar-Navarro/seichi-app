@@ -104,7 +104,7 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 				// chiudeva lo stesso — ma la campanella non era davvero un interruttore.
 				// Pastiglia 42px a raggio 14 come nel mockup: è un comando, quindi
 				// una tessera. Il tondo resta all'avatar, che è una persona.
-				className={`relative w-10.5 h-10.5 rounded-[14px] flex items-center justify-center bg-surface border border-subtle card-shadow active:opacity-80 cursor-pointer ${open ? "z-50" : ""}`}
+				className={`relative w-10.5 h-10.5 rounded-[14px] flex items-center justify-center bg-surface card-shadow-ring active:opacity-80 cursor-pointer ${open ? "z-50" : ""}`}
 				aria-label={unread > 0 ? `Notifiche, ${unread} non lette` : "Notifiche"}
 				aria-expanded={open}
 			>
@@ -147,10 +147,13 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 						sta a 0.85, tarato per i bottom sheet che coprono uno sfondo già
 						oscurato. Qui il pannello galleggia sulla dashboard piena di numeri.
 					*/}
-					<div
-						className="fixed left-5 right-5 top-23 z-50 flex flex-col max-h-[70dvh] rounded-[28px] border border-subtle modal-shadow backdrop-blur-2xl overflow-hidden"
-						style={{ background: "color-mix(in srgb, var(--color-deep) 94%, transparent)" }}
-					>
+					{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
+					<div className="fixed left-5 right-5 top-23 z-50 rounded-[28px] overflow-hidden modal-shadow-ring">
+						<div
+							className="absolute inset-0 backdrop-blur-2xl"
+							style={{ background: "color-mix(in srgb, var(--color-deep) 94%, transparent)" }}
+						/>
+						<div className="relative flex flex-col max-h-[70dvh]">
 						<div className="flex items-center justify-between px-5 py-4 border-b border-subtle shrink-0">
 							<h2 className="text-[15px] font-semibold">{t.notifications.title}</h2>
 							{unread > 0 && (
@@ -231,6 +234,7 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 									</button>
 								);
 							})}
+						</div>
 						</div>
 					</div>
 				</>

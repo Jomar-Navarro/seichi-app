@@ -132,7 +132,7 @@ export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 					</h2>
 					<button
 						onClick={onClose}
-						className="w-8 h-8 flex items-center justify-center rounded-xl bg-control border border-subtle"
+						className="w-8 h-8 flex items-center justify-center rounded-xl bg-control ring-border"
 					>
 						<X size={15} />
 					</button>
@@ -147,7 +147,7 @@ export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 							placeholder={t.goals.namePlaceholder}
 							value={form.name}
 							onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-							className="w-full rounded-[18px] px-4 py-3.5 text-[14.5px] bg-input border border-subtle outline-none placeholder:text-muted/60"
+							className="w-full rounded-[18px] px-4 py-3.5 text-[14.5px] bg-input ring-border outline-none placeholder:text-muted/60"
 							style={{ borderColor: nameError ? "var(--color-aka)" : undefined }}
 						/>
 						{nameError && (
@@ -164,7 +164,7 @@ export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 							<span className="text-muted opacity-60">{t.goals.optional}</span>
 						</label>
 						<div
-							className="flex items-center gap-2 rounded-[18px] px-4 py-3.5 bg-input border border-subtle"
+							className="flex items-center gap-2 rounded-[18px] px-4 py-3.5 bg-input ring-border"
 							style={{ borderColor: amountError ? "var(--color-aka)" : undefined }}
 						>
 							<span className="text-[14.5px] text-muted">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
@@ -196,7 +196,7 @@ export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 							value={form.targetDate}
 							onChange={(iso) => setForm((f) => ({ ...f, targetDate: iso }))}
 							placeholder={t.goals.noDeadline}
-							className="rounded-[18px] px-4 py-3.5 bg-input border border-subtle"
+							className="rounded-[18px] px-4 py-3.5 bg-input ring-border"
 						/>
 					</div>
 

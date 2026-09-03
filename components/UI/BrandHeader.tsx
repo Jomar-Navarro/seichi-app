@@ -10,7 +10,7 @@ export default function BrandHeader() {
 		// Logo, Title, Subtitle
 		<div className="flex flex-col items-center text-center mb-6">
 			{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
-			<div className="relative w-24 h-24 2xl:w-32 2xl:h-32 rounded-3xl border border-subtle overflow-hidden mb-4">
+			<div className="relative w-24 h-24 2xl:w-32 2xl:h-32 rounded-3xl ring-border overflow-hidden mb-4">
 				<div className="absolute inset-0 bg-surface-elevated backdrop-blur-md" />
 				<div className="relative w-full h-full flex items-center justify-center">
 					<Sprout size={40} className="text-midori 2xl:hidden" />

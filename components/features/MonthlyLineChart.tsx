@@ -30,7 +30,14 @@ export default function MonthlyLineChart({ trend, animated = true }: MonthlyLine
 	const gradU = `gradientUscite-${id}`;
 
 	return (
-		<div className="rounded-[26px] pt-4.5 px-4 pb-3 bg-surface border border-subtle backdrop-blur-[18px] shadow-[inset_0_1px_0_var(--shadow-inset)]">
+		/*
+			issue #81 — anello (`shadow-[...]`) invece di bordo. NIENTE
+			`overflow-hidden`: il tooltip di Recharts si posiziona dentro questo
+			stesso contenitore e può sporgere vicino ai bordi; ritagliarlo lo
+			taglierebbe. Il ritaglio di `backdrop-filter` sull'angolo resta quindi
+			un residuo aperto, come per la barra di navigazione.
+		*/
+		<div className="rounded-[26px] pt-4.5 px-4 pb-3 bg-surface backdrop-blur-[18px] shadow-[inset_0_1px_0_var(--shadow-inset),inset_0_0_0_1px_var(--border)]">
 			<div className="flex items-center gap-4 mb-4">
 				<div className="flex items-center gap-1.75">
 					<span className="inline-block w-2.5 h-0.75 rounded-full bg-midori" />

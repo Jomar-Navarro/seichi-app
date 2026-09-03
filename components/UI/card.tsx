@@ -33,7 +33,14 @@ export default function Card({ options, onChange, selected }: CardProps) {
 						key={option.value}
 						onClick={() => onChange(option.value)}
 						style={isSelected ? { boxShadow: option.color.shadow } : undefined}
-						className={`relative text-start p-4.5 rounded-3xl cursor-pointer text-inherit flex flex-col transition-all border ${isLastOdd ? "col-span-2" : ""} ${isSelected ? `${option.color.bg} ${option.color.border}` : "bg-card border-subtle card-shadow"}`}
+						/*
+						 * issue #81 — il bordo REALE (`border` + `option.color.border`, un
+						 * accento opaco) resta solo per la selezione: lì non c'è bug di
+						 * Firefox, il colore non è traslucido. A riposo l'anello sostituisce
+						 * il bordo traslucido (`card-shadow-ring`), quindi niente `border`
+						 * di base da condividere fra i due stati.
+						 */
+						className={`relative text-start p-4.5 rounded-3xl cursor-pointer text-inherit flex flex-col transition-all ${isLastOdd ? "col-span-2" : ""} ${isSelected ? `${option.color.bg} border ${option.color.border}` : "bg-card card-shadow-ring"}`}
 					>
 						<span
 							className={`w-10.5 h-10.5 rounded-xl flex items-center justify-center mb-3.5 transition-all ${isSelected ? `${option.color.icon} ${option.color.iconText}` : "bg-foreground/5 text-muted"}`}

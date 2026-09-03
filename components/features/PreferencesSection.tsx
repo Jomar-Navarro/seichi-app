@@ -54,7 +54,7 @@ export default function PreferencesSection({ currency, language }: PreferencesSe
 	}
 
 	return (
-		<div className="rounded-[22px] bg-card border border-subtle card-shadow overflow-hidden" aria-busy={saving}>
+		<div className="rounded-[22px] bg-card card-shadow-ring overflow-hidden" aria-busy={saving}>
 			{/* Valuta */}
 			<label className="relative flex items-center gap-3 h-15.5 px-4 border-b border-subtle cursor-pointer">
 				<span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-control">

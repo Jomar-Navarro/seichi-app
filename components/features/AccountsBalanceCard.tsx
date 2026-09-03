@@ -77,7 +77,7 @@ export default function AccountsBalanceCard({
 			(sfoca) → contenuto (`h-full flex flex-col p-5`, portato qui perché
 			il guscio non deve avere padding: lo spazio va al contenuto).
 		*/
-		<div className="relative h-full rounded-3xl border border-subtle card-shadow overflow-hidden">
+		<div className="relative h-full rounded-3xl card-shadow-ring overflow-hidden">
 			<div className="absolute inset-0 bg-surface backdrop-blur-md" />
 			<div className="relative h-full flex flex-col p-5">
 			<div className="flex items-center justify-between gap-2 mb-3">
@@ -89,7 +89,7 @@ export default function AccountsBalanceCard({
 						(selettore di periodo), che non abbiamo reso proprio per non avere
 						un comando inerte — vedi FlowCard.
 					*/}
-					<span className="px-2.5 py-1 rounded-full text-[11px] font-medium text-secondary bg-input border border-subtle truncate">
+					<span className="px-2.5 py-1 rounded-full text-[11px] font-medium text-secondary bg-input ring-border truncate">
 						{badge}
 					</span>
 				</div>

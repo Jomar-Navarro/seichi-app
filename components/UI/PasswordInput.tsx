@@ -38,7 +38,7 @@ export default function PasswordInput({
 		<div className="flex flex-col gap-1.5 mb-3">
 			{label && <label htmlFor={name} className="text-[11.5px] text-disabled ml-0.5">{label}</label>}
 			<div
-				className="flex items-center gap-3 px-4 rounded-[18px] bg-input border border-subtle text-muted"
+				className="flex items-center gap-3 px-4 rounded-[18px] bg-input ring-border text-muted"
 				style={invalid ? { borderColor: "var(--color-aka)" } : undefined}
 			>
 				{icon}

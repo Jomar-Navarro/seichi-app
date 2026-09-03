@@ -162,7 +162,7 @@ export default function ProfileEditor({ fullName, avatarUrl, initials, email }: 
 					setName(e.target.value);
 					setSaved(false);
 				}}
-				className="w-full rounded-[18px] px-4 py-3.5 text-base bg-input border border-subtle outline-none placeholder:text-muted/60 mb-4"
+				className="w-full rounded-[18px] px-4 py-3.5 text-base bg-input ring-border outline-none placeholder:text-muted/60 mb-4"
 			/>
 
 			{error && (

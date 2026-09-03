@@ -204,7 +204,7 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 					</h2>
 					<button
 						onClick={onClose}
-						className="w-8 h-8 flex items-center justify-center rounded-xl bg-control border border-subtle"
+						className="w-8 h-8 flex items-center justify-center rounded-xl bg-control ring-border"
 					>
 						<X size={15} />
 					</button>
@@ -231,7 +231,7 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 								value={name}
 								maxLength={50}
 								onChange={(e) => setName(e.target.value)}
-								className="flex-1 min-w-0 rounded-[18px] px-4 py-3.5 text-[14.5px] bg-input border border-subtle outline-none placeholder:text-muted/60"
+								className="flex-1 min-w-0 rounded-[18px] px-4 py-3.5 text-[14.5px] bg-input ring-border outline-none placeholder:text-muted/60"
 								style={{ borderColor: nameError ? "var(--color-aka)" : undefined }}
 							/>
 						</div>
@@ -316,7 +316,7 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 							{t.accounts.initialBalance}
 						</label>
 						<div
-							className="flex items-center gap-2 rounded-[18px] px-4 py-3.5 bg-input border border-subtle"
+							className="flex items-center gap-2 rounded-[18px] px-4 py-3.5 bg-input ring-border"
 							style={{ borderColor: balanceError ? "var(--color-aka)" : undefined }}
 						>
 							<span className="text-[14.5px] text-muted">

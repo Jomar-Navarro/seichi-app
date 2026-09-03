@@ -68,7 +68,7 @@ function Skeleton() {
 	return (
 		<div className="space-y-2">
 			{Array.from({ length: 4 }).map((_, i) => (
-				<div key={i} className="flex items-center gap-3.5 px-4 py-3.5 rounded-2xl bg-card border border-subtle animate-pulse">
+				<div key={i} className="flex items-center gap-3.5 px-4 py-3.5 rounded-2xl bg-card ring-border animate-pulse">
 					<div className="w-10 h-10 rounded-xl bg-surface-elevated shrink-0" />
 					<div className="flex-1 space-y-2">
 						<div className="h-3 rounded-full bg-surface-elevated w-28" />
@@ -173,7 +173,7 @@ export default function TransactionList({
 								<button
 									key={tx.id}
 									onClick={() => openEditModal(tx)}
-									className="w-full flex items-center gap-3.5 px-4 py-3.5 rounded-2xl bg-card border border-subtle card-shadow text-left active:opacity-75 transition-opacity"
+									className="w-full flex items-center gap-3.5 px-4 py-3.5 rounded-2xl bg-card card-shadow-ring text-left active:opacity-75 transition-opacity"
 								>
 									<div
 										className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"

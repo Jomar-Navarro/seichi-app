@@ -35,7 +35,7 @@ function EmptyState() {
 	return (
 		<div className="flex flex-col items-center justify-center text-center py-16 px-6">
 			<div
-				className="w-18 h-18 rounded-3xl flex items-center justify-center mb-5 border border-subtle card-shadow"
+				className="w-18 h-18 rounded-3xl flex items-center justify-center mb-5 card-shadow-ring"
 				style={{ background: "var(--surface)" }}
 			>
 				<TrendingUpIcon
@@ -118,7 +118,7 @@ export default function InvestimentiTab({
 			    portata la card non stacca dal fondo ed è quella che nel design
 			    la fa galleggiare. */}
 			{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
-			<div className="relative mt-5 rounded-[28px] border border-subtle overflow-hidden box-shadow">
+			<div className="relative mt-5 rounded-[28px] overflow-hidden box-shadow-ring">
 				<div className="absolute inset-0 bg-surface backdrop-blur-[22px]" />
 				<div className="relative pt-5 px-5.5 pb-5.5">
 				<p className="text-[11px] text-muted uppercase tracking-widest">
@@ -221,7 +221,7 @@ export default function InvestimentiTab({
 						/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */
 						<div
 							key={pos.category_id}
-							className="relative rounded-[20px] border border-subtle overflow-hidden shadow-[inset_0_1px_0_var(--shadow-inset)]"
+							className="relative rounded-[20px] overflow-hidden shadow-[inset_0_1px_0_var(--shadow-inset),inset_0_0_0_1px_var(--border)]"
 						>
 						<div className="absolute inset-0 bg-surface backdrop-blur-[18px]" />
 						<div className="relative px-3.5 py-3">
@@ -326,7 +326,7 @@ export default function InvestimentiTab({
 						{t.investments.byTypeTitle}
 					</p>
 					{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
-					<div className="relative rounded-[20px] border border-subtle overflow-hidden shadow-[inset_0_1px_0_var(--shadow-inset)]">
+					<div className="relative rounded-[20px] overflow-hidden shadow-[inset_0_1px_0_var(--shadow-inset),inset_0_0_0_1px_var(--border)]">
 					<div className="absolute inset-0 bg-surface backdrop-blur-[18px]" />
 					<div className="relative px-3.5 py-1">
 						{byType.map((slice) => (

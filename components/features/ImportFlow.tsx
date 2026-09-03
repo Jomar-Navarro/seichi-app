@@ -293,7 +293,7 @@ export default function ImportFlow({ accounts, categories, previous }: Props) {
 
 	if (accounts.length === 0) {
 		return (
-			<p className="text-sm text-muted rounded-3xl bg-card border border-subtle p-5">
+			<p className="text-sm text-muted rounded-3xl bg-card ring-border p-5">
 				{t.import.file.noAccounts}
 			</p>
 		);
@@ -400,7 +400,7 @@ export default function ImportFlow({ accounts, categories, previous }: Props) {
 			{step === "riepilogo" && result && (
 				<div className="flex flex-col grow justify-center gap-6">
 					{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
-					<div className="relative rounded-[26px] border border-subtle card-shadow overflow-hidden">
+					<div className="relative rounded-[26px] overflow-hidden card-shadow-ring">
 						<div className="absolute inset-0 bg-surface backdrop-blur-xl" />
 						<div className="relative">
 						<div className="flex items-center gap-3 p-4.5 border-b border-subtle">
@@ -446,7 +446,7 @@ export default function ImportFlow({ accounts, categories, previous }: Props) {
 			{step === "fatto" && outcome && (
 				<div className="flex flex-col grow justify-center gap-6">
 					{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
-					<div className="relative rounded-[26px] border border-subtle card-shadow overflow-hidden">
+					<div className="relative rounded-[26px] overflow-hidden card-shadow-ring">
 						<div className="absolute inset-0 bg-surface backdrop-blur-xl" />
 						<div className="relative p-6 flex flex-col gap-3.5">
 						<p className="text-lg font-semibold">{t.import.done.title}</p>
@@ -467,14 +467,14 @@ export default function ImportFlow({ accounts, categories, previous }: Props) {
 					{outcome.importId && !undone && (
 						<div className="flex flex-col gap-3">
 							{confirmUndo ? (
-								<div className="rounded-[22px] border border-subtle bg-card p-4.5">
+								<div className="rounded-[22px] ring-border bg-card p-4.5">
 									<p className="text-sm font-semibold mb-1">{t.import.done.undoTitle}</p>
 									<p className="text-[12.5px] text-muted mb-4">{t.import.done.undoBody}</p>
 									<div className="flex gap-2.5">
 										<button
 											type="button"
 											onClick={() => setConfirmUndo(false)}
-											className="flex-1 h-11 rounded-2xl border border-subtle bg-control text-sm font-medium"
+											className="flex-1 h-11 rounded-2xl ring-border bg-control text-sm font-medium"
 										>
 											{t.import.done.undoCancel}
 										</button>
@@ -712,7 +712,7 @@ function FileStep({
 			</div>
 
 			{needsMapping && (
-				<div className="mt-6 rounded-[22px] border border-subtle bg-card p-4.5 flex flex-col gap-4">
+				<div className="mt-6 rounded-[22px] ring-border bg-card p-4.5 flex flex-col gap-4">
 					<div>
 						<p className="text-sm font-semibold">{t.import.mapping.title}</p>
 						<p className="text-[12.5px] text-muted mt-1">{t.import.mapping.hint}</p>
@@ -877,7 +877,7 @@ function AccountPicker({
 						onChange={(e) => setName(e.target.value)}
 						placeholder={t.import.file.newAccountName}
 						maxLength={50}
-						className="flex-1 min-w-0 h-11 px-3.5 rounded-2xl bg-input border border-subtle text-sm"
+						className="flex-1 min-w-0 h-11 px-3.5 rounded-2xl bg-input ring-border text-sm"
 					/>
 					<button
 						type="button"
@@ -958,7 +958,7 @@ function ImportHistory({
 			)}
 			<div className="flex flex-col gap-2.5">
 				{items.map((it) => (
-					<div key={it.id} className="rounded-[20px] border border-subtle bg-card p-4">
+					<div key={it.id} className="rounded-[20px] ring-border bg-card p-4">
 						<div className="flex items-center gap-3">
 							<span className="w-8 h-8 rounded-[10px] bg-control flex items-center justify-center shrink-0">
 								<FileText size={14} className="text-secondary" />
@@ -979,7 +979,7 @@ function ImportHistory({
 									<button
 										type="button"
 										onClick={() => setConfirming(null)}
-										className="flex-1 h-10 rounded-xl border border-subtle bg-control text-[13px] font-medium"
+										className="flex-1 h-10 rounded-xl ring-border bg-control text-[13px] font-medium"
 									>
 										{t.import.done.undoCancel}
 									</button>
@@ -1096,10 +1096,12 @@ function GroupCard({
 		 * separazione arrotonda/scorre usata per i bottom sheet — un guscio
 		 * esterno che ritaglia i propri angoli, un contenuto interno libero di
 		 * uscire — ma qui va progettata apposta, non riusata di corsa: lasciata
-		 * per un giro a sé.
+		 * per un giro a sé. Il BORDO invece si corregge comunque (`ring-border`):
+		 * un box-shadow non ha bisogno di `overflow-hidden` per ritagliarsi bene
+		 * sull'angolo in Firefox, solo lo sfocamento ne ha bisogno.
 		 */
 		<div
-			className="relative rounded-[22px] border border-subtle bg-card backdrop-blur-xl"
+			className="relative rounded-[22px] ring-border bg-card backdrop-blur-xl"
 			style={{ zIndex: openMenus > 0 ? 60 : zIndex }}
 		>
 			<div className="p-4.5">

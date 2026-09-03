@@ -68,7 +68,7 @@ export default async function SummaryCard({ label, amount, icon, color, trend, p
 			esatto, sfoca, niente angoli propri) → contenuto. Stesso schema di
 			`BottomSheetShell`.
 		*/
-		<div className="relative rounded-2xl border border-subtle card-shadow overflow-hidden">
+		<div className="relative rounded-2xl overflow-hidden card-shadow-ring">
 			<div className="absolute inset-0 bg-surface backdrop-blur-md" />
 			<div className="relative p-4 flex flex-col gap-3">
 				<div className="flex items-start justify-between">

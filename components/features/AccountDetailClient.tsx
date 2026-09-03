@@ -140,7 +140,7 @@ export default function AccountDetailClient({ account }: AccountDetailClientProp
 				⚠️ TRE livelli — issue #81. `overflow-hidden` da solo non basta
 				(verificato da Firefox). Guscio → vetro → contenuto.
 			*/}
-			<div className="relative rounded-3xl border border-subtle card-shadow overflow-hidden">
+			<div className="relative rounded-3xl card-shadow-ring overflow-hidden">
 				<div className="absolute inset-0 bg-surface backdrop-blur-md" />
 				<div className="relative p-5">
 				<div className="flex items-center gap-3 mb-4">
@@ -182,7 +182,7 @@ export default function AccountDetailClient({ account }: AccountDetailClientProp
 					</div>
 					<button
 						onClick={() => setSheetOpen(true)}
-						className="flex items-center gap-1.5 px-4 py-2.5 rounded-full text-[12.5px] font-semibold card-shadow border border-subtle shrink-0"
+						className="flex items-center gap-1.5 px-4 py-2.5 rounded-full text-[12.5px] font-semibold card-shadow-ring shrink-0"
 						style={{ background: "var(--surface-elevated)" }}
 					>
 						<Pencil size={13} strokeWidth={2.2} />
@@ -216,7 +216,7 @@ export default function AccountDetailClient({ account }: AccountDetailClientProp
 				<button
 					onClick={loadMore}
 					disabled={loading}
-					className="w-full mt-4 py-3 rounded-2xl bg-card border border-subtle text-sm font-medium text-secondary disabled:opacity-50"
+					className="w-full mt-4 py-3 rounded-2xl bg-card ring-border text-sm font-medium text-secondary disabled:opacity-50"
 				>
 					{loading ? t.common.loading : t.transactions.loadMore}
 				</button>
