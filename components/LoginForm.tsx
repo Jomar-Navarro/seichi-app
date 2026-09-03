@@ -24,7 +24,14 @@ export default function LoginForm({ onTabChange, notice }: LoginFormProps) {
 
 	return (
 		<div className="grow shrink basis-0 flex flex-col h-full overflow-y-auto pt-12 px-7 pb-7 md:py-18 md:px-20 lg:p-8">
-			<div className="w-full max-w-md xl:max-w-lg 2xl:max-w-xl mx-auto grow lg:grow-0 my-auto flex flex-col lg:bg-surface lg:border lg:border-subtle lg:rounded-2xl lg:px-8 lg:py-8 xl:px-10 xl:py-10 lg:backdrop-blur-sm">
+			{/*
+				⚠️ TRE livelli, ma solo `lg:` conta — issue #81. Sotto `lg:` questo
+				pannello non ha né arrotondamento né sfocatura: il vetro (sotto)
+				resta un `div` vuoto e innocuo, senza alcun effetto sul mobile.
+			*/}
+			<div className="relative w-full max-w-md xl:max-w-lg 2xl:max-w-xl mx-auto grow lg:grow-0 my-auto flex flex-col lg:border lg:border-subtle lg:rounded-2xl lg:overflow-hidden">
+				<div className="absolute inset-0 lg:bg-surface lg:backdrop-blur-sm" />
+				<div className="relative flex flex-col lg:px-8 lg:py-8 xl:px-10 xl:py-10">
 				<div className="lg:hidden">
 					<BrandHeader />
 				</div>
@@ -124,6 +131,7 @@ export default function LoginForm({ onTabChange, notice }: LoginFormProps) {
 							variant="oauth"
 						/>
 					</div>
+				</div>
 				</div>
 			</div>
 		</div>

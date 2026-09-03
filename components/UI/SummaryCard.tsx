@@ -61,25 +61,35 @@ export default async function SummaryCard({ label, amount, icon, color, trend, p
 	const { locale } = await getI18n();
 	const Icon = icon;
 	return (
-		<div className="rounded-2xl p-4 border border-subtle card-shadow bg-surface backdrop-blur-md flex flex-col gap-3">
-			<div className="flex items-start justify-between">
-				<div
-					className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-					style={{ background: `color-mix(in srgb, ${color} 16%, transparent)` }}
-				>
-					<Icon size={17} style={{ color }} />
+		/*
+			⚠️ TRE livelli — issue #81 (i quadrati di Firefox). `overflow-hidden`
+			da solo non basta (verificato dall'app vera su Firefox). Guscio
+			(arrotonda, ritaglia, niente sfocatura propria) → vetro (riempie
+			esatto, sfoca, niente angoli propri) → contenuto. Stesso schema di
+			`BottomSheetShell`.
+		*/
+		<div className="relative rounded-2xl border border-subtle card-shadow overflow-hidden">
+			<div className="absolute inset-0 bg-surface backdrop-blur-md" />
+			<div className="relative p-4 flex flex-col gap-3">
+				<div className="flex items-start justify-between">
+					<div
+						className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+						style={{ background: `color-mix(in srgb, ${color} 16%, transparent)` }}
+					>
+						<Icon size={17} style={{ color }} />
+					</div>
+					{progress !== undefined ? (
+						<CircularProgress progress={progress} color={color} />
+					) : trend ? (
+						<Sparkline values={trend} color={color} />
+					) : null}
 				</div>
-				{progress !== undefined ? (
-					<CircularProgress progress={progress} color={color} />
-				) : trend ? (
-					<Sparkline values={trend} color={color} />
-				) : null}
-			</div>
-			<div>
-				<p className="text-lg font-bold tracking-tight">
-					{formatMoney(amount, { locale, currency: DISPLAY_CURRENCY, decimals: 2 })}
-				</p>
-				<p className="text-xs text-muted mt-0.5">{label}</p>
+				<div>
+					<p className="text-lg font-bold tracking-tight">
+						{formatMoney(amount, { locale, currency: DISPLAY_CURRENCY, decimals: 2 })}
+					</p>
+					<p className="text-xs text-muted mt-0.5">{label}</p>
+				</div>
 			</div>
 		</div>
 	);

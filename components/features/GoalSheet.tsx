@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import BottomSheetShell from "@/components/UI/BottomSheetShell";
 import { GOAL_ICONS } from "@/lib/goal-icons";
 import { createGoal, updateGoal, deleteGoal } from "@/app/(main)/risparmi/actions";
 import { useI18n } from "./I18nProvider";
@@ -124,18 +125,7 @@ export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 	}
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-end">
-			<div
-				className="absolute inset-0 bg-black/30 backdrop-blur-[2px]"
-				onClick={onClose}
-			/>
-
-			<div
-				className="relative w-full flex flex-col rounded-t-4xl pt-3.5 px-6 pb-8 modal-shadow border-t border-l border-r border-subtle bg-modal backdrop-blur-2xl"
-				style={{ maxHeight: "90dvh", overflowY: "auto" }}
-			>
-				<div className="w-10 h-1 rounded-full mx-auto mb-1 bg-modal-handle shrink-0" />
-
+		<BottomSheetShell onClose={onClose}>
 				<div className="flex items-center justify-between mt-4 mb-6 shrink-0">
 					<h2 className="text-xl font-semibold">
 						{goal ? t.goals.editTitle : t.goals.newTitle}
@@ -275,7 +265,6 @@ export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 						{confirmDelete ? t.goals.deleteConfirm : t.goals.delete}
 					</button>
 				)}
-			</div>
-		</div>
+		</BottomSheetShell>
 	);
 }

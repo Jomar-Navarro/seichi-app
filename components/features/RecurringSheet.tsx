@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import BottomSheetShell from "@/components/UI/BottomSheetShell";
 import { createClient } from "@/lib/supabase/client";
 import Select, { type Option } from "@/components/UI/Select";
 import FrequencySelector from "@/components/UI/FrequencySelector";
@@ -118,15 +119,7 @@ export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 	}
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-end">
-			<div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={onClose} />
-
-			<div
-				className="relative w-full flex flex-col rounded-t-4xl pt-3.5 px-6 pb-8 modal-shadow border-t border-l border-r border-subtle bg-modal backdrop-blur-2xl"
-				style={{ maxHeight: "90dvh", overflowY: "auto" }}
-			>
-				<div className="w-10 h-1 rounded-full mx-auto mb-1 bg-modal-handle shrink-0" />
-
+		<BottomSheetShell onClose={onClose}>
 				<div className="flex items-center justify-between mt-4 mb-6 shrink-0">
 					<h2 className="text-xl font-semibold">{t.recurring.editTitle}</h2>
 					<button
@@ -218,7 +211,6 @@ export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 				>
 					{loading ? t.common.saving : t.recurring.saveChanges}
 				</button>
-			</div>
-		</div>
+		</BottomSheetShell>
 	);
 }

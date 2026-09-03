@@ -117,7 +117,10 @@ export default function InvestimentiTab({
 			{/* box-shadow (ombra portata + inset) e non il solo inset: senza la
 			    portata la card non stacca dal fondo ed è quella che nel design
 			    la fa galleggiare. */}
-			<div className="mt-5 rounded-[28px] pt-5 px-5.5 pb-5.5 bg-surface border border-subtle backdrop-blur-[22px] box-shadow">
+			{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
+			<div className="relative mt-5 rounded-[28px] border border-subtle overflow-hidden box-shadow">
+				<div className="absolute inset-0 bg-surface backdrop-blur-[22px]" />
+				<div className="relative pt-5 px-5.5 pb-5.5">
 				<p className="text-[11px] text-muted uppercase tracking-widest">
 					{t.investments.portfolioValue}
 				</p>
@@ -137,6 +140,7 @@ export default function InvestimentiTab({
 						</span>
 					</p>
 				)}
+				</div>
 			</div>
 
 			{/* Composizione — visibile solo con almeno 2 posizioni */}
@@ -214,10 +218,13 @@ export default function InvestimentiTab({
 					const accent = `var(--color-${pos.accent})`;
 
 					return (
+						/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */
 						<div
 							key={pos.category_id}
-							className="rounded-[20px] px-3.5 py-3 bg-surface border border-subtle backdrop-blur-[18px] shadow-[inset_0_1px_0_var(--shadow-inset)]"
+							className="relative rounded-[20px] border border-subtle overflow-hidden shadow-[inset_0_1px_0_var(--shadow-inset)]"
 						>
+						<div className="absolute inset-0 bg-surface backdrop-blur-[18px]" />
+						<div className="relative px-3.5 py-3">
 							<div className="flex items-center gap-2.5">
 								<div
 									className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
@@ -291,6 +298,7 @@ export default function InvestimentiTab({
 								</p>
 							)}
 						</div>
+						</div>
 					);
 				})}
 			</div>
@@ -317,7 +325,10 @@ export default function InvestimentiTab({
 					<p className="text-[14.5px] font-semibold mt-5 mb-3 text-foreground">
 						{t.investments.byTypeTitle}
 					</p>
-					<div className="rounded-[20px] px-3.5 py-1 bg-surface border border-subtle backdrop-blur-[18px] shadow-[inset_0_1px_0_var(--shadow-inset)]">
+					{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
+					<div className="relative rounded-[20px] border border-subtle overflow-hidden shadow-[inset_0_1px_0_var(--shadow-inset)]">
+					<div className="absolute inset-0 bg-surface backdrop-blur-[18px]" />
+					<div className="relative px-3.5 py-1">
 						{byType.map((slice) => (
 							<div
 								key={slice.type}
@@ -350,6 +361,7 @@ export default function InvestimentiTab({
 								</div>
 							</div>
 						))}
+					</div>
 					</div>
 				</>
 			)}

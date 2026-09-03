@@ -168,7 +168,10 @@ export default function CategoryManager({ categories }: { categories: Category[]
 				<div className="fixed inset-0 z-50 flex items-center justify-center px-8">
 					<div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={closeDialog} />
 
-					<div className="relative w-full max-w-xs rounded-3xl p-6 bg-modal border border-subtle modal-shadow backdrop-blur-2xl">
+					{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
+					<div className="relative w-full max-w-xs rounded-3xl border border-subtle modal-shadow overflow-hidden">
+						<div className="absolute inset-0 bg-modal backdrop-blur-2xl" />
+						<div className="relative p-6">
 						<h3 className="text-[17px] font-semibold mb-2">{t.categories.deleteTitle}</h3>
 						<p className="text-[13px] text-muted leading-relaxed mb-5">
 							{dialogError ?? (
@@ -201,6 +204,7 @@ export default function CategoryManager({ categories }: { categories: Category[]
 									{deleting ? t.common.deleting : t.common.delete}
 								</button>
 							)}
+						</div>
 						</div>
 					</div>
 				</div>

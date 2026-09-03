@@ -136,7 +136,13 @@ export default function AccountDetailClient({ account }: AccountDetailClientProp
 
 	return (
 		<>
-			<div className="rounded-3xl p-5 border border-subtle card-shadow bg-surface backdrop-blur-md">
+			{/*
+				⚠️ TRE livelli — issue #81. `overflow-hidden` da solo non basta
+				(verificato da Firefox). Guscio → vetro → contenuto.
+			*/}
+			<div className="relative rounded-3xl border border-subtle card-shadow overflow-hidden">
+				<div className="absolute inset-0 bg-surface backdrop-blur-md" />
+				<div className="relative p-5">
 				<div className="flex items-center gap-3 mb-4">
 					<span
 						className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
@@ -182,6 +188,7 @@ export default function AccountDetailClient({ account }: AccountDetailClientProp
 						<Pencil size={13} strokeWidth={2.2} />
 						{t.common.edit}
 					</button>
+				</div>
 				</div>
 			</div>
 

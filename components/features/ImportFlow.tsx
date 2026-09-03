@@ -399,7 +399,10 @@ export default function ImportFlow({ accounts, categories, previous }: Props) {
 
 			{step === "riepilogo" && result && (
 				<div className="flex flex-col grow justify-center gap-6">
-					<div className="rounded-[26px] bg-surface border border-subtle card-shadow backdrop-blur-xl overflow-hidden">
+					{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
+					<div className="relative rounded-[26px] border border-subtle card-shadow overflow-hidden">
+						<div className="absolute inset-0 bg-surface backdrop-blur-xl" />
+						<div className="relative">
 						<div className="flex items-center gap-3 p-4.5 border-b border-subtle">
 							<span className="w-9 h-9 rounded-xl bg-control flex items-center justify-center shrink-0">
 								<FileText size={16} className="text-secondary" />
@@ -426,6 +429,7 @@ export default function ImportFlow({ accounts, categories, previous }: Props) {
 								/>
 							)}
 						</div>
+						</div>
 					</div>
 
 					<button
@@ -441,7 +445,10 @@ export default function ImportFlow({ accounts, categories, previous }: Props) {
 
 			{step === "fatto" && outcome && (
 				<div className="flex flex-col grow justify-center gap-6">
-					<div className="rounded-[26px] bg-surface border border-subtle card-shadow backdrop-blur-xl p-6 flex flex-col gap-3.5">
+					{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
+					<div className="relative rounded-[26px] border border-subtle card-shadow overflow-hidden">
+						<div className="absolute inset-0 bg-surface backdrop-blur-xl" />
+						<div className="relative p-6 flex flex-col gap-3.5">
 						<p className="text-lg font-semibold">{t.import.done.title}</p>
 						{outcome.imported === 0 ? (
 							<p className="text-sm text-muted">{t.import.done.nothing}</p>
@@ -454,6 +461,7 @@ export default function ImportFlow({ accounts, categories, previous }: Props) {
 						{outcome.skipped > 0 && (
 							<SummaryLine muted text={plural(t.import.done.skipped, outcome.skipped, locale)} />
 						)}
+						</div>
 					</div>
 
 					{outcome.importId && !undone && (
@@ -602,11 +610,19 @@ function FileStep({
 					if (dropped) onPick(dropped);
 				}}
 				onClick={() => inputRef.current?.click()}
-				className="rounded-[28px] border-[1.5px] border-dashed bg-card backdrop-blur-xl flex flex-col items-center justify-center text-center px-7 py-12 gap-4 cursor-pointer"
+				/*
+					⚠️ TRE livelli — issue #81. Guscio (bordo tratteggiato, ritaglio,
+					i gestori di drag) → vetro → contenuto. La `className` resta
+					sull'elemento con i gestori: gli eventi risalgono comunque da
+					qualunque figlio venga toccato.
+				*/
+				className="relative rounded-[28px] border-[1.5px] border-dashed overflow-hidden cursor-pointer"
 				style={{
 					borderColor: dragging ? "var(--color-midori)" : "var(--border)",
 				}}
 			>
+				<div className="absolute inset-0 bg-card backdrop-blur-xl" />
+				<div className="relative flex flex-col items-center justify-center text-center px-7 py-12 gap-4">
 				<span className="w-16 h-16 rounded-[20px] bg-control flex items-center justify-center">
 					{file ? (
 						<FileText size={26} className="text-secondary" />
@@ -629,6 +645,7 @@ function FileStep({
 						<p className="text-xs text-muted leading-relaxed max-w-55">{t.import.file.hint}</p>
 					</>
 				)}
+				</div>
 			</div>
 
 			<input
@@ -1067,6 +1084,19 @@ function GroupCard({
 		 * navigazione, e le ultime voci di una lista di categorie erano coperte
 		 * dalla pastiglia e dal FAB. Nessuno z-index scritto dentro `Select` può
 		 * rimediare — l'unico che può alzare la card è chi la disegna.
+		 */
+		/*
+		 * ⚠️ NIENTE `overflow-hidden` qui — issue #81 (i quadrati di Firefox).
+		 *
+		 * Sarebbe la correzione ovvia, e qui è quella SBAGLIATA: il commento sopra
+		 * spiega che il menu di `Select` esce da questa card innalzando lo z-index
+		 * suo, non il proprio — l'unico modo che ha di superare la `BottomNav`.
+		 * `overflow-hidden` ritaglierebbe quel menu esattamente al bordo della
+		 * card, qualunque z-index porti con sé. La correzione giusta è la stessa
+		 * separazione arrotonda/scorre usata per i bottom sheet — un guscio
+		 * esterno che ritaglia i propri angoli, un contenuto interno libero di
+		 * uscire — ma qui va progettata apposta, non riusata di corsa: lasciata
+		 * per un giro a sé.
 		 */
 		<div
 			className="relative rounded-[22px] border border-subtle bg-card backdrop-blur-xl"

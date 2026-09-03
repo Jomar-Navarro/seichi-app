@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Compass, X } from "lucide-react";
+import BottomSheetShell from "@/components/UI/BottomSheetShell";
 import { getCoachSnapshot } from "@/app/(main)/coach-actions";
 import { useI18n } from "@/components/features/I18nProvider";
 import { clientClock } from "@/lib/dates";
@@ -122,18 +123,7 @@ function CoachPanel({
 	const risposta = risposte.find((r) => r.topic === scelto) ?? null;
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-end">
-			<div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={onClose} />
-
-			<div
-				role="dialog"
-				aria-modal="true"
-				aria-label={t.coach.title}
-				className="relative w-full flex flex-col rounded-t-4xl pt-3.5 px-6 pb-8 modal-shadow border-t border-l border-r border-subtle bg-modal backdrop-blur-2xl"
-				style={{ maxHeight: "90dvh", overflowY: "auto" }}
-			>
-				<div className="w-10 h-1 rounded-full mx-auto mb-1 bg-modal-handle shrink-0" />
-
+		<BottomSheetShell onClose={onClose} ariaLabel={t.coach.title}>
 				<div className="flex items-start justify-between mt-4 mb-5 shrink-0">
 					<div className="min-w-0">
 						<h2 className="text-xl font-semibold">{t.coach.title}</h2>
@@ -229,7 +219,6 @@ function CoachPanel({
 						)}
 					</>
 				)}
-			</div>
-		</div>
+		</BottomSheetShell>
 	);
 }

@@ -26,14 +26,17 @@ function BudgetCard({ budget }: { budget: BudgetWithSpending }) {
 	// non esiste, e passarlo inline faceva ripiegare il bordo su currentColor,
 	// cioè il bianco del testo. Solo lo stato sforato lo sovrascrive.
 	return (
+		/* ⚠️ TRE livelli — issue #81. Guscio (bordo, ritaglio) → vetro → contenuto. */
 		<div
-			className="relative min-w-39 rounded-3xl p-4 bg-card border border-subtle backdrop-blur-lg"
+			className="relative min-w-39 rounded-3xl border border-subtle overflow-hidden"
 			style={
 				sforato
 					? { borderColor: "color-mix(in srgb, var(--color-aka) 35%, transparent)" }
 					: undefined
 			}
 		>
+			<div className="absolute inset-0 bg-card backdrop-blur-lg" />
+			<div className="relative p-4">
 			{sforato && (
 				<span
 					className="absolute top-3 right-3 w-5 h-5 rounded-full flex items-center justify-center"
@@ -85,6 +88,7 @@ function BudgetCard({ budget }: { budget: BudgetWithSpending }) {
 					className="h-full rounded-full transition-all"
 					style={{ width: `${budget.pct}%`, background: color, opacity: sforato ? 1 : 0.8 }}
 				/>
+			</div>
 			</div>
 		</div>
 	);

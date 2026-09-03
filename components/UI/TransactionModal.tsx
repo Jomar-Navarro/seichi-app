@@ -79,8 +79,15 @@ function TransactionModalContent() {
 				onClick={handleClose}
 			/>
 
-			{/* Sheet */}
-			<div className="relative w-full flex flex-col h-dvh rounded-t-4xl backdrop-blur-2xl pt-3.5 px-6 pb-6.5 modal-shadow border-t border-l border-r border-subtle bg-modal">
+			{/*
+				Sheet — TRE livelli (issue #81, i quadrati di Firefox).
+				`overflow-hidden` da solo non basta (verificato da Firefox): guscio
+				(arrotonda, ritaglia) → vetro (sfoca) → contenuto (`h-full flex
+				flex-col`, il padding). Stesso schema di `BottomSheetShell`.
+			*/}
+			<div className="relative w-full h-dvh rounded-t-4xl overflow-hidden modal-shadow border-t border-l border-r border-subtle">
+				<div className="absolute inset-0 bg-modal backdrop-blur-2xl" />
+				<div className="relative w-full h-full flex flex-col pt-3.5 px-6 pb-6.5">
 				{/* Handle */}
 				<div className="w-10 h-1 rounded-full mx-auto mb-1 bg-modal-handle" />
 
@@ -239,6 +246,7 @@ function TransactionModalContent() {
 						transaction={editingTransaction ?? undefined}
 					/>
 				)}
+				</div>
 			</div>
 		</div>
 	);
