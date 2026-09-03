@@ -4038,13 +4038,11 @@ funziona, e dopo l'eliminazione si torna a `/conti` con il conto sparito dalla
 lista. Il conto di prova è stato creato ed eliminato dall'app vera, e il
 database è tornato esattamente com'era prima (3 conti, € 3013,45).
 
-⚠️⚠️ **Il gesto di swipe vero NON è stato verificato.** Playwright col mouse
-non riproduce un trascinamento touch — può simulare un click, non un drag
-reale — e questa era la ragione esplicita per cui la issue chiede il
-collaudo dal telefono in LAN, come già la Fase 22
-(`crypto.randomUUID()`) e la Fase 23b (la stampa). Ogni cosa raggiungibile
-SENZA lo swipe (tap → dettaglio → Modifica → Archivia/Elimina) è verificata;
-il vassoio che si apre trascinando non è mai stato visto muoversi.
+✅ **Il gesto di swipe vero è stato provato dal telefono il 2026-09-02**,
+dopo che il primo giro nell'app vera lo aveva lasciato dichiarato e non
+provato (Playwright col mouse simula un click, non un trascinamento touch —
+la stessa ragione per cui la Fase 22 e la 23b avevano richiesto un
+dispositivo reale). Funziona.
 
 ⚠️ **Il ramo "riattiva" non è stato verificato**: l'account di collaudo non
 aveva conti archiviati in questo giro. Resta dichiarato, non provato — vale
