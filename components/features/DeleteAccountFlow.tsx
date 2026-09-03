@@ -76,7 +76,8 @@ export default function DeleteAccountFlow({ email, hasPasswordIdentity }: Delete
 				spellCheck={false}
 				onChange={(e) => setTypedEmail(e.target.value)}
 				className="w-full px-4 py-4 rounded-2xl bg-input outline-none text-base mb-4 placeholder:text-muted/60"
-				style={{ border: `1px solid color-mix(in srgb, ${AKA} 30%, transparent)` }}
+				// issue #81 — anello (box-shadow), non bordo: il colore è traslucido (30%).
+				style={{ boxShadow: `color-mix(in srgb, ${AKA} 30%, transparent) 0px 0px 0px 1px inset` }}
 			/>
 
 			{hasPasswordIdentity && (

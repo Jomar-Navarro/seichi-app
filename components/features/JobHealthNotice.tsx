@@ -62,10 +62,14 @@ export default async function JobHealthNotice({ health }: { health: DailyJobHeal
 
 	return (
 		<div
-			className="flex items-start gap-3 rounded-2xl px-4 py-3.5 mb-5 border card-shadow"
+			className="flex items-start gap-3 rounded-2xl px-4 py-3.5 mb-5"
+			// issue #81 — anello (box-shadow) invece di bordo: il colore è
+			// traslucido (32%), quindi non può passare da `card-shadow-ring`
+			// (anello neutro) e va scritto per intero, drop compreso.
 			style={{
 				background: "color-mix(in srgb, var(--color-kin) 12%, transparent)",
-				borderColor: "color-mix(in srgb, var(--color-kin) 32%, transparent)",
+				boxShadow:
+					"var(--shadow-drop) 0px 8px 24px, var(--shadow-inset) 0px 1px 0px inset, color-mix(in srgb, var(--color-kin) 32%, transparent) 0px 0px 0px 1px inset",
 			}}
 			role="status"
 		>

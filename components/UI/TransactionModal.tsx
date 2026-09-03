@@ -185,11 +185,15 @@ function TransactionModalContent() {
 									key={type.id}
 									onClick={() => handleTypeSelect(type.id)}
 									className="transaction-type-card"
+									// issue #81 — anello (box-shadow) invece di bordo: qui il
+									// colore è traslucido (36%) come `.transaction-type-card`
+									// già corregge in `globals.css`, ma la selezione lo
+									// sovrascriveva con un `border` vero.
 									style={
 										isSelected
 											? {
 													background: `color-mix(in srgb, ${type.color} 14%, transparent)`,
-													border: `1px solid color-mix(in srgb, ${type.color} 36%, transparent)`,
+													boxShadow: `color-mix(in srgb, ${type.color} 36%, transparent) 0px 0px 0px 1px inset`,
 												}
 											: {}
 									}

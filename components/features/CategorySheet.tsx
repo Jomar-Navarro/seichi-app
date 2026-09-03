@@ -232,9 +232,9 @@ export default function CategorySheet({
 							placeholder={t.categories.namePlaceholder}
 							value={name}
 							onChange={(e) => setName(e.target.value)}
-							className="w-full rounded-[18px] px-4 py-3.5 text-base bg-input ring-border outline-none placeholder:text-muted/60"
+							className={`w-full rounded-[18px] px-4 py-3.5 text-base bg-input outline-none placeholder:text-muted/60 ${nameError ? "" : "ring-border"}`}
 							style={{
-								borderColor: nameError ? "var(--color-aka)" : undefined,
+								boxShadow: nameError ? "var(--color-aka) 0px 0px 0px 1px inset" : undefined,
 							}}
 						/>
 						{nameError && (

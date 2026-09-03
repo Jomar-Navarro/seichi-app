@@ -55,14 +55,16 @@ export default function LoginForm({ onTabChange, notice }: LoginFormProps) {
 				<div className="grow flex flex-col">
 					{notice && (
 						<p
-							className="text-xs text-center rounded-2xl px-4 py-3 mb-4 border"
+							className="text-xs text-center rounded-2xl px-4 py-3 mb-4"
 							// Testo sull'inchiostro, fondo e bordo sull'accento: è la
 							// conferma di un'operazione di sicurezza appena riuscita, e
 							// sul proprio stesso fondo l'accento la lasciava a ~3,1:1.
+							// issue #81 — anello (box-shadow), non bordo: il colore è
+							// traslucido (28%).
 							style={{
 								color: "var(--ink-midori)",
 								background: "color-mix(in srgb, var(--color-midori) 12%, transparent)",
-								borderColor: "color-mix(in srgb, var(--color-midori) 28%, transparent)",
+								boxShadow: "color-mix(in srgb, var(--color-midori) 28%, transparent) 0px 0px 0px 1px inset",
 							}}
 						>
 							{notice}

@@ -21,17 +21,16 @@ function BudgetCard({ budget }: { budget: BudgetWithSpending }) {
 
 	const Icon = isGlobal ? null : ICON_MAP[budget.category?.icon ?? ""];
 
-	// Il bordo usa `border-subtle` come ogni altra superficie. Il token è
-	// `--border`, esposto a Tailwind come `--color-subtle`: un `--color-border`
-	// non esiste, e passarlo inline faceva ripiegare il bordo su currentColor,
-	// cioè il bianco del testo. Solo lo stato sforato lo sovrascrive.
+	// Il bordo usa `--border` come ogni altra superficie, ma issue #81 lo rende
+	// un ANELLO (box-shadow), non un bordo vero: `borderColor` non ha più nulla
+	// da colorare. Solo lo stato sforato lo sovrascrive, per intero.
 	return (
-		/* ⚠️ TRE livelli — issue #81. Guscio (bordo, ritaglio) → vetro → contenuto. */
+		/* ⚠️ TRE livelli — issue #81. Guscio (anello, ritaglio) → vetro → contenuto. */
 		<div
-			className="relative min-w-39 rounded-3xl ring-border overflow-hidden"
+			className={`relative min-w-39 rounded-3xl overflow-hidden ${sforato ? "" : "ring-border"}`}
 			style={
 				sforato
-					? { borderColor: "color-mix(in srgb, var(--color-aka) 35%, transparent)" }
+					? { boxShadow: "color-mix(in srgb, var(--color-aka) 35%, transparent) 0px 0px 0px 1px inset" }
 					: undefined
 			}
 		>

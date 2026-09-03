@@ -678,10 +678,11 @@ export default function TransactionForm({
 					) : (
 						<button
 							onClick={() => setIsDeleteConfirm(true)}
-							className="w-full py-3.5 rounded-2xl border text-sm font-semibold flex items-center justify-center gap-2"
+							className="w-full py-3.5 rounded-2xl text-sm font-semibold flex items-center justify-center gap-2"
+							// issue #81 — anello (box-shadow), non bordo: il colore è traslucido (40%).
 							style={{
-								borderColor:
-									"color-mix(in srgb, var(--color-aka) 40%, transparent)",
+								boxShadow:
+									"color-mix(in srgb, var(--color-aka) 40%, transparent) 0px 0px 0px 1px inset",
 								color: "var(--ink-aka)",
 							}}
 						>

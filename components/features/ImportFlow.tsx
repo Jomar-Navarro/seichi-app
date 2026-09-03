@@ -305,10 +305,11 @@ export default function ImportFlow({ accounts, categories, previous }: Props) {
 
 			{error && (
 				<p
-					className="text-[13px] rounded-2xl px-4 py-3 mb-4 border"
+					className="text-[13px] rounded-2xl px-4 py-3 mb-4"
+					// issue #81 — anello (box-shadow), non bordo: il colore è traslucido (30%).
 					style={{
 						color: "var(--ink-aka)",
-						borderColor: "color-mix(in srgb, var(--color-aka) 30%, transparent)",
+						boxShadow: "color-mix(in srgb, var(--color-aka) 30%, transparent) 0px 0px 0px 1px inset",
 						background: "color-mix(in srgb, var(--color-aka) 10%, transparent)",
 					}}
 				>
@@ -615,6 +616,12 @@ function FileStep({
 					i gestori di drag) → vetro → contenuto. La `className` resta
 					sull'elemento con i gestori: gli eventi risalgono comunque da
 					qualunque figlio venga toccato.
+
+					⚠️ Il bordo qui resta VERO, non un anello: `box-shadow` non sa
+					disegnare `border-dashed`. Residuo dichiarato dell'issue #81 — non
+					segnalato finora, e se dovesse mostrarsi va risolto cambiando il
+					disegno (un bordo tratteggiato non arrotondato, o un pattern via
+					`background-image`), non forzando un box-shadow che non può renderlo.
 				*/
 				className="relative rounded-[28px] border-[1.5px] border-dashed overflow-hidden cursor-pointer"
 				style={{
@@ -697,10 +704,11 @@ function FileStep({
 				*/}
 				{read?.source === "trade_republic" && (
 					<p
-						className="text-[12px] leading-relaxed mt-2.5 rounded-2xl px-3.5 py-2.5 border"
+						className="text-[12px] leading-relaxed mt-2.5 rounded-2xl px-3.5 py-2.5"
+						// issue #81 — anello (box-shadow), non bordo: il colore è traslucido (32%).
 						style={{
 							color: "var(--ink-kin)",
-							borderColor: "color-mix(in srgb, var(--color-kin) 32%, transparent)",
+							boxShadow: "color-mix(in srgb, var(--color-kin) 32%, transparent) 0px 0px 0px 1px inset",
 							background: "color-mix(in srgb, var(--color-kin) 10%, transparent)",
 						}}
 					>

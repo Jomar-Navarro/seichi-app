@@ -38,8 +38,11 @@ export default function PasswordInput({
 		<div className="flex flex-col gap-1.5 mb-3">
 			{label && <label htmlFor={name} className="text-[11.5px] text-disabled ml-0.5">{label}</label>}
 			<div
-				className="flex items-center gap-3 px-4 rounded-[18px] bg-input ring-border text-muted"
-				style={invalid ? { borderColor: "var(--color-aka)" } : undefined}
+				// issue #81 — `invalid` sovrascrive l'intero box-shadow (l'anello di
+				// base è lui stesso un box-shadow, `borderColor` non ha più nulla da
+				// colorare).
+				className={`flex items-center gap-3 px-4 rounded-[18px] bg-input text-muted ${invalid ? "" : "ring-border"}`}
+				style={invalid ? { boxShadow: "var(--color-aka) 0px 0px 0px 1px inset" } : undefined}
 			>
 				{icon}
 				<input

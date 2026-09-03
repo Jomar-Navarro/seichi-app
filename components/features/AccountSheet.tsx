@@ -231,8 +231,10 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 								value={name}
 								maxLength={50}
 								onChange={(e) => setName(e.target.value)}
-								className="flex-1 min-w-0 rounded-[18px] px-4 py-3.5 text-[14.5px] bg-input ring-border outline-none placeholder:text-muted/60"
-								style={{ borderColor: nameError ? "var(--color-aka)" : undefined }}
+								// issue #81 — l'errore sovrascrive l'intero anello (box-shadow),
+								// non un `borderColor` che non ha più nulla da colorare.
+								className={`flex-1 min-w-0 rounded-[18px] px-4 py-3.5 text-[14.5px] bg-input outline-none placeholder:text-muted/60 ${nameError ? "" : "ring-border"}`}
+								style={nameError ? { boxShadow: "var(--color-aka) 0px 0px 0px 1px inset" } : undefined}
 							/>
 						</div>
 						{nameError && (
@@ -254,12 +256,15 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 									<button
 										key={id}
 										onClick={() => setType(id)}
-										className="px-3.5 py-2 rounded-full text-[12.5px] font-medium border transition-colors"
+										// issue #81 — attivo: bordo vero (colore opaco). A riposo:
+										// anello (`--border` è traslucido).
+										className={`px-3.5 py-2 rounded-full text-[12.5px] font-medium transition-colors ${active ? "border" : ""}`}
 										style={{
 											background: active
 												? `color-mix(in srgb, ${ACCOUNT_TYPE_COLOR[id]} 16%, transparent)`
 												: "var(--seg-bg)",
-											borderColor: active ? ACCOUNT_TYPE_COLOR[id] : "var(--border)",
+											borderColor: active ? ACCOUNT_TYPE_COLOR[id] : undefined,
+											boxShadow: active ? undefined : "var(--border) 0px 0px 0px 1px inset",
 										}}
 									>
 										{accountTypeLabel(id, t)}
@@ -316,8 +321,8 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 							{t.accounts.initialBalance}
 						</label>
 						<div
-							className="flex items-center gap-2 rounded-[18px] px-4 py-3.5 bg-input ring-border"
-							style={{ borderColor: balanceError ? "var(--color-aka)" : undefined }}
+							className={`flex items-center gap-2 rounded-[18px] px-4 py-3.5 bg-input ${balanceError ? "" : "ring-border"}`}
+							style={balanceError ? { boxShadow: "var(--color-aka) 0px 0px 0px 1px inset" } : undefined}
 						>
 							<span className="text-[14.5px] text-muted">
 								{currencySymbol(DISPLAY_CURRENCY, locale)}
