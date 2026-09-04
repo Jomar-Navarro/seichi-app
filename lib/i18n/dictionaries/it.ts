@@ -930,6 +930,17 @@ export const it = {
 			tutto: "in tutto lo storico",
 		},
 
+		/**
+		 * Scorciatoia verso /impostazioni/ricorrenti (issue #86, chiesto usando
+		 * l'app): il donut qui sopra esclude deliberatamente gli abbonamenti
+		 * (sono uscite fisse, non spese variabili), e senza un collegamento da
+		 * qui l'unico modo di scoprire "quali abbonamenti ho e quanto mi
+		 * costano" è sapere che la gestione vive nelle impostazioni. Non
+		 * ripete l'elenco (già in `RecurringManager`): solo il totale e un link.
+		 */
+		fixedOutflowsTitle: "Uscite fisse",
+		fixedOutflowsCta: "Gestisci ricorrenti",
+
 		/** Il report stampabile — Fase 23b. */
 		report: {
 			/** Il comando su /analisi che porta al report. */

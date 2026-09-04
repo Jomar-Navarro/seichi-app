@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getAnalyticsData } from "../action";
 import { getAccounts } from "../conti/actions";
 import SpendingPieChart from "@/components/features/SpendingPieChart";
+import FixedOutflowsLink from "@/components/features/FixedOutflowsLink";
 import MonthlyLineChart from "@/components/features/MonthlyLineChart";
 import AnalyticsTabs from "@/components/features/AnalyticsTabs";
 import AccountSelector from "@/components/features/AccountSelector";
@@ -171,6 +172,14 @@ export default async function AnalyticsPage({
 
 			{/* Donut spese (no card wrapper) */}
 			<SpendingPieChart spese={analytics.spese} periodo={periodo} />
+
+			{/*
+				Scorciatoia verso le ricorrenti (issue #86): il donut sopra esclude
+				gli abbonamenti di proposito, quindi subito sotto è il posto dove
+				l'assenza si spiega da sola — "le tue spese variabili sono queste,
+				le tue uscite fisse sono di là".
+			*/}
+			<FixedOutflowsLink />
 		</div>
 	);
 }
