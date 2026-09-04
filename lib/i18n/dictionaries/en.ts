@@ -538,6 +538,9 @@ export const en: Dictionary = {
 			tutto: "ever",
 		},
 
+		fixedOutflowsTitle: "Fixed outflows",
+		fixedOutflowsHint: "Subscriptions and scheduled payments",
+
 		report: {
 			open: "Printable report",
 			title: "Report",
