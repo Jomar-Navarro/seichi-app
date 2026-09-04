@@ -92,6 +92,7 @@ export const en: Dictionary = {
 		offlineDescription:
 			"Nothing is shown until you're back online: no old numbers passed off as current.",
 		offlineBack: "Back to home",
+		offlineRetrying: "You're offline — retries on its own once you reconnect",
 		updateAvailable: "A new version of Seichi is available",
 		updateReload: "Reload",
 		installIosTitle: "Add Seichi to your Home Screen",

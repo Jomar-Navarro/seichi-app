@@ -161,6 +161,9 @@ export const it = {
 		offlineDescription:
 			"Nessun dato viene mostrato finché non torni in rete: niente numeri vecchi spacciati per attuali.",
 		offlineBack: "Torna alla home",
+		/** Banner in-sessione (rete caduta durante l'uso, non un'apertura a
+		 *  freddo): `experimental.useOffline`, non il service worker. */
+		offlineRetrying: "Sei offline — riprova da solo appena torni in rete",
 		updateAvailable: "È disponibile una nuova versione di Seichi",
 		updateReload: "Ricarica",
 		installIosTitle: "Aggiungi Seichi alla schermata Home",

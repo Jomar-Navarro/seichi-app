@@ -105,10 +105,14 @@ const nextConfig: NextConfig = {
   },
 };
 
-// Fase 25 — PWA. `withSerwist` compone la config esistente, non la sostituisce:
-// inietta lo script di registrazione del service worker (servito da
-// app/serwist/[path]/route.ts) senza toccare headers/images/experimental
-// definiti sopra.
+// Fase 25 — PWA. `withSerwist` compone la config esistente, non la sostituisce.
+//
+// ⚠️⚠️ NON registra nulla lato client — verificato nel sorgente del
+// pacchetto: spreadta `nextConfig` e aggiunge `esbuild`/`esbuild-wasm` a
+// `serverExternalPackages`, punto. La registrazione vera è
+// `<SerwistProvider>` in app/layout.tsx: senza quella il service worker
+// servito da app/serwist/[path]/route.ts non si installa in nessun
+// browser, anche se risponde 200 al curl.
 //
 // ⚠️ NON `next-pwa`: quel plugin è webpack-only e Next 16 usa Turbopack di
 // default sia per `next dev` sia per `next build` (verificato in

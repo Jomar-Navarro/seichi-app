@@ -4260,6 +4260,123 @@ schermo intero su iOS/Safari, l'avviso "nuova versione" dopo un deploy reale,
 e la conferma che `npm run dev` non fa scambiare per "forse è la cache" una
 modifica vera — il rischio che l'issue #68 nominava esplicitamente.
 
+#### ⚠️⚠️⚠️ Emerso dal code-review: il service worker non si registrava in NESSUN browser
+
+Il rilievo più grave mai emerso da un code-review di questo repo. La fase era
+stata dichiarata "collaudata" — build verde, audit verde, `/serwist/sw.js`
+risponde 200 al curl — ma **nessuna di quelle prove dimostrava che un
+browser registrasse mai il service worker**. Il curl vede l'ASSET, non chi lo
+installa. Trovato da un sub-agent del code-review, verificato leggendo il
+sorgente del pacchetto (`node_modules/@serwist/turbopack/src/index.ts`):
+
+```ts
+export const withSerwist = (nextConfig = {}) => ({
+  ...nextConfig,
+  serverExternalPackages: [...(nextConfig.serverExternalPackages ?? []), "esbuild", "esbuild-wasm"],
+});
+```
+
+**Tutto qui.** Nessuno script di registrazione iniettato, contro quanto
+affermava (sbagliando) sia il commento originale in `next.config.ts` sia il
+riassunto del WebFetch sulla guida Turbopack di Serwist consultata in fase di
+progettazione ("registration occurs automatically through the plugin" — non
+è vero per questa versione, o si riferiva a un pacchetto diverso). Un
+sub-agent l'ha trovato grep-ando il repo per `serviceWorker.register`:
+zero risultati.
+
+**Conseguenza**: precache, fallback offline, avviso di aggiornamento erano
+tutti codice morto — presenti, corretti, mai eseguiti. L'installazione su
+iPhone "funzionava" comunque perché **iOS non richiede un service worker per
+"Aggiungi a Home"** (solo manifest + HTTPS): l'unico segnale positivo che
+c'era stato non testava affatto la parte rotta.
+
+**Chiusura**: `<SerwistProvider>` da `@serwist/turbopack/react`, montato nel
+**root layout** (non in `(main)`, a differenza di `PwaStatus`: la
+registrazione deve avvenire ovunque, l'installabilità deve funzionare anche
+da `/welcome`, prima del login).
+
+⚠️⚠️ **E `SerwistProvider` ha due default pericolosi**, letti dal suo
+sorgente prima di fidarsene:
+
+- `reloadOnOnline: true` — fa `location.reload()` a OGNI evento `online` del
+  browser. Su mobile un blip di connessione (ascensore, cambio wifi↔dati)
+  capita in continuazione: senza disattivarlo, la pagina si sarebbe
+  ricaricata sotto le dita di chi sta compilando `TransactionForm` — **la
+  stessa cosa che questo documento vieta esplicitamente due paragrafi sopra**
+  per l'avviso di aggiornamento, reintrodotta dal default di una libreria.
+- `cacheOnNavigation: true` — manda al service worker un messaggio
+  `CACHE_URLS` a ogni navigazione client-side. Verificato che con
+  `runtimeCaching: []` e nessun `setDefaultHandler` il messaggio non trova
+  alcuna route e non cachea nulla (`Serwist.handleRequest` senza handler
+  ritorna `undefined` — stesso codice del `fetch` normale, letto nel
+  sorgente). Innocuo **oggi**, ma disattivato comunque per esplicito: la
+  garanzia "nessuna pagina applicativa in cache" non deve dipendere da una
+  coincidenza (route vuote) che un domani, aggiungendone anche una sola,
+  farebbe silenziosamente franare.
+
+Entrambi spenti esplicitamente su `<SerwistProvider>`.
+
+#### ⚠️⚠️ Secondo buco nello stesso giro: `fallbacks` da solo non fa niente
+
+Corretta la registrazione, il fallback offline **ancora non scattava** —
+provato con Playwright reale (non supposto): offline, una navigazione verso
+una rotta mai visitata mostrava la pagina di errore NATIVA del browser, non
+`/~offline`. Causa, letta in `node_modules/serwist/src/Serwist.ts`: il
+plugin del fallback si aggancia **solo** alle strategie elencate in
+`runtimeCaching`, ciclandole una per una. Con `runtimeCaching: []` (il
+design originale — "nessuna cache di pagine applicative") il ciclo non ha
+niente su cui agganciarsi, e `fallbacks.entries` resta configurato ma non
+collegato a nulla.
+
+Chiuso aggiungendo **una** route con `NetworkOnly` (la strategia che non
+legge né scrive MAI una cache — esiste solo per dare al fallback un punto
+d'aggancio):
+
+```ts
+runtimeCaching: [
+  { matcher: ({ request }) => request.destination === "document", handler: new NetworkOnly() },
+],
+```
+
+Non è una violazione del vincolo "niente cache di pagine applicative": è
+l'unico modo di dire "prova la rete per una navigazione, se fallisce usa il
+precache" senza mai scrivere una risposta in una cache persistente. Riprovato
+con lo stesso script Playwright: `/~offline` compare, col testo giusto.
+
+**La lezione, e vale oltre questa fase**: due prove "verdi" — la build che
+compila, il curl che risponde 200 — avevano nascosto due difetti che
+rendevano l'intera fase inerte. Solo un browser vero, con `getRegistrations()`
+e `context.setOffline(true)`, li ha mostrati. È la stessa regola già scritta
+altrove in questo documento — *un controllo che segnala successo va
+diagnosticato prima di crederci* — applicata alla scala più alta vista finora
+in questo repo: non "il messaggio giusto dal percorso sbagliato", ma
+"l'intera funzionalità assente dietro ogni prova che sembrava confermarla".
+
+#### Altri rilievi del code-review, tutti applicati
+
+- ⚠️ Il matcher di `proxy.ts` escludeva `icon`/`apple-icon`/`serwist` come
+  prefissi NUDI: una futura rotta che comincia per quelle lettere (es.
+  `/icone-personalizzate`) avrebbe saltato in silenzio il controllo di
+  sessione. Ancorati al confine di segmento (`icon(?=$|/)` invece di `icon`).
+- **`experimental.useOffline` era acceso ma il hook `useOffline()` non era
+  usato da nessuna parte** — il commento in `next.config.ts` lo dichiarava
+  falsamente. Aggiunto un terzo avviso in `PwaStatus` ("sei offline, riprova
+  da solo alla riconnessione"), per il caso — diverso dal fallback a
+  freddo — di rete che cade DURANTE l'uso.
+- **Duplicazione reale, non cosmetica**: `app/icon.tsx`/`apple-icon.tsx`
+  ripetevano l'intero albero JSX (estratto `sproutIconElement()` in
+  `lib/pwa-icon.ts`); `app/manifest.ts` ridichiarava `"#f5f1e8"` invece di
+  importare `TSUKI` dallo stesso modulo; i tre avvisi di `PwaStatus`
+  ripetevano tre volte lo stesso riquadro (estratto un `Notice` locale).
+- ⚠️ **Il commento su `MIDORI`/`TSUKI` in `lib/pwa-icon.ts` affermava il
+  falso**: diceva che `--color-midori` "non cambia fra i temi". Invece
+  `.dark` lo ridefinisce (`#67b89a`, più pastello — la stessa regola del
+  Design System per cui gli accenti si invertono fra i due temi). La
+  decisione di usare un colore fisso per le icone statiche restava corretta,
+  ma per la ragione sbagliata — corretto: un'icona sulla home screen non
+  segue il tema della sessione, è un'identità fissata una volta, non perché
+  il token sia invariante.
+
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 
 Il guasto è emerso guardando a occhio una data in `/impostazioni/ricorrenti`: una

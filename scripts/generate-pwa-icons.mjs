@@ -41,8 +41,11 @@ const OUT_DIR = join(process.cwd(), "public");
 /**
  * @param {number} size lato del quadrato, in px
  * @param {number} fraction quanto del canvas occupa il glifo (0-1)
- * @param {boolean} opaque se true, riempie SEMPRE lo sfondo (serve per
- *   apple-touch-icon: iOS ignora l'alpha e riempirebbe di nero il resto)
+ *
+ * Lo sfondo è SEMPRE opaco (il `<rect>` copre l'intero canvas): serve anche
+ * per apple-touch-icon, dove iOS ignora l'alpha e riempirebbe di nero
+ * qualunque zona trasparente. Non è un parametro perché non c'è un caso in
+ * cui questo script debba produrre un'icona trasparente.
  */
 function buildSvg(size, fraction) {
 	// Il glifo lucide vive nel suo viewBox 0..24: scalarlo di `k` lo porta a
@@ -81,12 +84,17 @@ const TARGETS = [
 
 mkdirSync(OUT_DIR, { recursive: true });
 
-for (const { file, size, fraction } of TARGETS) {
-	const svg = buildSvg(size, fraction);
-	const dest = join(OUT_DIR, file);
-	await sharp(Buffer.from(svg)).png().toFile(dest);
-	console.log(`✅ ${file} (${size}×${size})`);
-}
+// Quattro file indipendenti — nessuno legge l'output di un altro — quindi in
+// parallelo, non in sequenza: non c'è una dipendenza fra le iterazioni da
+// rispettare.
+await Promise.all(
+	TARGETS.map(async ({ file, size, fraction }) => {
+		const svg = buildSvg(size, fraction);
+		const dest = join(OUT_DIR, file);
+		await sharp(Buffer.from(svg)).png().toFile(dest);
+		console.log(`✅ ${file} (${size}×${size})`);
+	}),
+);
 
 console.log("\nGenerate. Verificare a vista con Read prima di committare —");
 console.log("un'icona corretta in SVG e sbagliata da rasterizzata non è teorica.");

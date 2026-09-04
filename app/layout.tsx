@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
+import { SerwistProvider } from "@serwist/turbopack/react";
 import I18nProvider from "@/components/features/I18nProvider";
 import ThemeProvider from "@/components/features/ThemeProvider";
 import { getI18n } from "@/lib/i18n/server";
@@ -67,11 +68,42 @@ export default async function RootLayout({
 			}`}
 		>
 			<body className="min-h-lvh flex flex-col">
-				<I18nProvider locale={locale} dictionary={t}>
-					<ThemeProvider initialChoice={choice} initialResolved={resolved}>
-						{children}
-					</ThemeProvider>
-				</I18nProvider>
+				{/*
+					Fase 25 — PWA. ⚠️⚠️ `withSerwist` in next.config.ts NON registra nulla:
+					è solo un wrapper di config (verificato nel sorgente del pacchetto —
+					spreadta la config e basta). Senza QUESTO provider il service worker
+					non si installa in NESSUN browser: precache, fallback offline e
+					l'avviso "nuova versione" di PwaStatus restano tutti inerti, anche se
+					`/serwist/sw.js` risponde 200 al curl.
+
+					⚠️⚠️ `cacheOnNavigation` e `reloadOnOnline` sono `true` di DEFAULT nel
+					pacchetto, e vanno spenti entrambi:
+					- `reloadOnOnline` farebbe `location.reload()` a OGNI ritorno online —
+					  su mobile capita di continuo (ascensore, wifi che passa a dati) — e
+					  ricaricherebbe la pagina sotto le dita di chi sta compilando
+					  TransactionForm. È esattamente il reload automatico che PwaStatus
+					  vieta esplicitamente per l'avviso di aggiornamento.
+					- `cacheOnNavigation` manderebbe al service worker un messaggio
+					  `CACHE_URLS` per ogni navigazione client-side. Con `runtimeCaching: []`
+					  in app/sw.ts e nessun `setDefaultHandler` il messaggio non trova
+					  alcuna route e non cachea nulla (verificato in
+					  node_modules/serwist/src/Serwist.ts: `handleRequest` senza handler
+					  ritorna `undefined`) — ma è un canale che aggirerebbe
+					  `runtimeCaching` invece di rispettarlo, e spegnerlo esplicitamente
+					  non lascia la garanzia "nessuna pagina applicativa in cache" appesa
+					  a una coincidenza (route vuote oggi, magari non domani).
+				*/}
+				<SerwistProvider
+					swUrl="/serwist/sw.js"
+					cacheOnNavigation={false}
+					reloadOnOnline={false}
+				>
+					<I18nProvider locale={locale} dictionary={t}>
+						<ThemeProvider initialChoice={choice} initialResolved={resolved}>
+							{children}
+						</ThemeProvider>
+					</I18nProvider>
+				</SerwistProvider>
 			</body>
 		</html>
 	);

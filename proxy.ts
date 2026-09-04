@@ -26,7 +26,14 @@ export const config = {
 		 * /welcome, e Serwist precacherebbe quella pagina al posto del
 		 * service worker vero. `/~offline` invece PASSA da qui — è una pagina
 		 * reale, resa a chiunque tramite PUBLIC_PATHS in lib/supabase/proxy.ts.
+		 *
+		 * ⚠️ `icon`/`apple-icon`/`serwist` sono ANCORATI al confine di segmento
+		 * (`(?=$|/)`), non prefissi nudi: senza l'ancora, un'ipotetica rotta
+		 * futura che comincia per quelle lettere (es. `/icone-personalizzate`)
+		 * salterebbe silenziosamente il controllo di sessione — lo stesso
+		 * difetto, di un ordine di grandezza più subdolo, dei prefissi non
+		 * ancorati che questo file evita altrove.
 		 */
-		"/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon|apple-icon|serwist|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+		"/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon(?=$|/)|apple-icon(?=$|/)|serwist(?=$|/)|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
 	],
 };
