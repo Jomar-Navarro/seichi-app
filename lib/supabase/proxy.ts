@@ -18,6 +18,15 @@ const PUBLIC_PATHS = [
 	// Il link di conferma cambio email può essere aperto da un browser dove non
 	// c'è sessione (client di posta, altro dispositivo)
 	"/email-confermata",
+	// Fase 25 — fallback offline: il service worker può servirla a chiunque,
+	// autenticato o no, quando la rete manca. Senza questa voce un utente
+	// sloggato che apre l'app offline verrebbe rimandato su /welcome — e
+	// PEGGIO, il service worker la precacherebbe DAVVERO come /welcome
+	// all'installazione (fetch() segue i redirect di default), spedendo
+	// chiunque vada offline sulla schermata di login invece che su un
+	// messaggio onesto. Vedi anche il matcher in proxy.ts per le rotte PWA
+	// che non passano proprio da qui (manifest, icone, service worker).
+	"/~offline",
 ];
 
 export async function updateSession(request: NextRequest) {
