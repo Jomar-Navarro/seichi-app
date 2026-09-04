@@ -539,7 +539,6 @@ export const en: Dictionary = {
 		},
 
 		fixedOutflowsTitle: "Fixed outflows",
-		fixedOutflowsCta: "Manage recurring",
 
 		report: {
 			open: "Printable report",

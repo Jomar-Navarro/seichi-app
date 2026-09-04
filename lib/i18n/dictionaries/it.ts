@@ -939,7 +939,6 @@ export const it = {
 		 * ripete l'elenco (già in `RecurringManager`): solo il totale e un link.
 		 */
 		fixedOutflowsTitle: "Uscite fisse",
-		fixedOutflowsCta: "Gestisci ricorrenti",
 
 		/** Il report stampabile — Fase 23b. */
 		report: {

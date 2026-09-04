@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { RepeatIcon } from "@/lib/seichi-icons";
 import { getAvailableThisMonth } from "@/app/(main)/budget-actions";
 import { useI18n } from "@/components/features/I18nProvider";
@@ -17,18 +17,25 @@ import { clientClock } from "@/lib/dates";
  * abbonamenti ho e quanto mi costano ogni mese" è sapere che la loro
  * gestione vive nelle impostazioni. Un utente al primo utilizzo non lo sa.
  *
- * Non ripete l'elenco — quello resta `RecurringManager`, con pausa/modifica/
- * eliminazione — solo il totale e un tocco per arrivarci.
+ * ⚠️ Stile: una STAT-TILE come `SummaryCard` della home (icona in alto,
+ * importo grande, etichetta muta sotto) — non una riga da lista con
+ * chevron a destra, che qui leggerebbe come una voce di impostazioni
+ * infilata in mezzo ai grafici. La freccia in alto a destra (stile
+ * "apri/vai", non "scorri l'elenco") è l'unico indizio che è toccabile.
+ * `SummaryCard` stessa non si può riusare: è un Server Component async, e
+ * un Server Component non si rende dentro un Client Component — questo lo
+ * è per forza, per via di `clientClock()` sotto.
  *
- * ⚠️ Carica il dato da sé, come `GlobalBudgetSection`: il totale dipende dal
- * fuso dell'UTENTE (`clientClock()`), che un server component non conosce —
- * su Vercel direbbe UTC, sbagliando il mese nelle prime ore del giorno.
- * `getAvailableThisMonth()` e non una chiamata dedicata: è già la funzione
- * che restituisce le uscite fisse senza ricalcolarle una seconda volta (la
- * stessa usata dalla card budget in impostazioni e dal coach).
+ * Non ripete l'elenco delle regole (resta `RecurringManager`, con pausa/
+ * modifica/eliminazione) — solo il totale e un tocco per arrivarci.
  *
- * ⚠️ Degrada in silenzio su caricamento/errore/zero — non "€0" mentre
- * ancora non si sa, e non una card vuota per chi non ha ricorrenti: stesso
+ * Riusa `getAvailableThisMonth()` (già la fonte delle uscite fisse per la
+ * card budget in impostazioni e per il coach): il totale dipende dal fuso
+ * dell'UTENTE, che un server component non conosce — su Vercel direbbe UTC,
+ * sbagliando il mese nelle prime ore del giorno.
+ *
+ * Degrada in silenzio su caricamento/errore/zero — non "€0" mentre ancora
+ * non si sa, e non una card vuota per chi non ha ricorrenti: stesso
  * trattamento già riservato a `getAccounts()` su questa pagina.
  */
 export default function FixedOutflowsLink() {
@@ -49,25 +56,28 @@ export default function FixedOutflowsLink() {
 	if (!amount) return null;
 
 	return (
-		<Link
-			href="/impostazioni/ricorrenti"
-			className="flex items-center gap-3 rounded-[22px] px-4 py-3.5 mt-4 bg-card card-shadow-ring active:opacity-80"
-		>
-			<span
-				className="w-9.5 h-9.5 rounded-[13px] flex items-center justify-center shrink-0"
-				style={{ background: "color-mix(in srgb, var(--color-murasaki) 13%, transparent)" }}
-			>
-				<RepeatIcon size={17} strokeWidth={1.5} style={{ color: "var(--color-murasaki)" }} />
-			</span>
-			<div className="flex-1 min-w-0">
-				<p className="text-[13.5px] font-semibold">{t.analytics.fixedOutflowsTitle}</p>
-				<p className="text-[12px] text-muted mt-0.5">
-					{formatMoney(amount, { locale, currency: DISPLAY_CURRENCY, decimals: 2 })}
-					{" · "}
-					{t.analytics.fixedOutflowsCta}
-				</p>
+		<Link href="/impostazioni/ricorrenti" className="block mt-4">
+			{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto, come SummaryCard. */}
+			<div className="relative rounded-2xl overflow-hidden card-shadow-ring active:opacity-80">
+				<div className="absolute inset-0 bg-surface backdrop-blur-md" />
+				<div className="relative p-4 flex flex-col gap-3">
+					<div className="flex items-start justify-between">
+						<div
+							className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+							style={{ background: "color-mix(in srgb, var(--color-murasaki) 16%, transparent)" }}
+						>
+							<RepeatIcon size={17} style={{ color: "var(--color-murasaki)" }} />
+						</div>
+						<ArrowUpRight size={16} className="text-muted mt-0.5" />
+					</div>
+					<div>
+						<p className="text-lg font-bold tracking-tight">
+							{formatMoney(amount, { locale, currency: DISPLAY_CURRENCY, decimals: 2 })}
+						</p>
+						<p className="text-xs text-muted mt-0.5">{t.analytics.fixedOutflowsTitle}</p>
+					</div>
+				</div>
 			</div>
-			<ChevronRight size={16} className="shrink-0 text-muted" />
 		</Link>
 	);
 }
