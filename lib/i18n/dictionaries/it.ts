@@ -939,6 +939,10 @@ export const it = {
 		 * ripete l'elenco (già in `RecurringManager`): solo il totale e un link.
 		 */
 		fixedOutflowsTitle: "Uscite fisse",
+		/** ⚠️ "Uscite fisse" da solo non dice DI COSA — chiesto usando l'app.
+		 *  Stessa frase di `t.recurring.emptyDescription`, per riconoscibilità:
+		 *  è la stessa lista, vista da due porte diverse. */
+		fixedOutflowsHint: "Abbonamenti e pagamenti pianificati",
 
 		/** Il report stampabile — Fase 23b. */
 		report: {

@@ -539,6 +539,7 @@ export const en: Dictionary = {
 		},
 
 		fixedOutflowsTitle: "Fixed outflows",
+		fixedOutflowsHint: "Subscriptions and scheduled payments",
 
 		report: {
 			open: "Printable report",

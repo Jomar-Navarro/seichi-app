@@ -74,7 +74,11 @@ export default function FixedOutflowsLink() {
 						<p className="text-lg font-bold tracking-tight">
 							{formatMoney(amount, { locale, currency: DISPLAY_CURRENCY, decimals: 2 })}
 						</p>
-						<p className="text-xs text-muted mt-0.5">{t.analytics.fixedOutflowsTitle}</p>
+						{/* ⚠️ "Uscite fisse" da solo non dice di cosa — chiesto usando
+						    l'app. Seconda riga più muta, stessa frase usata dallo stato
+						    vuoto di RecurringManager: è la stessa lista, altra porta. */}
+						<p className="text-xs mt-0.5">{t.analytics.fixedOutflowsTitle}</p>
+						<p className="text-[11px] text-muted mt-0.5">{t.analytics.fixedOutflowsHint}</p>
 					</div>
 				</div>
 			</div>
