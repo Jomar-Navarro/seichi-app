@@ -33,7 +33,9 @@ export default function StatusScreen({
 			</div>
 			<h2 className="text-[17px] font-semibold mb-2.5">{title}</h2>
 			{description && (
-				<p className="text-[13.5px] text-muted leading-relaxed max-w-[280px]">{description}</p>
+				<p className="text-[13.5px] text-muted leading-relaxed max-w-70">
+					{description}
+				</p>
 			)}
 			{children && <div className="w-full mt-6">{children}</div>}
 		</div>
