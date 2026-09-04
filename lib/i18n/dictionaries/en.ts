@@ -87,6 +87,17 @@ export const en: Dictionary = {
 		always: "always {theme}",
 	},
 
+	pwa: {
+		offlineTitle: "You're offline",
+		offlineDescription:
+			"Nothing is shown until you're back online: no old numbers passed off as current.",
+		offlineBack: "Back to home",
+		updateAvailable: "A new version of Seichi is available",
+		updateReload: "Reload",
+		installIosTitle: "Add Seichi to your Home Screen",
+		installIosHint: "Tap Share, then “Add to Home Screen”.",
+	},
+
 	errors: {
 		notAuthenticated: "Not signed in",
 		nameRequired: "A name is required",

@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSerwist } from "@serwist/turbopack";
 
 // Gli avatar sono serviti dallo Storage di Supabase: next/image accetta host
 // remoti solo se dichiarati esplicitamente.
@@ -39,6 +40,12 @@ const nextConfig: NextConfig = {
       // boundary e header del multipart che si aggiungono al file.
       bodySizeLimit: "3mb",
     },
+    // Fase 25 — retry automatico (nessun service worker, nessuna cache) di
+    // navigazioni, prefetch e Server Action quando la rete cade DURANTE
+    // l'uso: complementare al service worker, che copre solo l'apertura a
+    // freddo senza rete. Espone `useOffline()` da "next/offline" — usato in
+    // components/features/PwaStatus.tsx. Nessun'altra config richiesta.
+    useOffline: true,
   },
   // ⚠️ Le rotte che scambiano credenziali NON devono essere memorizzabili.
   //
@@ -98,4 +105,15 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Fase 25 — PWA. `withSerwist` compone la config esistente, non la sostituisce:
+// inietta lo script di registrazione del service worker (servito da
+// app/serwist/[path]/route.ts) senza toccare headers/images/experimental
+// definiti sopra.
+//
+// ⚠️ NON `next-pwa`: quel plugin è webpack-only e Next 16 usa Turbopack di
+// default sia per `next dev` sia per `next build` (verificato in
+// node_modules/next/dist/docs/.../upgrading/version-16.md) — un plugin
+// webpack non si aggancia più alla pipeline. La guida ufficiale Next per le
+// PWA rimanda a Serwist, che ha un pacchetto dedicato al Turbopack
+// (`@serwist/turbopack`, non `@serwist/next`, che è per webpack).
+export default withSerwist(nextConfig);

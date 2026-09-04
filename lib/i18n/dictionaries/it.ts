@@ -154,6 +154,19 @@ export const it = {
 		always: "sempre {theme}",
 	},
 
+	/** Fase 25 — PWA: fallback offline, avviso di aggiornamento, suggerimento
+	 *  di installazione iOS (Safari non emette mai `beforeinstallprompt`). */
+	pwa: {
+		offlineTitle: "Sei offline",
+		offlineDescription:
+			"Nessun dato viene mostrato finché non torni in rete: niente numeri vecchi spacciati per attuali.",
+		offlineBack: "Torna alla home",
+		updateAvailable: "È disponibile una nuova versione di Seichi",
+		updateReload: "Ricarica",
+		installIosTitle: "Aggiungi Seichi alla schermata Home",
+		installIosHint: "Tocca Condividi, poi «Aggiungi alla schermata Home».",
+	},
+
 	/**
 	 * Messaggi restituiti dalle server action.
 	 *

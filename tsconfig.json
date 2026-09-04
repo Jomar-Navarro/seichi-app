@@ -30,5 +30,16 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    // app/sw.ts gira in un service worker, non nel DOM: usa `self`,
+    // `clients`, `ExtendableEvent`, `caches` con firme che il progetto (lib
+    // "dom") non conosce e che confliggono se si aggiunge anche "webworker"
+    // qui — le due lib dichiarano `self` in modo incompatibile nello stesso
+    // programma. Serwist compila quel file con un proprio esbuild (Fase 25,
+    // vedi app/serwist/[path]/route.ts), indipendente da questo tsconfig:
+    // escluderlo qui non lo esclude dalla build reale, solo dal
+    // type-check di `tsc`/`next build`/`npm run lint`.
+    "app/sw.ts"
+  ]
 }
