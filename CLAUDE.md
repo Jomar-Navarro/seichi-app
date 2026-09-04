@@ -4844,7 +4844,7 @@ bisogno SOLO dell'anello, non della separazione in livelli.
 - Componenti UI generici in `components/UI/`, logica di business in `components/features/`
 - Per i grafici usare sempre Recharts, non installare altre librerie chart
 - Le transazioni ricorrenti usano pg_cron + una funzione SQL `generate_recurring_transactions()` (Fase 14). Regole in tabella `recurring_rules`; il job inserisce transazioni normali con `recurring_rule_id`
-- PWA viene aggiunta solo a progetto completato (Fase 26)
+- PWA viene aggiunta solo a progetto completato (Fase 25)
 - Server Actions (`"use server"`) per tutte le operazioni DB — mai chiamate API REST dirette
 - ⚠️ **I pannelli si MONTANO, non si nascondono.** Un bottom sheet non deve avere
   una prop `isOpen` con dentro `if (!isOpen) return null`: nascondere non è
@@ -4967,9 +4967,22 @@ Seguire questo ordine, non saltare fasi:
     calcolati e produce prosa con `{segnaposto}`, che `fill()` sostituisce — una
     qualunque cifra nel testo grezzo fa scartare la risposta. ⚠️ Senza la 24c
     resta comunque un coach funzionante: `package.json` e `.env.local` non si
-    toccano fino a lì
-25. Blocco app — PIN / biometrico (sezione "Sicurezza" del mockup impostazioni, saltata in Fase 13)
-26. PWA: manifest.json + Service Worker
+    toccano fino a lì.
+    ⚠️ **24c deliberatamente rimandata all'ultimo posto** (deciso 2026-09-04),
+    dopo la 29 — vedi sotto perché 25 e 26 sono state scambiate rispetto
+    all'ordine con cui erano state numerate
+25. PWA: manifest.json + Service Worker — **scambiata di posto con la 26**
+    (deciso il 2026-09-04, prima di scrivere codice). Il blocco PIN protegge
+    soprattutto un'icona sulla home screen che apre direttamente su dati
+    finanziari — è quello scenario, non un tab di browser già dietro il login
+    Supabase, a rendere il PIN un livello di sicurezza che aggiunge qualcosa.
+    E il trigger tecnico del lock (quando richiederlo: al resume, al
+    `visibilitychange`, al cold start) si comporta diversamente in una PWA
+    installata (`display: standalone`, l'app può restare "viva" in background
+    a lungo) rispetto a un tab di browser normale. Progettare e collaudare il
+    lock prima di avere la PWA vera rischierebbe di costruire il trigger
+    sbagliato e doverlo rifare quando arriva la PWA
+26. Blocco app — PIN / biometrico (sezione "Sicurezza" del mockup impostazioni, saltata in Fase 13)
 27. Mobile nativo — comportamento su dispositivo reale (vedi sotto)
 28. Responsive tablet + desktop
 29. Animazioni: transizioni morbide, micro-interazioni
