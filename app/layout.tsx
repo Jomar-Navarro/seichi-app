@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
 import { SerwistProvider } from "@serwist/turbopack/react";
@@ -33,8 +33,50 @@ export async function generateMetadata(): Promise<Metadata> {
 	return {
 		title: t.meta.title,
 		description: t.meta.description,
+		/*
+		 * issue #86 — `viewport-fit=cover` (sotto) NON bastava da solo per una
+		 * PWA aperta da "Aggiungi a Home" su iOS: quello estende il VIEWPORT,
+		 * ma la barra di stato è un overlay dell'OS con un meccanismo suo,
+		 * senza equivalente nel manifest standard. Senza questo meta iOS la
+		 * disegna OPACA — verificato dal vivo, la barra nera del bug era
+		 * esattamente questo, non una mancanza di sfondo. `black-translucent`
+		 * la rende trasparente e lascia che il contenuto disegni sotto.
+		 *
+		 * ⚠️ Debito dichiarato: le tre uniche opzioni di iOS sono statiche, e
+		 * nessuna sa "trasparente coi soli caratteri chiari sopra scuro, scuri
+		 * sopra chiaro". `black-translucent` fissa caratteri BIANCHI —
+		 * corretto sul fondo scuro dell'header, dove tutti gli screenshot di
+		 * questo giro sono stati presi, ma da riverificare in TEMA CHIARO
+		 * (Fase 27/28): se l'header lì è chiaro, la barra di stato
+		 * diventerebbe poco leggibile. Non risolto qui perché la scelta —
+		 * quale sfondo dare alla zona sotto la notch in chiaro — è una
+		 * decisione di design a sé, non un effetto collaterale di questa fase.
+		 */
+		appleWebApp: {
+			title: t.meta.title,
+			statusBarStyle: "black-translucent",
+		},
 	};
 }
+
+/*
+ * issue #86 — la notch/Dynamic Island appariva NERA. Causa verificata: senza
+ * `viewport-fit=cover` iOS lascia l'area di notch/status-bar FUORI dal
+ * viewport dell'app, quindi non è uno sfondo mancante — è zona che l'app non
+ * sta disegnando affatto. `viewportFit: "cover"` (→ `viewport-fit=cover` nel
+ * meta) estende il viewport fin sotto: da qui in poi lo sfondo del `body`
+ * (già token, non un colore fisso) copre anche quella zona.
+ *
+ * ⚠️ Coprire da solo NON basta: senza `env(safe-area-inset-*)` sugli elementi
+ * che prima potevano ignorarla, il contenuto finirebbe SOTTO la notch invece
+ * che sopra un buco nero — vedi BottomNav, TransactionModal, BottomSheetShell
+ * e il padding del layout `(main)`.
+ */
+export const viewport: Viewport = {
+	width: "device-width",
+	initialScale: 1,
+	viewportFit: "cover",
+};
 
 export default async function RootLayout({
 	children,
@@ -63,7 +105,11 @@ export default async function RootLayout({
 	return (
 		<html
 			lang={locale}
-			className={`${geistSans.variable} ${geistMono.variable} h-full antialiased${
+			// issue #86 — `scrollbar-none` (già usata dal carosello orizzontale della
+			// home) qui nasconde la scrollbar nativa dello scroll VERTICALE della
+			// pagina: in una PWA standalone, senza la chrome del browser intorno,
+			// l'indicatore di scroll di iOS risalta molto più che dentro Safari.
+			className={`${geistSans.variable} ${geistMono.variable} h-full antialiased scrollbar-none${
 				resolved === "dark" ? " dark" : ""
 			}`}
 		>

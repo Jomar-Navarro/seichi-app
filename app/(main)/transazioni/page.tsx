@@ -232,8 +232,11 @@ export default function MovimentiPage() {
 		tipo || conto || categoria || search.trim() || periodo !== "30d",
 	);
 
+	// issue #86 — l'unica pagina di `(main)` che scorre su un contenitore
+	// INTERNO invece che sul documento: `scrollbar-none` sull'`<html>` (root
+	// layout) non la raggiunge, va ripetuta qui.
 	return (
-		<div className="flex flex-col flex-1 px-5 pt-8 pb-34 overflow-y-auto">
+		<div className="flex flex-col flex-1 px-5 pt-8 pb-34 overflow-y-auto scrollbar-none">
 			<h1 className="text-2xl font-semibold mb-5">{t.transactions.title}</h1>
 			<FilterBar
 				search={search}

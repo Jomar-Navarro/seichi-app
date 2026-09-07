@@ -6,6 +6,7 @@ import { useUIStore } from "@/store/useUIStore";
 import { TRANSACTION_TYPES } from "@/types";
 import TransactionForm from "./TransactionForm";
 import { useI18n } from "@/components/features/I18nProvider";
+import { useCloseOnBack } from "./useCloseOnBack";
 
 /**
  * ⚠️ Diviso in due, e il guscio esiste solo per decidere il MONTAGGIO.
@@ -71,6 +72,11 @@ function TransactionModalContent() {
 		closeTransactionModal();
 	}
 
+	// issue #86 — vedi useCloseOnBack: neutralizza l'edge-swipe di WKWebView
+	// che altrimenti naviga la pagina SOTTO invece di restare nel modale. È
+	// il caso esplicitamente segnalato dall'issue: aggiungere un movimento.
+	useCloseOnBack(handleClose);
+
 	return (
 		<div className="fixed inset-0 z-50 flex items-end">
 			{/* Backdrop */}
@@ -87,7 +93,19 @@ function TransactionModalContent() {
 			*/}
 			<div className="relative w-full h-dvh rounded-t-4xl overflow-hidden modal-shadow-ring">
 				<div className="absolute inset-0 bg-modal backdrop-blur-2xl" />
-				<div className="relative w-full h-full flex flex-col pt-3.5 px-6 pb-6.5">
+				<div
+					className="relative w-full h-full flex flex-col px-6"
+					// issue #86 — `h-dvh` fa toccare al foglio SIA il fondo sia la
+					// cima reali dello schermo: a differenza di `BottomSheetShell`
+					// (che si ferma a `90dvh`) serve l'inset anche in alto, o il
+					// manico finisce sotto la notch. `max()` mantiene il respiro
+					// originale (`pt-3.5`/`pb-6.5`) sui device senza notch, dove
+					// l'inset è 0.
+					style={{
+						paddingTop: "max(0.875rem, env(safe-area-inset-top))",
+						paddingBottom: "max(1.625rem, env(safe-area-inset-bottom))",
+					}}
+				>
 				{/* Handle */}
 				<div className="w-10 h-1 rounded-full mx-auto mb-1 bg-modal-handle" />
 
