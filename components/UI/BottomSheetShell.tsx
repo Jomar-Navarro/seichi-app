@@ -79,7 +79,7 @@ export default function BottomSheetShell({ onClose, children, ariaLabel }: Botto
 				<div className="absolute inset-0 bg-modal backdrop-blur-2xl" />
 
 				<div
-					className="relative flex flex-col pt-3.5 px-6"
+					className="relative flex flex-col pt-3.5 px-6 scrollbar-none"
 					// issue #86 — il foglio è flush col fondo reale dello schermo
 					// (`items-end`, nessun margine): senza l'inset l'ultimo elemento
 					// finisce ridosso alla home indicator. `max()` perché `pb-8` (32px)

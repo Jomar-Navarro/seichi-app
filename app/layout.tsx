@@ -56,6 +56,19 @@ export async function generateMetadata(): Promise<Metadata> {
 			title: t.meta.title,
 			statusBarStyle: "black-translucent",
 		},
+		/*
+		 * issue #86 — ancora barra nera sull'iPhone 15 (Dynamic Island) dopo il
+		 * fix sopra, mentre sui modelli con notch funzionava. Causa verificata
+		 * leggendo il sorgente di Next (`lib/metadata/metadata.js`):
+		 * `appleWebApp.capable` scrive SOLO `mobile-web-app-capable`
+		 * (generico), mai il vecchio `apple-mobile-web-app-capable` — e
+		 * `apple-mobile-web-app-status-bar-style` risulterebbe senza effetto
+		 * senza quest'ultimo. Nessun campo tipizzato di `Metadata` lo copre:
+		 * va scritto a mano con `other`.
+		 */
+		other: {
+			"apple-mobile-web-app-capable": "yes",
+		},
 	};
 }
 

@@ -143,7 +143,7 @@ export default function Select({
 					 * solo dentro le card dell'import.
 					 */
 					<div
-						className={`absolute ${openUp ? "bottom-full mb-1" : "top-full mt-1"} left-0 right-0 z-10 rounded-2xl bg-deep ring-border max-h-[min(320px,45vh)] overflow-y-auto`}
+						className={`absolute ${openUp ? "bottom-full mb-1" : "top-full mt-1"} left-0 right-0 z-10 rounded-2xl bg-deep ring-border max-h-[min(320px,45vh)] overflow-y-auto scrollbar-none`}
 					>
 						{options.map((option) => (
 							<button
@@ -223,7 +223,7 @@ export default function Select({
 				 */
 				<div className="absolute top-full mt-2 left-0 right-0 z-30 rounded-[20px] overflow-hidden box-shadow-ring">
 					<div className="absolute inset-0 bg-deep backdrop-blur-[30px]" />
-					<div className="relative p-2 max-h-[min(340px,50vh)] overflow-y-auto">
+					<div className="relative p-2 max-h-[min(340px,50vh)] overflow-y-auto scrollbar-none">
 						{options.map((option) => (
 							<div
 								onClick={() => {

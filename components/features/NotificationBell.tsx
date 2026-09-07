@@ -166,7 +166,7 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 							)}
 						</div>
 
-						<div className="overflow-y-auto">
+						<div className="overflow-y-auto scrollbar-none">
 							{error && (
 								<div className="px-5 py-4 border-b border-subtle">
 									<p className="text-[12.5px]" style={{ color: "var(--ink-aka)" }}>

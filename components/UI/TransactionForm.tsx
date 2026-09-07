@@ -423,7 +423,7 @@ export default function TransactionForm({
 	];
 
 	return (
-		<div className="flex flex-col flex-1 min-h-0 overflow-y-auto overscroll-contain">
+		<div className="flex flex-col flex-1 min-h-0 overflow-y-auto overscroll-contain scrollbar-none">
 			{/* Importo */}
 			<div className="text-center pt-1 pb-3">
 				<p className="text-muted text-base mb-2">{t.transactions.form.amount}</p>

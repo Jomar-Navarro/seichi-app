@@ -301,16 +301,20 @@ body {
 
 /*
  * issue #86 — il rimbalzo elastico dello scroll oltre il fondo (o la cima)
- * scopriva uno sfondo NERO. Lo sfondo era dichiarato solo su `body`: per
- * specifica, se `html` non ha un proprio background quello di `body` si
- * PROPAGA a fare da sfondo del canvas — ma iOS Safari/WKWebView, nel
- * rimbalzo, dipinge quella zona con lo sfondo di `html`, non quello
- * propagato. Senza un valore proprio, `html` resta trasparente e mostra il
- * nero di default del WebView. Stesso token di `body`, non duplicato: se
- * `--background` cambia (tema, Fase 18), cambiano insieme.
+ * scopriva uno sfondo NERO, e non bastava dare a `html` lo stesso
+ * `background: var(--background)` di `body`. Causa: `--background` è un
+ * `radial-gradient(...)`, cioè un'IMMAGINE — e la zona di rimbalzo la
+ * dipinge WebKit leggendo il `background-color` SOLIDO dell'elemento
+ * radice, non un'immagine (non c'è un modo sensato di "estendere" un
+ * gradiente oltre il proprio riquadro). Senza un colore proprio, `html`
+ * restava trasparente lì e mostrava il nero di default del WebView.
+ *
+ * `--background-secondary` è già il colore SOLIDO più vicino al bordo del
+ * gradiente in entrambi i temi (è il token usato altrove come "superficie
+ * piena" — vedi `--color-deep`): lo si riusa invece di cablare un hex nuovo.
  */
 html {
-	background: var(--background);
+	background-color: var(--background-secondary);
 }
 
 body {
