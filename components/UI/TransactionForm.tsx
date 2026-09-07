@@ -415,7 +415,17 @@ export default function TransactionForm({
 	];
 
 	return (
-		<div className="flex flex-col flex-1 min-h-0 overflow-y-auto overscroll-contain scrollbar-none">
+		<>
+			{/*
+				⚠️ Il bottone di salvataggio è `fixed`, come "Continua" nel passo
+				"importo" di `TransactionModal` — stessa posizione, stesso motivo:
+				prima era l'ultimo elemento dello scroll, quindi su un form con
+				ricorrenza + ricevute finiva sotto la piega e bisognava scorrere
+				fino in fondo per salvare. `pb-24` sul contenitore che scorre
+				riserva lo spazio sotto, o l'ultimo campo (o il comando elimina)
+				resterebbe nascosto dietro il bottone.
+			*/}
+			<div className="flex flex-col flex-1 min-h-0 overflow-y-auto overscroll-contain scrollbar-none pb-24">
 			<div className="flex flex-col gap-2 mb-3">
 				{/*
 					Categoria — assente sui trasferimenti, dove la posizione la prende
@@ -591,19 +601,6 @@ export default function TransactionForm({
 				</>
 			)}
 
-			<button
-				onClick={handleSave}
-				disabled={!isValid || isSaving}
-				className="w-full mt-3 py-4 rounded-2xl btn-primary font-semibold flex items-center justify-center gap-2 disabled:opacity-40"
-			>
-				<Check size={18} />
-				{isEditing
-					? t.transactions.form.saveChanges
-					: recurring
-						? t.transactions.form.createRecurring
-						: t.transactions.form.save}
-			</button>
-
 			{/*
 				⚠️ Senza conti il bottone resta spento PER SEMPRE, e senza questa riga
 				non lo dice nessuno.
@@ -659,5 +656,26 @@ export default function TransactionForm({
 				</div>
 			)}
 		</div>
+
+		{/*
+			`fixed`, non l'ultimo elemento dello scroll — stessa posizione del
+			"Continua" del passo "importo": `left-6 right-6` ripete il `px-6`
+			del foglio (qui non è dentro quel contenitore) e il fondo rispetta
+			la stessa safe-area.
+		*/}
+		<button
+			onClick={handleSave}
+			disabled={!isValid || isSaving}
+			className="fixed left-6 right-6 py-4 rounded-2xl btn-primary font-semibold flex items-center justify-center gap-2 disabled:opacity-40"
+			style={{ bottom: "max(1.625rem, env(safe-area-inset-bottom))" }}
+		>
+			<Check size={18} />
+			{isEditing
+				? t.transactions.form.saveChanges
+				: recurring
+					? t.transactions.form.createRecurring
+					: t.transactions.form.save}
+		</button>
+	</>
 	);
 }
