@@ -346,8 +346,21 @@ function TransactionModalContent() {
 							</div>
 						</div>
 
+						{/*
+							⚠️ Tastierino "stile Revolut", su richiesta esplicita —
+							ADATTATO, non copiato: nessun colore o token di Revolut,
+							solo lo schema "niente card sui tasti". Il segno distintivo
+							di quel tastierino è che i numeri stanno DIRETTAMENTE sullo
+							sfondo — senza `bg-card`/`ring-border` a delimitare ogni
+							cella — ed è più minimale, non meno, di un tastierino a
+							pulsanti: si allinea a "mai effetti cyber o plastic glass"
+							tanto quanto le card, solo con un linguaggio diverso.
+							Il feedback al tocco (`active:opacity-40`) sostituisce il
+							contorno permanente: senza, un tasto senza bordo sembrerebbe
+							non rispondere al tocco.
+						*/}
 						<div
-							className="grid grid-cols-3 gap-2.5 min-h-0"
+							className="grid grid-cols-3 min-h-0"
 							style={{ flex: 7, gridTemplateRows: "repeat(4, minmax(0, 1fr))" }}
 						>
 							{AMOUNT_KEYS.map((key, i) => (
@@ -358,9 +371,9 @@ function TransactionModalContent() {
 										e.preventDefault();
 										handleAmountKey(key);
 									}}
-									className="flex items-center justify-center rounded-2xl bg-card ring-border text-2xl font-medium"
+									className="flex items-center justify-center text-4xl font-medium text-foreground active:opacity-40 transition-opacity"
 								>
-									{key === "⌫" ? <Delete size={20} /> : key}
+									{key === "⌫" ? <Delete size={26} /> : key}
 								</button>
 							))}
 						</div>
