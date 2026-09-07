@@ -369,7 +369,7 @@ function TransactionModalContent() {
 							precedente): lo spazio di ogni pillola non dipende più dal
 							testo più largo del gruppo ("€ 100"), è fisso a 1/5 della riga.
 						*/}
-						<div className="grid grid-cols-5 gap-2 shrink-0">
+						<div className="grid grid-cols-5 gap-2 mb-3 shrink-0">
 							{QUICK_AMOUNTS.map((v) => (
 								<button
 									key={v}
