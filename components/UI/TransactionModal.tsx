@@ -140,7 +140,18 @@ function TransactionModalContent() {
 				(arrotonda, ritaglia) → vetro (sfoca) → contenuto (`h-full flex
 				flex-col`, il padding). Stesso schema di `BottomSheetShell`.
 			*/}
-			<div className="relative w-full h-dvh rounded-t-4xl overflow-hidden modal-shadow-ring">
+			{/*
+				⚠️ `modal-shadow`, non `modal-shadow-ring` — su richiesta, il bordo
+				che quella seconda variante aggiunge (issue #81: un anello
+				`box-shadow` al posto di un `border` vero) si vedeva lungo il bordo
+				SUPERIORE arrotondato del foglio, proprio dove il manico dovrebbe
+				sembrare fluttuare senza soluzione di continuità. `modal-shadow`
+				resta l'ombra a caduta più il filo di luce in alto (`--shadow-inset`,
+				lo stesso di ogni altra card dell'app) — SENZA l'anello colorato.
+				Nessun rischio issue #81: quel bug richiede un BORDO per scattare, e
+				senza l'anello non ce n'è uno da ritagliare male.
+			*/}
+			<div className="relative w-full h-dvh rounded-t-4xl overflow-hidden modal-shadow">
 				<div className="absolute inset-0 bg-modal backdrop-blur-2xl" />
 				<div
 					className="relative w-full h-full flex flex-col px-6"
