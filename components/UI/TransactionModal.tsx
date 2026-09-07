@@ -337,17 +337,17 @@ function TransactionModalContent() {
 
 						Il punto che i primi due mancavano: la richiesta non era "non
 						lasciare vuoto" né "non deformare i tasti" isolatamente, era un
-						rapporto ESPLICITO fra le due zone — 70% alla tastiera, 30%
-						all'importo, entrambi PIÙ GRANDI di prima. `flex-grow` (7 e 3,
-						cioè 70:30) invece di un'altezza fissa o "riempi tutto": le due
-						zone si dividono lo spazio VERO disponibile in quella
-						proporzione, su qualunque schermo — e dentro la zona tastiera
-						(70%, non 100%) la griglia `1fr` produce celle vicine al
-						quadrato invece che allungate, perché non sta più crescendo
-						senza un limite.
+						rapporto ESPLICITO fra le due zone — 60% alla tastiera, 40%
+						all'importo (era 70/30: ridotto su richiesta, la tastiera
+						occupava troppo). `flex-grow` (6 e 4) invece di un'altezza fissa
+						o "riempi tutto": le due zone si dividono lo spazio VERO
+						disponibile in quella proporzione, su qualunque schermo — e
+						dentro la zona tastiera la griglia `1fr` produce celle vicine al
+						quadrato invece che allungate, perché non sta crescendo senza un
+						limite.
 					*/
 					<div className="flex-1 min-h-0 flex flex-col">
-						<div className="flex flex-col items-center justify-center min-h-0" style={{ flex: 3 }}>
+						<div className="flex flex-col items-center justify-center min-h-0" style={{ flex: 4 }}>
 							<p className="text-muted text-base mb-2">{t.transactions.form.amount}</p>
 							<div className="text-8xl font-bold tracking-tight">
 								<span className="text-4xl mr-1">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
@@ -360,19 +360,22 @@ function TransactionModalContent() {
 							l'importo (non lo somma a quanto già digitato): è una scorciatoia
 							per l'importo intero, non un secondo modo di scrivere le cifre —
 							i due si confonderebbero se convivessero sullo stesso gesto.
-							`overflow-x-auto` invece di `flex-wrap`: qui, a differenza della
-							`FilterBar` (issue #21c), nessuna pillola apre un menu che lo
-							scorrimento orizzontale ritaglierebbe — sono semplici bottoni.
-							`justify-center`: da sole a sinistra sembravano infilate lì per
-							caso, non una riga di scelte.
+
+							⚠️ `grid grid-cols-5`, non più `flex` col contenuto che decide la
+							propria larghezza: le cinque colonne sono UGUALI e coprono
+							l'intera riga per costruzione, invece di raggrupparsi al centro
+							lasciando margine ai lati. È anche ciò che permette di farle un
+							po' più grandi senza tornare a traboccare (issue #86, giro
+							precedente): lo spazio di ogni pillola non dipende più dal
+							testo più largo del gruppo ("€ 100"), è fisso a 1/5 della riga.
 						*/}
-						<div className="flex justify-center gap-2 overflow-x-auto scrollbar-none shrink-0 pb-1 px-0.5">
+						<div className="grid grid-cols-5 gap-2 shrink-0">
 							{QUICK_AMOUNTS.map((v) => (
 								<button
 									key={v}
 									type="button"
 									onClick={() => setAmount(String(v))}
-									className="shrink-0 px-3.5 py-2 rounded-full text-[13px] font-semibold card-shadow-ring"
+									className="px-1 py-2.5 rounded-full text-sm font-semibold card-shadow-ring"
 								>
 									{formatMoney(v, { locale, currency: DISPLAY_CURRENCY })}
 								</button>
@@ -388,7 +391,7 @@ function TransactionModalContent() {
 						*/}
 						<div
 							className="grid grid-cols-3 gap-2.5 min-h-0"
-							style={{ flex: 7, gridTemplateRows: "repeat(4, minmax(0, 1fr))" }}
+							style={{ flex: 6, gridTemplateRows: "repeat(4, minmax(0, 1fr))" }}
 						>
 							{AMOUNT_KEYS.map((key, i) => (
 								<button
