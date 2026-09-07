@@ -218,7 +218,7 @@ export default function FilterBar({
 							// decine, e senza tetto la tendina uscirebbe dallo schermo con
 							// le ultime voci irraggiungibili. Stessa difesa di `Select`
 							// nella Fase 21.
-							<div className="absolute top-full mt-1.5 left-0 z-20 min-w-44 max-h-64 overflow-y-auto rounded-2xl bg-deep card-shadow-ring">
+							<div className="absolute top-full mt-1.5 left-0 z-20 min-w-44 max-h-64 overflow-y-auto scrollbar-none rounded-2xl bg-deep card-shadow-ring">
 								{categoriaOptions.map((opt) => (
 									<button
 										key={opt.value}

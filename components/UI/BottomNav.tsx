@@ -71,7 +71,15 @@ export default function BottomNav() {
 				residuo aperto, deliberatamente — è la stessa ragione per cui questa
 				barra era già esclusa dal giro precedente.
 			*/}
-			<div className="no-print fixed left-[50%] translate-[-50%] bottom-0 min-w-88 flex items-center justify-between py-2 px-4 rounded-3xl z-40 bg-surface backdrop-blur-[26px] box-shadow-ring h-16">
+			<div
+				className="no-print fixed left-[50%] translate-[-50%] min-w-88 flex items-center justify-between py-2 px-4 rounded-3xl z-40 bg-surface backdrop-blur-[26px] box-shadow-ring h-16"
+				// issue #86 — `bottom-0` metteva la pillola a filo del bordo reale
+				// dello schermo: su un device con home indicator finiva dietro la
+				// sua zona di gesto. `env()` la solleva di quel tanto; su un device
+				// senza notch/indicator vale 0 e il comportamento resta identico a
+				// prima (flush al bordo, com'era voluto).
+				style={{ bottom: "env(safe-area-inset-bottom)" }}
+			>
 				{NAV_ITEMS.slice(0, 2).map(({ href, icon: Icon, key }) => {
 					const active = pathname === href;
 					return (

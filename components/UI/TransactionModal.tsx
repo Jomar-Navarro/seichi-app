@@ -1,11 +1,22 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, X, Check } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Check, Delete } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useUIStore } from "@/store/useUIStore";
 import { TRANSACTION_TYPES } from "@/types";
 import TransactionForm from "./TransactionForm";
 import { useI18n } from "@/components/features/I18nProvider";
+import { useCloseOnBack } from "./useCloseOnBack";
+import { DISPLAY_CURRENCY, currencySymbol, formatMoney } from "@/lib/i18n/format";
+
+/*
+ * issue #86 — pillole di importo rapido, sul modello di Revolut ma con
+ * valori fissi (deciso: non dipendono dal tipo di movimento, altrimenti
+ * servirebbe una tabella di taglie diverse per sette tipi senza un criterio
+ * ovvio). Modulo, non dentro il componente: sono una costante, non uno
+ * stato — ricalcolarle a ogni render non avrebbe senso.
+ */
+const QUICK_AMOUNTS = [5, 10, 20, 50, 100];
 
 /**
  * ⚠️ Diviso in due, e il guscio esiste solo per decidere il MONTAGGIO.
@@ -35,13 +46,52 @@ function TransactionModalContent() {
 		closeTransactionModal,
 		setTransactionType,
 	} = useUIStore();
-	const { t } = useI18n();
+	const { t, locale } = useI18n();
 
-	// Il passo iniziale è una funzione del contesto di apertura, e il montaggio è
-	// esattamente quel momento: nessun effetto da scrivere.
-	const [step, setStep] = useState<"type" | "form">(
-		editingTransaction ? "form" : "type",
+	/*
+	 * ⚠️ Terzo passo, non due — issue #86. Importo e tastierino stavano IN
+	 * CIMA al form insieme a categoria, conto, descrizione, data, ricorrenza
+	 * e ricevute: su qualunque telefono reale quell'insieme non ci sta mai
+	 * tutto a schermo, e per digitare l'importo bisognava scorrere fino in
+	 * fondo — mentre lo si scriveva, il totale non si vedeva più.
+	 *
+	 * Spostare SOLO il tastierino accanto all'importo (correzione
+	 * precedente, stesso giro) risolveva "non vedo cosa scrivo" ma non "non
+	 * ci sta tutto": categoria+conto+descrizione+data+ricorrenza+ricevute+
+	 * salva insieme non ci stanno su nessuno schermo di telefono, per quanto
+	 * si comprima.
+	 *
+	 * La forma che risolve DAVVERO è un passo a sé, sul modello già esistente
+	 * di "che tipo": importo + tastierino occupano tutto lo schermo SENZA
+	 * scorrere (ci stanno comodamente, è il resto che non entra), poi
+	 * "Continua" porta al resto dei campi — che restano scorribili, com'è
+	 * normale per un form con tanti campi opzionali.
+	 */
+	const [step, setStep] = useState<"type" | "amount" | "form">(
+		editingTransaction ? "amount" : "type",
 	);
+
+	// Vive qui e non in TransactionForm: il passo "importo" ha bisogno di
+	// leggerlo e scriverlo PRIMA che TransactionForm esista (monta solo al
+	// passo "form"). Stessa inizializzazione che aveva TransactionForm.
+	const [amount, setAmount] = useState(() =>
+		editingTransaction
+			? editingTransaction.amount.toFixed(2).replace(".", ",")
+			: "",
+	);
+	const AMOUNT_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ",", "0", "⌫"];
+	function handleAmountKey(key: string) {
+		if (key === "⌫") {
+			setAmount((prev) => prev.slice(0, -1));
+			return;
+		}
+		if (key === ",") {
+			setAmount((prev) => (prev.includes(",") ? prev : prev + ","));
+			return;
+		}
+		setAmount((prev) => prev + key);
+	}
+	const amountValid = amount !== "" && parseFloat(amount.replace(",", ".")) > 0;
 
 	// Blocca lo scroll della pagina dietro il modale. Ora che il componente vive
 	// solo da aperto, la guardia sullo stato del modale non serve: montaggio e
@@ -61,7 +111,7 @@ function TransactionModalContent() {
 
 	function handleTypeSelect(id: string) {
 		setTransactionType(id);
-		setStep("form");
+		setStep("amount");
 	}
 
 	// Nessun `setStep("type")` qui: chiudere smonta, e con lo smontaggio `step`
@@ -70,6 +120,11 @@ function TransactionModalContent() {
 	function handleClose() {
 		closeTransactionModal();
 	}
+
+	// issue #86 — vedi useCloseOnBack: neutralizza l'edge-swipe di WKWebView
+	// che altrimenti naviga la pagina SOTTO invece di restare nel modale. È
+	// il caso esplicitamente segnalato dall'issue: aggiungere un movimento.
+	useCloseOnBack(handleClose);
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-end">
@@ -85,25 +140,62 @@ function TransactionModalContent() {
 				(arrotonda, ritaglia) → vetro (sfoca) → contenuto (`h-full flex
 				flex-col`, il padding). Stesso schema di `BottomSheetShell`.
 			*/}
-			<div className="relative w-full h-dvh rounded-t-4xl overflow-hidden modal-shadow-ring">
+			{/*
+				⚠️ `modal-shadow`, non `modal-shadow-ring`: resta l'ombra a caduta
+				più il filo di luce in alto, senza l'anello colorato — issue #86.
+
+				⚠️⚠️ Nessun `rounded-t-*`: la richiesta era il RAGGIO, non l'anello
+				(il primo giro aveva frainteso "bordi" come l'anello, non gli
+				angoli). Con `h-dvh` il foglio tocca già cima e fondo reali dello
+				schermo: un angolo arrotondato lì sopra sembrava una card che
+				galleggia sotto la notch invece di uno schermo intero. Gli altri
+				fogli (`BottomSheetShell`, `90dvh`, DAVVERO sospesi sopra il resto
+				della pagina) restano arrotondati apposta — è un caso diverso.
+			*/}
+			<div className="relative w-full h-dvh overflow-hidden modal-shadow">
 				<div className="absolute inset-0 bg-modal backdrop-blur-2xl" />
-				<div className="relative w-full h-full flex flex-col pt-3.5 px-6 pb-6.5">
+				<div
+					className="relative w-full h-full flex flex-col px-6"
+					// issue #86 — `h-dvh` fa toccare al foglio SIA il fondo sia la
+					// cima reali dello schermo: a differenza di `BottomSheetShell`
+					// (che si ferma a `90dvh`) serve l'inset anche in alto, o il
+					// manico finisce sotto la notch. `max()` mantiene il respiro
+					// originale (`pt-3.5`/`pb-6.5`) sui device senza notch, dove
+					// l'inset è 0.
+					style={{
+						paddingTop: "max(0.875rem, env(safe-area-inset-top))",
+						paddingBottom: "max(1.625rem, env(safe-area-inset-bottom))",
+					}}
+				>
 				{/* Handle */}
 				<div className="w-10 h-1 rounded-full mx-auto mb-1 bg-modal-handle" />
 
 				{/* Header */}
 				<div className="flex items-start justify-between mt-3 mb-4">
 					<div className="flex items-center gap-2">
-						{step === "form" && !editingTransaction && (
+						{/*
+							issue #86 — "indietro" ora ha due destinazioni possibili, non
+							una: dal passo "importo" si torna al tipo (solo in creazione,
+							editare non passa mai da lì); dal passo "dettagli" si torna
+							all'importo — SEMPRE, anche editando, perché lì l'importo va
+							corretto quanto gli altri campi.
+						*/}
+						{/*
+							issue #86 — da w-8/32px a w-11/44px, il minimo di Apple HIG
+							per un bersaglio toccabile: da telefono era piccolo e
+							difficile da centrare col dito, swipe o no — il gesto è una
+							SECONDA via, non sostituisce un bottone comodo.
+						*/}
+						{((step === "amount" && !editingTransaction) || step === "form") && (
 							<button
-								onClick={() => setStep("type")}
-								className="w-8 h-8 flex items-center justify-center rounded-xl shrink-0 bg-control ring-border"
+								onClick={() => setStep(step === "form" ? "amount" : "type")}
+								className="w-11 h-11 flex items-center justify-center rounded-xl shrink-0 bg-control ring-border"
 							>
-								<ChevronLeft size={16} />
+								<ChevronLeft size={19} />
 							</button>
 						)}
 						<div>
-							{step === "form" && selectedType && (
+							{step !== "type" && selectedType && (
 								<p
 									className="text-xs font-medium mb-0.5"
 									style={{ color: selectedType.color }}
@@ -123,9 +215,9 @@ function TransactionModalContent() {
 					</div>
 					<button
 						onClick={handleClose}
-						className="w-8 h-8 flex items-center justify-center rounded-xl shrink-0 bg-control ring-border"
+						className="w-11 h-11 flex items-center justify-center rounded-xl shrink-0 bg-control ring-border"
 					>
-						<X size={15} />
+						<X size={18} />
 					</button>
 				</div>
 
@@ -243,11 +335,124 @@ function TransactionModalContent() {
 					</div>
 				)}
 
-				{/* Step: form */}
+				{/*
+					Step: importo — issue #86. Occupa lo schermo da solo apposta: è
+					la coppia (totale + tastierino) che deve restare visibile insieme
+					SEMPRE, senza dipendere da quanti altri campi il tipo scelto porta
+					con sé nel passo successivo.
+				*/}
+				{step === "amount" && selectedType && (
+					/*
+						⚠️⚠️⚠️ Terzo tentativo. I primi due, entrambi verificati e
+						respinti a vista:
+						1. righe della griglia fatte crescere (`1fr`) fino a riempire
+						   TUTTO lo spazio avanzato: tasti allungati in rettangoli
+						   verticali, "orribile";
+						2. tasti alla dimensione fissa originale, blocco centrato: lo
+						   spazio vuoto si divide sopra/sotto invece che ammassarsi in
+						   fondo, ma "orribile" lo stesso — troppo piccolo per lo
+						   schermo che c'è.
+
+						Il punto che i primi due mancavano: la richiesta non era "non
+						lasciare vuoto" né "non deformare i tasti" isolatamente, era un
+						rapporto ESPLICITO fra le due zone — 60% alla tastiera, 40%
+						all'importo (era 70/30: ridotto su richiesta, la tastiera
+						occupava troppo). `flex-grow` (6 e 4) invece di un'altezza fissa
+						o "riempi tutto": le due zone si dividono lo spazio VERO
+						disponibile in quella proporzione, su qualunque schermo — e
+						dentro la zona tastiera la griglia `1fr` produce celle vicine al
+						quadrato invece che allungate, perché non sta crescendo senza un
+						limite.
+					*/
+					<div className="flex-1 min-h-0 flex flex-col pb-19">
+						<div className="flex flex-col items-center justify-center min-h-0" style={{ flex: 4 }}>
+							<p className="text-muted text-base mb-2">{t.transactions.form.amount}</p>
+							<div className="text-8xl font-bold tracking-tight">
+								<span className="text-4xl mr-1">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
+								{amount || "0"}
+							</div>
+						</div>
+
+						{/*
+							Pillole di importo rapido — issue #86. Toccarne una SOSTITUISCE
+							l'importo (non lo somma a quanto già digitato): è una scorciatoia
+							per l'importo intero, non un secondo modo di scrivere le cifre —
+							i due si confonderebbero se convivessero sullo stesso gesto.
+
+							⚠️ `grid grid-cols-5`, non più `flex` col contenuto che decide la
+							propria larghezza: le cinque colonne sono UGUALI e coprono
+							l'intera riga per costruzione, invece di raggrupparsi al centro
+							lasciando margine ai lati. È anche ciò che permette di farle un
+							po' più grandi senza tornare a traboccare (issue #86, giro
+							precedente): lo spazio di ogni pillola non dipende più dal
+							testo più largo del gruppo ("€ 100"), è fisso a 1/5 della riga.
+						*/}
+						<div className="grid grid-cols-5 gap-2 mb-3 shrink-0">
+							{QUICK_AMOUNTS.map((v) => (
+								<button
+									key={v}
+									type="button"
+									onClick={() => setAmount(String(v))}
+									className="px-1 py-2.5 rounded-full text-sm font-semibold card-shadow-ring"
+								>
+									{formatMoney(v, { locale, currency: DISPLAY_CURRENCY })}
+								</button>
+							))}
+						</div>
+
+						{/*
+							Tastierino — issue #86. Due varianti tentate e scartate a vista
+							(card con sfumatura "liquid glass", poi tasti nudi "stile
+							Revolut"): questa è la card semplice del secondo tentativo
+							(70/30), quella già approvata prima di iniziare a cambiarne
+							l'aspetto — issue #81, anello invece di bordo.
+						*/}
+						<div
+							className="grid grid-cols-3 gap-2.5 min-h-0"
+							style={{ flex: 6, gridTemplateRows: "repeat(4, minmax(0, 1fr))" }}
+						>
+							{AMOUNT_KEYS.map((key, i) => (
+								<button
+									key={i}
+									type="button"
+									onPointerDown={(e) => {
+										e.preventDefault();
+										handleAmountKey(key);
+									}}
+									className="flex items-center justify-center rounded-2xl bg-card ring-border text-2xl font-medium"
+								>
+									{key === "⌫" ? <Delete size={20} /> : key}
+								</button>
+							))}
+						</div>
+
+						{/*
+							⚠️ `fixed`, non più l'ultimo elemento del flex-col — issue #86.
+							Prima la sua posizione era un RISULTATO del rapporto 40/60 sopra
+							di lui; ora è un punto fisso indipendente, sempre alla stessa
+							altezza sullo schermo qualunque cosa succeda al contenuto sopra.
+							`left-6 right-6` ripete il `px-6` del foglio (qui non è dentro
+							quel contenitore), e il fondo rispetta la stessa safe-area del
+							padding generale. Il wrapper qui sopra riserva lo spazio con
+							`pb-19`, o il tastierino finirebbe nascosto sotto.
+						*/}
+						<button
+							onClick={() => setStep("form")}
+							disabled={!amountValid}
+							className="fixed left-6 right-6 py-4 rounded-2xl btn-primary font-semibold flex items-center justify-center gap-2 disabled:opacity-40"
+							style={{ bottom: "max(1.625rem, env(safe-area-inset-bottom))" }}
+						>
+							{t.common.continue}
+						</button>
+					</div>
+				)}
+
+				{/* Step: dettagli */}
 				{step === "form" && selectedType && (
 					<TransactionForm
 						selectedType={selectedType}
 						transaction={editingTransaction ?? undefined}
+						amount={amount}
 					/>
 				)}
 				</div>

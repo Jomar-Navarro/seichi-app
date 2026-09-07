@@ -97,7 +97,7 @@ export default function PreferencePage() {
 			</div>
 
 			{/* ── RIGHT PANEL ── */}
-			<div className="grow lg:grow-0 lg:w-3/5 flex flex-col overflow-auto">
+			<div className="grow lg:grow-0 lg:w-3/5 flex flex-col overflow-auto scrollbar-none">
 				{/* Progress bar — true-centered at top */}
 				<div className="relative z-10 pt-8 lg:pt-10">
 					<OnboardingProgress currentStep={2} />

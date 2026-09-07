@@ -23,7 +23,7 @@ export default function LoginForm({ onTabChange, notice }: LoginFormProps) {
 	const [state, formAction] = useActionState(login, { error: "" });
 
 	return (
-		<div className="grow shrink basis-0 flex flex-col h-full overflow-y-auto pt-12 px-7 pb-7 md:py-18 md:px-20 lg:p-8">
+		<div className="grow shrink basis-0 flex flex-col h-full overflow-y-auto scrollbar-none pt-12 px-7 pb-7 md:py-18 md:px-20 lg:p-8">
 			{/*
 				⚠️ TRE livelli, ma solo `lg:` conta — issue #81. Sotto `lg:` questo
 				pannello non ha né arrotondamento né sfocatura: il vetro (sotto)

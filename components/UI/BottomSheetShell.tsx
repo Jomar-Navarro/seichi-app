@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useCloseOnBack } from "./useCloseOnBack";
 
 interface BottomSheetShellProps {
 	onClose: () => void;
@@ -62,6 +63,10 @@ interface BottomSheetShellProps {
  * nota in `globals.css`.
  */
 export default function BottomSheetShell({ onClose, children, ariaLabel }: BottomSheetShellProps) {
+	// issue #86 — vedi useCloseOnBack: neutralizza l'edge-swipe di WKWebView
+	// che altrimenti naviga la pagina SOTTO invece di restare nel foglio.
+	useCloseOnBack(onClose);
+
 	return (
 		<div className="fixed inset-0 z-50 flex items-end">
 			<div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={onClose} />
@@ -74,8 +79,17 @@ export default function BottomSheetShell({ onClose, children, ariaLabel }: Botto
 				<div className="absolute inset-0 bg-modal backdrop-blur-2xl" />
 
 				<div
-					className="relative flex flex-col pt-3.5 px-6 pb-8"
-					style={{ maxHeight: "90dvh", overflowY: "auto" }}
+					className="relative flex flex-col pt-3.5 px-6 scrollbar-none"
+					// issue #86 — il foglio è flush col fondo reale dello schermo
+					// (`items-end`, nessun margine): senza l'inset l'ultimo elemento
+					// finisce ridosso alla home indicator. `max()` perché `pb-8` (32px)
+					// resta il minimo voluto anche su un device senza notch, dove
+					// l'inset è 0 — altrimenti lì si perderebbe il respiro attuale.
+					style={{
+						maxHeight: "90dvh",
+						overflowY: "auto",
+						paddingBottom: "max(2rem, env(safe-area-inset-bottom))",
+					}}
 				>
 					<div className="w-10 h-1 rounded-full mx-auto mb-1 bg-modal-handle shrink-0" />
 					{children}
