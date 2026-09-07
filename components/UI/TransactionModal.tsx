@@ -366,13 +366,13 @@ function TransactionModalContent() {
 							`justify-center`: da sole a sinistra sembravano infilate lì per
 							caso, non una riga di scelte.
 						*/}
-						<div className="flex justify-center gap-2.5 overflow-x-auto scrollbar-none shrink-0 pb-1 px-0.5">
+						<div className="flex justify-center gap-2 overflow-x-auto scrollbar-none shrink-0 pb-1 px-0.5">
 							{QUICK_AMOUNTS.map((v) => (
 								<button
 									key={v}
 									type="button"
 									onClick={() => setAmount(String(v))}
-									className="shrink-0 px-5 py-2.5 rounded-full text-sm font-semibold card-shadow-ring"
+									className="shrink-0 px-3.5 py-2 rounded-full text-[13px] font-semibold card-shadow-ring"
 								>
 									{formatMoney(v, { locale, currency: DISPLAY_CURRENCY })}
 								</button>
@@ -380,18 +380,14 @@ function TransactionModalContent() {
 						</div>
 
 						{/*
-							⚠️ Tastierino "liquid glass" — issue #86, terza revisione del
-							solo aspetto (nessuna delle due precedenti, "card piatta" e
-							"nudo stile Revolut", era quella giusta). `liquid-key`
-							(globals.css): superficie translucida `--card` — lo stesso
-							token di ogni altra card, non un colore nuovo — più una
-							sfumatura lucida in alto. Il contenuto è in uno `span`
-							separato con `relative z-10`: la sfumatura è uno pseudo-
-							elemento assoluto, e senza uno stacking esplicito il numero
-							rischierebbe di finire sotto.
+							Tastierino — issue #86. Due varianti tentate e scartate a vista
+							(card con sfumatura "liquid glass", poi tasti nudi "stile
+							Revolut"): questa è la card semplice del secondo tentativo
+							(70/30), quella già approvata prima di iniziare a cambiarne
+							l'aspetto — issue #81, anello invece di bordo.
 						*/}
 						<div
-							className="grid grid-cols-3 gap-2 min-h-0"
+							className="grid grid-cols-3 gap-2.5 min-h-0"
 							style={{ flex: 7, gridTemplateRows: "repeat(4, minmax(0, 1fr))" }}
 						>
 							{AMOUNT_KEYS.map((key, i) => (
@@ -402,11 +398,9 @@ function TransactionModalContent() {
 										e.preventDefault();
 										handleAmountKey(key);
 									}}
-									className="liquid-key flex items-center justify-center rounded-2xl active:opacity-70 transition-opacity"
+									className="flex items-center justify-center rounded-2xl bg-card ring-border text-2xl font-medium"
 								>
-									<span className="relative z-10 text-4xl font-medium text-foreground">
-										{key === "⌫" ? <Delete size={26} /> : key}
-									</span>
+									{key === "⌫" ? <Delete size={20} /> : key}
 								</button>
 							))}
 						</div>
