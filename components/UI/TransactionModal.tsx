@@ -141,17 +141,18 @@ function TransactionModalContent() {
 				flex-col`, il padding). Stesso schema di `BottomSheetShell`.
 			*/}
 			{/*
-				⚠️ `modal-shadow`, non `modal-shadow-ring` — su richiesta, il bordo
-				che quella seconda variante aggiunge (issue #81: un anello
-				`box-shadow` al posto di un `border` vero) si vedeva lungo il bordo
-				SUPERIORE arrotondato del foglio, proprio dove il manico dovrebbe
-				sembrare fluttuare senza soluzione di continuità. `modal-shadow`
-				resta l'ombra a caduta più il filo di luce in alto (`--shadow-inset`,
-				lo stesso di ogni altra card dell'app) — SENZA l'anello colorato.
-				Nessun rischio issue #81: quel bug richiede un BORDO per scattare, e
-				senza l'anello non ce n'è uno da ritagliare male.
+				⚠️ `modal-shadow`, non `modal-shadow-ring`: resta l'ombra a caduta
+				più il filo di luce in alto, senza l'anello colorato — issue #86.
+
+				⚠️⚠️ Nessun `rounded-t-*`: la richiesta era il RAGGIO, non l'anello
+				(il primo giro aveva frainteso "bordi" come l'anello, non gli
+				angoli). Con `h-dvh` il foglio tocca già cima e fondo reali dello
+				schermo: un angolo arrotondato lì sopra sembrava una card che
+				galleggia sotto la notch invece di uno schermo intero. Gli altri
+				fogli (`BottomSheetShell`, `90dvh`, DAVVERO sospesi sopra il resto
+				della pagina) restano arrotondati apposta — è un caso diverso.
 			*/}
-			<div className="relative w-full h-dvh rounded-t-4xl overflow-hidden modal-shadow">
+			<div className="relative w-full h-dvh overflow-hidden modal-shadow">
 				<div className="absolute inset-0 bg-modal backdrop-blur-2xl" />
 				<div
 					className="relative w-full h-full flex flex-col px-6"
@@ -179,12 +180,18 @@ function TransactionModalContent() {
 							all'importo — SEMPRE, anche editando, perché lì l'importo va
 							corretto quanto gli altri campi.
 						*/}
+						{/*
+							issue #86 — da w-8/32px a w-11/44px, il minimo di Apple HIG
+							per un bersaglio toccabile: da telefono era piccolo e
+							difficile da centrare col dito, swipe o no — il gesto è una
+							SECONDA via, non sostituisce un bottone comodo.
+						*/}
 						{((step === "amount" && !editingTransaction) || step === "form") && (
 							<button
 								onClick={() => setStep(step === "form" ? "amount" : "type")}
-								className="w-8 h-8 flex items-center justify-center rounded-xl shrink-0 bg-control ring-border"
+								className="w-11 h-11 flex items-center justify-center rounded-xl shrink-0 bg-control ring-border"
 							>
-								<ChevronLeft size={16} />
+								<ChevronLeft size={19} />
 							</button>
 						)}
 						<div>
@@ -208,9 +215,9 @@ function TransactionModalContent() {
 					</div>
 					<button
 						onClick={handleClose}
-						className="w-8 h-8 flex items-center justify-center rounded-xl shrink-0 bg-control ring-border"
+						className="w-11 h-11 flex items-center justify-center rounded-xl shrink-0 bg-control ring-border"
 					>
-						<X size={15} />
+						<X size={18} />
 					</button>
 				</div>
 
@@ -357,7 +364,7 @@ function TransactionModalContent() {
 						quadrato invece che allungate, perché non sta crescendo senza un
 						limite.
 					*/
-					<div className="flex-1 min-h-0 flex flex-col">
+					<div className="flex-1 min-h-0 flex flex-col pb-19">
 						<div className="flex flex-col items-center justify-center min-h-0" style={{ flex: 4 }}>
 							<p className="text-muted text-base mb-2">{t.transactions.form.amount}</p>
 							<div className="text-8xl font-bold tracking-tight">
@@ -419,10 +426,21 @@ function TransactionModalContent() {
 							))}
 						</div>
 
+						{/*
+							⚠️ `fixed`, non più l'ultimo elemento del flex-col — issue #86.
+							Prima la sua posizione era un RISULTATO del rapporto 40/60 sopra
+							di lui; ora è un punto fisso indipendente, sempre alla stessa
+							altezza sullo schermo qualunque cosa succeda al contenuto sopra.
+							`left-6 right-6` ripete il `px-6` del foglio (qui non è dentro
+							quel contenitore), e il fondo rispetta la stessa safe-area del
+							padding generale. Il wrapper qui sopra riserva lo spazio con
+							`pb-19`, o il tastierino finirebbe nascosto sotto.
+						*/}
 						<button
 							onClick={() => setStep("form")}
 							disabled={!amountValid}
-							className="w-full mt-3 py-4 rounded-2xl btn-primary font-semibold flex items-center justify-center gap-2 disabled:opacity-40 shrink-0"
+							className="fixed left-6 right-6 py-4 rounded-2xl btn-primary font-semibold flex items-center justify-center gap-2 disabled:opacity-40"
+							style={{ bottom: "max(1.625rem, env(safe-area-inset-bottom))" }}
 						>
 							{t.common.continue}
 						</button>
