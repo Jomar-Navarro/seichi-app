@@ -73,6 +73,36 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /*
+ * ⚠️⚠️ Debito dichiarato — la zona intorno alla Dynamic Island (iPhone 15,
+ * tema scuro) resta leggermente disomogenea rispetto al resto dell'app, e
+ * NON è stato risolto: tre tecniche diverse, tutte verificate dal vivo sul
+ * dispositivo (non solo compilate), non hanno spostato nulla di visibile.
+ *
+ * - un elemento `fixed` con `backdrop-blur` alto quanto `env(safe-area-
+ *   inset-top)`: non c'è nulla dietro da sfocare in quella striscia, solo
+ *   sfondo piatto — la sfocatura non cambiava nulla per costruzione;
+ * - lo stesso elemento con un riempimento piatto (`--background-secondary`,
+ *   il navy dell'app): nessuna differenza percepibile, il colore era già
+ *   troppo vicino a quello del gradiente in quel punto;
+ * - lo stesso ancora, mischiato con l'80% di nero per avvicinarsi al SOLO
+ *   caso confermato integrarsi bene (Note in scuro, nero su nero): stesso
+ *   risultato — nessuna differenza.
+ *
+ * Zero su tre, con tre colori/tecniche diversi, è il segnale che il
+ * problema non è IL COLORE: sospetto (non verificabile da codice) è che iOS
+ * componga l'overlay della status bar traslucida leggendo lo sfondo di BASE
+ * del documento al primo paint, non un elemento aggiunto sopra in un
+ * secondo momento — nessun ulteriore `fixed` da questo lato può quindi
+ * cambiare cosa vi si vede attraverso. App native probabilmente ricevono un
+ * trattamento di vibrancy/blur dal sistema che una PWA (WKWebView) non
+ * riceve allo stesso modo. Confrontato con app native vere: Note (nero su
+ * nero) si integra per coincidenza cromatica, Meteo (foto densa di
+ * dettaglio) perché la texture nasconde il confine — Seichi ha uno sfondo
+ * piatto proprio dove serve, ed è la combinazione peggiore per notare un
+ * bordo, non fixabile con altro codice lato nostro.
+ */
+
+/*
  * issue #86 — la notch/Dynamic Island appariva NERA. Causa verificata: senza
  * `viewport-fit=cover` iOS lascia l'area di notch/status-bar FUORI dal
  * viewport dell'app, quindi non è uno sfondo mancante — è zona che l'app non

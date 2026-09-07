@@ -1,12 +1,13 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, X, Check } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Check, Delete } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useUIStore } from "@/store/useUIStore";
 import { TRANSACTION_TYPES } from "@/types";
 import TransactionForm from "./TransactionForm";
 import { useI18n } from "@/components/features/I18nProvider";
 import { useCloseOnBack } from "./useCloseOnBack";
+import { DISPLAY_CURRENCY, currencySymbol } from "@/lib/i18n/format";
 
 /**
  * ⚠️ Diviso in due, e il guscio esiste solo per decidere il MONTAGGIO.
@@ -36,13 +37,52 @@ function TransactionModalContent() {
 		closeTransactionModal,
 		setTransactionType,
 	} = useUIStore();
-	const { t } = useI18n();
+	const { t, locale } = useI18n();
 
-	// Il passo iniziale è una funzione del contesto di apertura, e il montaggio è
-	// esattamente quel momento: nessun effetto da scrivere.
-	const [step, setStep] = useState<"type" | "form">(
-		editingTransaction ? "form" : "type",
+	/*
+	 * ⚠️ Terzo passo, non due — issue #86. Importo e tastierino stavano IN
+	 * CIMA al form insieme a categoria, conto, descrizione, data, ricorrenza
+	 * e ricevute: su qualunque telefono reale quell'insieme non ci sta mai
+	 * tutto a schermo, e per digitare l'importo bisognava scorrere fino in
+	 * fondo — mentre lo si scriveva, il totale non si vedeva più.
+	 *
+	 * Spostare SOLO il tastierino accanto all'importo (correzione
+	 * precedente, stesso giro) risolveva "non vedo cosa scrivo" ma non "non
+	 * ci sta tutto": categoria+conto+descrizione+data+ricorrenza+ricevute+
+	 * salva insieme non ci stanno su nessuno schermo di telefono, per quanto
+	 * si comprima.
+	 *
+	 * La forma che risolve DAVVERO è un passo a sé, sul modello già esistente
+	 * di "che tipo": importo + tastierino occupano tutto lo schermo SENZA
+	 * scorrere (ci stanno comodamente, è il resto che non entra), poi
+	 * "Continua" porta al resto dei campi — che restano scorribili, com'è
+	 * normale per un form con tanti campi opzionali.
+	 */
+	const [step, setStep] = useState<"type" | "amount" | "form">(
+		editingTransaction ? "amount" : "type",
 	);
+
+	// Vive qui e non in TransactionForm: il passo "importo" ha bisogno di
+	// leggerlo e scriverlo PRIMA che TransactionForm esista (monta solo al
+	// passo "form"). Stessa inizializzazione che aveva TransactionForm.
+	const [amount, setAmount] = useState(() =>
+		editingTransaction
+			? editingTransaction.amount.toFixed(2).replace(".", ",")
+			: "",
+	);
+	const AMOUNT_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ",", "0", "⌫"];
+	function handleAmountKey(key: string) {
+		if (key === "⌫") {
+			setAmount((prev) => prev.slice(0, -1));
+			return;
+		}
+		if (key === ",") {
+			setAmount((prev) => (prev.includes(",") ? prev : prev + ","));
+			return;
+		}
+		setAmount((prev) => prev + key);
+	}
+	const amountValid = amount !== "" && parseFloat(amount.replace(",", ".")) > 0;
 
 	// Blocca lo scroll della pagina dietro il modale. Ora che il componente vive
 	// solo da aperto, la guardia sullo stato del modale non serve: montaggio e
@@ -62,7 +102,7 @@ function TransactionModalContent() {
 
 	function handleTypeSelect(id: string) {
 		setTransactionType(id);
-		setStep("form");
+		setStep("amount");
 	}
 
 	// Nessun `setStep("type")` qui: chiudere smonta, e con lo smontaggio `step`
@@ -112,16 +152,23 @@ function TransactionModalContent() {
 				{/* Header */}
 				<div className="flex items-start justify-between mt-3 mb-4">
 					<div className="flex items-center gap-2">
-						{step === "form" && !editingTransaction && (
+						{/*
+							issue #86 — "indietro" ora ha due destinazioni possibili, non
+							una: dal passo "importo" si torna al tipo (solo in creazione,
+							editare non passa mai da lì); dal passo "dettagli" si torna
+							all'importo — SEMPRE, anche editando, perché lì l'importo va
+							corretto quanto gli altri campi.
+						*/}
+						{((step === "amount" && !editingTransaction) || step === "form") && (
 							<button
-								onClick={() => setStep("type")}
+								onClick={() => setStep(step === "form" ? "amount" : "type")}
 								className="w-8 h-8 flex items-center justify-center rounded-xl shrink-0 bg-control ring-border"
 							>
 								<ChevronLeft size={16} />
 							</button>
 						)}
 						<div>
-							{step === "form" && selectedType && (
+							{step !== "type" && selectedType && (
 								<p
 									className="text-xs font-medium mb-0.5"
 									style={{ color: selectedType.color }}
@@ -261,11 +308,79 @@ function TransactionModalContent() {
 					</div>
 				)}
 
-				{/* Step: form */}
+				{/*
+					Step: importo — issue #86. Occupa lo schermo da solo apposta: è
+					la coppia (totale + tastierino) che deve restare visibile insieme
+					SEMPRE, senza dipendere da quanti altri campi il tipo scelto porta
+					con sé nel passo successivo.
+				*/}
+				{step === "amount" && selectedType && (
+					/*
+						⚠️⚠️⚠️ Terzo tentativo. I primi due, entrambi verificati e
+						respinti a vista:
+						1. righe della griglia fatte crescere (`1fr`) fino a riempire
+						   TUTTO lo spazio avanzato: tasti allungati in rettangoli
+						   verticali, "orribile";
+						2. tasti alla dimensione fissa originale, blocco centrato: lo
+						   spazio vuoto si divide sopra/sotto invece che ammassarsi in
+						   fondo, ma "orribile" lo stesso — troppo piccolo per lo
+						   schermo che c'è.
+
+						Il punto che i primi due mancavano: la richiesta non era "non
+						lasciare vuoto" né "non deformare i tasti" isolatamente, era un
+						rapporto ESPLICITO fra le due zone — 70% alla tastiera, 30%
+						all'importo, entrambi PIÙ GRANDI di prima. `flex-grow` (7 e 3,
+						cioè 70:30) invece di un'altezza fissa o "riempi tutto": le due
+						zone si dividono lo spazio VERO disponibile in quella
+						proporzione, su qualunque schermo — e dentro la zona tastiera
+						(70%, non 100%) la griglia `1fr` produce celle vicine al
+						quadrato invece che allungate, perché non sta più crescendo
+						senza un limite.
+					*/
+					<div className="flex-1 min-h-0 flex flex-col">
+						<div className="flex flex-col items-center justify-center min-h-0" style={{ flex: 3 }}>
+							<p className="text-muted text-base mb-2">{t.transactions.form.amount}</p>
+							<div className="text-8xl font-bold tracking-tight">
+								<span className="text-4xl mr-1">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
+								{amount || "0"}
+							</div>
+						</div>
+
+						<div
+							className="grid grid-cols-3 gap-2.5 min-h-0"
+							style={{ flex: 7, gridTemplateRows: "repeat(4, minmax(0, 1fr))" }}
+						>
+							{AMOUNT_KEYS.map((key, i) => (
+								<button
+									key={i}
+									type="button"
+									onPointerDown={(e) => {
+										e.preventDefault();
+										handleAmountKey(key);
+									}}
+									className="flex items-center justify-center rounded-2xl bg-card ring-border text-2xl font-medium"
+								>
+									{key === "⌫" ? <Delete size={20} /> : key}
+								</button>
+							))}
+						</div>
+
+						<button
+							onClick={() => setStep("form")}
+							disabled={!amountValid}
+							className="w-full mt-3 py-4 rounded-2xl btn-primary font-semibold flex items-center justify-center gap-2 disabled:opacity-40 shrink-0"
+						>
+							{t.common.continue}
+						</button>
+					</div>
+				)}
+
+				{/* Step: dettagli */}
 				{step === "form" && selectedType && (
 					<TransactionForm
 						selectedType={selectedType}
 						transaction={editingTransaction ?? undefined}
+						amount={amount}
 					/>
 				)}
 				</div>

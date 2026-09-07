@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { TransactionType, Category, Transaction, Frequency, Account } from "@/types";
 import { createClient } from "@/lib/supabase/client";
-import { Pencil, Delete, Check, Trash2, Repeat } from "lucide-react";
+import { Pencil, Check, Trash2, Repeat } from "lucide-react";
 import Select, { type Option } from "@/components/UI/Select";
 import { ACCOUNT_ICON_FALLBACK, ACCOUNT_TYPE_ICON, accountColor } from "@/lib/accounts";
 import FrequencySelector from "@/components/UI/FrequencySelector";
@@ -21,7 +21,6 @@ import {
 import { useUIStore } from "@/store/useUIStore";
 import DatePicker from "@/components/UI/DatePicker";
 import { useI18n } from "@/components/features/I18nProvider";
-import { DISPLAY_CURRENCY, currencySymbol } from "@/lib/i18n/format";
 
 /**
  * ⚠️ Il calendario NON sta più qui.
@@ -36,18 +35,25 @@ import { DISPLAY_CURRENCY, currencySymbol } from "@/lib/i18n/format";
 interface TransactionFormProps {
 	selectedType: TransactionType;
 	transaction?: Transaction;
+	/*
+	 * issue #86 — l'importo non è più stato locale di questo form: vive in
+	 * `TransactionModal`, che lo mostra nel passo "importo" — montato PRIMA
+	 * che questo componente esista, che monta solo al passo "dettagli". Un
+	 * unico stato, sollevato al genitore comune, invece di due copie che il
+	 * passaggio fra i due passi potrebbe far divergere. Sola lettura qui:
+	 * modificarlo si fa tornando al passo precedente (bottone "indietro"
+	 * nell'header di `TransactionModal`), non da questo form.
+	 */
+	amount: string;
 }
 
 export default function TransactionForm({
 	selectedType,
 	transaction,
+	amount,
 }: TransactionFormProps) {
-	const { locale, t } = useI18n();
+	const { t } = useI18n();
 	const isEditing = !!transaction;
-
-	const [amount, setAmount] = useState(() =>
-		transaction ? transaction.amount.toFixed(2).replace(".", ",") : "",
-	);
 	const [categoryId, setCategoryId] = useState<string | null>(
 		transaction?.category_id ?? null,
 	);
@@ -173,20 +179,6 @@ export default function TransactionForm({
 		}
 		loadAccounts();
 	}, []);
-
-	const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ",", "0", "⌫"];
-
-	const handleKey = (key: string) => {
-		if (key === "⌫") {
-			setAmount((prev) => prev.slice(0, -1));
-			return;
-		}
-		if (key === ",") {
-			setAmount((prev) => (prev.includes(",") ? prev : prev + ","));
-			return;
-		}
-		setAmount((prev) => prev + key);
-	};
 
 	/*
 	 * ⚠️ Le regole ricorrenti NON possono essere trasferimenti, e non basta
@@ -424,15 +416,6 @@ export default function TransactionForm({
 
 	return (
 		<div className="flex flex-col flex-1 min-h-0 overflow-y-auto overscroll-contain scrollbar-none">
-			{/* Importo */}
-			<div className="text-center pt-1 pb-3">
-				<p className="text-muted text-base mb-2">{t.transactions.form.amount}</p>
-				<div className="text-7xl font-bold tracking-tight">
-					<span className="text-3xl mr-1">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
-					{amount || "0"}
-				</div>
-			</div>
-
 			<div className="flex flex-col gap-2 mb-3">
 				{/*
 					Categoria — assente sui trasferimenti, dove la posizione la prende
@@ -607,23 +590,6 @@ export default function TransactionForm({
 					)}
 				</>
 			)}
-
-			{/* Tastierino */}
-			<div className="grid grid-cols-3 gap-2">
-				{KEYS.map((key, i) => (
-					<button
-						key={i}
-						type="button"
-						onPointerDown={(e) => {
-							e.preventDefault();
-							handleKey(key);
-						}}
-						className={`flex items-center justify-center rounded-2xl bg-card ring-border text-lg font-medium ${recurring ? "h-12" : "h-14"}`}
-					>
-						{key === "⌫" ? <Delete size={18} /> : key}
-					</button>
-				))}
-			</div>
 
 			<button
 				onClick={handleSave}
