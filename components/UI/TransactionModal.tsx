@@ -7,7 +7,16 @@ import { TRANSACTION_TYPES } from "@/types";
 import TransactionForm from "./TransactionForm";
 import { useI18n } from "@/components/features/I18nProvider";
 import { useCloseOnBack } from "./useCloseOnBack";
-import { DISPLAY_CURRENCY, currencySymbol } from "@/lib/i18n/format";
+import { DISPLAY_CURRENCY, currencySymbol, formatMoney } from "@/lib/i18n/format";
+
+/*
+ * issue #86 — pillole di importo rapido, sul modello di Revolut ma con
+ * valori fissi (deciso: non dipendono dal tipo di movimento, altrimenti
+ * servirebbe una tabella di taglie diverse per sette tipi senza un criterio
+ * ovvio). Modulo, non dentro il componente: sono una costante, non uno
+ * stato — ricalcolarle a ogni render non avrebbe senso.
+ */
+const QUICK_AMOUNTS = [5, 10, 20, 50, 100];
 
 /**
  * ⚠️ Diviso in due, e il guscio esiste solo per decidere il MONTAGGIO.
@@ -344,6 +353,28 @@ function TransactionModalContent() {
 								<span className="text-4xl mr-1">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
 								{amount || "0"}
 							</div>
+						</div>
+
+						{/*
+							Pillole di importo rapido — issue #86. Toccarne una SOSTITUISCE
+							l'importo (non lo somma a quanto già digitato): è una scorciatoia
+							per l'importo intero, non un secondo modo di scrivere le cifre —
+							i due si confonderebbero se convivessero sullo stesso gesto.
+							`overflow-x-auto` invece di `flex-wrap`: qui, a differenza della
+							`FilterBar` (issue #21c), nessuna pillola apre un menu che lo
+							scorrimento orizzontale ritaglierebbe — sono semplici bottoni.
+						*/}
+						<div className="flex gap-2 overflow-x-auto scrollbar-none shrink-0 pb-1 px-0.5">
+							{QUICK_AMOUNTS.map((v) => (
+								<button
+									key={v}
+									type="button"
+									onClick={() => setAmount(String(v))}
+									className="shrink-0 px-4 py-2 rounded-full text-[12.5px] font-semibold card-shadow-ring"
+								>
+									{formatMoney(v, { locale, currency: DISPLAY_CURRENCY })}
+								</button>
+							))}
 						</div>
 
 						{/*
