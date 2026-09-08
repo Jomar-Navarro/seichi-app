@@ -90,6 +90,17 @@ export function useDonutTooltipPosition(gap = 10) {
 				left: x,
 				top: top ? y : undefined,
 				bottom: top ? undefined : `calc(100% - ${y}px)`,
+				/*
+				 * ⚠️ Recharts imposta GIÀ un `transform: translate(...)` proprio,
+				 * calcolato dalla SUA coordinata (il centro-raggio della fetta,
+				 * non il nostro punto fuori dall'anello) — e lo tiene, perché
+				 * `wrapperStyle` sovrascrive `outerStyle` chiave per chiave: se
+				 * questa chiave manca, il `transform` di Recharts resta applicato
+				 * SOPRA il nostro `left`/`top`, spostando il riquadro di un
+				 * secondo offset non voluto. `none` lo annulla: la posizione la
+				 * decide solo `left`/`top`/`bottom`.
+				 */
+				transform: "none",
 			});
 		},
 		[gap],
