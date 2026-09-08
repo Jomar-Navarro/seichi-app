@@ -5,6 +5,7 @@ import { ICON_MAP } from "@/lib/icon-map";
 import { INVESTMENT_TYPE_FALLBACK } from "@/lib/investment-types";
 import { useI18n } from "./I18nProvider";
 import { DISPLAY_CURRENCY, fill, formatMoney, plural } from "@/lib/i18n/format";
+import { useDonutTooltipPosition } from "@/components/UI/useDonutTooltipPosition";
 import type { InvestmentData } from "@/types";
 
 
@@ -65,6 +66,9 @@ export default function InvestimentiTab({
 	/** Importi con i decimali, nel formato del locale. */
 	const money = (v: number) =>
 		formatMoney(v, { locale, currency: DISPLAY_CURRENCY, decimals: 2 });
+	// Prima del return anticipato: le regole degli Hook vietano di chiamarlo
+	// solo quando ci sono posizioni.
+	const { style: tooltipStyle, pieHandlers } = useDonutTooltipPosition();
 
 	if (!data || data.positions.length === 0) return <EmptyState />;
 
@@ -164,16 +168,27 @@ export default function InvestimentiTab({
 										// su --color-yoru somigliava allo sfondo scuro per caso, e in
 										// chiaro disegnava un anello scuro fra le fette.
 										stroke="var(--background-secondary)"
+										{...pieHandlers}
 									/>
+									{/*
+									 * issue #86 punto 5 — stesso donut-con-etichetta-al-centro di
+									 * SpendingPieChart, stesso difetto e stessa cura: vedi il
+									 * commento lì (e `useDonutTooltipPosition`) per il perché.
+									 */}
 									<Tooltip
 										contentStyle={{
-											background: "var(--modal-bg)",
+											// issue #86 punto 5 — superficie SOLIDA, non `--modal-bg`
+											// (pensato per i modali, sopra un overlay che ne
+											// nasconde la trasparenza): vedi il commento gemello in
+											// SpendingPieChart.tsx.
+											background: "var(--background-secondary)",
 											// issue #81 — anello (box-shadow), non bordo: il colore è traslucido.
 											boxShadow: "var(--border) 0px 0px 0px 1px inset",
 											borderRadius: 12,
 											fontSize: 12,
 											color: "var(--text-primary)",
 										}}
+										wrapperStyle={tooltipStyle ?? undefined}
 										formatter={(value) => [
 											money(Number(value)),
 											"",

@@ -324,6 +324,23 @@ body {
 	min-height: 100vh;
 }
 
+/*
+ * issue #86 punto 5 — Recharts 3 tiene `accessibilityLayer: true` di
+ * default: la superficie del grafico e ogni `<Pie>` diventano focusabili
+ * (`tabIndex=0`) per la navigazione da tastiera. Su iOS/WebKit un TOCCO
+ * dà focus quanto un tab da tastiera, quindi il contorno blu di default
+ * compariva a ogni tocco su un grafico — non uno stile dimenticato, è il
+ * comportamento standard del browser per un elemento focusabile.
+ *
+ * `:focus-visible` distingue le due origini: resta per chi naviga
+ * davvero da tastiera (l'accessibilità che l'attributo esiste per dare),
+ * sparisce per il tocco/click che lo accendeva per un motivo diverso da
+ * quello per cui l'outline esiste.
+ */
+.recharts-wrapper *:focus:not(:focus-visible) {
+	outline: none;
+}
+
 /* ============================================================
    ZEN BACKGROUND
    ============================================================ */

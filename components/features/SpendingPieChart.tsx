@@ -2,6 +2,7 @@
 import { PieChart, Pie, Tooltip, ResponsiveContainer } from "recharts";
 import { useI18n } from "./I18nProvider";
 import { DISPLAY_CURRENCY, fill, formatMoney } from "@/lib/i18n/format";
+import { useDonutTooltipPosition } from "@/components/UI/useDonutTooltipPosition";
 
 interface SpendingPieChartProps {
 	spese: { name: string; color: string; total: number }[];
@@ -51,6 +52,7 @@ export default function SpendingPieChart({
 	/** Importi con i decimali, nel formato del locale. */
 	const money = (v: number) =>
 		formatMoney(v, { locale, currency: DISPLAY_CURRENCY, decimals: 2 });
+	const { style: tooltipStyle, pieHandlers } = useDonutTooltipPosition();
 
 	const totale = spese.reduce((acc, s) => acc + s.total, 0);
 	const data = spese.map((s, i) => ({
@@ -94,16 +96,35 @@ export default function SpendingPieChart({
 								// anello di inchiostro attorno al donut in tema chiaro, e serve
 								// davvero solo ora che le fette sono sfumature della stessa tinta.
 								stroke="var(--background-secondary)"
+								{...pieHandlers}
 							/>
+							{/*
+							 * issue #86 punto 5 — di default Recharts segue il dito e finiva
+							 * SOPRA l'etichetta al centro dell'anello ("SPESE · € …"),
+							 * sovrapponendo due scritte. `useDonutTooltipPosition` (vedi lì
+							 * per il perché) ancora il tooltip appena fuori dal bordo esterno
+							 * dell'anello, dal lato della fetta toccata — mai verso il centro.
+							 */}
 							<Tooltip
 								contentStyle={{
-									background: "var(--modal-bg)",
+									/*
+									 * issue #86 punto 5 — `--modal-bg` è pensato per i modali,
+									 * che stanno sopra uno sfondo già scurito da un overlay: la
+									 * sua trasparenza (85% in scuro) lì non si nota. Qui il
+									 * tooltip galleggia sopra al grafico o alla card sotto, senza
+									 * overlay, e restava leggibile a metà. `--background-secondary`
+									 * (alias `--color-deep`) è la superficie SOLIDA già usata
+									 * dagli altri elementi flottanti dell'app (tendine di
+									 * `Select`, `DatePicker`, `Filterbar` — tutte `bg-deep`).
+									 */
+									background: "var(--background-secondary)",
 									// issue #81 — anello (box-shadow), non bordo: il colore è traslucido.
 									boxShadow: "var(--border) 0px 0px 0px 1px inset",
 									borderRadius: 12,
 									fontSize: 12,
 									color: "var(--text-primary)",
 								}}
+								wrapperStyle={tooltipStyle ?? undefined}
 								formatter={(value) => [
 									money(Number(value)),
 									"",
