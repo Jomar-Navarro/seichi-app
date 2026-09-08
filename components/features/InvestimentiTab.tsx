@@ -174,6 +174,21 @@ export default function InvestimentiTab({
 											fontSize: 12,
 											color: "var(--text-primary)",
 										}}
+										/*
+										 * issue #86 punto 5 — stesso donut-con-etichetta-al-centro di
+										 * SpendingPieChart, stesso difetto e stessa cura: vedi il
+										 * commento lì per il perché di `top`/`left`/`transform` e dello
+										 * `zIndex` (ordine di disegno fra elementi posizionati, non
+										 * verificabile con un hit-test perché il tooltip ha
+										 * `pointer-events: none`).
+										 */
+										wrapperStyle={{
+											position: "absolute",
+											top: "calc(100% + 6px)",
+											left: "50%",
+											transform: "translateX(-50%)",
+											zIndex: 20,
+										}}
 										formatter={(value) => [
 											money(Number(value)),
 											"",

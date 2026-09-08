@@ -104,6 +104,35 @@ export default function SpendingPieChart({
 									fontSize: 12,
 									color: "var(--text-primary)",
 								}}
+								/*
+								 * issue #86 punto 5 — di default Recharts segue il dito e finiva
+								 * SOPRA l'etichetta al centro dell'anello ("SPESE · € …"),
+								 * sovrapponendo due scritte. `wrapperStyle` vince sul transform
+								 * calcolato da Recharts (viene spalmato per ultimo sullo stile
+								 * del wrapper): posizione fissa sotto il donut, in percentuale
+								 * sul contenitore — non un pixel assoluto, quindi non va
+								 * ricalcolato se la dimensione del cerchio cambia.
+								 *
+								 * ⚠️ `zIndex` non è decorativo. La card sotto (che ha anch'essa
+								 * `position: relative`, come ogni "guscio" dell'issue #81) è un
+								 * secondo elemento posizionato più avanti nel DOM: fra due
+								 * elementi con z-index:auto l'ordine di disegno segue l'ordine
+								 * nel DOM, quindi senza uno z-index esplicito lei vincerebbe e il
+								 * tooltip finirebbe sotto. Il ritaglio salvato durante il collaudo
+								 * conferma che CON questa riga il tooltip si vede, sopra la card.
+								 * ⚠️ Non si verifica con `elementFromPoint` in un test automatico:
+								 * il tooltip ha `pointer-events: none` (Recharts lo imposta per
+								 * non bloccare i tocchi sul grafico sotto), e l'hit-test del
+								 * browser salta gli elementi con quella proprietà — risulterebbe
+								 * "coperto" anche quando è visivamente in primo piano.
+								 */
+								wrapperStyle={{
+									position: "absolute",
+									top: "calc(100% + 6px)",
+									left: "50%",
+									transform: "translateX(-50%)",
+									zIndex: 20,
+								}}
 								formatter={(value) => [
 									money(Number(value)),
 									"",
