@@ -32,8 +32,15 @@ const NAV_ITEMS = [
  * ⚠️ Nascondere qui è meglio che spostare il report fuori dal gruppo
  * `(main)`: quello vorrebbe un layout proprio e un secondo controllo di
  * autenticazione, per ottenere la stessa cosa in più righe.
+ *
+ * `/impostazioni/blocco` (Fase 26a) ci sta per lo stesso motivo del report,
+ * non perché sia stampabile: il design (`PinSetupCard`/`PinCard`) la vuole a
+ * schermo intero, senza distrazioni, e la schermata di sblocco VERA
+ * (`AppLockScreen`) è già un velo `fixed` che copre la barra — averla
+ * visibile solo mentre si IMPOSTA il PIN e non mentre lo si USA sarebbe
+ * un'incoerenza che l'utente vedrebbe in due tap.
  */
-const DOCUMENT_ROUTES = ["/analisi/report"];
+const DOCUMENT_ROUTES = ["/analisi/report", "/impostazioni/blocco"];
 
 export default function BottomNav() {
 	const { openTransactionModal } = useUIStore();

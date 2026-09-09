@@ -13,7 +13,11 @@ export default async function BloccoPage() {
 	const initialHasPin = (await cookies()).get(APP_LOCK_ENABLED_COOKIE)?.value === "1";
 
 	return (
-		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34">
+		// `pb-12`, non `pb-34` come le altre pagine (main)`: questa route è in
+		// `DOCUMENT_ROUTES` (BottomNav.tsx), la barra non c'è, e lo spazio che
+		// le altre le riservano sarebbe vuoto e basta — la stessa scelta della
+		// Fase 23b per `/analisi/report`.
+		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-12">
 			<PageHeader title={t.settings.pinLock} backHref="/impostazioni" />
 			<AppLockSettings initialHasPin={initialHasPin} />
 		</div>
