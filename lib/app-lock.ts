@@ -37,8 +37,15 @@ const PIN_STORAGE_KEY = "seichi-app-pin";
 /** 6, non 4 — dal design (`PinCard`/`PinSetupCard`, Fase 26a-bis). */
 export const APP_LOCK_PIN_LENGTH = 6;
 
-/** Quanto resta valido uno sblocco senza che l'app torni in primo piano. */
-export const APP_LOCK_GRACE_MS = 5 * 60 * 1000;
+/**
+ * Quanto resta valido uno sblocco senza che l'app torni in primo piano.
+ *
+ * 1 minuto, non i 5 iniziali: cambiato su richiesta esplicita dopo aver
+ * visto la riga "richiedi il PIN dopo" in `/impostazioni/blocco` — il testo
+ * la legge da qui (`plural(t.appLock.graceMinutes, …)`), quindi non c'è una
+ * seconda stringa da tenere allineata a mano.
+ */
+export const APP_LOCK_GRACE_MS = 1 * 60 * 1000;
 
 /**
  * Quanto restano PIENI e ROSSI i pallini dopo un PIN sbagliato prima di
