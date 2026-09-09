@@ -171,6 +171,81 @@ export const it = {
 	},
 
 	/**
+	 * Blocco app con PIN (Fase 26a, issue #67) — la schermata di sblocco
+	 * (`AppLockScreen`) e la pagina impostazioni (`/impostazioni/blocco`,
+	 * `AppLockSettings`) condividono questo dizionario: sono lo stesso
+	 * concetto in due punti dell'interfaccia.
+	 */
+	appLock: {
+		/** Titolo/sottotitolo a RIPOSO — dal design (`PinCard`). */
+		unlockTitle: "Bentornato",
+		enterPin: "Inserisci il tuo PIN a {length} cifre per aprire Seichi.",
+		/** Titolo/sottotitolo in ERRORE — il design li scambia, non aggiunge
+		 *  un terzo blocco di testo: stessa struttura, contenuto diverso. */
+		wrongPinTitle: "PIN non corretto",
+		wrongPin: "PIN errato, riprova.",
+		forgotPin: "Hai dimenticato il PIN?",
+		signOutAndReset: "Esci e accedi di nuovo",
+		deleteKey: "Cancella",
+
+		/** Onestà dichiarata — vedi issue #67: blocca lo SCHERMO, non i dati. */
+		disclaimer:
+			"Blocca solo la schermata su questo dispositivo, dopo qualche minuto di inattività. Non protegge i dati: la sessione resta quella di sempre, come per ogni app.",
+		active: "Attivo",
+		setPin: "Imposta PIN",
+		changePin: "Cambia PIN",
+		removePin: "Rimuovi PIN",
+
+		/** I quattro passi di `PinSetupCard` — badge, titolo, sottotitolo. */
+		createTitle: "Crea il tuo PIN",
+		createSubtitle: "Scegli {length} cifre che ricorderai. Servirà a ogni apertura di Seichi.",
+		confirmTitle: "Conferma il PIN",
+		confirmSubtitle: "Ripeti le stesse {length} cifre per fissarle.",
+		mismatchTitle: "I PIN non coincidono",
+		mismatchSubtitle: "Le cifre inserite sono diverse dalle prime. Riprova dal primo passo.",
+		doneTitle: "PIN impostato",
+		doneSubtitle: "Seichi si aprirà con il tuo PIN a {length} cifre.",
+		doneContinue: "Torna alle impostazioni",
+
+		/** `savePin()` ha rifiutato la scrittura (localStorage bloccato — capita
+		 *  in navigazione privata su alcuni browser). Trovato dal code-review:
+		 *  senza questo passo, il PIN sembrava impostato ma non lo era mai
+		 *  stato, e l'app si sarebbe bloccata senza che nessun PIN digitato
+		 *  potesse mai aprirla. */
+		saveErrorTitle: "Impossibile salvare il PIN",
+		saveErrorSubtitle:
+			"Questo dispositivo non permette di salvare dati locali in questo momento — capita in navigazione privata. Riprova, o disattivala.",
+
+		/** Verifica del PIN attuale (cambio/rimozione) — non è nel design,
+		 *  stessa forma badge+titolo+sottotitolo per coerenza visiva. */
+		currentTitle: "Inserisci il PIN attuale",
+		currentSubtitle: "Conferma il PIN che usi oggi per continuare.",
+
+		/** La riga "blocco con PIN" nella card di riposo — dal design
+		 *  ("Seichi Blocco PIN Impostazioni"). */
+		offSubtitle: "disattivato",
+		onSubtitle: "attivo · {length} cifre",
+		/** "richiedi il PIN dopo" — su richiesta esplicita è tornata TOCCABILE,
+		 *  come nel design: quattro durate (`APP_LOCK_GRACE_OPTIONS_MS`). */
+		graceLabel: "richiedi il PIN dopo",
+		graceSeconds: { one: "{n} secondo", other: "{n} secondi" },
+		graceMinutes: { one: "{n} minuto", other: "{n} minuti" },
+
+		/** Solo nello stato SPENTO — spiega cosa succede impostando il PIN. */
+		howItWorksTitle: "cosa succede dopo",
+		howItWorksStep1: "Scegli {length} cifre e le confermi una volta.",
+		/** ⚠️ Il design promette qui l'impronta e una durata scelta
+		 *  dall'utente: nessuna delle due esiste ancora (Fase 26b, e la
+		 *  finestra è fissa). Riscritta per dire solo il vero. */
+		howItWorksStep2: "La schermata si blocca da sola dopo qualche minuto di inattività.",
+		howItWorksStep3: "Se dimentichi il PIN, esci e rientri con la password.",
+
+		/** Solo nello stato ACCESO, sotto i due bottoni. */
+		activeDisclaimer:
+			"Rimuovendo il PIN l'app si apre subito, senza schermata di blocco. Se lo dimentichi, esci e rientri con la password: i dati restano al loro posto.",
+	},
+
+	/**
 	 * Messaggi restituiti dalle server action.
 	 *
 	 * Le action girano sul server e possono leggere il cookie, quindi compongono

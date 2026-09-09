@@ -99,6 +99,54 @@ export const en: Dictionary = {
 		installIosHint: "Tap Share, then “Add to Home Screen”.",
 	},
 
+	appLock: {
+		unlockTitle: "Welcome back",
+		enterPin: "Enter your {length}-digit PIN to open Seichi.",
+		wrongPinTitle: "Wrong PIN",
+		wrongPin: "Wrong PIN, try again.",
+		forgotPin: "Forgot your PIN?",
+		signOutAndReset: "Sign out and sign in again",
+		deleteKey: "Delete",
+
+		disclaimer:
+			"Locks only the screen on this device, after a few minutes of inactivity. It doesn't protect your data: your session stays the same, as with any app.",
+		active: "Active",
+		setPin: "Set PIN",
+		changePin: "Change PIN",
+		removePin: "Remove PIN",
+
+		createTitle: "Create your PIN",
+		createSubtitle: "Choose {length} digits you'll remember. You'll need it every time you open Seichi.",
+		confirmTitle: "Confirm your PIN",
+		confirmSubtitle: "Repeat the same {length} digits to set it.",
+		mismatchTitle: "The PINs don't match",
+		mismatchSubtitle: "The digits you entered differ from the first ones. Try again from the start.",
+		doneTitle: "PIN set",
+		doneSubtitle: "Seichi will now open with your {length}-digit PIN.",
+		doneContinue: "Back to settings",
+
+		saveErrorTitle: "Couldn't save your PIN",
+		saveErrorSubtitle:
+			"This device isn't allowing local data to be saved right now — this happens in private browsing. Try again, or turn it off.",
+
+		currentTitle: "Enter your current PIN",
+		currentSubtitle: "Confirm the PIN you use today to continue.",
+
+		offSubtitle: "off",
+		onSubtitle: "on · {length} digits",
+		graceLabel: "require the PIN after",
+		graceSeconds: { one: "{n} second", other: "{n} seconds" },
+		graceMinutes: { one: "{n} minute", other: "{n} minutes" },
+
+		howItWorksTitle: "what happens next",
+		howItWorksStep1: "Choose {length} digits and confirm them once.",
+		howItWorksStep2: "The screen locks itself after a few minutes of inactivity.",
+		howItWorksStep3: "If you forget your PIN, sign out and back in with your password.",
+
+		activeDisclaimer:
+			"Removing the PIN opens the app right away, with no lock screen. If you forget it, sign out and back in: your data stays put.",
+	},
+
 	errors: {
 		notAuthenticated: "Not signed in",
 		nameRequired: "A name is required",
