@@ -34,10 +34,19 @@ export const APP_LOCK_ACTIVE_UNTIL_COOKIE = "seichi-lock-active-until";
 
 const PIN_STORAGE_KEY = "seichi-app-pin";
 
-export const APP_LOCK_PIN_LENGTH = 4;
+/** 6, non 4 — dal design (`PinCard`/`PinSetupCard`, Fase 26a-bis). */
+export const APP_LOCK_PIN_LENGTH = 6;
 
 /** Quanto resta valido uno sblocco senza che l'app torni in primo piano. */
 export const APP_LOCK_GRACE_MS = 5 * 60 * 1000;
+
+/**
+ * Quanto restano PIENI e ROSSI i pallini dopo un PIN sbagliato prima di
+ * svuotarsi da soli — non un timer a caso, è il ritmo del design: mostrare
+ * l'errore (scossa CSS di 0.4s inclusa) abbastanza a lungo da essere letto,
+ * poi lasciare campo libero al tentativo successivo senza indugiare.
+ */
+export const APP_LOCK_REJECT_DISPLAY_MS = 900;
 
 /** Un anno, come i cookie del tema: la scelta non deve scadere da sola. */
 const MAX_AGE = 60 * 60 * 24 * 365;

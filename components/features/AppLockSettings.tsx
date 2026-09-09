@@ -1,33 +1,57 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore, type ReactNode } from "react";
+import { Check, Lock, TriangleAlert } from "lucide-react";
 import PinPad from "@/components/UI/PinPad";
 import SubmitButton from "@/components/UI/SubmitButton";
 import { useI18n } from "@/components/features/I18nProvider";
-import { APP_LOCK_PIN_LENGTH, clearPin, hasStoredPin, readStoredPin, savePin } from "@/lib/app-lock";
+import { fill } from "@/lib/i18n/format";
+import {
+	APP_LOCK_PIN_LENGTH,
+	APP_LOCK_REJECT_DISPLAY_MS,
+	clearPin,
+	hasStoredPin,
+	readStoredPin,
+	savePin,
+} from "@/lib/app-lock";
 
 /**
  * `/impostazioni/blocco` (Fase 26a) — imposta, cambia o rimuove il PIN.
  *
- * ⚠️ Quattro stati soli, non sei: "crea" e "nuovo PIN durante un cambio" sono
- * la STESSA schermata ("Crea un PIN" → "Conferma il PIN") — chi arriva a
- * `create-enter` da `idle` o da `verify-current` non fa differenza per
- * questo componente, solo per come ci è arrivato.
+ * Dal design (`PinSetupCard.dc.html`): badge + titolo + sottotitolo che
+ * cambiano per passo, indicatore di progresso a 3 tappe, schermata finale
+ * "PIN impostato" con un bottone esplicito invece di tornare subito al
+ * riposo. ⚠️ Il design mostra anche uno switch biometrico funzionante e una
+ * riga "richiedi il PIN dopo N minuti" TOCCABILE, nella schermata finale: non
+ * adottati — il biometrico non esiste ancora (Fase 26b) e la finestra di
+ * grazia è una costante (`APP_LOCK_GRACE_MS`), non una preferenza. Mostrarli
+ * prometterebbe funzioni che l'app non ha.
+ *
+ * ⚠️ `mismatch` NON è un valore di `step`, ed è deliberato: è un booleano
+ * (`mismatchShowing`) sovrapposto allo step "create-confirm". Se fosse un
+ * terzo `step`, `key={step}` sul PinPad (sotto) rimonterebbe un'istanza
+ * NUOVA — vuota — proprio nell'istante in cui il design vuole mostrare le 6
+ * cifre appena digitate, piene e rosse. Restando sullo stesso step il pad è
+ * la STESSA istanza per tutta la finestra di lettura dell'errore, e passa a
+ * "create-enter" (quindi si svuota) solo alla fine di quella finestra.
  */
-type Step = "idle" | "create-enter" | "create-confirm" | "verify-current";
+type Step = "idle" | "create-enter" | "create-confirm" | "done" | "verify-current";
+
+const badgeIcon: Record<"lock" | "alert" | "check", ReactNode> = {
+	lock: <Lock size={26} strokeWidth={1.7} />,
+	alert: <TriangleAlert size={26} strokeWidth={1.7} />,
+	check: <Check size={28} strokeWidth={2} />,
+};
 
 export default function AppLockSettings({ initialHasPin }: { initialHasPin: boolean }) {
 	const { t } = useI18n();
 
 	// `hasPin` è DERIVATO da localStorage, non uno stato proprio: niente
 	// `useEffect`+`setState` (render a cascata, vietato dal lint) per
-	// riconciliare server e client — lo stesso pattern già in `PwaStatus`
-	// per lo stesso motivo. Il cookie letto dal server (`initialHasPin`) è
-	// solo il suggerimento per il PRIMO render (evita il lampo "Imposta
-	// PIN" su chi ne ha già uno); da lì in poi `hasStoredPin()` viene
-	// riletta a ogni render — compreso quello che segue `savePin()`/
-	// `clearPin()` più sotto, che è come questo valore si aggiorna senza
-	// bisogno di un proprio `setState`.
+	// riconciliare server e client — lo stesso pattern già in `PwaStatus`.
+	// Il cookie letto dal server (`initialHasPin`) è solo il suggerimento per
+	// il PRIMO render; da lì `hasStoredPin()` viene riletta a ogni render,
+	// compreso quello che segue `savePin()`/`clearPin()` più sotto.
 	const hasPin = useSyncExternalStore(
 		() => () => {},
 		hasStoredPin,
@@ -38,25 +62,22 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 	const [afterVerify, setAfterVerify] = useState<"change" | "remove" | null>(null);
 	const [firstPin, setFirstPin] = useState<string | null>(null);
 	const [rejected, setRejected] = useState(false);
-	const [error, setError] = useState<string | null>(null);
+	const [mismatchShowing, setMismatchShowing] = useState(false);
 
 	function reset() {
 		setStep("idle");
 		setAfterVerify(null);
 		setFirstPin(null);
-		setError(null);
 		setRejected(false);
+		setMismatchShowing(false);
 	}
 
 	function onVerifyCurrent(pin: string) {
-		// `pin` è quello appena digitato; l'unico PIN vero è quello salvato.
 		if (pin !== readStoredPin()) {
 			setRejected(true);
-			setError(t.appLock.wrongPin);
-			setTimeout(() => setRejected(false), 500);
+			setTimeout(() => setRejected(false), APP_LOCK_REJECT_DISPLAY_MS);
 			return;
 		}
-		setError(null);
 		if (afterVerify === "remove") {
 			clearPin();
 			reset();
@@ -69,69 +90,129 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 
 	function onCreateFirst(pin: string) {
 		setFirstPin(pin);
-		setError(null);
 		setStep("create-confirm");
 	}
 
 	function onCreateConfirm(pin: string) {
 		if (pin !== firstPin) {
 			setRejected(true);
-			setError(t.appLock.mismatch);
+			setMismatchShowing(true);
 			setTimeout(() => {
 				setRejected(false);
-				// Si ricomincia da capo, non solo la conferma: due cifre
-				// digitate diverse due volte di fila non dicono quale delle
-				// due l'utente intendesse davvero.
+				setMismatchShowing(false);
 				setFirstPin(null);
 				setStep("create-enter");
-			}, 500);
+			}, APP_LOCK_REJECT_DISPLAY_MS);
 			return;
 		}
 		savePin(pin);
-		reset();
+		setStep("done");
 	}
 
-	/* ---------------------------------------------------------- passi di inserimento --- */
+	/* ---------------------------------------------------------- i quattro/cinque passi --- */
 
-	if (step === "verify-current" || step === "create-enter" || step === "create-confirm") {
-		const title =
+	if (step !== "idle") {
+		const length = APP_LOCK_PIN_LENGTH;
+		const content =
 			step === "verify-current"
-				? t.appLock.currentTitle
+				? {
+						badge: "lock" as const,
+						title: t.appLock.currentTitle,
+						subtitle: rejected ? t.appLock.wrongPin : t.appLock.currentSubtitle,
+					}
 				: step === "create-enter"
-					? t.appLock.createTitle
-					: t.appLock.confirmTitle;
+					? {
+							badge: "lock" as const,
+							title: t.appLock.createTitle,
+							subtitle: fill(t.appLock.createSubtitle, { length }),
+						}
+					: step === "create-confirm" && mismatchShowing
+						? {
+								badge: "alert" as const,
+								title: t.appLock.mismatchTitle,
+								subtitle: t.appLock.mismatchSubtitle,
+							}
+						: step === "create-confirm"
+							? {
+									badge: "lock" as const,
+									title: t.appLock.confirmTitle,
+									subtitle: fill(t.appLock.confirmSubtitle, { length }),
+								}
+							: {
+									badge: "check" as const,
+									title: t.appLock.doneTitle,
+									subtitle: fill(t.appLock.doneSubtitle, { length }),
+								};
+
+		// Tre tappe: create → confirm → done. "mismatch" resta sulla tappa 2,
+		// perché è ancora lo step "create-confirm" (vedi sopra). "verify-current"
+		// non fa parte di questo percorso — non è un passo verso un PIN nuovo,
+		// è il cancello prima di raggiungerlo, quindi niente indicatore.
+		const stepIndex =
+			step === "create-enter" ? 1 : step === "create-confirm" ? 2 : step === "done" ? 3 : 0;
+
 		const onComplete =
-			step === "verify-current" ? onVerifyCurrent : step === "create-enter" ? onCreateFirst : onCreateConfirm;
+			step === "verify-current"
+				? onVerifyCurrent
+				: step === "create-enter"
+					? onCreateFirst
+					: onCreateConfirm;
 
 		return (
-			<div className="flex flex-col items-center pt-6">
-				<h2 className="text-base font-semibold mb-8 text-center">{title}</h2>
-				{/* `key={step}` — senza, "create-enter" e "create-confirm" sono la
-				    STESSA istanza di PinPad (stesso punto dell'albero), quindi la
-				    seconda eredita il `value` già pieno della prima: ogni pressione
-				    successiva trova il pad già a 4/4 cifre e non fa nulla, la
-				    schermata resta bloccata su "Conferma il PIN" per sempre. La
-				    key forza un'istanza NUOVA a ogni passo, cifre incluse. */}
-				<PinPad
-					key={step}
-					length={APP_LOCK_PIN_LENGTH}
-					onComplete={onComplete}
-					rejected={rejected}
-					deleteLabel={t.appLock.deleteKey}
-				/>
-				<p
-					className="text-[13px] font-medium mt-6 text-center h-5"
-					style={{ color: "var(--ink-aka)", opacity: error ? 1 : 0 }}
+			<div className="flex flex-col items-center pt-4">
+				{stepIndex > 0 && (
+					<div className="flex justify-center gap-1.75 mb-8">
+						{[1, 2, 3].map((i) => (
+							<span
+								key={i}
+								className="w-6.5 h-0.75 rounded-full transition-colors"
+								style={{ background: i <= stepIndex ? "var(--color-midori)" : "var(--border)" }}
+							/>
+						))}
+					</div>
+				)}
+
+				<div
+					className="w-15 h-15 rounded-[22px] flex items-center justify-center mb-5 ring-border"
+					style={{
+						background: "var(--card)",
+						color: content.badge === "alert" ? "var(--color-aka)" : "var(--text-primary)",
+						boxShadow:
+							content.badge === "alert"
+								? "var(--color-aka) 0px 0px 0px 1px inset"
+								: undefined,
+					}}
 				>
-					{error}
+					{badgeIcon[content.badge]}
+				</div>
+
+				<h2 className="text-lg font-semibold mb-1.5 text-center">{content.title}</h2>
+				<p className="text-[12.5px] text-muted leading-relaxed mb-7 text-center max-w-65 min-h-8.5">
+					{content.subtitle}
 				</p>
-				<button
-					type="button"
-					onClick={reset}
-					className="text-[13px] font-medium text-muted underline underline-offset-2 mt-2"
-				>
-					{t.common.cancel}
-				</button>
+
+				{step === "done" ? (
+					<SubmitButton label={t.appLock.doneContinue} onClick={reset} className="mt-2" />
+				) : (
+					<>
+						<PinPad
+							key={step}
+							length={APP_LOCK_PIN_LENGTH}
+							onComplete={onComplete}
+							rejected={rejected}
+							deleteLabel={t.appLock.deleteKey}
+						/>
+						{!mismatchShowing && (
+							<button
+								type="button"
+								onClick={reset}
+								className="text-[13px] font-medium text-muted underline underline-offset-2 mt-6"
+							>
+								{t.common.cancel}
+							</button>
+						)}
+					</>
+				)}
 			</div>
 		);
 	}

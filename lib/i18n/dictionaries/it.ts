@@ -177,9 +177,13 @@ export const it = {
 	 * concetto in due punti dell'interfaccia.
 	 */
 	appLock: {
-		unlockTitle: "Seichi è bloccato",
-		enterPin: "Inserisci il PIN per continuare",
-		wrongPin: "PIN errato, riprova",
+		/** Titolo/sottotitolo a RIPOSO — dal design (`PinCard`). */
+		unlockTitle: "Bentornato",
+		enterPin: "Inserisci il tuo PIN a {length} cifre per aprire Seichi.",
+		/** Titolo/sottotitolo in ERRORE — il design li scambia, non aggiunge
+		 *  un terzo blocco di testo: stessa struttura, contenuto diverso. */
+		wrongPinTitle: "PIN non corretto",
+		wrongPin: "PIN errato, riprova.",
 		forgotPin: "Hai dimenticato il PIN?",
 		signOutAndReset: "Esci e accedi di nuovo",
 		deleteKey: "Cancella",
@@ -192,10 +196,21 @@ export const it = {
 		changePin: "Cambia PIN",
 		removePin: "Rimuovi PIN",
 
-		createTitle: "Crea un PIN",
+		/** I quattro passi di `PinSetupCard` — badge, titolo, sottotitolo. */
+		createTitle: "Crea il tuo PIN",
+		createSubtitle: "Scegli {length} cifre che ricorderai. Servirà a ogni apertura di Seichi.",
 		confirmTitle: "Conferma il PIN",
+		confirmSubtitle: "Ripeti le stesse {length} cifre per fissarle.",
+		mismatchTitle: "I PIN non coincidono",
+		mismatchSubtitle: "Le cifre inserite sono diverse dalle prime. Riprova dal primo passo.",
+		doneTitle: "PIN impostato",
+		doneSubtitle: "Seichi si aprirà con il tuo PIN a {length} cifre.",
+		doneContinue: "Torna alle impostazioni",
+
+		/** Verifica del PIN attuale (cambio/rimozione) — non è nel design,
+		 *  stessa forma badge+titolo+sottotitolo per coerenza visiva. */
 		currentTitle: "Inserisci il PIN attuale",
-		mismatch: "I PIN non coincidono, riprova",
+		currentSubtitle: "Conferma il PIN che usi oggi per continuare.",
 	},
 
 	/**

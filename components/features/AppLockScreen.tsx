@@ -4,7 +4,13 @@ import { useState, useTransition } from "react";
 import { Sprout } from "lucide-react";
 import PinPad from "@/components/UI/PinPad";
 import { useI18n } from "@/components/features/I18nProvider";
-import { APP_LOCK_PIN_LENGTH, clearPin, readStoredPin } from "@/lib/app-lock";
+import { fill } from "@/lib/i18n/format";
+import {
+	APP_LOCK_PIN_LENGTH,
+	APP_LOCK_REJECT_DISPLAY_MS,
+	clearPin,
+	readStoredPin,
+} from "@/lib/app-lock";
 import { signOut } from "@/app/(main)/impostazioni/actions";
 
 /**
@@ -12,10 +18,20 @@ import { signOut } from "@/app/(main)/impostazioni/actions";
  * `AppLockProvider` finché `locked` è vero. Nessun modo di attraversarla
  * senza il PIN corretto: niente tap-fuori, niente Esc.
  *
+ * Dal design (`PinCard.dc.html`): titolo e sottotitolo SCAMBIANO contenuto
+ * quando il PIN è sbagliato, invece di aggiungere un terzo blocco di testo —
+ * "Bentornato" diventa "PIN non corretto", non un avviso in più sotto.
+ *
  * ⚠️ Copre il contenuto SOTTO di sé, ma non lo sostituisce: `{children}`
  * resta montato nel DOM (è un Server Component, i numeri sono già nell'HTML
  * arrivato dal server — vedi `lib/app-lock.ts`). Coerente con la promessa
  * dichiarata nell'issue #67: blocco dell'interfaccia, non dei dati.
+ *
+ * ⚠️ Il design mostra anche "Restano N tentativi prima del blocco
+ * temporaneo" e un tasto impronta/"Usa la password". Non adottati: qui non
+ * c'è né un blocco temporaneo reale né un secondo fattore biometrico — dirlo
+ * sarebbe promettere ciò che l'app non fa. Resta la via d'uscita onesta già
+ * costruita: "Esci e accedi di nuovo".
  */
 
 /** Dopo quanti errori mostrare la via d'uscita, non subito — un comando
@@ -36,10 +52,11 @@ export default function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
 		}
 		setRejected(true);
 		setAttempts((n) => n + 1);
-		// `rejected` torna false all'inizio del prossimo tentativo: PinPad
-		// legge il fronte di salita per svuotarsi e scuotersi, non il valore
-		// sostenuto — un secondo errore di fila non riscuoterebbe altrimenti.
-		setTimeout(() => setRejected(false), 500);
+		// `rejected` torna false dopo la finestra di lettura dell'errore, non
+		// subito: i pallini restano pieni e rossi abbastanza a lungo perché
+		// l'utente veda che il PIN digitato è stato letto ed era sbagliato,
+		// invece di sparire nell'istante stesso in cui finisce di digitare.
+		setTimeout(() => setRejected(false), APP_LOCK_REJECT_DISPLAY_MS);
 	}
 
 	function forgotPin() {
@@ -71,8 +88,14 @@ export default function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
 					</div>
 				</div>
 
-				<h1 className="text-lg font-semibold mb-1.5 text-center">{t.appLock.unlockTitle}</h1>
-				<p className="text-[13px] text-muted mb-9 text-center">{t.appLock.enterPin}</p>
+				<h1 className="text-lg font-semibold mb-1.5 text-center">
+					{rejected ? t.appLock.wrongPinTitle : t.appLock.unlockTitle}
+				</h1>
+				<p className="text-[13px] text-muted mb-9 text-center min-h-8.5">
+					{rejected
+						? t.appLock.wrongPin
+						: fill(t.appLock.enterPin, { length: APP_LOCK_PIN_LENGTH })}
+				</p>
 
 				<PinPad
 					length={APP_LOCK_PIN_LENGTH}
@@ -82,19 +105,12 @@ export default function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
 					deleteLabel={t.appLock.deleteKey}
 				/>
 
-				<p
-					className="text-[13px] font-medium mt-6 text-center h-5"
-					style={{ color: "var(--ink-aka)", opacity: rejected ? 1 : 0 }}
-				>
-					{t.appLock.wrongPin}
-				</p>
-
 				{attempts >= SHOW_ESCAPE_AFTER_ATTEMPTS && (
 					<button
 						type="button"
 						onClick={forgotPin}
 						disabled={signingOut}
-						className="text-[13px] font-medium text-muted underline underline-offset-2 mt-4 disabled:opacity-50"
+						className="text-[13px] font-medium text-muted underline underline-offset-2 mt-7 disabled:opacity-50"
 					>
 						{signingOut ? "…" : t.appLock.forgotPin}
 					</button>

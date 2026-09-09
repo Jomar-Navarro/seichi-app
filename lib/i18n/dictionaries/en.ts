@@ -100,9 +100,10 @@ export const en: Dictionary = {
 	},
 
 	appLock: {
-		unlockTitle: "Seichi is locked",
-		enterPin: "Enter your PIN to continue",
-		wrongPin: "Wrong PIN, try again",
+		unlockTitle: "Welcome back",
+		enterPin: "Enter your {length}-digit PIN to open Seichi.",
+		wrongPinTitle: "Wrong PIN",
+		wrongPin: "Wrong PIN, try again.",
 		forgotPin: "Forgot your PIN?",
 		signOutAndReset: "Sign out and sign in again",
 		deleteKey: "Delete",
@@ -114,10 +115,18 @@ export const en: Dictionary = {
 		changePin: "Change PIN",
 		removePin: "Remove PIN",
 
-		createTitle: "Create a PIN",
+		createTitle: "Create your PIN",
+		createSubtitle: "Choose {length} digits you'll remember. You'll need it every time you open Seichi.",
 		confirmTitle: "Confirm your PIN",
+		confirmSubtitle: "Repeat the same {length} digits to set it.",
+		mismatchTitle: "The PINs don't match",
+		mismatchSubtitle: "The digits you entered differ from the first ones. Try again from the start.",
+		doneTitle: "PIN set",
+		doneSubtitle: "Seichi will now open with your {length}-digit PIN.",
+		doneContinue: "Back to settings",
+
 		currentTitle: "Enter your current PIN",
-		mismatch: "The PINs don't match, try again",
+		currentSubtitle: "Confirm the PIN you use today to continue.",
 	},
 
 	errors: {
