@@ -1,12 +1,16 @@
 "use client";
 
-import { useState, useSyncExternalStore, type ReactNode } from "react";
-import { Check, Lock, TriangleAlert } from "lucide-react";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { Check, Clock, Fingerprint, Lock, TriangleAlert } from "lucide-react";
 import PinPad from "@/components/UI/PinPad";
 import SubmitButton from "@/components/UI/SubmitButton";
+import { SwitchVisual } from "@/components/UI/Switch";
+import SettingsRow, { SettingsGroup } from "@/components/UI/SettingsRow";
 import { useI18n } from "@/components/features/I18nProvider";
-import { fill } from "@/lib/i18n/format";
+import { fill, plural } from "@/lib/i18n/format";
+import { useUIStore } from "@/store/useUIStore";
 import {
+	APP_LOCK_GRACE_MS,
 	APP_LOCK_PIN_LENGTH,
 	APP_LOCK_REJECT_DISPLAY_MS,
 	clearPin,
@@ -21,11 +25,22 @@ import {
  * Dal design (`PinSetupCard.dc.html`): badge + titolo + sottotitolo che
  * cambiano per passo, indicatore di progresso a 3 tappe, schermata finale
  * "PIN impostato" con un bottone esplicito invece di tornare subito al
- * riposo. ⚠️ Il design mostra anche uno switch biometrico funzionante e una
- * riga "richiedi il PIN dopo N minuti" TOCCABILE, nella schermata finale: non
- * adottati — il biometrico non esiste ancora (Fase 26b) e la finestra di
- * grazia è una costante (`APP_LOCK_GRACE_MS`), non una preferenza. Mostrarli
- * prometterebbe funzioni che l'app non ha.
+ * riposo. Il riposo stesso segue "Seichi Blocco PIN Impostazioni.dc.html":
+ * una card con la riga interruttore, il bottone (o i due bottoni), e sotto
+ * o l'elenco "cosa succede dopo" (spento) o l'avviso sulla rimozione
+ * (acceso). ⚠️ Il design mostra anche uno switch biometrico funzionante e
+ * una riga "richiedi il PIN dopo N minuti" TOCCABILE: non adottati — il
+ * biometrico non esiste ancora (Fase 26b) e la finestra di grazia è una
+ * costante (`APP_LOCK_GRACE_MS`), non una preferenza. Mostrarli
+ * prometterebbe funzioni che l'app non ha: la riga biometrico resta
+ * "presto" come sulla pagina impostazioni principale, quella della finestra
+ * è testo, non un comando.
+ *
+ * ⚠️ La barra di navigazione NON dipende dalla rotta ma da `step`: il
+ * design la vuole assente durante il wizard (crea/conferma/done) e presente
+ * sul riposo, che è la STESSA route. `fullScreenActive` (useUIStore) è lo
+ * stato condiviso che lo dice a `BottomNav`, un componente fratello di
+ * questa pagina — vedi l'effetto qui sotto.
  *
  * ⚠️ `mismatch` NON è un valore di `step`, ed è deliberato: è un booleano
  * (`mismatchShowing`) sovrapposto allo step "create-confirm". Se fosse un
@@ -44,7 +59,8 @@ const badgeIcon: Record<"lock" | "alert" | "check", ReactNode> = {
 };
 
 export default function AppLockSettings({ initialHasPin }: { initialHasPin: boolean }) {
-	const { t } = useI18n();
+	const { t, locale } = useI18n();
+	const setFullScreenActive = useUIStore((s) => s.setFullScreenActive);
 
 	// `hasPin` è DERIVATO da localStorage, non uno stato proprio: niente
 	// `useEffect`+`setState` (render a cascata, vietato dal lint) per
@@ -63,6 +79,18 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 	const [firstPin, setFirstPin] = useState<string | null>(null);
 	const [rejected, setRejected] = useState(false);
 	const [mismatchShowing, setMismatchShowing] = useState(false);
+
+	// Sincronizza uno STORE ESTERNO (Zustand), non lo stato di React: è
+	// l'eccezione che la stessa regola del lint ammette esplicitamente —
+	// iscriversi a/scrivere su un sistema esterno da un effetto è il caso
+	// per cui l'effetto esiste, diverso da un `setState` di QUESTO
+	// componente dentro il proprio effetto. La pulizia riporta la barra
+	// quando l'utente esce dalla pagina a metà wizard (freccia in alto),
+	// non solo quando il flusso finisce da sé.
+	useEffect(() => {
+		setFullScreenActive(step !== "idle");
+		return () => setFullScreenActive(false);
+	}, [step, setFullScreenActive]);
 
 	function reset() {
 		setStep("idle");
@@ -219,12 +247,55 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 
 	/* ---------------------------------------------------------- riposo --- */
 
+	function startCreate() {
+		setStep("create-enter");
+	}
+	function startRemove() {
+		setAfterVerify("remove");
+		setStep("verify-current");
+	}
+
 	return (
 		<div>
 			<p className="text-[13px] text-muted leading-relaxed mb-7">{t.appLock.disclaimer}</p>
 
+			<SettingsGroup>
+				{/* La riga È il comando (`onClick` sulla riga stessa): l'interruttore
+				    dentro è `SwitchVisual`, non `<Switch>` — un `<button
+				    role="switch">` annidato in un'altra riga-bottone sarebbe markup
+				    interattivo dentro markup interattivo. Stesso motivo per cui
+				    `SwitchVisual` esiste separata da `Switch` (vedi Switch.tsx). */}
+				<SettingsRow
+					icon={<Lock size={17} className="text-secondary" />}
+					label={t.settings.pinLock}
+					subtitle={hasPin ? fill(t.appLock.onSubtitle, { length: APP_LOCK_PIN_LENGTH }) : t.appLock.offSubtitle}
+					value={<SwitchVisual checked={hasPin} />}
+					onClick={hasPin ? startRemove : startCreate}
+				/>
+				{hasPin && (
+					<>
+						{/* Non uno switch VERO — "presto" come sulla pagina impostazioni
+						    principale: il biometrico non esiste ancora (Fase 26b). */}
+						<SettingsRow
+							icon={<Fingerprint size={17} className="text-secondary" />}
+							label={t.settings.biometricLock}
+							value={t.settings.comingSoon}
+							disabled
+						/>
+						{/* Sola lettura — niente `chevron`, niente `onClick`: la finestra
+						    di grazia è `APP_LOCK_GRACE_MS`, una costante, non una
+						    preferenza. Un chevron qui prometterebbe che si può toccare. */}
+						<SettingsRow
+							icon={<Clock size={17} className="text-secondary" />}
+							label={t.appLock.graceLabel}
+							value={plural(t.appLock.graceMinutes, APP_LOCK_GRACE_MS / 60_000, locale)}
+						/>
+					</>
+				)}
+			</SettingsGroup>
+
 			{!hasPin ? (
-				<SubmitButton label={t.appLock.setPin} onClick={() => setStep("create-enter")} />
+				<SubmitButton label={t.appLock.setPin} onClick={startCreate} />
 			) : (
 				<div className="space-y-3">
 					<SubmitButton
@@ -235,15 +306,32 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 							setStep("verify-current");
 						}}
 					/>
-					<SubmitButton
-						label={t.appLock.removePin}
-						danger
-						onClick={() => {
-							setAfterVerify("remove");
-							setStep("verify-current");
-						}}
-					/>
+					<SubmitButton label={t.appLock.removePin} danger onClick={startRemove} />
 				</div>
+			)}
+
+			{!hasPin ? (
+				<div className="mt-8">
+					<p className="text-[11.5px] font-semibold tracking-[1.6px] uppercase text-disabled mb-3">
+						{t.appLock.howItWorksTitle}
+					</p>
+					<div className="space-y-3">
+						{[
+							fill(t.appLock.howItWorksStep1, { length: APP_LOCK_PIN_LENGTH }),
+							t.appLock.howItWorksStep2,
+							t.appLock.howItWorksStep3,
+						].map((step, i) => (
+							<div key={i} className="flex gap-3 items-start">
+								<span className="w-5.5 h-5.5 rounded-lg bg-control flex items-center justify-center text-[11px] font-semibold text-secondary shrink-0">
+									{i + 1}
+								</span>
+								<span className="text-[12.5px] text-muted leading-relaxed">{step}</span>
+							</div>
+						))}
+					</div>
+				</div>
+			) : (
+				<p className="text-xs text-muted leading-relaxed mt-5">{t.appLock.activeDisclaimer}</p>
 			)}
 		</div>
 	);

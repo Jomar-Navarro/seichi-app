@@ -211,6 +211,30 @@ export const it = {
 		 *  stessa forma badge+titolo+sottotitolo per coerenza visiva. */
 		currentTitle: "Inserisci il PIN attuale",
 		currentSubtitle: "Conferma il PIN che usi oggi per continuare.",
+
+		/** La riga "blocco con PIN" nella card di riposo — dal design
+		 *  ("Seichi Blocco PIN Impostazioni"). */
+		offSubtitle: "disattivato",
+		onSubtitle: "attivo · {length} cifre",
+		/** "richiedi il PIN dopo" — SOLA LETTURA: la finestra di grazia è una
+		 *  costante (`APP_LOCK_GRACE_MS`), non una preferenza. Il design la
+		 *  mostra con un chevron come se si potesse toccare; qui non si può,
+		 *  o prometterebbe una configurabilità che non esiste. */
+		graceLabel: "richiedi il PIN dopo",
+		graceMinutes: { one: "{n} minuto", other: "{n} minuti" },
+
+		/** Solo nello stato SPENTO — spiega cosa succede impostando il PIN. */
+		howItWorksTitle: "cosa succede dopo",
+		howItWorksStep1: "Scegli {length} cifre e le confermi una volta.",
+		/** ⚠️ Il design promette qui l'impronta e una durata scelta
+		 *  dall'utente: nessuna delle due esiste ancora (Fase 26b, e la
+		 *  finestra è fissa). Riscritta per dire solo il vero. */
+		howItWorksStep2: "La schermata si blocca da sola dopo qualche minuto di inattività.",
+		howItWorksStep3: "Se dimentichi il PIN, esci e rientri con la password.",
+
+		/** Solo nello stato ACCESO, sotto i due bottoni. */
+		activeDisclaimer:
+			"Rimuovendo il PIN l'app si apre subito, senza schermata di blocco. Se lo dimentichi, esci e rientri con la password: i dati restano al loro posto.",
 	},
 
 	/**

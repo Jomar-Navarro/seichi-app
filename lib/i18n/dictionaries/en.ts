@@ -127,6 +127,19 @@ export const en: Dictionary = {
 
 		currentTitle: "Enter your current PIN",
 		currentSubtitle: "Confirm the PIN you use today to continue.",
+
+		offSubtitle: "off",
+		onSubtitle: "on · {length} digits",
+		graceLabel: "require the PIN after",
+		graceMinutes: { one: "{n} minute", other: "{n} minutes" },
+
+		howItWorksTitle: "what happens next",
+		howItWorksStep1: "Choose {length} digits and confirm them once.",
+		howItWorksStep2: "The screen locks itself after a few minutes of inactivity.",
+		howItWorksStep3: "If you forget your PIN, sign out and back in with your password.",
+
+		activeDisclaimer:
+			"Removing the PIN opens the app right away, with no lock screen. If you forget it, sign out and back in: your data stays put.",
 	},
 
 	errors: {

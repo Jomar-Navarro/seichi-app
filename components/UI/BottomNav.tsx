@@ -33,21 +33,22 @@ const NAV_ITEMS = [
  * `(main)`: quello vorrebbe un layout proprio e un secondo controllo di
  * autenticazione, per ottenere la stessa cosa in più righe.
  *
- * `/impostazioni/blocco` (Fase 26a) ci sta per lo stesso motivo del report,
- * non perché sia stampabile: il design (`PinSetupCard`/`PinCard`) la vuole a
- * schermo intero, senza distrazioni, e la schermata di sblocco VERA
- * (`AppLockScreen`) è già un velo `fixed` che copre la barra — averla
- * visibile solo mentre si IMPOSTA il PIN e non mentre lo si USA sarebbe
- * un'incoerenza che l'utente vedrebbe in due tap.
+ * ⚠️ `/impostazioni/blocco` (Fase 26a) NON è qui, ed è deliberato: il design
+ * la vuole a schermo intero SOLO durante il wizard PIN (crea/conferma/done),
+ * non sulla lista di riposo che la ospita ("Seichi Blocco PIN
+ * Impostazioni.dc.html" mostra la barra presente lì). Una singola route con
+ * stati diversi non si esprime con un elenco di path — vedi
+ * `fullScreenActive` più sotto.
  */
-const DOCUMENT_ROUTES = ["/analisi/report", "/impostazioni/blocco"];
+const DOCUMENT_ROUTES = ["/analisi/report"];
 
 export default function BottomNav() {
-	const { openTransactionModal } = useUIStore();
+	const { openTransactionModal, fullScreenActive } = useUIStore();
 	const pathname = usePathname();
 	const { t } = useI18n();
 
 	if (DOCUMENT_ROUTES.includes(pathname)) return null;
+	if (fullScreenActive) return null;
 
 	return (
 		<>

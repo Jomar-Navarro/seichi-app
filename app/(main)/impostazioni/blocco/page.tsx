@@ -13,11 +13,13 @@ export default async function BloccoPage() {
 	const initialHasPin = (await cookies()).get(APP_LOCK_ENABLED_COOKIE)?.value === "1";
 
 	return (
-		// `pb-12`, non `pb-34` come le altre pagine (main)`: questa route è in
-		// `DOCUMENT_ROUTES` (BottomNav.tsx), la barra non c'è, e lo spazio che
-		// le altre le riservano sarebbe vuoto e basta — la stessa scelta della
-		// Fase 23b per `/analisi/report`.
-		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-12">
+		// pb-34 qui: è il valore giusto per il riposo (barra presente, come
+		// ogni altra pagina di `(main)`). Durante il wizard la barra sparisce
+		// (`fullScreenActive`, vedi BottomNav.tsx) e lo spazio che le
+		// riserverebbe sarebbe vuoto — `AppLockSettings` lo corregge da sé sul
+		// proprio contenitore per i soli passi attivi, perché è l'unico punto
+		// che sa in quale stato si trova.
+		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34">
 			<PageHeader title={t.settings.pinLock} backHref="/impostazioni" />
 			<AppLockSettings initialHasPin={initialHasPin} />
 		</div>
