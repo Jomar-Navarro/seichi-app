@@ -39,11 +39,20 @@ export default function AppLockProvider({
 			if (readCookie(APP_LOCK_ENABLED_COOKIE) !== "1") return;
 
 			if (document.visibilityState === "hidden") {
+				// ⚠️ SOLO se l'app non è già bloccata: rinfrescare la finestra di
+				// grazia mentre il velo è ancora a schermo equivarrebbe a
+				// sbloccarla senza che nessuno abbia mai digitato il PIN — un
+				// bypass reale, trovato dal code-review. Lo scenario: il velo è
+				// su, l'utente cambia app senza sbloccare, torna dopo un attimo —
+				// senza questo controllo il cookie `active-until` si rinfrescava
+				// comunque, e un ricaricamento (o una scheda nuova) avrebbe
+				// mostrato la dashboard vera senza chiedere nulla.
+				//
 				// L'ultimo istante in cui si sa per certo che l'utente c'era: la
 				// finestra di grazia riparte da qui, non dal momento dello
 				// sblocco — sennò un uso attivo di 20 minuti si bloccherebbe da
 				// solo mentre lo schermo è ancora sotto gli occhi di chi guarda.
-				markActiveNow();
+				if (!locked) markActiveNow();
 				return;
 			}
 
@@ -61,7 +70,10 @@ export default function AppLockProvider({
 
 		document.addEventListener("visibilitychange", onVisibilityChange);
 		return () => document.removeEventListener("visibilitychange", onVisibilityChange);
-	}, []);
+		// `locked` in dipendenza: la chiusura deve vedere il valore CORRENTE, o
+		// il controllo appena aggiunto sopra leggerebbe per sempre il valore del
+		// primo render (sempre `initialLocked`) invece di quello vero.
+	}, [locked]);
 
 	return (
 		<>

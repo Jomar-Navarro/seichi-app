@@ -32,6 +32,14 @@ import { signOut } from "@/app/(main)/impostazioni/actions";
  * c'è né un blocco temporaneo reale né un secondo fattore biometrico — dirlo
  * sarebbe promettere ciò che l'app non fa. Resta la via d'uscita onesta già
  * costruita: "Esci e accedi di nuovo".
+ *
+ * ⚠️ Quella frase era scritta nel dizionario (`signOutAndReset`) ma MAI
+ * collegata — trovato dal code-review: il bottone usava
+ * `t.appLock.forgotPin` ("Hai dimenticato il PIN?") come UNICA etichetta,
+ * e un tocco eseguiva `forgotPin()` all'istante — sign-out immediato senza
+ * conferma, dietro una domanda che non lo lasciava intuire. Ora è in due
+ * passi, come `DeleteAccountFlow`: il primo tocco rivela il comando VERO
+ * (`signOutAndReset`), il secondo lo esegue.
  */
 
 /** Dopo quanti errori mostrare la via d'uscita, non subito — un comando
@@ -43,6 +51,7 @@ export default function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
 	const { t } = useI18n();
 	const [rejected, setRejected] = useState(false);
 	const [attempts, setAttempts] = useState(0);
+	const [confirmingForgot, setConfirmingForgot] = useState(false);
 	const [signingOut, startSignOut] = useTransition();
 
 	function check(pin: string) {
@@ -105,16 +114,26 @@ export default function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
 					deleteLabel={t.appLock.deleteKey}
 				/>
 
-				{attempts >= SHOW_ESCAPE_AFTER_ATTEMPTS && (
-					<button
-						type="button"
-						onClick={forgotPin}
-						disabled={signingOut}
-						className="text-[13px] font-medium text-muted underline underline-offset-2 mt-7 disabled:opacity-50"
-					>
-						{signingOut ? "…" : t.appLock.forgotPin}
-					</button>
-				)}
+				{attempts >= SHOW_ESCAPE_AFTER_ATTEMPTS &&
+					(confirmingForgot ? (
+						<button
+							type="button"
+							onClick={forgotPin}
+							disabled={signingOut}
+							className="text-[13px] font-semibold mt-7 disabled:opacity-50"
+							style={{ color: "var(--ink-aka)" }}
+						>
+							{signingOut ? "…" : t.appLock.signOutAndReset}
+						</button>
+					) : (
+						<button
+							type="button"
+							onClick={() => setConfirmingForgot(true)}
+							className="text-[13px] font-medium text-muted underline underline-offset-2 mt-7"
+						>
+							{t.appLock.forgotPin}
+						</button>
+					))}
 			</div>
 		</div>
 	);

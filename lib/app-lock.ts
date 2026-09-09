@@ -144,17 +144,27 @@ export function markActiveNow() {
 	document.cookie = `${APP_LOCK_ACTIVE_UNTIL_COOKIE}=${until}${cookieAttrs()}`;
 }
 
-/** Salva il PIN e accende il flag lato server — a fine impostazione o cambio. */
-export function savePin(pin: string) {
+/**
+ * Salva il PIN e accende il flag lato server — a fine impostazione o cambio.
+ *
+ * ⚠️ Ritorna `false` se `localStorage` ha rifiutato la scrittura, e in quel
+ * caso NON accende il cookie. Trovato dal code-review: la versione
+ * precedente accendeva comunque `seichi-lock-enabled`, quindi l'app si
+ * bloccava lo stesso (fail-closed, corretto) ma `readStoredPin()` sarebbe
+ * rimasta `null` per sempre — nessun PIN digitato può mai coincidere con
+ * `null`, quindi l'utente restava chiuso fuori dalla propria app, senza
+ * aver mai avuto un vero PIN da dimenticare. Meglio non promettere un
+ * blocco che non può verificare nulla.
+ */
+export function savePin(pin: string): boolean {
 	try {
 		localStorage.setItem(PIN_STORAGE_KEY, pin);
 	} catch {
-		// localStorage indisponibile: il PIN non persiste, ma non c'è modo di
-		// dirlo qui — il chiamante lo scoprirebbe solo al giro successivo, e
-		// nel frattempo il cookie "enabled" resterebbe una promessa vuota.
+		return false;
 	}
 	document.cookie = `${APP_LOCK_ENABLED_COOKIE}=1${cookieAttrs()}`;
 	markActiveNow();
+	return true;
 }
 
 /** Rimuove il PIN e i due cookie: da qui in poi l'app non si blocca più su questo dispositivo. */

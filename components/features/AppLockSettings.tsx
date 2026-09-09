@@ -58,7 +58,11 @@ import {
  * design la vuole assente durante il wizard (crea/conferma/done) e presente
  * sul riposo, che è la STESSA route. `fullScreenActive` (useUIStore) è lo
  * stato condiviso che lo dice a `BottomNav`, un componente fratello di
- * questa pagina — vedi l'effetto qui sotto.
+ * questa pagina — vedi l'effetto qui sotto. Lo stesso flag governa anche il
+ * `pb-*` della pagina (`AppLockPageShell.tsx`): un `margin` negativo QUI non
+ * avrebbe mai potuto ridurre il `padding` di un ANTENATO — sono due concetti
+ * del box model indipendenti, il primo tentativo del code-review lo
+ * ignorava e non spostava un pixel (misurato: nessun cambiamento).
  *
  * ⚠️ `mismatch` NON è un valore di `step`, ed è deliberato: è un booleano
  * (`mismatchShowing`) sovrapposto allo step "create-confirm". Se fosse un
@@ -68,7 +72,7 @@ import {
  * la STESSA istanza per tutta la finestra di lettura dell'errore, e passa a
  * "create-enter" (quindi si svuota) solo alla fine di quella finestra.
  */
-type Step = "idle" | "create-enter" | "create-confirm" | "done" | "verify-current";
+type Step = "idle" | "create-enter" | "create-confirm" | "save-error" | "done" | "verify-current";
 
 const badgeIcon: Record<"lock" | "alert" | "check", ReactNode> = {
 	lock: <Lock size={26} strokeWidth={1.7} />,
@@ -195,44 +199,44 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 			}, APP_LOCK_REJECT_DISPLAY_MS);
 			return;
 		}
-		savePin(pin);
-		setStep("done");
+		// ⚠️ Trovato dal code-review: `savePin()` può fallire (localStorage
+		// bloccato, es. navigazione privata). La versione precedente ignorava
+		// l'esito e andava comunque a "done" — l'utente vedeva "PIN impostato"
+		// su un PIN mai scritto, e l'app si sarebbe bloccata senza che nessun
+		// PIN digitato potesse mai aprirla di nuovo.
+		setStep(savePin(pin) ? "done" : "save-error");
 	}
 
 	/* ---------------------------------------------------------- i quattro/cinque passi --- */
 
 	if (step !== "idle") {
 		const length = APP_LOCK_PIN_LENGTH;
-		const content =
-			step === "verify-current"
-				? {
-						badge: "lock" as const,
-						title: t.appLock.currentTitle,
-						subtitle: rejected ? t.appLock.wrongPin : t.appLock.currentSubtitle,
-					}
-				: step === "create-enter"
-					? {
-							badge: "lock" as const,
-							title: t.appLock.createTitle,
-							subtitle: fill(t.appLock.createSubtitle, { length }),
-						}
-					: step === "create-confirm" && mismatchShowing
-						? {
-								badge: "alert" as const,
-								title: t.appLock.mismatchTitle,
-								subtitle: t.appLock.mismatchSubtitle,
-							}
-						: step === "create-confirm"
-							? {
-									badge: "lock" as const,
-									title: t.appLock.confirmTitle,
-									subtitle: fill(t.appLock.confirmSubtitle, { length }),
-								}
-							: {
-									badge: "check" as const,
-									title: t.appLock.doneTitle,
-									subtitle: fill(t.appLock.doneSubtitle, { length }),
-								};
+		// Funzione con ritorni anticipati, non un'altra ternaria annidata: era
+		// già a cinque livelli prima di aggiungere "save-error" (code-review),
+		// e un sesto livello l'avrebbe resa illeggibile.
+		function stepContent(): { badge: "lock" | "alert" | "check"; title: string; subtitle: string } {
+			if (step === "verify-current") {
+				return {
+					badge: "lock",
+					title: t.appLock.currentTitle,
+					subtitle: rejected ? t.appLock.wrongPin : t.appLock.currentSubtitle,
+				};
+			}
+			if (step === "create-enter") {
+				return { badge: "lock", title: t.appLock.createTitle, subtitle: fill(t.appLock.createSubtitle, { length }) };
+			}
+			if (step === "create-confirm" && mismatchShowing) {
+				return { badge: "alert", title: t.appLock.mismatchTitle, subtitle: t.appLock.mismatchSubtitle };
+			}
+			if (step === "create-confirm") {
+				return { badge: "lock", title: t.appLock.confirmTitle, subtitle: fill(t.appLock.confirmSubtitle, { length }) };
+			}
+			if (step === "save-error") {
+				return { badge: "alert", title: t.appLock.saveErrorTitle, subtitle: t.appLock.saveErrorSubtitle };
+			}
+			return { badge: "check", title: t.appLock.doneTitle, subtitle: fill(t.appLock.doneSubtitle, { length }) };
+		}
+		const content = stepContent();
 
 		// Tre tappe: create → confirm → done. "mismatch" resta sulla tappa 2,
 		// perché è ancora lo step "create-confirm" (vedi sopra). "verify-current"
@@ -281,8 +285,12 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 					{content.subtitle}
 				</p>
 
-				{step === "done" ? (
-					<SubmitButton label={t.appLock.doneContinue} onClick={reset} className="mt-2" />
+				{step === "done" || step === "save-error" ? (
+					<SubmitButton
+						label={step === "done" ? t.appLock.doneContinue : t.common.cancel}
+						onClick={reset}
+						className="mt-2"
+					/>
 				) : (
 					<>
 						<PinPad

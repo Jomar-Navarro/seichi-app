@@ -207,6 +207,15 @@ export const it = {
 		doneSubtitle: "Seichi si aprirà con il tuo PIN a {length} cifre.",
 		doneContinue: "Torna alle impostazioni",
 
+		/** `savePin()` ha rifiutato la scrittura (localStorage bloccato — capita
+		 *  in navigazione privata su alcuni browser). Trovato dal code-review:
+		 *  senza questo passo, il PIN sembrava impostato ma non lo era mai
+		 *  stato, e l'app si sarebbe bloccata senza che nessun PIN digitato
+		 *  potesse mai aprirla. */
+		saveErrorTitle: "Impossibile salvare il PIN",
+		saveErrorSubtitle:
+			"Questo dispositivo non permette di salvare dati locali in questo momento — capita in navigazione privata. Riprova, o disattivala.",
+
 		/** Verifica del PIN attuale (cambio/rimozione) — non è nel design,
 		 *  stessa forma badge+titolo+sottotitolo per coerenza visiva. */
 		currentTitle: "Inserisci il PIN attuale",

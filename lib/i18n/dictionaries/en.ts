@@ -125,6 +125,10 @@ export const en: Dictionary = {
 		doneSubtitle: "Seichi will now open with your {length}-digit PIN.",
 		doneContinue: "Back to settings",
 
+		saveErrorTitle: "Couldn't save your PIN",
+		saveErrorSubtitle:
+			"This device isn't allowing local data to be saved right now — this happens in private browsing. Try again, or turn it off.",
+
 		currentTitle: "Enter your current PIN",
 		currentSubtitle: "Confirm the PIN you use today to continue.",
 

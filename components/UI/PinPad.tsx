@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Delete } from "lucide-react";
 
 /**
@@ -97,7 +97,14 @@ export default function PinPad({ length, onComplete, rejected, disabled, deleteL
 	// sviluppo, sotto Strict Mode, apposta per scovare updater impuri) — ed
 	// `onComplete` con un effetto collaterale dentro era esattamente quell'errore.
 	function press(key: string) {
-		if (disabled || key === "") return;
+		// ⚠️ `rejected` blocca TUTTO, cancellare compreso — non solo le nuove
+		// cifre. Trovato dal code-review: senza, la cancellazione (non era
+		// coperta dal controllo `value.length >= length` qui sotto, che vale
+		// solo per le cifre) restava viva durante la finestra di lettura
+		// dell'errore, e si poteva togliere l'ultima cifra e ridigitarne una
+		// diversa — un secondo `onComplete` prima che il primo timer del
+		// chiamante fosse scaduto, due tentativi in corsa fra loro.
+		if (disabled || rejected || key === "") return;
 		if (key === "⌫") {
 			setValue(value.slice(0, -1));
 			return;
@@ -109,6 +116,38 @@ export default function PinPad({ length, onComplete, rejected, disabled, deleteL
 			swallowNextClick();
 			onComplete(next);
 		}
+	}
+
+	// ⚠️ Trovato dal code-review: i tasti avevano SOLO `onPointerDown`, mai
+	// raggiungibile da tastiera — attivare un bottone a fuoco con Invio o
+	// Spazio genera un `click`, non un `pointerdown`, quindi nessuna cifra
+	// si poteva mai digitare senza un puntatore. `PinPad` è l'UNICO modo di
+	// sbloccare l'app: senza questo, chi naviga solo da tastiera restava
+	// chiuso fuori.
+	//
+	// `onClick` da solo raddoppierebbe la pressione per chi TOCCA lo schermo
+	// (pointerdown la esegue già), quindi si distingue con un ref: se il
+	// click arriva SUBITO dopo un pointerdown per la stessa cifra, è l'eco
+	// di compatibilità del browser per lo stesso gesto — si ignora. Se
+	// arriva senza un pointerdown appena precedente, è tastiera. Il timeout
+	// è la stessa rete di sicurezza di `swallowNextClick`: se il browser non
+	// sintetizzasse mai quell'eco, il flag non deve restare acceso in
+	// attesa di un tocco da tastiera successivo e del tutto legittimo.
+	const pointerHandledRef = useRef(false);
+
+	function onPointerDownKey(key: string) {
+		pointerHandledRef.current = true;
+		press(key);
+		setTimeout(() => {
+			pointerHandledRef.current = false;
+		}, 400);
+	}
+	function onClickKey(key: string) {
+		if (pointerHandledRef.current) {
+			pointerHandledRef.current = false;
+			return;
+		}
+		press(key);
 	}
 
 	return (
@@ -148,8 +187,9 @@ export default function PinPad({ length, onComplete, rejected, disabled, deleteL
 							disabled={disabled}
 							onPointerDown={(e) => {
 								e.preventDefault();
-								press(key);
+								onPointerDownKey(key);
 							}}
+							onClick={() => onClickKey(key)}
 							aria-label={isDelete ? deleteLabel : key}
 							className={
 								isDelete
