@@ -26,6 +26,36 @@ const LETTERS: Record<string, string> = {
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"];
 
+/**
+ * Assorbe il PROSSIMO click, ovunque cada, una volta sola — poi si toglie.
+ *
+ * ⚠️ Il "click fantasma": su mobile il browser sintetizza comunque un click
+ * di compatibilità dopo un tocco, anche con `preventDefault()` sul
+ * `pointerdown` che l'ha preceduto. Di norma non si vede, perché il click
+ * arriva sulla STESSA riga toccata. Ma l'ultima cifra del PIN fa scattare
+ * `onComplete`, che nel chiamante cambia schermo ALL'ISTANTE (sblocco,
+ * passo successivo del wizard…): quando il click sintetico arriva, il
+ * tastierino non c'è più, e il browser lo fa atterrare su QUALUNQUE bottone
+ * si trovi ORA in quella posizione — non quello che l'utente ha toccato
+ * davvero. Sintomo riportato: l'ultima cifra "clicca" un bottone dietro,
+ * e porta altrove.
+ *
+ * Si intercetta in fase di CATTURA (prima che l'evento raggiunga qualunque
+ * `onClick` di React) e si cancella subito con `preventDefault` +
+ * `stopPropagation`. Il timeout è solo una rete di sicurezza: se nessun
+ * click fantasma arrivasse mai (la maggioranza dei casi, la maggior parte
+ * dei browser), l'ascoltatore non deve restare armato in attesa di un tocco
+ * successivo del tutto legittimo.
+ */
+function swallowNextClick() {
+	const swallow = (e: Event) => {
+		e.preventDefault();
+		e.stopPropagation();
+	};
+	document.addEventListener("click", swallow, { capture: true, once: true });
+	setTimeout(() => document.removeEventListener("click", swallow, { capture: true }), 400);
+}
+
 interface PinPadProps {
 	length: number;
 	/** Chiamato UNA volta, quando l'utente ha digitato tutte le cifre. */
@@ -75,7 +105,10 @@ export default function PinPad({ length, onComplete, rejected, disabled, deleteL
 		if (value.length >= length) return;
 		const next = value + key;
 		setValue(next);
-		if (next.length === length) onComplete(next);
+		if (next.length === length) {
+			swallowNextClick();
+			onComplete(next);
+		}
 	}
 
 	return (

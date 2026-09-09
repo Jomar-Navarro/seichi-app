@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Check, ChevronDown, Clock, Fingerprint, Lock, TriangleAlert } from "lucide-react";
 import PinPad from "@/components/UI/PinPad";
 import SubmitButton from "@/components/UI/SubmitButton";
@@ -40,13 +40,19 @@ import {
  * pagina impostazioni principale.
  *
  * La riga "richiedi il PIN dopo" INVECE è toccabile, su richiesta esplicita
- * (era stata prima una costante fissa): stessa forma di
- * `PreferencesSection` per valuta/lingua — una `<label>` con sopra una
- * `<select>` nativa resa invisibile (`opacity-0`), non la tendina
- * personalizzata di `Select.tsx`. Il picker nativo del sistema operativo
- * non ha bisogno di gestire z-index o contesti di impilamento, ed è
- * esattamente il problema che il resto di questa pagina (dentro una card
- * `bg-card`) altrimenti avrebbe.
+ * (era stata prima una costante fissa).
+ *
+ * ⚠️ Il primo tentativo copiava `PreferencesSection` (valuta/lingua): una
+ * `<select>` nativa invisibile sopra la riga. Corretto — il picker che ne
+ * esce è quello del SISTEMA OPERATIVO, non del design system, e su Zen
+ * Glass scuro si vede: un menu grigio piatto sopra una card di vetro. Qui è
+ * un menu DISEGNATO a mano, `position: fixed` con le coordinate calcolate
+ * al tocco (come `Select.tsx`), non `position: absolute` dentro la card:
+ * `SettingsGroup` ha `overflow-hidden` per ritagliare gli angoli delle
+ * righe, e un menu `absolute` verrebbe tagliato via lì sotto. `fixed` non
+ * ne risente — esce dal flusso e si posiziona rispetto al VIEWPORT, non
+ * rispetto a un antenato con `overflow-hidden` (a meno che quell'antenato
+ * non abbia `transform`/`filter`, che `SettingsGroup` non ha).
  *
  * ⚠️ La barra di navigazione NON dipende dalla rotta ma da `step`: il
  * design la vuole assente durante il wizard (crea/conferma/done) e presente
@@ -111,6 +117,23 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 		return ms < 60_000
 			? plural(t.appLock.graceSeconds, ms / 1000, locale)
 			: plural(t.appLock.graceMinutes, ms / 60_000, locale);
+	}
+
+	// Menu disegnato a mano per "richiedi il PIN dopo" — vedi il commento in
+	// testa al file sul perché non è una `<select>` nativa. La posizione si
+	// calcola al TOCCO, non al render: la riga sta dentro una card che può
+	// scorrere in pagina, stesso principio di `Select.tsx`.
+	const graceTriggerRef = useRef<HTMLButtonElement>(null);
+	const [graceOpen, setGraceOpen] = useState(false);
+	const [graceMenuRect, setGraceMenuRect] = useState<{ top: number; left: number; width: number } | null>(null);
+
+	function openGraceMenu() {
+		const rect = graceTriggerRef.current?.getBoundingClientRect();
+		if (rect) setGraceMenuRect({ top: rect.bottom + 6, left: rect.left, width: rect.width });
+		setGraceOpen(true);
+	}
+	function closeGraceMenu() {
+		setGraceOpen(false);
 	}
 
 	const [step, setStep] = useState<Step>("idle");
@@ -321,35 +344,60 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 							value={t.settings.comingSoon}
 							disabled
 						/>
-						{/* `<label>` + `<select>` invisibile sopra, non `SettingsRow` — è
-						    lo stesso schema di `PreferencesSection` per valuta/lingua: il
-						    picker nativo del sistema, senza una tendina personalizzata da
-						    tenere sopra la card (`bg-card`) che la ospita. */}
-						<label className="relative flex items-center gap-3 h-15.5 px-4 cursor-pointer">
+						<button
+							ref={graceTriggerRef}
+							type="button"
+							onClick={() => (graceOpen ? closeGraceMenu() : openGraceMenu())}
+							className="flex items-center gap-3 h-15.5 px-4 w-full text-left active:opacity-80"
+						>
 							<span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-control">
 								<Clock size={17} className="text-secondary" />
 							</span>
 							<span className="flex-1 text-sm font-medium">{t.appLock.graceLabel}</span>
 							<span className="inline-flex items-center gap-1.5 text-[13px] text-muted">
 								{formatGrace(graceMs)}
-								<ChevronDown size={12} />
+								<ChevronDown
+									size={12}
+									className={`transition-transform ${graceOpen ? "rotate-180" : ""}`}
+								/>
 							</span>
-							<select
-								value={graceMs}
-								onChange={(e) => onGraceChange(Number(e.target.value))}
-								className="absolute inset-0 opacity-0 cursor-pointer"
-								aria-label={t.appLock.graceLabel}
-							>
-								{APP_LOCK_GRACE_OPTIONS_MS.map((ms) => (
-									<option key={ms} value={ms}>
-										{formatGrace(ms)}
-									</option>
-								))}
-							</select>
-						</label>
+						</button>
 					</>
 				)}
 			</SettingsGroup>
+
+			{graceOpen && graceMenuRect && (
+				<>
+					{/* Backdrop trasparente a schermo intero: chiude il menu al tap
+					    fuori, stesso meccanismo del pannello conti (Fase 20b). */}
+					<div className="fixed inset-0 z-45" onClick={closeGraceMenu} />
+					{/* issue #81 — anello (`box-shadow-ring`), mai un `border` vero su
+					    un elemento arrotondato. Guscio → vetro → contenuto: il guscio
+					    ritaglia e fa l'ombra, il vetro sfoca SENZA un proprio raggio. */}
+					<div
+						className="fixed z-46 rounded-2xl overflow-hidden box-shadow-ring"
+						style={{ top: graceMenuRect.top, left: graceMenuRect.left, width: graceMenuRect.width }}
+					>
+						<div className="absolute inset-0 bg-deep backdrop-blur-[30px]" />
+						<div className="relative p-1.5">
+							{APP_LOCK_GRACE_OPTIONS_MS.map((ms) => (
+								<button
+									key={ms}
+									type="button"
+									onClick={() => {
+										onGraceChange(ms);
+										closeGraceMenu();
+									}}
+									className="w-full flex items-center justify-between gap-3 py-2.5 px-3 rounded-xl text-sm active:opacity-70"
+								>
+									<span>{formatGrace(ms)}</span>
+									{ms === graceMs && <Check size={15} className="text-midori" />}
+								</button>
+							))}
+						</div>
+					</div>
+				</>
+			)}
 
 			{!hasPin ? (
 				<SubmitButton label={t.appLock.setPin} onClick={startCreate} />
