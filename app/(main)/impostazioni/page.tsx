@@ -14,11 +14,13 @@ import {
 	TriangleAlert,
 	Upload,
 } from "lucide-react";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { getAccountContext } from "@/lib/account";
 import { getDailyJobHealth } from "@/lib/jobs";
 import { getI18n } from "@/lib/i18n/server";
 import { fill } from "@/lib/i18n/format";
+import { APP_LOCK_ENABLED_COOKIE } from "@/lib/app-lock";
 import Avatar from "@/components/UI/Avatar";
 import PageHeader from "@/components/UI/PageHeader";
 import SettingsRow, { SettingsGroup } from "@/components/UI/SettingsRow";
@@ -55,6 +57,11 @@ export default async function ImpostazioniPage() {
 		.from("categories")
 		.select("id", { count: "exact", head: true })
 		.eq("user_id", account.userId);
+
+	// Fase 26a — il PIN vero non lascia mai questo dispositivo (localStorage),
+	// ma il flag "un PIN è configurato" è nel cookie apposta per questo: farlo
+	// sapere anche a schermate che non sono la schermata di blocco.
+	const pinEnabled = (await cookies()).get(APP_LOCK_ENABLED_COOKIE)?.value === "1";
 
 	return (
 		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34">
@@ -162,8 +169,9 @@ export default async function ImpostazioniPage() {
 				<SettingsRow
 					icon={<Lock size={17} className="text-secondary" />}
 					label={t.settings.pinLock}
-					value={t.settings.comingSoon}
-					disabled
+					subtitle={pinEnabled ? t.appLock.active : undefined}
+					href="/impostazioni/blocco"
+					chevron
 				/>
 				{account.hasPasswordIdentity ? (
 					<SettingsRow

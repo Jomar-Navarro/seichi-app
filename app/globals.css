@@ -568,6 +568,32 @@ body {
 	animation: zg-ring 1.8s ease-out infinite;
 }
 
+/* PIN errato (Fase 26a) — una sola scossa, non un loop: si ripete solo se
+   l'utente sbaglia di nuovo, non da sé. */
+@keyframes zg-shake {
+	10%,
+	90% {
+		transform: translateX(-1px);
+	}
+	20%,
+	80% {
+		transform: translateX(2px);
+	}
+	30%,
+	50%,
+	70% {
+		transform: translateX(-4px);
+	}
+	40%,
+	60% {
+		transform: translateX(4px);
+	}
+}
+
+@utility zg-shake {
+	animation: zg-shake 0.4s ease-in-out;
+}
+
 .active-tab {
 	transition: 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 	background: var(--bg-tab);

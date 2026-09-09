@@ -99,6 +99,27 @@ export const en: Dictionary = {
 		installIosHint: "Tap Share, then “Add to Home Screen”.",
 	},
 
+	appLock: {
+		unlockTitle: "Seichi is locked",
+		enterPin: "Enter your PIN to continue",
+		wrongPin: "Wrong PIN, try again",
+		forgotPin: "Forgot your PIN?",
+		signOutAndReset: "Sign out and sign in again",
+		deleteKey: "Delete",
+
+		disclaimer:
+			"Locks only the screen on this device, after a few minutes of inactivity. It doesn't protect your data: your session stays the same, as with any app.",
+		active: "Active",
+		setPin: "Set PIN",
+		changePin: "Change PIN",
+		removePin: "Remove PIN",
+
+		createTitle: "Create a PIN",
+		confirmTitle: "Confirm your PIN",
+		currentTitle: "Enter your current PIN",
+		mismatch: "The PINs don't match, try again",
+	},
+
 	errors: {
 		notAuthenticated: "Not signed in",
 		nameRequired: "A name is required",

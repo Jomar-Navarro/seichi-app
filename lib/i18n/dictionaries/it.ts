@@ -171,6 +171,34 @@ export const it = {
 	},
 
 	/**
+	 * Blocco app con PIN (Fase 26a, issue #67) — la schermata di sblocco
+	 * (`AppLockScreen`) e la pagina impostazioni (`/impostazioni/blocco`,
+	 * `AppLockSettings`) condividono questo dizionario: sono lo stesso
+	 * concetto in due punti dell'interfaccia.
+	 */
+	appLock: {
+		unlockTitle: "Seichi è bloccato",
+		enterPin: "Inserisci il PIN per continuare",
+		wrongPin: "PIN errato, riprova",
+		forgotPin: "Hai dimenticato il PIN?",
+		signOutAndReset: "Esci e accedi di nuovo",
+		deleteKey: "Cancella",
+
+		/** Onestà dichiarata — vedi issue #67: blocca lo SCHERMO, non i dati. */
+		disclaimer:
+			"Blocca solo la schermata su questo dispositivo, dopo qualche minuto di inattività. Non protegge i dati: la sessione resta quella di sempre, come per ogni app.",
+		active: "Attivo",
+		setPin: "Imposta PIN",
+		changePin: "Cambia PIN",
+		removePin: "Rimuovi PIN",
+
+		createTitle: "Crea un PIN",
+		confirmTitle: "Conferma il PIN",
+		currentTitle: "Inserisci il PIN attuale",
+		mismatch: "I PIN non coincidono, riprova",
+	},
+
+	/**
 	 * Messaggi restituiti dalle server action.
 	 *
 	 * Le action girano sul server e possono leggere il cookie, quindi compongono
