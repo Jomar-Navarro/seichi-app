@@ -216,11 +216,10 @@ export const it = {
 		 *  ("Seichi Blocco PIN Impostazioni"). */
 		offSubtitle: "disattivato",
 		onSubtitle: "attivo · {length} cifre",
-		/** "richiedi il PIN dopo" — SOLA LETTURA: la finestra di grazia è una
-		 *  costante (`APP_LOCK_GRACE_MS`), non una preferenza. Il design la
-		 *  mostra con un chevron come se si potesse toccare; qui non si può,
-		 *  o prometterebbe una configurabilità che non esiste. */
+		/** "richiedi il PIN dopo" — su richiesta esplicita è tornata TOCCABILE,
+		 *  come nel design: quattro durate (`APP_LOCK_GRACE_OPTIONS_MS`). */
 		graceLabel: "richiedi il PIN dopo",
+		graceSeconds: { one: "{n} secondo", other: "{n} secondi" },
 		graceMinutes: { one: "{n} minuto", other: "{n} minuti" },
 
 		/** Solo nello stato SPENTO — spiega cosa succede impostando il PIN. */

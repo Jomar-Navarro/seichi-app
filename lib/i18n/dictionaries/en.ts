@@ -131,6 +131,7 @@ export const en: Dictionary = {
 		offSubtitle: "off",
 		onSubtitle: "on · {length} digits",
 		graceLabel: "require the PIN after",
+		graceSeconds: { one: "{n} second", other: "{n} seconds" },
 		graceMinutes: { one: "{n} minute", other: "{n} minutes" },
 
 		howItWorksTitle: "what happens next",

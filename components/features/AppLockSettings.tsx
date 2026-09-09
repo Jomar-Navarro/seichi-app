@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
-import { Check, Clock, Fingerprint, Lock, TriangleAlert } from "lucide-react";
+import { Check, ChevronDown, Clock, Fingerprint, Lock, TriangleAlert } from "lucide-react";
 import PinPad from "@/components/UI/PinPad";
 import SubmitButton from "@/components/UI/SubmitButton";
 import { SwitchVisual } from "@/components/UI/Switch";
@@ -10,13 +10,17 @@ import { useI18n } from "@/components/features/I18nProvider";
 import { fill, plural } from "@/lib/i18n/format";
 import { useUIStore } from "@/store/useUIStore";
 import {
-	APP_LOCK_GRACE_MS,
+	APP_LOCK_GRACE_DEFAULT_MS,
+	APP_LOCK_GRACE_OPTIONS_MS,
 	APP_LOCK_PIN_LENGTH,
 	APP_LOCK_REJECT_DISPLAY_MS,
 	clearPin,
 	hasStoredPin,
+	isAppLockGraceMs,
+	readGraceMs,
 	readStoredPin,
 	savePin,
+	writeGraceMs,
 } from "@/lib/app-lock";
 
 /**
@@ -28,13 +32,21 @@ import {
  * riposo. Il riposo stesso segue "Seichi Blocco PIN Impostazioni.dc.html":
  * una card con la riga interruttore, il bottone (o i due bottoni), e sotto
  * o l'elenco "cosa succede dopo" (spento) o l'avviso sulla rimozione
- * (acceso). ⚠️ Il design mostra anche uno switch biometrico funzionante e
- * una riga "richiedi il PIN dopo N minuti" TOCCABILE: non adottati — il
- * biometrico non esiste ancora (Fase 26b) e la finestra di grazia è una
- * costante (`APP_LOCK_GRACE_MS`), non una preferenza. Mostrarli
- * prometterebbe funzioni che l'app non ha: la riga biometrico resta
- * "presto" come sulla pagina impostazioni principale, quella della finestra
- * è testo, non un comando.
+ * (acceso).
+ *
+ * ⚠️ Il design mostra anche uno switch biometrico funzionante: non
+ * adottato — il biometrico non esiste ancora (Fase 26b), e mostrarlo
+ * prometterebbe una funzione che l'app non ha. Resta "presto" come sulla
+ * pagina impostazioni principale.
+ *
+ * La riga "richiedi il PIN dopo" INVECE è toccabile, su richiesta esplicita
+ * (era stata prima una costante fissa): stessa forma di
+ * `PreferencesSection` per valuta/lingua — una `<label>` con sopra una
+ * `<select>` nativa resa invisibile (`opacity-0`), non la tendina
+ * personalizzata di `Select.tsx`. Il picker nativo del sistema operativo
+ * non ha bisogno di gestire z-index o contesti di impilamento, ed è
+ * esattamente il problema che il resto di questa pagina (dentro una card
+ * `bg-card`) altrimenti avrebbe.
  *
  * ⚠️ La barra di navigazione NON dipende dalla rotta ma da `step`: il
  * design la vuole assente durante il wizard (crea/conferma/done) e presente
@@ -73,6 +85,33 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 		hasStoredPin,
 		() => initialHasPin,
 	);
+
+	// Stessa ragione di `hasPin`: `readGraceMs()` tocca `localStorage`, che
+	// non esiste durante il render sul server — da qui il default SICURO
+	// (`APP_LOCK_GRACE_DEFAULT_MS`) come terzo argomento, mai la lettura
+	// diretta in un inizializzatore di `useState`.
+	const storedGraceMs = useSyncExternalStore(
+		() => () => {},
+		readGraceMs,
+		() => APP_LOCK_GRACE_DEFAULT_MS,
+	);
+	// `writeGraceMs()` non è stato di React: non farebbe ri-renderizzare
+	// nulla da sé. Questo scavalca il valore sincronizzato SUBITO dopo una
+	// scelta, senza dover forzare un re-render con un contatore fittizio.
+	const [graceOverride, setGraceOverride] = useState<number | null>(null);
+	const graceMs = graceOverride ?? storedGraceMs;
+
+	function onGraceChange(next: number) {
+		if (!isAppLockGraceMs(next)) return;
+		writeGraceMs(next);
+		setGraceOverride(next);
+	}
+
+	function formatGrace(ms: number) {
+		return ms < 60_000
+			? plural(t.appLock.graceSeconds, ms / 1000, locale)
+			: plural(t.appLock.graceMinutes, ms / 60_000, locale);
+	}
 
 	const [step, setStep] = useState<Step>("idle");
 	const [afterVerify, setAfterVerify] = useState<"change" | "remove" | null>(null);
@@ -282,14 +321,32 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 							value={t.settings.comingSoon}
 							disabled
 						/>
-						{/* Sola lettura — niente `chevron`, niente `onClick`: la finestra
-						    di grazia è `APP_LOCK_GRACE_MS`, una costante, non una
-						    preferenza. Un chevron qui prometterebbe che si può toccare. */}
-						<SettingsRow
-							icon={<Clock size={17} className="text-secondary" />}
-							label={t.appLock.graceLabel}
-							value={plural(t.appLock.graceMinutes, APP_LOCK_GRACE_MS / 60_000, locale)}
-						/>
+						{/* `<label>` + `<select>` invisibile sopra, non `SettingsRow` — è
+						    lo stesso schema di `PreferencesSection` per valuta/lingua: il
+						    picker nativo del sistema, senza una tendina personalizzata da
+						    tenere sopra la card (`bg-card`) che la ospita. */}
+						<label className="relative flex items-center gap-3 h-15.5 px-4 cursor-pointer">
+							<span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-control">
+								<Clock size={17} className="text-secondary" />
+							</span>
+							<span className="flex-1 text-sm font-medium">{t.appLock.graceLabel}</span>
+							<span className="inline-flex items-center gap-1.5 text-[13px] text-muted">
+								{formatGrace(graceMs)}
+								<ChevronDown size={12} />
+							</span>
+							<select
+								value={graceMs}
+								onChange={(e) => onGraceChange(Number(e.target.value))}
+								className="absolute inset-0 opacity-0 cursor-pointer"
+								aria-label={t.appLock.graceLabel}
+							>
+								{APP_LOCK_GRACE_OPTIONS_MS.map((ms) => (
+									<option key={ms} value={ms}>
+										{formatGrace(ms)}
+									</option>
+								))}
+							</select>
+						</label>
 					</>
 				)}
 			</SettingsGroup>

@@ -38,14 +38,45 @@ const PIN_STORAGE_KEY = "seichi-app-pin";
 export const APP_LOCK_PIN_LENGTH = 6;
 
 /**
- * Quanto resta valido uno sblocco senza che l'app torni in primo piano.
- *
- * 1 minuto, non i 5 iniziali: cambiato su richiesta esplicita dopo aver
- * visto la riga "richiedi il PIN dopo" in `/impostazioni/blocco` — il testo
- * la legge da qui (`plural(t.appLock.graceMinutes, …)`), quindi non c'è una
- * seconda stringa da tenere allineata a mano.
+ * Le quattro durate fra cui scegliere per "richiedi il PIN dopo" — su
+ * richiesta esplicita, dopo che era stata prima una costante fissa (5
+ * minuti, poi 1). Come il PIN, la scelta vive SOLO in `localStorage`, per
+ * dispositivo: non è un dato che ha senso sincronizzare, e scriverla in un
+ * cookie non serve — a differenza di "un PIN è configurato" e "fino a
+ * quando vale lo sblocco", il server non deve mai saperlo per decidere cosa
+ * rendere.
  */
-export const APP_LOCK_GRACE_MS = 1 * 60 * 1000;
+export const APP_LOCK_GRACE_OPTIONS_MS = [30_000, 60_000, 180_000, 300_000] as const;
+
+export type AppLockGraceMs = (typeof APP_LOCK_GRACE_OPTIONS_MS)[number];
+
+/** 1 minuto — quanto vale finché l'utente non sceglie diversamente. */
+export const APP_LOCK_GRACE_DEFAULT_MS: AppLockGraceMs = 60_000;
+
+const GRACE_STORAGE_KEY = "seichi-lock-grace-ms";
+
+export function isAppLockGraceMs(value: number): value is AppLockGraceMs {
+	return (APP_LOCK_GRACE_OPTIONS_MS as readonly number[]).includes(value);
+}
+
+/** `localStorage` può lanciare in navigazione privata: si ripiega sul default. */
+export function readGraceMs(): AppLockGraceMs {
+	try {
+		const raw = Number(localStorage.getItem(GRACE_STORAGE_KEY));
+		if (isAppLockGraceMs(raw)) return raw;
+	} catch {
+		// ignorabile
+	}
+	return APP_LOCK_GRACE_DEFAULT_MS;
+}
+
+export function writeGraceMs(ms: AppLockGraceMs) {
+	try {
+		localStorage.setItem(GRACE_STORAGE_KEY, String(ms));
+	} catch {
+		// ignorabile — al peggio la scelta non persiste e si ripiega sul default
+	}
+}
 
 /**
  * Quanto restano PIENI e ROSSI i pallini dopo un PIN sbagliato prima di
@@ -109,7 +140,7 @@ function cookieAttrs(): string {
 
 /** Rinfresca la finestra di grazia da QUESTO istante — a ogni sblocco riuscito e a ogni uscita dal primo piano. */
 export function markActiveNow() {
-	const until = Date.now() + APP_LOCK_GRACE_MS;
+	const until = Date.now() + readGraceMs();
 	document.cookie = `${APP_LOCK_ACTIVE_UNTIL_COOKIE}=${until}${cookieAttrs()}`;
 }
 
