@@ -4753,6 +4753,65 @@ connessione sicura (https)"; nessun lettore biometrico → "non disponibile
 su questo dispositivo". Due cause, due frasi — mai la stessa frase per due
 guasti diversi solo perché arrivano dallo stesso `else`.
 
+### Splash di apertura (2026-09-10)
+
+Richiesta senza issue, non una fase numerata. Progettato con Claude Design
+(due artboard chiaro/scuro) prima di scrivere codice, poi implementato in
+`components/UI/BootSplash.tsx` + `app/layout.tsx` + i keyframe `zg-boot-out`
+in `globals.css`.
+
+- **Nessun JavaScript.** Le pagine di questa app sono Server Component: il
+  contenuto vero arriva GIÀ nell'HTML del server, nello stesso payload —
+  non c'è un vero stato "sto caricando" lato client da aspettare per il
+  boot. Un'animazione CSS pura (`zg-boot-out`, 900ms: ferma al 55%, poi
+  dissolvenza con `visibility` che scatta a `hidden` esattamente al 100%)
+  copre l'istante dell'assestamento visivo senza poter mai "sbagliare"
+  aspettando un evento che non arriverebbe.
+- ⚠️ **Root layout, NON `app/loading.tsx`.** Questo repo non ha MAI avuto un
+  `loading.tsx` (vedi "Cosa NON era il problema" più sotto, sezione Costo
+  delle richieste a Supabase): aggiungerne uno accende il prefetch
+  automatico delle rotte dinamiche, un costo mai misurato per questo
+  progetto. Il velo va nel root layout come elemento sempre presente,
+  invece — si dissolve da sé in CSS, non è un fallback di Suspense.
+- **Si vede solo al caricamento a FREDDO**, non per costruzione esplicita ma
+  per una proprietà di Next.js App Router: il root layout non si
+  ri-esegue su una navigazione client-side (soft), quindi `<BootSplash />`
+  non rimonta mai passando da una pagina all'altra dentro l'app — resta
+  nell'albero, nella sua posizione finale (`visibility:hidden`), e basta.
+  ⚠️ Verificato, non supposto: un primo giro di collaudo contava la
+  presenza del nodo nel DOM dopo una navigazione soft e la trovava sempre
+  "presente" — falso allarme del test stesso, che misurava la cosa
+  sbagliata (presenza invece di visibilità). Corretto misurando
+  `isVisible()`: il velo resta davvero nascosto.
+- **Badge, aloni e anello sono RIUSATI**, non nuovi: lo stesso Sprout in
+  pastiglia di vetro di `AppLockScreen`, gli stessi `.circle-1`/`.circle-3`,
+  lo stesso `zg-ring` già in uso per l'attesa sull'avatar
+  (`ProfileEditor`) — un colore OPACO (`--color-midori`) come bordo, quindi
+  immune al bug Firefox dell'issue #81 (`border` vero, non un anello a
+  `box-shadow`, e va bene così).
+- `z-70`: sopra il velo di blocco PIN (`AppLockScreen`, `z-60`) — su un
+  dispositivo con blocco attivo la sequenza resta splash → schermata di
+  sblocco, mai il contrario.
+- **`aria-hidden="true"`**: è decorativo e sparisce da solo in meno di un
+  secondo, non contenuto da annunciare — e senza, uno screen reader lo
+  leggerebbe PRIMA della pagina vera a ogni apertura. Chi naviga con
+  tecnologie assistive non subisce comunque il ritardo: la pagina reale è
+  già nell'albero di accessibilità dal primo istante, il velo copre solo
+  la vista.
+- ⚠️⚠️ **Beneficio non cercato, trovato collaudando**: alla primissima
+  visita senza cookie tema (Fase 18) il server rende scuro per default e
+  `ThemeProvider` corregge al mount se il sistema dice altro — "un lampo,
+  una volta sola", già accettato per tutta l'app. Misurato con
+  screenshot a intervalli di 100ms: quella correzione scatta entro i primi
+  100ms, cioè ben dentro la finestra in cui il velo è ancora
+  completamente opaco (0-495ms). Il velo non crea il lampo — lo NASCONDE,
+  cosa che nessuna pagina senza velo poteva fare.
+- Collaudato in entrambi i temi (screenshot a t=0 e dopo la dissolvenza),
+  zero errori console. Font, colori e gradiente di sfondo letti dai token
+  reali di `globals.css`, non ricordati — stesso principio della sezione
+  "Design well" del canvas: non si inventa una palette quando ne esiste
+  già una.
+
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 
 Il guasto è emerso guardando a occhio una data in `/impostazioni/ricorrenti`: una
