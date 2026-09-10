@@ -13,6 +13,8 @@ import {
 	isThemeChoice,
 	THEME_COOKIE,
 	THEME_RESOLVED_COOKIE,
+	type ResolvedTheme,
+	type ThemeChoice,
 } from "@/lib/theme";
 import "./globals.css";
 
@@ -67,6 +69,28 @@ const APPLE_SPLASH_LINKS = APPLE_SPLASH_SIZES.flatMap(({ w, h, scale }) =>
 			`and (-webkit-device-pixel-ratio: ${scale}) and (orientation: portrait)`,
 	})),
 );
+
+/**
+ * Legge i due cookie del tema (Fase 18) e risolve "system" come fa
+ * `RootLayout`. Estratta perché la stessa risoluzione serve ora in DUE punti
+ * — qui sotto in `generateViewport()` e nel corpo di `RootLayout` — e
+ * copiarla due volte è la "migrazione a campione" che questo documento
+ * sconsiglia: una divergenza fra le due renderebbe il meta `color-scheme`
+ * discorde dalla classe `.dark` effettivamente applicata.
+ */
+async function resolveServerTheme(): Promise<{ choice: ThemeChoice; resolved: ResolvedTheme }> {
+	const store = await cookies();
+	const rawChoice = store.get(THEME_COOKIE)?.value;
+	const rawResolved = store.get(THEME_RESOLVED_COOKIE)?.value;
+	const choice = isThemeChoice(rawChoice) ? rawChoice : DEFAULT_CHOICE;
+	const resolved =
+		choice === "system"
+			? isResolvedTheme(rawResolved)
+				? rawResolved
+				: DEFAULT_RESOLVED
+			: choice;
+	return { choice, resolved };
+}
 
 // Titolo e descrizione seguono la lingua come tutto il resto. È una funzione e non
 // più una costante perché il locale si conosce solo a richiesta in corso: una
@@ -164,12 +188,43 @@ export async function generateMetadata(): Promise<Metadata> {
  * che prima potevano ignorarla, il contenuto finirebbe SOTTO la notch invece
  * che sopra un buco nero — vedi BottomNav, TransactionModal, BottomSheetShell
  * e il padding del layout `(main)`.
+ *
+ * ⚠️⚠️ `colorScheme` (→ `<meta name="color-scheme">`) — aggiunto perché lo
+ * `style` inline su `<html>` (sotto) non bastava: un utente ha confermato dal
+ * telefono, dopo aver reinstallato la PWA e cancellato i dati, che il lampo
+ * bianco fra lo splash nativo e il contenuto RESTAVA. La diagnosi originale
+ * ("WKWebView dipinge bianco finché il CSS esterno non arriva") era
+ * incompleta: un `style` sull'elemento si applica solo quando il parser HTML
+ * lo raggiunge, cioè comunque dopo che WKWebView ha già composto il primo
+ * fotogramma con lo sfondo di DEFAULT del motore — bianco, indipendentemente
+ * da qualunque colore l'autore dichiari dopo. `color-scheme` è diverso: dice
+ * al motore stesso quale sfondo usare per il canvas iniziale prima ancora
+ * che un valore d'autore si applichi (lo stesso meccanismo per cui i siti
+ * scuri senza questo meta mostrano un lampo bianco anche con CSS già in
+ * cache — problema noto, non specifico a questa app). Reso dinamico
+ * (`generateViewport`, non l'oggetto statico) per la stessa ragione del
+ * resto del file: dipende dal cookie del tema, non da un valore fisso.
+ *
+ * ⚠️ Resta un residuo dichiarato: `content="dark"`/`"light"` fa scegliere al
+ * motore un default GENERICO (tipicamente nero pieno o bianco, non i nostri
+ * hex `#1a2232`/`#e2ded4`) — non c'è un modo di dirgli "usa esattamente
+ * questo colore" per quel primissimo fotogramma. Lo `style` inline resta,
+ * perché copre l'istante SUBITO dopo (quando l'HTML è parsato ma il CSS
+ * esterno no): i due si completano, non si sostituiscono.
+ *
+ * ⚠️ Non verificabile da qui, di nuovo: è un comportamento del motore di
+ * rendering nativo su un cold start reale, non qualcosa che `curl` o
+ * Playwright su `localhost` possano osservare. La prova resta il telefono.
  */
-export const viewport: Viewport = {
-	width: "device-width",
-	initialScale: 1,
-	viewportFit: "cover",
-};
+export async function generateViewport(): Promise<Viewport> {
+	const { resolved } = await resolveServerTheme();
+	return {
+		width: "device-width",
+		initialScale: 1,
+		viewportFit: "cover",
+		colorScheme: resolved,
+	};
+}
 
 export default async function RootLayout({
 	children,
@@ -181,19 +236,7 @@ export default async function RootLayout({
 	// prima che il browser abbia dipinto o che uno screen reader abbia scelto la
 	// voce con cui leggere la pagina.
 	const { locale, t } = await getI18n();
-	const store = await cookies();
-	const rawChoice = store.get(THEME_COOKIE)?.value;
-	const rawResolved = store.get(THEME_RESOLVED_COOKIE)?.value;
-
-	const choice = isThemeChoice(rawChoice) ? rawChoice : DEFAULT_CHOICE;
-	// Su "sistema" ci si fida del valore che il client ha scritto l'ultima volta:
-	// `prefers-color-scheme` non arriva negli header e il server non lo conosce.
-	const resolved =
-		choice === "system"
-			? isResolvedTheme(rawResolved)
-				? rawResolved
-				: DEFAULT_RESOLVED
-			: choice;
+	const { choice, resolved } = await resolveServerTheme();
 
 	return (
 		<html

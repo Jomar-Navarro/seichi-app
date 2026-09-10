@@ -57,9 +57,20 @@ const ALLOWED_EXACT = new Set([
 	"/icon-512-maskable.png",
 	"/apple-touch-icon.png",
 ]);
-const ALLOWED_PREFIX = "/_next/static/"; // chunk JS/CSS versionati per build, non dati
+const ALLOWED_PREFIXES = [
+	"/_next/static/", // chunk JS/CSS versionati per build, non dati
+	// Splash `apple-touch-startup-image` (16 file, uno per device×tema — vedi
+	// scripts/generate-pwa-splash.mjs): come le icone sopra, sfondo + badge
+	// statici e versionati, zero dati dell'utente. Un prefisso e non i 16 nomi
+	// esatti perché la lista dei device è dichiaratamente destinata a crescere
+	// (Fase 25/splash, "copertura deliberatamente parziale") senza che questo
+	// controllo debba essere toccato a ogni aggiunta.
+	"/splash/",
+];
 
-const bad = entries.filter((e) => !ALLOWED_EXACT.has(e.url) && !e.url.startsWith(ALLOWED_PREFIX));
+const bad = entries.filter(
+	(e) => !ALLOWED_EXACT.has(e.url) && !ALLOWED_PREFIXES.some((p) => e.url.startsWith(p)),
+);
 
 console.log(`${entries.length} entry nel precache.\n`);
 
