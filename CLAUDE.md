@@ -4893,6 +4893,47 @@ per ogni debito futuro simile: su una PWA installata, *un cambiamento che
 "non si vede sul telefono" va sempre escluso come cache — disinstallare e
 reinstallare — prima di concludere che il codice non basta*.
 
+#### ⚠️⚠️ Un secondo lampo bianco, distinto dal primo: dopo lo splash nativo, prima del contenuto
+
+Corretta l'immagine di avvio nativa, il telefono mostrava ancora un
+istante bianco fra quella e il contenuto vero — un difetto **diverso**
+dal precedente, non lo stesso non ancora chiuso. Il primo era "iOS non sa
+disegnare nulla di suo prima che arrivi l'HTML"; questo è "l'HTML è
+arrivato, ma il CSS che gli dà colore no ancora".
+
+**Comportamento nativo documentato di WKWebView, non un difetto nostro**:
+prima che un foglio di stile ESTERNO venga scaricato e applicato, il
+motore dipinge sempre BIANCO, in qualunque tema — verificato sui forum
+sviluppatori Apple, non supposto. La regola già scritta in `globals.css`
+(`html { background-color: var(--background-secondary) }`, issue #86) non
+arriva in tempo per QUESTO istante: vive in `globals.css`, caricato via
+`<link rel="stylesheet">`, cioè dopo un giro di rete — esattamente la
+finestra che il difetto occupa.
+
+Chiuso con uno `style` **inline** su `<html>` in `app/layout.tsx`, stessi
+due hex di `--background-secondary` ma letterali, non `var(--…)`: un
+attributo dell'elemento si applica leggendo l'HTML stesso, senza aspettare
+alcun file esterno. Il colore resta quello giusto per il tema scelto
+(`resolved`, già calcolato lì per la classe `.dark`) fin dal primo byte.
+
+⚠️ **Non elimina il ritardo, lo rende invisibile.** Il badge/anello/testo
+di `BootSplash` dipendono comunque dalle classi Tailwind del foglio
+esterno e "compariranno" solo quando quello arriva — ma ora su uno sfondo
+già del colore giusto, non su un lampo bianco che sembra un guasto. È lo
+stesso principio già scritto per lo splash nativo: non serve rendere tutto
+istantaneo, serve che ogni istante intermedio dica la verità sul tema
+scelto invece di una bugia (bianco) o un'assenza (nero).
+
+⚠️⚠️ **Non verificabile da qui.** È un difetto di **tempistica di rete
+reale su un motore di rendering reale** — esattamente la classe già
+scritta più volte in questo documento (`crypto.randomUUID()`, la stampa,
+il service worker, lo splash nativo stesso): `curl` e Playwright su
+`localhost` non vedono alcun ritardo di rete per il CSS, quindi non
+possono confermare né smentire che il lampo sparisca davvero. Verificato
+qui solo che l'attributo `style` compaia nell'HTML grezzo (`curl` sulla
+risposta) e che build/lint/tsc restino puliti — la prova che conta resta
+da fare **dal telefono**.
+
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 
 Il guasto è emerso guardando a occhio una data in `/impostazioni/ricorrenti`: una
