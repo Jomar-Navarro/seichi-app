@@ -4995,6 +4995,76 @@ dichiaratamente destinata a crescere. Nessun rischio: sono immagini statiche
 versionate, zero dati dell'utente, stessa categoria delle icone già
 presenti.)*
 
+#### ⚠️⚠️ Chiuso il 2026-09-10: il lampo residuo è misurato, non risolvibile da qui
+
+Nemmeno il meta `color-scheme` ha eliminato il lampo — provato dal telefono
+**con la PWA reinstallata e i dati cancellati**, identico a prima. A quel
+punto restavano due sole spiegazioni possibili, e andavano distinte con
+numeri veri invece che con un'altra correzione alla cieca.
+
+**Prima esclusione: non è la cache/rete di `next dev`.** Costruita
+un'istanza di produzione separata sulla LAN (porta dedicata, server di
+sviluppo intatto) e confrontate le intestazioni dello stesso file CSS:
+
+| | `next dev` | `next start` (produzione) |
+|---|---|---|
+| `Cache-Control` | `no-cache, must-revalidate` — rete obbligatoria a ogni apertura | `public, max-age=31536000, immutable` — zero rete dopo il primo caricamento |
+| dimensione | 80,5 KB | 63,7 KB |
+
+Il metodo di collaudo di questo debito — disinstalla, cancella i dati,
+reinstalla — elimina la cache del *browser*, ma contro il server di sviluppo
+quella richiesta di rete sarebbe avvenuta comunque, sempre: quell'header non
+permette mai di saltarla. Testando la build di produzione, con lo stesso CSS
+già immutabile in cache, **il lampo è rimasto identico fra la prima e la
+seconda apertura**. Se fosse stato un costo di rete, la seconda apertura
+(zero richieste per il CSS) sarebbe stata diversa dalla prima. Non lo è
+stata: la causa non è la rete.
+
+**Seconda esclusione: non è il nostro codice a essere lento.** Senza un Mac
+per Safari Web Inspector, la misura è arrivata comunque: uno script
+temporaneo (rimosso subito dopo, mai finito in un commit) leggeva
+`performance.getEntriesByType("paint")` e `"navigation"` dal telefono vero e
+li spediva via `fetch()` a una rotta temporanea sulla stessa LAN, scritti su
+un file leggibile da qui — lo stesso principio dell'autenticatore virtuale
+della Fase 26b: quando manca lo strumento giusto, se ne costruisce uno
+ad-hoc invece di continuare a dedurre dai sintomi.
+
+Tre riaperture reali della PWA installata:
+
+| tentativo | `first-contentful-paint` |
+|---|---|
+| 1 | 176 ms |
+| 2 | 115 ms |
+| 3 | 181 ms |
+
+Il nostro contenuto (l'icona/testo di `BootSplash`) è disegnato entro **115-
+181 ms dall'inizio della navigazione** — veloce, non il collo di bottiglia.
+La stima precedente di "~350-400ms" veniva dal conteggio a occhio dei
+fotogrammi di un video a 12fps: un'approssimazione, non una misura.
+
+**La conclusione, e perché ci si ferma qui**: se il nostro contenuto è già
+pronto a ~150ms dall'inizio della cronologia di navigazione, il resto del
+lampo percepito avviene quasi certamente **prima che quella cronologia
+inizi a contare** — durante l'avvio del processo dell'app e
+l'inizializzazione della WebView da parte di iOS, la stessa finestra che
+l'immagine di lancio nativa dovrebbe coprire. È zona che nessuna riga di
+HTML/CSS/JS può raggiungere, perché accade prima che una sola riga della
+nostra pagina venga letta — lo stesso limite già registrato per la
+dissolvenza di sistema, questa volta con un numero a sostegno invece che
+un'ipotesi.
+
+⚠️ **Vale la pena registrare cosa NON si è fatto, e perché**: non si è
+continuato a modificare `app/layout.tsx` o `globals.css` dopo questa misura.
+Le due correzioni precedenti (`style` inline, meta `color-scheme`) restano
+— sono comunque corrette in astratto e proteggono dal caso in cui il
+CSS/JS impieghi più di ~150ms su una rete o un dispositivo peggiori di
+quello di prova — ma un terzo intervento senza un numero che ne mostri il
+bisogno sarebbe stato l'ennesimo tentativo alla cieca contro un problema
+che i dati dicono non stare più lì. **Un lampo di ~150-200ms, sempre del
+colore giusto attorno, su un'app che comunque si usa aperta e non
+riaperta di continuo, è il punto in cui il costo di continuare a inseguirlo
+supera il beneficio.**
+
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 
 Il guasto è emerso guardando a occhio una data in `/impostazioni/ricorrenti`: una
