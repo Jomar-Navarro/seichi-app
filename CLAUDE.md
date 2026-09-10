@@ -4934,6 +4934,67 @@ qui solo che l'attributo `style` compaia nell'HTML grezzo (`curl` sulla
 risposta) e che build/lint/tsc restino puliti — la prova che conta resta
 da fare **dal telefono**.
 
+#### ⚠️⚠️ Lo `style` inline NON bastava — la diagnosi era incompleta, non sbagliata nel merito
+
+Provato dal telefono dopo la correzione sopra, **con la PWA reinstallata e i
+dati cancellati** (per escludere la cache, prima di dubitare del codice — la
+stessa disciplina già applicata al debito della Dynamic Island): il lampo
+bianco fra lo splash nativo e il contenuto **restava**.
+
+La diagnosi "WKWebView dipinge bianco finché il CSS esterno non arriva" era
+vera ma **incompleta**: uno `style` sull'elemento `<html>` si applica solo
+quando il parser HTML raggiunge quel tag — cioè comunque DOPO che WKWebView
+ha già composto il primo fotogramma sul cold start di una PWA, con lo sfondo
+di DEFAULT del motore (bianco), indipendentemente da qualunque colore
+l'autore dichiari un istante dopo. Un attributo dell'elemento arriva prima
+di un foglio esterno, ma non prima del primo paint del motore stesso.
+
+**La correzione che manca**: `<meta name="color-scheme">`. È un meccanismo
+diverso da un `background-color` d'autore — dice al motore stesso quale
+sfondo usare per il canvas iniziale, PRIMA che un qualunque valore d'autore
+si applichi. È lo stesso meccanismo per cui i siti scuri che non lo
+impostano mostrano un lampo bianco anche a CSS già scaricato e in cache: non
+è specifico a questa app, è un difetto notissimo dei siti "dark mode" che
+non l'hanno mai impostato.
+
+Chiuso con `generateViewport()` (`app/layout.tsx`) — non l'oggetto statico
+`viewport`, perché il valore dipende dal cookie del tema come tutto il resto
+di questo file. La stessa risoluzione (`choice`/`resolved` dai due cookie di
+Fase 18) serviva ora in due punti — qui e nel corpo di `RootLayout` — quindi
+è stata estratta in `resolveServerTheme()` una volta sola: **copiarla due
+volte avrebbe potuto farle divergere**, lasciando il meta `color-scheme`
+discorde dalla classe `.dark` effettivamente applicata, lo stesso genere di
+bug silenzioso già registrato più volte in questo documento per ogni
+duplicazione "a campione".
+
+⚠️ **Residuo dichiarato, anche con `color-scheme` presente**: il valore
+(`"dark"`/`"light"`) fa scegliere al motore un default GENERICO — tipicamente
+nero pieno o bianco puro, non i nostri hex `#1a2232`/`#e2ded4` — perché la
+specifica non prevede un modo di dire "usa esattamente questo colore" per
+quel primissimo fotogramma. Lo `style` inline sull'`<html>` **resta**: copre
+l'istante subito dopo, quando l'HTML è parsato ma il CSS esterno ancora no.
+I due meccanismi si completano — canvas del motore, poi attributo
+d'autore, poi foglio esterno — nessuno dei tre da solo copre l'intera
+finestra.
+
+⚠️⚠️ **Di nuovo non verificabile da qui, e per lo stesso motivo di sempre**:
+è un comportamento del motore di rendering nativo su un cold start reale.
+Verificato qui solo che il meta compaia nell'HTML grezzo con il valore giusto
+per entrambi i temi (`curl`, con e senza i cookie del tema) e che
+build/lint/tsc/`audit:tokens`/`audit:pwa-cache` restino puliti — **il
+telefono resta l'unico giudice**, e la lezione di metodo è che anche una
+correzione "verificata quanto si può da qui" può essere incompleta: la
+prova reale non è opzionale nemmeno quando ogni controllo statico è verde.
+
+*(Scoperto lo stesso giro: 16 file `public/splash/*.png` — aggiunti per lo
+splash nativo, sezione sopra — non erano nell'allow-list di
+`audit:pwa-cache`, quindi lo script falliva silenziosamente non eseguito
+finché nessuno lo rilanciava dopo una build. Corretto aggiungendo il
+prefisso `/splash/` — non i 16 nomi esatti, perché quella lista è
+dichiaratamente destinata a crescere. Nessun rischio: sono immagini statiche
+versionate, zero dati dell'utente, stessa categoria delle icone già
+presenti.)*
+
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 
 Il guasto è emerso guardando a occhio una data in `/impostazioni/ricorrenti`: una
