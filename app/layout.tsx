@@ -205,6 +205,18 @@ export default async function RootLayout({
 			className={`${geistSans.variable} ${geistMono.variable} h-full antialiased scrollbar-none${
 				resolved === "dark" ? " dark" : ""
 			}`}
+			// ⚠️⚠️ Trovato dal telefono: prima dello splash restava un lampo
+			// BIANCO che né questa classe né la regola `html { background-color:
+			// var(--background-secondary) }` in globals.css potevano evitare —
+			// quella regola vive in un foglio ESTERNO (`<link rel="stylesheet">`),
+			// e prima che il browser lo scarichi e lo applichi WKWebView dipinge
+			// SEMPRE bianco, in qualunque tema (comportamento nativo documentato
+			// da Apple, non un difetto nostro). Un `style` inline invece è
+			// nell'attributo dell'elemento stesso: si applica leggendo l'HTML,
+			// zero round-trip di rete. Stessi due hex di `--background-secondary`
+			// sopra — letterali e non `var(--…)`, perché la variabile la
+			// definisce lo stesso foglio esterno che qui non possiamo aspettare.
+			style={{ backgroundColor: resolved === "dark" ? "#1a2232" : "#e2ded4" }}
 		>
 			<body className="min-h-lvh flex flex-col">
 				{/*
