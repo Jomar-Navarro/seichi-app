@@ -26,6 +26,48 @@ const geistMono = Geist_Mono({
 	subsets: ["latin"],
 });
 
+/**
+ * `apple-touch-startup-image` — lo splash nativo di iOS per la PWA. ⚠️ NON
+ * legge `background_color`/`theme_color` dal manifest (quello è solo per
+ * Android): senza questi `<link>`, l'apertura da home screen mostra uno
+ * schermo vuoto (nero durante la transizione di sistema, poi bianco) prima
+ * che qualunque HTML nostro arrivi — verificato dal vivo su iPhone 15, non
+ * un'ipotesi. Le immagini sono in `public/splash/`, generate da
+ * `scripts/generate-pwa-splash.mjs` (`npm run generate:pwa-splash`).
+ *
+ * ⚠️ Questa lista è DUPLICATA nello script (che è Node puro, fuori dalla
+ * build Next, e non può importare questo file): stesso compromesso già
+ * accettato per i percorsi dell'icona Sprout fra `lib/pwa-icon.ts` e
+ * `generate-pwa-icons.mjs`. Se la copertura dei modelli cambia, va
+ * cambiata in entrambi i posti.
+ *
+ * `prefers-color-scheme` risponde al tema di SISTEMA del dispositivo, non
+ * al cookie di Seichi — a questo stadio non esiste ancora una richiesta da
+ * cui leggerlo. Vedi il commento in testa allo script per il perché copre
+ * solo iPhone 12→17/Air (ritratto, l'unico orientamento che l'app usa) e
+ * non l'intera matrice storica Apple.
+ */
+const APPLE_SPLASH_SIZES: Array<{ w: number; h: number; scale: number }> = [
+	{ w: 393, h: 852, scale: 3 },
+	{ w: 430, h: 932, scale: 3 },
+	{ w: 390, h: 844, scale: 3 },
+	{ w: 428, h: 926, scale: 3 },
+	{ w: 375, h: 812, scale: 3 },
+	{ w: 440, h: 956, scale: 3 },
+	{ w: 402, h: 874, scale: 3 },
+	{ w: 420, h: 912, scale: 3 },
+];
+
+const APPLE_SPLASH_LINKS = APPLE_SPLASH_SIZES.flatMap(({ w, h, scale }) =>
+	(["light", "dark"] as const).map((scheme) => ({
+		rel: "apple-touch-startup-image",
+		url: `/splash/splash-${w}x${h}-${scheme}.png`,
+		media:
+			`(prefers-color-scheme: ${scheme}) and (device-width: ${w}px) and (device-height: ${h}px) ` +
+			`and (-webkit-device-pixel-ratio: ${scale}) and (orientation: portrait)`,
+	})),
+);
+
 // Titolo e descrizione seguono la lingua come tutto il resto. È una funzione e non
 // più una costante perché il locale si conosce solo a richiesta in corso: una
 // costante di modulo verrebbe valutata una volta sola, alla prima esecuzione.
@@ -34,6 +76,7 @@ export async function generateMetadata(): Promise<Metadata> {
 	return {
 		title: t.meta.title,
 		description: t.meta.description,
+		icons: { other: APPLE_SPLASH_LINKS },
 		/*
 		 * issue #86 — `viewport-fit=cover` (sotto) NON bastava da solo per una
 		 * PWA aperta da "Aggiungi a Home" su iOS: quello estende il VIEWPORT,
@@ -74,33 +117,39 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /*
- * ⚠️⚠️ Debito dichiarato — la zona intorno alla Dynamic Island (iPhone 15,
- * tema scuro) resta leggermente disomogenea rispetto al resto dell'app, e
- * NON è stato risolto: tre tecniche diverse, tutte verificate dal vivo sul
- * dispositivo (non solo compilate), non hanno spostato nulla di visibile.
+ * ~~Debito dichiarato — la zona intorno alla Dynamic Island...~~ — CHIUSO
+ * il 2026-09-10, e la chiusura smentisce la diagnosi originale invece di
+ * confermarla.
+ *
+ * La disomogeneità era ancora lì dopo tre tecniche diverse (sotto, tenute
+ * per la cronaca) perché il PROBLEMA non era mai stato il rendering della
+ * status bar: era una PWA installata che girava su un manifest/CSS
+ * VECCHIO, da prima delle correzioni. Disinstallata e reinstallata da
+ * capo — stesso gesto che ha chiuso la mancata comparsa dello splash
+ * d'apertura nello stesso giro — la zona è tornata omogenea senza
+ * toccare una riga in più. È la stessa classe di difetto già registrata
+ * per l'aggiornamento del service worker: un banner "nuova versione" che
+ * non compare NON dimostra che i contenuti siano freschi, dimostra solo
+ * che lo SCRIPT del service worker non è cambiato — la cache HTTP del
+ * bundle sotto poteva comunque essere quella di ieri.
+ *
+ * Le tre tecniche provate, e perché sembravano tutte fallire:
  *
  * - un elemento `fixed` con `backdrop-blur` alto quanto `env(safe-area-
- *   inset-top)`: non c'è nulla dietro da sfocare in quella striscia, solo
- *   sfondo piatto — la sfocatura non cambiava nulla per costruzione;
- * - lo stesso elemento con un riempimento piatto (`--background-secondary`,
- *   il navy dell'app): nessuna differenza percepibile, il colore era già
- *   troppo vicino a quello del gradiente in quel punto;
- * - lo stesso ancora, mischiato con l'80% di nero per avvicinarsi al SOLO
- *   caso confermato integrarsi bene (Note in scuro, nero su nero): stesso
- *   risultato — nessuna differenza.
+ *   inset-top)`;
+ * - lo stesso elemento con un riempimento piatto (`--background-secondary`);
+ * - lo stesso ancora, mischiato con l'80% di nero.
  *
- * Zero su tre, con tre colori/tecniche diversi, è il segnale che il
- * problema non è IL COLORE: sospetto (non verificabile da codice) è che iOS
- * componga l'overlay della status bar traslucida leggendo lo sfondo di BASE
- * del documento al primo paint, non un elemento aggiunto sopra in un
- * secondo momento — nessun ulteriore `fixed` da questo lato può quindi
- * cambiare cosa vi si vede attraverso. App native probabilmente ricevono un
- * trattamento di vibrancy/blur dal sistema che una PWA (WKWebView) non
- * riceve allo stesso modo. Confrontato con app native vere: Note (nero su
- * nero) si integra per coincidenza cromatica, Meteo (foto densa di
- * dettaglio) perché la texture nasconde il confine — Seichi ha uno sfondo
- * piatto proprio dove serve, ed è la combinazione peggiore per notare un
- * bordo, non fixabile con altro codice lato nostro.
+ * Nessuna delle tre era sbagliata nel merito — il codice reale, una volta
+ * servito fresco, integra la zona correttamente. Il "zero su tre" non
+ * era il segnale che il problema fosse strutturale: era il segnale di una
+ * PWA che non stava eseguendo nessuna delle tre versioni provate.
+ *
+ * La lezione, e vale oltre questo debito: su una PWA installata, un
+ * cambiamento che "non si vede sul telefono" va sempre prima escluso
+ * come cache — disinstallare e reinstallare — prima di concludere che il
+ * codice non basta. Vale la stessa domanda già scritta per lo splash di
+ * apertura: NON è pulita finché non si è vista sparire disinstallando.
  */
 
 /*

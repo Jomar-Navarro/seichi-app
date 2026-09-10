@@ -599,20 +599,26 @@ body {
  * Nessun JS: il contenuto reale è già nell'HTML arrivato dal server (questa
  * app non ha uno stato "sto ancora caricando" lato client per il boot), la
  * copertura serve solo a non mostrarlo grezzo nell'istante prima che la
- * pagina si sia assestata visivamente. `visibility` scatta a `hidden`
- * esattamente al 100% (proprietà discreta, non interpolabile: la tenda si
- * toglie anche dal flusso degli eventi, non solo dalla vista) — senza,
- * resterebbe a intercettare i tocchi anche a opacità zero.
+ * pagina si sia assestata visivamente.
+ *
+ * ⚠️ SOLO `opacity`, mai `visibility` nel keyframe. La prima versione
+ * animava anche `visibility` (proprietà discreta, tre tappe: visible →
+ * visible → hidden) per togliere il velo dal flusso degli eventi a fine
+ * corsa. Mai collaudato su WebKit vero — solo su Chromium headless — ed è
+ * esattamente la classe di difetto che questo progetto continua a
+ * incontrare (Fase 18, issue #81, Fase 23b): un comportamento CSS che
+ * diverge fra motori di rendering. `pointer-events: none` STATICO
+ * (non animato, in `BootSplash.tsx`) ottiene lo stesso risultato — il velo
+ * non intercetta mai i tocchi, nemmeno da opaco — con una sola proprietà
+ * interpolabile e senza alcuna ambiguità cross-browser.
  */
 @keyframes zg-boot-out {
 	0%,
 	55% {
 		opacity: 1;
-		visibility: visible;
 	}
 	100% {
 		opacity: 0;
-		visibility: hidden;
 	}
 }
 

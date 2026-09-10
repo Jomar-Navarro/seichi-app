@@ -20,6 +20,12 @@ import { Sprout } from "lucide-react";
  * secondo, non un contenuto che uno screen reader deve annunciare — e senza
  * questo verrebbe letto PRIMA della pagina vera a ogni apertura.
  *
+ * ⚠️ `pointer-events: none` STATICO, non animato: la prima versione lo
+ * otteneva animando `visibility` nel keyframe, mai collaudato su WebKit
+ * vero. Qui il velo semplicemente non intercetta mai i tocchi — a opacità
+ * piena non c'è comunque nulla sotto da vedere per poterlo toccare
+ * consapevolmente, e la finestra di sovrapposizione è sotto il secondo.
+ *
  * ⚠️ `z-70`, sopra il velo di blocco PIN (`AppLockScreen`, z-60): su un
  * dispositivo con blocco attivo la sequenza è splash → (una volta svanito)
  * schermata di sblocco, mai il contrario.
@@ -35,7 +41,7 @@ export default function BootSplash() {
 	return (
 		<div
 			aria-hidden="true"
-			className="fixed inset-0 z-70 flex flex-col items-center justify-center overflow-hidden zg-boot-out"
+			className="fixed inset-0 z-70 flex flex-col items-center justify-center overflow-hidden pointer-events-none zg-boot-out"
 			style={{ background: "var(--background)" }}
 		>
 			<div className="circle-1" />

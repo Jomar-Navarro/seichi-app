@@ -9,7 +9,8 @@
     "lint": "eslint",
     "audit:tokens": "node scripts/audit-tokens.mjs",
     "audit:pwa-cache": "node scripts/audit-pwa-cache.mjs",
-    "generate:pwa-icons": "node scripts/generate-pwa-icons.mjs"
+    "generate:pwa-icons": "node scripts/generate-pwa-icons.mjs",
+    "generate:pwa-splash": "node scripts/generate-pwa-splash.mjs"
   },
   "dependencies": {
     "@serwist/turbopack": "^9.5.12",
