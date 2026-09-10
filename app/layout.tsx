@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
 import { SerwistProvider } from "@serwist/turbopack/react";
+import BootSplash from "@/components/UI/BootSplash";
 import I18nProvider from "@/components/features/I18nProvider";
 import ThemeProvider from "@/components/features/ThemeProvider";
 import { getI18n } from "@/lib/i18n/server";
@@ -157,6 +158,14 @@ export default async function RootLayout({
 			}`}
 		>
 			<body className="min-h-lvh flex flex-col">
+				{/*
+					Splash di apertura — copre {children} finché non si dissolve da sé
+					(zg-boot-out, ~900ms, puro CSS). Va PRIMA di tutto il resto: si
+					rende sul PRIMO byte, quindi non deve aspettare che React idrati
+					SerwistProvider/I18nProvider/ThemeProvider per apparire — vedi
+					BootSplash.tsx per il perché è sicuro farlo senza JS.
+				*/}
+				<BootSplash />
 				{/*
 					Fase 25 — PWA. ⚠️⚠️ `withSerwist` in next.config.ts NON registra nulla:
 					è solo un wrapper di config (verificato nel sorgente del pacchetto —

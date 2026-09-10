@@ -594,6 +594,32 @@ body {
 	animation: zg-shake 0.4s ease-in-out;
 }
 
+/*
+ * Splash di apertura (`BootSplash`) — resta fermo, poi si dissolve da solo.
+ * Nessun JS: il contenuto reale è già nell'HTML arrivato dal server (questa
+ * app non ha uno stato "sto ancora caricando" lato client per il boot), la
+ * copertura serve solo a non mostrarlo grezzo nell'istante prima che la
+ * pagina si sia assestata visivamente. `visibility` scatta a `hidden`
+ * esattamente al 100% (proprietà discreta, non interpolabile: la tenda si
+ * toglie anche dal flusso degli eventi, non solo dalla vista) — senza,
+ * resterebbe a intercettare i tocchi anche a opacità zero.
+ */
+@keyframes zg-boot-out {
+	0%,
+	55% {
+		opacity: 1;
+		visibility: visible;
+	}
+	100% {
+		opacity: 0;
+		visibility: hidden;
+	}
+}
+
+@utility zg-boot-out {
+	animation: zg-boot-out 900ms ease-out forwards;
+}
+
 .active-tab {
 	transition: 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 	background: var(--bg-tab);
