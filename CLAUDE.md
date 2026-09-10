@@ -4812,6 +4812,87 @@ in `globals.css`.
   "Design well" del canvas: non si inventa una palette quando ne esiste
   già una.
 
+#### ⚠️⚠️ Il collaudo in Chromium non poteva vedere il vero difetto
+
+Provato dal telefono il 2026-09-10: prima dello splash comparivano un
+fotogramma nero (la transizione di sistema di iOS) e poi uno **bianco**,
+entrambi prima che una sola riga del nostro HTML arrivasse. Il velo
+funzionava — si vedeva, ma "troppo veloce" — il problema vero stava
+PRIMA di lui, in una zona che nessun driver headless su `localhost` può
+raggiungere per costruzione: **iOS non legge `background_color` dal Web
+App Manifest per lo splash nativo di una PWA** (a differenza di Android),
+e senza il meccanismo proprietario Apple (`apple-touch-startup-image`,
+mai implementato) lo schermo vuoto è l'unica cosa che iOS può mostrare.
+
+Chiuso con `scripts/generate-pwa-splash.mjs` (`npm run generate:pwa-splash`)
++ i `<link rel="apple-touch-startup-image">` in `generateMetadata()`
+(`app/layout.tsx`, via `icons.other` — l'unico campo tipizzato di `Metadata`
+che supporta `media` su un `<link>` arbitrario).
+
+- **Le dimensioni non sono a memoria.** Un primo giro cercando "la lista
+  delle media query" a naso ha trovato solo un gist fermo a iPhone 11: la
+  fonte usata è `apple-fallback-data.json` di `elegantapp/pwa-asset-generator`
+  (MIT, mantenuto, aggiornato a iPhone 17/Air) — la stessa disciplina già
+  scritta per lo schema del database nella #43: **una tabella copiata da
+  un posto qualunque è peggio di una che manca**, perché sembra completa e
+  non lo è.
+- ⚠️ **Copertura deliberatamente parziale, su richiesta esplicita**:
+  iPhone 12 → 17/Air (8 dimensioni logiche distinte × 2 temi = 16
+  immagini), non l'intera matrice storica Apple (oltre 20 combinazioni).
+  Ogni voce è un numero che, se sbagliato, non dà errore — rende
+  l'immagine silenziosamente invisibile per quel modello soltanto, lo
+  stesso genere di difetto muto che questo documento incontra sempre
+  quando un valore sbagliato non fallisce rumorosamente. Solo ritratto:
+  l'app non supporta l'orizzontale.
+- **Contiene solo sfondo + badge, non "Seichi"/整地.** `sharp`/librsvg
+  rasterizza con i font di SISTEMA della macchina che esegue lo script,
+  non con il fallback CJK affidabile di un browser vero — un rischio non
+  verificabile senza generare e guardare pixel per pixel. Il testo arriva
+  un istante dopo con `BootSplash` (browser reale): l'immagine nativa
+  esiste solo per non mostrare NULLA nell'istante prima, non per essere
+  la schermata completa.
+- **Il badge è centrato al 46% dell'altezza, non al 50%.** È dove si trova
+  DAVVERO dentro `BootSplash.tsx` una volta che il gruppo badge+testo
+  (quello sì centrato per intero) si assesta — allinearli evita un salto
+  verticale visibile nel passaggio immagine nativa → componente.
+- ⚠️ **`prefers-color-scheme` risponde al tema di SISTEMA**, mai al cookie
+  di Seichi (Fase 18): a quello stadio non esiste ancora una richiesta da
+  cui leggere un cookie. Chi ha Seichi su scuro con il sistema su chiaro
+  vedrà lo splash nativo chiaro e poi `BootSplash` scuro — lo stesso
+  "lampo, una volta sola" già accettato per tutta l'app, in una nuova sede.
+- **La lista dei dispositivi è DUPLICATA** fra lo script (Node puro, non
+  può importare `app/layout.tsx`) e `generateMetadata()`: stesso
+  compromesso già accettato per i percorsi dell'icona Sprout fra
+  `lib/pwa-icon.ts` e `generate-pwa-icons.mjs`.
+
+⚠️⚠️ **Lezione di metodo, la stessa di sempre in una veste nuova**: il
+collaudo con l'autenticatore virtuale e gli screenshot Playwright di
+questa stessa sezione avevano dichiarato lo splash "collaudato in
+entrambi i temi" — vero, ma solo per la parte che un browser Chromium su
+`localhost` può vedere. Il difetto vero viveva un livello più in basso,
+nella cerimonia nativa di avvio di iOS, che nessun driver headless
+raggiunge per definizione — la stessa classe già scritta per
+`crypto.randomUUID()` (Fase 22), la stampa (23b) e il service worker
+(Fase 25): *ogni fase che tocca un'API o una cerimonia nativa del
+dispositivo ha una parte di collaudo che nessun driver può fare*, e qui
+si è vista solo perché l'utente ha guardato lo schermo vero e ha
+insistito quando "si vede ma è veloce" non spiegava per intero quello che
+stava vedendo.
+
+#### Il debito della Dynamic Island (Fase 18/issue #86) era la STESSA causa
+
+Chiuso lo stesso giorno, e riapre la diagnosi originale invece di
+confermarla: la zona attorno alla Dynamic Island, dichiarata "non
+risolvibile via codice" dopo tre tecniche verificate dal vivo, è tornata
+omogenea da sola **disinstallando e reinstallando la PWA** — nessuna riga
+di codice nuova per quel debito specifico. La diagnosi di allora
+concludeva un limite strutturale di iOS da un "zero su tre" che in realtà
+misurava una PWA che eseguiva ancora una versione precedente. Corretto il
+commento in `app/layout.tsx` con la spiegazione vera. Vale come regola
+per ogni debito futuro simile: su una PWA installata, *un cambiamento che
+"non si vede sul telefono" va sempre escluso come cache — disinstallare e
+reinstallare — prima di concludere che il codice non basta*.
+
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 
 Il guasto è emerso guardando a occhio una data in `/impostazioni/ricorrenti`: una
