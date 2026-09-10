@@ -14,11 +14,16 @@ import {
 	APP_LOCK_GRACE_OPTIONS_MS,
 	APP_LOCK_PIN_LENGTH,
 	APP_LOCK_REJECT_DISPLAY_MS,
+	clearBiometric,
 	clearPin,
+	hasBiometricCredential,
 	hasStoredPin,
 	isAppLockGraceMs,
+	isBiometricAvailable,
+	isInsecureContextForBiometric,
 	readGraceMs,
 	readStoredPin,
+	registerBiometric,
 	savePin,
 	writeGraceMs,
 } from "@/lib/app-lock";
@@ -34,10 +39,21 @@ import {
  * o l'elenco "cosa succede dopo" (spento) o l'avviso sulla rimozione
  * (acceso).
  *
- * ⚠️ Il design mostra anche uno switch biometrico funzionante: non
- * adottato — il biometrico non esiste ancora (Fase 26b), e mostrarlo
- * prometterebbe una funzione che l'app non ha. Resta "presto" come sulla
- * pagina impostazioni principale.
+ * Lo switch biometrico del design (Fase 26b) è ora reale: registra una
+ * credenziale platform con WebAuthn (`registerBiometric()`) e appare SOLO
+ * quando il PIN è acceso — il biometrico vive sotto il PIN, mai al suo
+ * posto, vedi `lib/app-lock.ts`. Tre stati possibili, non due: "non ancora
+ * verificato" (il controllo di disponibilità è asincrono), "non disponibile
+ * su questo dispositivo" (nessun lettore, o contesto non sicuro — vedi
+ * ⚠️⚠️ sotto), "disponibile" (interruttore vero).
+ *
+ * ⚠️⚠️ **Non testabile dall'IP di LAN.** WebAuthn richiede un secure
+ * context; `http://192.168.x.x:3000` — l'indirizzo di ogni collaudo da
+ * telefono di questo progetto dalla Fase 22 — non lo è.
+ * `isBiometricAvailable()` lo esclude esplicitamente, quindi sulla LAN la
+ * riga dirà onestamente "non disponibile" invece di un interruttore che
+ * fallirebbe al primo tocco. Il collaudo del prompt vero richiede
+ * `localhost` (esente, testabile con Windows Hello) o un URL HTTPS reale.
  *
  * La riga "richiedi il PIN dopo" INVECE è toccabile, su richiesta esplicita
  * (era stata prima una costante fissa).
@@ -146,6 +162,71 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 	const [rejected, setRejected] = useState(false);
 	const [mismatchShowing, setMismatchShowing] = useState(false);
 
+	// Stessa costruzione di `hasPin` sopra: `hasBiometricCredential()` legge
+	// `localStorage`, che sul server non esiste — il valore vero arriva solo
+	// dopo l'idratazione, mai indovinato nell'inizializzatore di uno
+	// `useState` (mismatch di idratazione: server e client renderizzerebbero
+	// output diversi al primo giro).
+	const storedBiometricEnabled = useSyncExternalStore(
+		() => () => {},
+		hasBiometricCredential,
+		() => false,
+	);
+	// Stesso motivo di `graceOverride` sopra: scrivere `localStorage` non fa
+	// da sé ri-renderizzare nulla. Senza questo override, spegnere il
+	// biometrico chiamerebbe `clearBiometric()` ma l'interruttore resterebbe
+	// visivamente acceso finché un altro cambio di stato non forzasse un
+	// nuovo giro a rileggere `hasBiometricCredential()`.
+	const [biometricOverride, setBiometricOverride] = useState<boolean | null>(null);
+	const biometricEnabled = biometricOverride ?? storedBiometricEnabled;
+
+	// Controllo genuinamente asincrono (una Promise del browser, non un
+	// valore già in `localStorage`): `useSyncExternalStore` non si applica
+	// qui, serve un effetto. `null` = "non ancora verificato", per non
+	// dichiarare "non disponibile" nell'istante prima di saperlo davvero.
+	const [biometricAvailable, setBiometricAvailable] = useState<boolean | null>(null);
+	const [biometricBusy, setBiometricBusy] = useState(false);
+	const [biometricError, setBiometricError] = useState(false);
+
+	useEffect(() => {
+		let cancelled = false;
+		isBiometricAvailable().then((available) => {
+			if (!cancelled) setBiometricAvailable(available);
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, []);
+
+	async function toggleBiometric() {
+		setBiometricError(false);
+		if (biometricEnabled) {
+			// Nessuna riautenticazione per spegnerlo: è un interruttore, non
+			// un'operazione sensibile — il PIN resta comunque a proteggere lo
+			// stesso cancello (vedi lib/app-lock.ts).
+			clearBiometric();
+			setBiometricOverride(false);
+			return;
+		}
+		setBiometricBusy(true);
+		// `registerBiometric()` mostra già il prompt biometrico dell'OS: quello
+		// stesso gesto È la prova di possesso, non serve chiedere altro prima.
+		//
+		// ⚠️ `try/finally`, non un `await` nudo: `registerBiometric()` non lancia
+		// oggi (ogni ramo interno ha già il proprio `catch`), ma un `onClick`
+		// asincrono senza rete di sicurezza è la stessa classe di difetto già
+		// pagata tre volte in questo progetto (Fase 21, 22, 24a) — un'eccezione
+		// futura lascerebbe `biometricBusy` bloccato a `true` per sempre, riga
+		// spenta senza che nulla lo dica.
+		try {
+			const okBio = await registerBiometric();
+			if (okBio) setBiometricOverride(true);
+			else setBiometricError(true);
+		} finally {
+			setBiometricBusy(false);
+		}
+	}
+
 	// Sincronizza uno STORE ESTERNO (Zustand), non lo stato di React: è
 	// l'eccezione che la stessa regola del lint ammette esplicitamente —
 	// iscriversi a/scrivere su un sistema esterno da un effetto è il caso
@@ -164,6 +245,17 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 		setFirstPin(null);
 		setRejected(false);
 		setMismatchShowing(false);
+		// Rimuovere il PIN toglie anche il biometrico (`clearPin()` in
+		// lib/app-lock.ts): l'override andrebbe disallineato dal vero stato
+		// (rimasto a `true`) se l'utente rimettesse un PIN più tardi nella
+		// STESSA sessione, riaprendo la riga con uno switch che mente.
+		setBiometricOverride(null);
+		// ⚠️ Trovato dal code-review: senza, un errore di registrazione restava
+		// a schermo anche dopo aver rimosso il PIN — la riga che lo spiegava
+		// era già sparita (vive dentro `hasPin && (...)`), e il testo restava
+		// a descrivere un interruttore che non c'è più. Stesso destino di ogni
+		// altro stato del wizard: tornare al riposo dimentica il tentativo.
+		setBiometricError(false);
 	}
 
 	function onVerifyCurrent(pin: string) {
@@ -344,14 +436,37 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 				/>
 				{hasPin && (
 					<>
-						{/* Non uno switch VERO — "presto" come sulla pagina impostazioni
-						    principale: il biometrico non esiste ancora (Fase 26b). */}
-						<SettingsRow
-							icon={<Fingerprint size={17} className="text-secondary" />}
-							label={t.settings.biometricLock}
-							value={t.settings.comingSoon}
-							disabled
-						/>
+						{biometricAvailable === false ? (
+							// ⚠️ Trovato usando l'app da un iPhone 15: "non disponibile su
+							// questo dispositivo" è FALSO quando la causa è il contesto non
+							// sicuro (l'IP di LAN) — un iPhone con Face ID smentisce quella
+							// frase all'istante e manda a sospettare l'hardware. Le due
+							// cause dicono cose diverse e vogliono frasi diverse, la stessa
+							// regola già scritta per `contoError()` nella 20b.
+							<SettingsRow
+								icon={<Fingerprint size={17} className="text-secondary" />}
+								label={t.settings.biometricLock}
+								value={
+									isInsecureContextForBiometric()
+										? t.appLock.biometricInsecureContext
+										: t.appLock.biometricUnavailable
+								}
+								disabled
+							/>
+						) : (
+							<SettingsRow
+								icon={<Fingerprint size={17} className="text-secondary" />}
+								label={t.settings.biometricLock}
+								subtitle={
+									biometricEnabled ? t.appLock.biometricOnSubtitle : t.appLock.biometricOffSubtitle
+								}
+								value={<SwitchVisual checked={biometricEnabled} />}
+								onClick={toggleBiometric}
+								// `biometricAvailable === null`: la verifica asincrona non è
+								// ancora tornata — non toccabile finché non si sa davvero.
+								disabled={biometricAvailable === null || biometricBusy}
+							/>
+						)}
 						<button
 							ref={graceTriggerRef}
 							type="button"
@@ -373,6 +488,21 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 					</>
 				)}
 			</SettingsGroup>
+
+			{/* `registerBiometric()` fallito — annullato, hardware assente,
+			    permesso negato. L'interruttore torna da sé a spento (nessun
+			    override scritto in quel ramo di `toggleBiometric`), questa
+			    riga dice solo perché.
+			    ⚠️ `hasPin &&` è una seconda difesa, non l'unica: `reset()` già
+			    azzera `biometricError` quando si rimuove il PIN. Ma la riga
+			    che questo messaggio spiega vive dentro `hasPin && (...)` più
+			    sopra — mostrarlo senza quella condizione lo lascerebbe a
+			    descrivere un interruttore che lo schermo non ha più. */}
+			{hasPin && biometricError && (
+				<p className="text-xs mb-6 -mt-4" style={{ color: "var(--ink-aka)" }}>
+					{t.appLock.biometricEnableFailed}
+				</p>
+			)}
 
 			{graceOpen && graceMenuRect && (
 				<>

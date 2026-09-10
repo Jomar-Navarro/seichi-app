@@ -1,7 +1,6 @@
 import Link from "next/link";
 import {
 	Download,
-	Fingerprint,
 	Info,
 	KeyRound,
 	LayoutGrid,
@@ -160,12 +159,15 @@ export default async function ImpostazioniPage() {
 
 			{/* Sicurezza */}
 			<SettingsGroup label={t.settings.groups.security}>
-				<SettingsRow
-					icon={<Fingerprint size={17} className="text-secondary" />}
-					label={t.settings.biometricLock}
-					value={t.settings.comingSoon}
-					disabled
-				/>
+				{/*
+				 * Fase 26b: niente più una riga "Blocco biometrico" separata qui.
+				 * Il biometrico vive SOTTO il PIN (dipende da lui, si accende solo
+				 * quando il PIN è già attivo — vedi lib/app-lock.ts), quindi una
+				 * seconda riga a livello della pagina principale sarebbe stata
+				 * un secondo chevron verso la STESSA destinazione di "pinLock" qui
+				 * sotto, con lo stesso stato duplicato in due posti. Lo stato e il
+				 * comando restano dentro /impostazioni/blocco (AppLockSettings).
+				 */}
 				<SettingsRow
 					icon={<Lock size={17} className="text-secondary" />}
 					label={t.settings.pinLock}

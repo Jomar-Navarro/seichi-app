@@ -1,15 +1,18 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useSyncExternalStore, useTransition } from "react";
 import { Sprout } from "lucide-react";
 import PinPad from "@/components/UI/PinPad";
+import SubmitButton from "@/components/UI/SubmitButton";
 import { useI18n } from "@/components/features/I18nProvider";
 import { fill } from "@/lib/i18n/format";
 import {
 	APP_LOCK_PIN_LENGTH,
 	APP_LOCK_REJECT_DISPLAY_MS,
 	clearPin,
+	hasBiometricCredential,
 	readStoredPin,
+	verifyBiometric,
 } from "@/lib/app-lock";
 import { signOut } from "@/app/(main)/impostazioni/actions";
 
@@ -28,10 +31,19 @@ import { signOut } from "@/app/(main)/impostazioni/actions";
  * dichiarata nell'issue #67: blocco dell'interfaccia, non dei dati.
  *
  * ⚠️ Il design mostra anche "Restano N tentativi prima del blocco
- * temporaneo" e un tasto impronta/"Usa la password". Non adottati: qui non
- * c'è né un blocco temporaneo reale né un secondo fattore biometrico — dirlo
+ * temporaneo": non adottato, qui non c'è un blocco temporaneo reale — dirlo
  * sarebbe promettere ciò che l'app non fa. Resta la via d'uscita onesta già
  * costruita: "Esci e accedi di nuovo".
+ *
+ * Il tasto impronta del design (Fase 26b) ora c'è, quando
+ * `hasBiometricCredential()` dice che questo dispositivo l'ha registrato:
+ * compare SOPRA il tastierino, non al posto suo — un tocco esplicito, mai
+ * invocato da solo al montaggio. WebAuthn richiede quasi ovunque un gesto
+ * dell'utente per il ceremony `get()`, e un bottone lo garantisce senza
+ * bisogno di verificare caso per caso quali browser lo richiedano davvero.
+ * Se annullato o fallito, non succede nulla: si ricade sul PIN, che resta a
+ * schermo — nessun messaggio d'errore, un tentativo biometrico mancato non è
+ * un "PIN errato".
  *
  * ⚠️ Quella frase era scritta nel dizionario (`signOutAndReset`) ma MAI
  * collegata — trovato dal code-review: il bottone usava
@@ -53,6 +65,37 @@ export default function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
 	const [attempts, setAttempts] = useState(0);
 	const [confirmingForgot, setConfirmingForgot] = useState(false);
 	const [signingOut, startSignOut] = useTransition();
+	const [biometricBusy, setBiometricBusy] = useState(false);
+
+	// `hasBiometricCredential()` legge `localStorage`: non esiste sul server,
+	// quindi il default per l'idratazione è "assente" — stesso pattern di
+	// `hasPin` in AppLockSettings.tsx. Qui non serve nemmeno un override: il
+	// bottone non ha un comando che lo spenga da questa schermata.
+	const hasBiometric = useSyncExternalStore(
+		() => () => {},
+		hasBiometricCredential,
+		() => false,
+	);
+
+	async function tryBiometric() {
+		setBiometricBusy(true);
+		// `try/finally`: `verifyBiometric()` non lancia oggi, ma senza questa
+		// rete un'eccezione futura lascerebbe `biometricBusy` bloccato a `true`
+		// e il PIN — che sotto resta comunque digitabile, vedi `disabled` sul
+		// `PinPad` — inutilmente spento con lui. Stessa classe già pagata più
+		// volte in questo progetto (Fase 21, 22, 24a).
+		try {
+			const ok = await verifyBiometric();
+			// Un fallimento (annullato, non riconosciuto, non più disponibile) NON
+			// conta come tentativo di PIN sbagliato: `attempts` misura le CIFRE
+			// digitate male, non i tentativi di sblocco in generale — mescolarli
+			// farebbe comparire la via di fuga dopo un rifiuto biometrico invece
+			// che dopo tre PIN sbagliati veri.
+			if (ok) onUnlock();
+		} finally {
+			setBiometricBusy(false);
+		}
+	}
 
 	function check(pin: string) {
 		if (pin === readStoredPin()) {
@@ -106,11 +149,33 @@ export default function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
 						: fill(t.appLock.enterPin, { length: APP_LOCK_PIN_LENGTH })}
 				</p>
 
+				{hasBiometric && (
+					<>
+						<SubmitButton
+							variant="ghost"
+							label={t.appLock.unlockWithBiometric}
+							pending={biometricBusy}
+							disabled={signingOut}
+							onClick={tryBiometric}
+							className="mb-5"
+						/>
+						<p className="text-[11.5px] text-disabled mb-5 uppercase tracking-[1.2px]">
+							{t.appLock.orPin}
+						</p>
+					</>
+				)}
+
 				<PinPad
 					length={APP_LOCK_PIN_LENGTH}
 					onComplete={check}
 					rejected={rejected}
-					disabled={signingOut}
+					// ⚠️ Trovato dal code-review: senza `biometricBusy`, un PIN corretto
+					// digitato MENTRE la cerimonia biometrica è ancora in sospeso poteva
+					// chiamare `onUnlock()` una prima volta, e la promise biometrica
+					// risolversi poco dopo e chiamarlo una seconda — innocuo oggi
+					// perché `unlock()` è idempotente, ma i due percorsi di sblocco non
+					// hanno motivo di poter correre insieme.
+					disabled={signingOut || biometricBusy}
 					deleteLabel={t.appLock.deleteKey}
 				/>
 

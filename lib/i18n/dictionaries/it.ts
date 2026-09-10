@@ -188,6 +188,11 @@ export const it = {
 		signOutAndReset: "Esci e accedi di nuovo",
 		deleteKey: "Cancella",
 
+		/** Fase 26b — bottone sulla schermata di sblocco, sopra il tastierino. */
+		unlockWithBiometric: "Sblocca con la biometria",
+		/** Divisore fra il bottone biometrico e il tastierino PIN. */
+		orPin: "oppure",
+
 		/** Onestà dichiarata — vedi issue #67: blocca lo SCHERMO, non i dati. */
 		disclaimer:
 			"Blocca solo la schermata su questo dispositivo, dopo qualche minuto di inattività. Non protegge i dati: la sessione resta quella di sempre, come per ogni app.",
@@ -234,15 +239,26 @@ export const it = {
 		/** Solo nello stato SPENTO — spiega cosa succede impostando il PIN. */
 		howItWorksTitle: "cosa succede dopo",
 		howItWorksStep1: "Scegli {length} cifre e le confermi una volta.",
-		/** ⚠️ Il design promette qui l'impronta e una durata scelta
-		 *  dall'utente: nessuna delle due esiste ancora (Fase 26b, e la
-		 *  finestra è fissa). Riscritta per dire solo il vero. */
-		howItWorksStep2: "La schermata si blocca da sola dopo qualche minuto di inattività.",
+		/** ⚠️ Non promette più l'impronta come passo automatico: dalla Fase 26b
+		 *  esiste, ma è un interruttore separato che l'utente accende da sé,
+		 *  non una conseguenza dell'impostare il PIN. */
+		howItWorksStep2: "La schermata si blocca da sola dopo un po' di inattività — la durata si sceglie.",
 		howItWorksStep3: "Se dimentichi il PIN, esci e rientri con la password.",
 
 		/** Solo nello stato ACCESO, sotto i due bottoni. */
 		activeDisclaimer:
 			"Rimuovendo il PIN l'app si apre subito, senza schermata di blocco. Se lo dimentichi, esci e rientri con la password: i dati restano al loro posto.",
+
+		/* ------------------------------------------------------- biometrico (Fase 26b) --- */
+
+		/** Sotto-riga "Blocco biometrico" nella card di riposo — mostrata solo a PIN acceso. */
+		biometricOnSubtitle: "attivo",
+		biometricOffSubtitle: "disattivato",
+		/** Contesto non sicuro (IP di LAN), o nessun lettore biometrico sul dispositivo. */
+		biometricUnavailable: "non disponibile su questo dispositivo",
+		/** Il dispositivo non c'entra: manca una connessione sicura (https). */
+		biometricInsecureContext: "richiede una connessione sicura (https)",
+		biometricEnableFailed: "Non è stato possibile attivare il blocco biometrico. Riprova.",
 	},
 
 	/**
@@ -1643,8 +1659,6 @@ export const it = {
 		recurringTitle: "Ricorrenti",
 		biometricLock: "Blocco biometrico",
 		pinLock: "Blocco con PIN",
-		/** Funzioni previste ma non ancora costruite (Fase 25). */
-		comingSoon: "presto",
 		changePassword: "Cambia password",
 		externalProvider: "Accedi con un provider esterno",
 		about: "Informazioni",
