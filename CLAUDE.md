@@ -4995,7 +4995,7 @@ dichiaratamente destinata a crescere. Nessun rischio: sono immagini statiche
 versionate, zero dati dell'utente, stessa categoria delle icone già
 presenti.)*
 
-#### ⚠️⚠️ Chiuso il 2026-09-10: il lampo residuo è misurato, non risolvibile da qui
+#### ⚠️⚠️ Sospeso il 2026-09-10, in attesa di un deploy reale: il lampo residuo è misurato, non isolabile da qui
 
 Nemmeno il meta `color-scheme` ha eliminato il lampo — provato dal telefono
 **con la PWA reinstallata e i dati cancellati**, identico a prima. A quel
@@ -5042,28 +5042,37 @@ Il nostro contenuto (l'icona/testo di `BootSplash`) è disegnato entro **115-
 La stima precedente di "~350-400ms" veniva dal conteggio a occhio dei
 fotogrammi di un video a 12fps: un'approssimazione, non una misura.
 
-**La conclusione, e perché ci si ferma qui**: se il nostro contenuto è già
-pronto a ~150ms dall'inizio della cronologia di navigazione, il resto del
-lampo percepito avviene quasi certamente **prima che quella cronologia
-inizi a contare** — durante l'avvio del processo dell'app e
-l'inizializzazione della WebView da parte di iOS, la stessa finestra che
-l'immagine di lancio nativa dovrebbe coprire. È zona che nessuna riga di
-HTML/CSS/JS può raggiungere, perché accade prima che una sola riga della
-nostra pagina venga letta — lo stesso limite già registrato per la
-dissolvenza di sistema, questa volta con un numero a sostegno invece che
-un'ipotesi.
+**La lettura più probabile**: se il nostro contenuto è già pronto a ~150ms
+dall'inizio della cronologia di navigazione, il resto del lampo percepito
+avviene quasi certamente **prima che quella cronologia inizi a contare** —
+durante l'avvio del processo dell'app e l'inizializzazione della WebView da
+parte di iOS, la stessa finestra che l'immagine di lancio nativa dovrebbe
+coprire. Se è così, è zona che nessuna riga di HTML/CSS/JS può raggiungere,
+perché accade prima che una sola riga della nostra pagina venga letta — lo
+stesso limite già registrato per la dissolvenza di sistema, questa volta
+con un numero a sostegno invece che un'ipotesi.
 
-⚠️ **Vale la pena registrare cosa NON si è fatto, e perché**: non si è
-continuato a modificare `app/layout.tsx` o `globals.css` dopo questa misura.
-Le due correzioni precedenti (`style` inline, meta `color-scheme`) restano
-— sono comunque corrette in astratto e proteggono dal caso in cui il
-CSS/JS impieghi più di ~150ms su una rete o un dispositivo peggiori di
-quello di prova — ma un terzo intervento senza un numero che ne mostri il
-bisogno sarebbe stato l'ennesimo tentativo alla cieca contro un problema
-che i dati dicono non stare più lì. **Un lampo di ~150-200ms, sempre del
-colore giusto attorno, su un'app che comunque si usa aperta e non
-riaperta di continuo, è il punto in cui il costo di continuare a inseguirlo
-supera il beneficio.**
+⚠️ **Ma è una lettura, non una certezza, e per questo il debito resta
+APERTO invece che chiuso.** Ogni misura di questa sezione è stata presa
+contro il server di sviluppo o una build locale sulla LAN — mai contro un
+vero dominio HTTPS servito da un CDN. Un deploy reale cambia variabili che
+da qui non si possono isolare (negoziazione TLS, HTTP/2 o HTTP/3, tempi di
+edge cache, latenza reale invece che quella di un Wi-Fi domestico), e
+potrebbe spostare i numeri misurati qui in un senso o nell'altro. **Vale la
+pena rimisurare con lo stesso metodo — build di produzione, tre riaperture,
+`first-contentful-paint` reale dal telefono — il giorno in cui Seichi avrà
+un deploy vero**, prima di considerare la domanda davvero risposta.
+
+⚠️ **Nel frattempo, cosa NON si è fatto, e perché**: non si è continuato a
+modificare `app/layout.tsx` o `globals.css` dopo questa misura. Le due
+correzioni precedenti (`style` inline, meta `color-scheme`) restano — sono
+comunque corrette in astratto e proteggono dal caso in cui il CSS/JS
+impieghi più di ~150ms su una rete o un dispositivo peggiori di quello di
+prova — ma un terzo intervento senza un numero che ne mostri il bisogno
+sarebbe stato l'ennesimo tentativo alla cieca contro un problema che i dati
+attuali dicono non stare più lì. **Un lampo di ~150-200ms, sempre del
+colore giusto attorno, non giustifica altri interventi ciechi ORA — ma
+merita una rimisurazione vera in produzione prima di essere archiviato.**
 
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 
