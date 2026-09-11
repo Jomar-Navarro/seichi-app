@@ -4548,16 +4548,18 @@ disegnato a mano, 15 sui sei difetti del code-review. Zero errori console
 in ogni giro. Il click fantasma e il picker nativo sono stati confermati
 anche da un telefono vero, su segnalazione diretta dell'utente.
 
-⚠️ **Resta dichiaratamente non provato il criterio di accettazione
-dell'issue #67** — *"Provato dal telefono sull'indirizzo di LAN"* — nella
-sua forma completa: end-to-end, da cold start a sblocco, sullo stesso
-dispositivo reale. È l'area dove questo progetto ha imparato più volte che
-il comportamento diverge da quello headless (`crypto.randomUUID()` in Fase
-22, la stampa in 23b, il service worker in Fase 25) — e qui in particolare
-il ciclo `visibilitychange`/background su iOS, che un browser desktop non
-riproduce fedelmente. Vale la regola già scritta per la prova `b2` della
-Fase 22: *una prova che si autoesclude va lasciata dichiarata e ripresa,
-non archiviata come superata perché tutto il resto è verde.*
+✅ **Il criterio di accettazione dell'issue #67** — *"Provato dal telefono
+sull'indirizzo di LAN"* — nella sua forma end-to-end (cold start → sblocco,
+sullo stesso dispositivo reale) **è stato verificato il 2026-09-11**,
+chiudendo il debito lasciato aperto dal collaudo precedente. Era l'area
+dove questo progetto ha imparato più volte che il comportamento diverge da
+quello headless (`crypto.randomUUID()` in Fase 22, la stampa in 23b, il
+service worker in Fase 25) — in particolare il ciclo
+`visibilitychange`/background su iOS, che un browser desktop non riproduce
+fedelmente. Con questa prova, **la Fase 26a è chiusa per intero**: resta
+aperta solo la 26b (blocco biometrico), il cui equivalente reale — Face
+ID/Touch ID su un dispositivo fisico contro un URL HTTPS — non è
+riproducibile dalla LAN (vedi sotto) e resta un debito a sé.
 
 ### Fase 26b — Blocco biometrico (issue #67)
 
@@ -6015,20 +6017,22 @@ Seguire questo ordine, non saltare fasi:
       `localStorage`, in chiaro, fail-closed via due cookie non segreti.
       Motivazioni, redesign e i 6 difetti del code-review (due gravi, un
       bypass del blocco e un lockout da tastiera) in "Fase 26a" sopra.
-      Implementata il 2026-09-09/10, PR #90. ⚠️ Il collaudo end-to-end da
-      telefono su LAN — criterio di accettazione dell'#67 — resta
-      dichiaratamente non fatto.
-    - **26b ✅ blocco biometrico (WebAuthn), issue #67** — nessuna verifica
-      crittografica (stessa scelta del PIN in chiaro: una firma verificata
-      nello stesso contesto che la emette non difende da nulla). Il
-      biometrico vive SOTTO il PIN, mai al suo posto — `clearPin()` toglie
-      anche lui. Motivazioni, i 4 difetti del code-review (due con una corsa
-      reale dietro) e il collaudo con autenticatore virtuale via CDP in
-      "Fase 26b" sopra. Implementata il 2026-09-10. ⚠️ **L'issue #67 è ora
-      chiusa nelle sue parti costruibili**: resta dichiaratamente non
-      provato solo il prompt biometrico VERO su un dispositivo fisico contro
-      un URL HTTPS reale (la LAN è esclusa da WebAuthn) — non il collaudo
-      da telefono generico, che per la 26a è ancora un debito separato.
+      Implementata il 2026-09-09/10, PR #90. ✅ Il collaudo end-to-end da
+      telefono su LAN — criterio di accettazione dell'#67 — verificato il
+      2026-09-11.
+    - **26b ⏸️ blocco biometrico (WebAuthn), issue #67** — implementata il
+      2026-09-10. Nessuna verifica crittografica (stessa scelta del PIN in
+      chiaro: una firma verificata nello stesso contesto che la emette non
+      difende da nulla). Il biometrico vive SOTTO il PIN, mai al suo posto —
+      `clearPin()` toglie anche lui. Motivazioni, i 4 difetti del
+      code-review (due con una corsa reale dietro) e il collaudo con
+      autenticatore virtuale via CDP in "Fase 26b" sopra. ⚠️ **Issue #67
+      lasciata volutamente APERTA**: con la 26a chiusa per intero, l'unico
+      debito residuo è il prompt biometrico VERO — Face ID/Touch ID su un
+      dispositivo fisico contro un URL HTTPS reale (la LAN è esclusa da
+      WebAuthn, quindi non testabile finché non esiste un deploy vero).
+      Sospeso il 2026-09-11, non archiviato: si riprende insieme al primo
+      deploy pubblico.
 27. Mobile nativo — comportamento su dispositivo reale (vedi sotto)
 28. Responsive tablet + desktop
 29. Animazioni: transizioni morbide, micro-interazioni
