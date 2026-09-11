@@ -4725,11 +4725,11 @@ esposti allo stesso `transport: "internal"` con verifica utente — l'app (e
 nessun test) può sapere quale dei tre abbia risposto. L'autenticatore
 virtuale usato qui rappresenta indifferentemente tutti e tre.
 
-⚠️ **Resta dichiaratamente non provato il prompt biometrico VERO** — Face
-ID o Touch ID su un iPhone reale, o Windows Hello reale invece che
-simulato. Richiede un URL HTTPS reale (la LAN è esclusa da WebAuthn, vedi
-sopra): stessa regola già scritta per la prova `b2` della Fase 22, *una
-prova che si autoesclude va lasciata dichiarata e ripresa*.
+Il prompt biometrico VERO — Face ID o Touch ID su un dispositivo reale,
+non simulato — restava dichiaratamente non provato: richiede un URL HTTPS
+reale, che la LAN non è (WebAuthn lo esige). Stessa regola già scritta per
+la prova `b2` della Fase 22, *una prova che si autoesclude va lasciata
+dichiarata e ripresa*.
 
 #### ⚠️⚠️ Il quinto difetto, trovato proprio in quella prova non fatta
 
@@ -4754,6 +4754,16 @@ Chiuso separando il FATTO (`isInsecureContextForBiometric()`, sincrono, in
 connessione sicura (https)"; nessun lettore biometrico → "non disponibile
 su questo dispositivo". Due cause, due frasi — mai la stessa frase per due
 guasti diversi solo perché arrivano dallo stesso `else`.
+
+#### ✅ Il prompt biometrico VERO, chiuso il 2026-09-11
+
+Il tentativo del 2026-09-10 (sopra) era dalla LAN, quindi non poteva
+riuscire *per costruzione* — verificava solo che il messaggio dicesse la
+causa giusta. Con il primo deploy pubblico (`https://seichi-app.vercel.app`)
+esiste finalmente un URL HTTPS reale: attivato il biometrico da
+Impostazioni → Blocco e provato lo sblocco vero su un dispositivo fisico.
+**Funziona.** Con questo si chiude anche l'ultimo debito dichiarato
+dell'issue #67, insieme a quello della 26a chiuso il giorno prima.
 
 #### Redesign della schermata di sblocco (2026-09-11)
 
@@ -6061,19 +6071,18 @@ Seguire questo ordine, non saltare fasi:
       Implementata il 2026-09-09/10, PR #90. ✅ Il collaudo end-to-end da
       telefono su LAN — criterio di accettazione dell'#67 — verificato il
       2026-09-11.
-    - **26b ⏸️ blocco biometrico (WebAuthn), issue #67** — implementata il
+    - **26b ✅ blocco biometrico (WebAuthn), issue #67** — implementata il
       2026-09-10. Nessuna verifica crittografica (stessa scelta del PIN in
       chiaro: una firma verificata nello stesso contesto che la emette non
       difende da nulla). Il biometrico vive SOTTO il PIN, mai al suo posto —
       `clearPin()` toglie anche lui. Motivazioni, i 4 difetti del
       code-review (due con una corsa reale dietro) e il collaudo con
-      autenticatore virtuale via CDP in "Fase 26b" sopra. ⚠️ **Issue #67
-      lasciata volutamente APERTA**: con la 26a chiusa per intero, l'unico
-      debito residuo è il prompt biometrico VERO — Face ID/Touch ID su un
-      dispositivo fisico contro un URL HTTPS reale (la LAN è esclusa da
-      WebAuthn, quindi non testabile finché non esiste un deploy vero).
-      Sospeso il 2026-09-11, non archiviato: si riprende insieme al primo
-      deploy pubblico.
+      autenticatore virtuale via CDP in "Fase 26b" sopra. Il debito residuo
+      — il prompt biometrico VERO su un dispositivo fisico, non testabile
+      dalla LAN perché WebAuthn esige un URL HTTPS reale — è stato chiuso
+      il 2026-09-11, appena disponibile il primo deploy pubblico: Face
+      ID/Touch ID verificato funzionante su `https://seichi-app.vercel.app`.
+      **L'issue #67 è ora chiusa per intero**, sia 26a sia 26b.
 27. Mobile nativo — comportamento su dispositivo reale (vedi sotto)
 28. Responsive tablet + desktop
 29. Animazioni: transizioni morbide, micro-interazioni
