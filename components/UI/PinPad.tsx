@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Delete } from "lucide-react";
+import { Delete, Fingerprint } from "lucide-react";
 
 /**
  * Tastierino numerico per il PIN (Fase 26a) — dal design `PinCard`/
@@ -11,6 +11,11 @@ import { Delete } from "lucide-react";
  * toccati. Non riprende il tastierino importo di `TransactionModal`
  * (issue #86/#81): quello compone un totale, questo conta cifre — stessa
  * ispirazione visiva, logica indipendente.
+ *
+ * ⚠️ L'accesso biometrico, quando c'è, occupa il tasto in basso a sinistra
+ * (dove sul tastierino telefonico sta l'asterisco) — dal design aggiornato:
+ * non più un bottone separato sopra il pad. `AppLockScreen` decide se
+ * passare `onBiometric`; senza, quella casella resta vuota come prima.
  */
 
 const LETTERS: Record<string, string> = {
@@ -72,9 +77,23 @@ interface PinPadProps {
 	disabled?: boolean;
 	/** Testo del tasto cancella per i lettori di schermo — dal dizionario del chiamante. */
 	deleteLabel: string;
+	/** Se presente, sostituisce con l'icona biometrica la casella vuota in
+	 *  basso a sinistra della griglia. Il chiamante decide quando c'è
+	 *  (`hasBiometricCredential()`), non questo componente. */
+	onBiometric?: () => void;
+	/** Aria-label del tasto biometrico — richiesto insieme a `onBiometric`. */
+	biometricLabel?: string;
 }
 
-export default function PinPad({ length, onComplete, rejected, disabled, deleteLabel }: PinPadProps) {
+export default function PinPad({
+	length,
+	onComplete,
+	rejected,
+	disabled,
+	deleteLabel,
+	onBiometric,
+	biometricLabel,
+}: PinPadProps) {
 	const [value, setValue] = useState("");
 
 	// Svuotamento sincrono al CAMBIO del prop, durante il render — non in un
@@ -135,19 +154,29 @@ export default function PinPad({ length, onComplete, rejected, disabled, deleteL
 	// attesa di un tocco da tastiera successivo e del tutto legittimo.
 	const pointerHandledRef = useRef(false);
 
-	function onPointerDownKey(key: string) {
+	// Generalizzata rispetto alla versione originale (che prendeva solo una
+	// cifra) perché il tasto biometrico ha bisogno della STESSA deduplica
+	// pointerdown/click, non di una copia scritta apposta — due implementazioni
+	// dello stesso meccanismo sarebbero due occasioni di farle divergere.
+	function onPointerDownAction(action: () => void) {
 		pointerHandledRef.current = true;
-		press(key);
+		action();
 		setTimeout(() => {
 			pointerHandledRef.current = false;
 		}, 400);
 	}
-	function onClickKey(key: string) {
+	function onClickAction(action: () => void) {
 		if (pointerHandledRef.current) {
 			pointerHandledRef.current = false;
 			return;
 		}
-		press(key);
+		action();
+	}
+	function onPointerDownKey(key: string) {
+		onPointerDownAction(() => press(key));
+	}
+	function onClickKey(key: string) {
+		onClickAction(() => press(key));
 	}
 
 	return (
@@ -177,7 +206,25 @@ export default function PinPad({ length, onComplete, rejected, disabled, deleteL
 
 			<div className="grid grid-cols-3 gap-4 justify-items-center">
 				{KEYS.map((key, i) => {
-					if (key === "") return <div key={i} className="w-19 h-19" />;
+					if (key === "") {
+						if (!onBiometric) return <div key={i} className="w-19 h-19" />;
+						return (
+							<button
+								key={i}
+								type="button"
+								disabled={disabled}
+								onPointerDown={(e) => {
+									e.preventDefault();
+									onPointerDownAction(onBiometric);
+								}}
+								onClick={() => onClickAction(onBiometric)}
+								aria-label={biometricLabel}
+								className="w-19 h-19 rounded-full flex items-center justify-center text-midori active:opacity-70 disabled:opacity-50"
+							>
+								<Fingerprint size={26} />
+							</button>
+						);
+					}
 					const letters = LETTERS[key];
 					const isDelete = key === "⌫";
 					return (

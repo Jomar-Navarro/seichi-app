@@ -4755,6 +4755,47 @@ connessione sicura (https)"; nessun lettore biometrico → "non disponibile
 su questo dispositivo". Due cause, due frasi — mai la stessa frase per due
 guasti diversi solo perché arrivano dallo stesso `else`.
 
+#### Redesign della schermata di sblocco (2026-09-11)
+
+Richiesto guardando l'app vera, dopo il primo deploy: il mockup
+`PinCard.dc.html` nel progetto Claude Design "Seichi budgeting app homepage"
+era cambiato rispetto a quello seguito dalla 26a, e la schermata di sblocco
+non lo rifletteva più.
+
+- **L'accesso biometrico si è spostato DENTRO la tastiera numerica**, in
+  basso a sinistra (dove sul telefono sta l'asterisco) — non più un bottone
+  separato sopra i pallini con un divisore "oppure". `PinPad` guadagna
+  `onBiometric`/`biometricLabel`: se assenti, quella casella resta vuota
+  come prima. `orPin` è sparita da entrambi i dizionari, non più usata.
+  ⚠️ Il meccanismo di deduplica pointerdown/click (il "click fantasma" già
+  documentato sopra) è stato **generalizzato** (`onPointerDownAction`/
+  `onClickAction`) invece di scriverne una copia per il nuovo tasto — due
+  implementazioni dello stesso meccanismo sarebbero due occasioni di farle
+  divergere.
+- **Lo Sprout diventa un ensō** (cerchio zen incompleto, lo stesso SVG del
+  mockup) — scelta esplicita chiesta all'utente, non dedotta: lo Sprout è il
+  marchio usato ovunque nell'app (PWA, `BrandHeader`, `BootSplash`), quindi
+  cambiarlo solo qui non è una cosa da assumere in silenzio. Colore
+  `text-foreground` (inchiostro), non l'accento: qui è un simbolo, non
+  un'icona che deve risaltare.
+- **Due elementi del mockup NON adottati, entrambi verificati prima di
+  scartarli**: il font `Inter` (l'app usa `Geist` ovunque, confermato in
+  `app/layout.tsx` — il mockup lo importa solo perché è il default del
+  canvas) e il link "Usa la password" in fondo alla card, il cui `onClick`
+  nel canvas si limita ad azzerare la demo — nessuna funzione reale
+  collegata. Confermato con l'utente prima di ignorarlo: resta il flusso
+  attuale, "Hai dimenticato il PIN?" → "Esci e accedi di nuovo".
+- **Collaudato con un autenticatore virtuale via CDP** (stessa tecnica della
+  Fase 26b): ensō presente, casella vuota senza credenziale, tasto
+  biometrico presente e funzionante dopo la registrazione, PIN
+  sbagliato/corretto invariati — in entrambi i temi, zero errori console.
+  `npm run lint`, `next build` e `npm run audit:tokens` verdi.
+  ⚠️ I primi scatti dello script di collaudo mostravano lo **splash di
+  apertura** ancora in dissolvenza sopra la schermata vera: un'attesa
+  troppo corta nello script (300-600ms contro i 900ms del CSS), non un
+  difetto dell'app — corretto allungando l'attesa prima di ogni screenshot
+  successivo a una navigazione.
+
 ### Splash di apertura (2026-09-10)
 
 Richiesta senza issue, non una fase numerata. Progettato con Claude Design
