@@ -109,7 +109,6 @@ export const en: Dictionary = {
 		deleteKey: "Delete",
 
 		unlockWithBiometric: "Unlock with biometrics",
-		orPin: "or",
 
 		disclaimer:
 			"Locks only the screen on this device, after a few minutes of inactivity. It doesn't protect your data: your session stays the same, as with any app.",

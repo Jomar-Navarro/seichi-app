@@ -188,10 +188,9 @@ export const it = {
 		signOutAndReset: "Esci e accedi di nuovo",
 		deleteKey: "Cancella",
 
-		/** Fase 26b — bottone sulla schermata di sblocco, sopra il tastierino. */
+		/** Fase 26b — aria-label del tasto biometrico dentro la tastiera PIN
+		 *  (redesign: non più un bottone separato, vedi `PinPad`/`AppLockScreen`). */
 		unlockWithBiometric: "Sblocca con la biometria",
-		/** Divisore fra il bottone biometrico e il tastierino PIN. */
-		orPin: "oppure",
 
 		/** Onestà dichiarata — vedi issue #67: blocca lo SCHERMO, non i dati. */
 		disclaimer:

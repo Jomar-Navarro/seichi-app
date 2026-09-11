@@ -1,9 +1,7 @@
 "use client";
 
 import { useState, useSyncExternalStore, useTransition } from "react";
-import { Sprout } from "lucide-react";
 import PinPad from "@/components/UI/PinPad";
-import SubmitButton from "@/components/UI/SubmitButton";
 import { useI18n } from "@/components/features/I18nProvider";
 import { fill } from "@/lib/i18n/format";
 import {
@@ -36,14 +34,16 @@ import { signOut } from "@/app/(main)/impostazioni/actions";
  * costruita: "Esci e accedi di nuovo".
  *
  * Il tasto impronta del design (Fase 26b) ora c'è, quando
- * `hasBiometricCredential()` dice che questo dispositivo l'ha registrato:
- * compare SOPRA il tastierino, non al posto suo — un tocco esplicito, mai
- * invocato da solo al montaggio. WebAuthn richiede quasi ovunque un gesto
- * dell'utente per il ceremony `get()`, e un bottone lo garantisce senza
- * bisogno di verificare caso per caso quali browser lo richiedano davvero.
- * Se annullato o fallito, non succede nulla: si ricade sul PIN, che resta a
- * schermo — nessun messaggio d'errore, un tentativo biometrico mancato non è
- * un "PIN errato".
+ * `hasBiometricCredential()` dice che questo dispositivo l'ha registrato: dal
+ * redesign occupa la casella in basso a sinistra DENTRO la tastiera numerica
+ * (dove sul telefono sta l'asterisco), non più un bottone separato sopra il
+ * pad — `PinPad` decide il rendering, questo componente decide solo se
+ * passargli `onBiometric`. Resta un tocco esplicito, mai invocato da solo al
+ * montaggio: WebAuthn richiede quasi ovunque un gesto dell'utente per il
+ * ceremony `get()`, e un bottone lo garantisce senza bisogno di verificare
+ * caso per caso quali browser lo richiedano davvero. Se annullato o fallito,
+ * non succede nulla: si ricade sul PIN, che resta a schermo — nessun
+ * messaggio d'errore, un tentativo biometrico mancato non è un "PIN errato".
  *
  * ⚠️ Quella frase era scritta nel dizionario (`signOutAndReset`) ma MAI
  * collegata — trovato dal code-review: il bottone usava
@@ -136,7 +136,22 @@ export default function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
 				<div className="relative w-16 h-16 rounded-3xl ring-border overflow-hidden mb-6">
 					<div className="absolute inset-0 bg-surface-elevated backdrop-blur-md" />
 					<div className="relative w-full h-full flex items-center justify-center">
-						<Sprout size={28} className="text-midori" />
+						{/* Ensō — dal redesign (`PinCard.dc.html`): un cerchio zen incompiuto,
+						    non lo Sprout usato come marchio nel resto dell'app. Colore
+						    d'inchiostro (`text-foreground`), non l'accento: qui è un simbolo,
+						    non un'icona che deve risaltare. */}
+						<svg width="28" height="28" viewBox="0 0 24 24" fill="none" className="text-foreground">
+							<circle
+								cx="12"
+								cy="12"
+								r="8.5"
+								stroke="currentColor"
+								strokeWidth="1.5"
+								strokeLinecap="round"
+								strokeDasharray="44 10"
+								transform="rotate(-20 12 12)"
+							/>
+						</svg>
 					</div>
 				</div>
 
@@ -149,22 +164,6 @@ export default function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
 						: fill(t.appLock.enterPin, { length: APP_LOCK_PIN_LENGTH })}
 				</p>
 
-				{hasBiometric && (
-					<>
-						<SubmitButton
-							variant="ghost"
-							label={t.appLock.unlockWithBiometric}
-							pending={biometricBusy}
-							disabled={signingOut}
-							onClick={tryBiometric}
-							className="mb-5"
-						/>
-						<p className="text-[11.5px] text-disabled mb-5 uppercase tracking-[1.2px]">
-							{t.appLock.orPin}
-						</p>
-					</>
-				)}
-
 				<PinPad
 					length={APP_LOCK_PIN_LENGTH}
 					onComplete={check}
@@ -174,9 +173,13 @@ export default function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
 					// chiamare `onUnlock()` una prima volta, e la promise biometrica
 					// risolversi poco dopo e chiamarlo una seconda — innocuo oggi
 					// perché `unlock()` è idempotente, ma i due percorsi di sblocco non
-					// hanno motivo di poter correre insieme.
+					// hanno motivo di poter correre insieme. Disabilitare l'intero pad
+					// copre anche il tasto biometrico appena sotto: non ha senso poterlo
+					// ripremere mentre una cerimonia è già in corso.
 					disabled={signingOut || biometricBusy}
 					deleteLabel={t.appLock.deleteKey}
+					onBiometric={hasBiometric ? tryBiometric : undefined}
+					biometricLabel={t.appLock.unlockWithBiometric}
 				/>
 
 				{attempts >= SHOW_ESCAPE_AFTER_ATTEMPTS &&
