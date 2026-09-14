@@ -10,58 +10,30 @@ import { useEffect, useState, useSyncExternalStore } from "react";
  * per quella misura: quando manca lo strumento giusto (qui: un Mac per Safari
  * Web Inspector), se ne costruisce uno minimo invece di continuare a dedurre.
  *
- * Attiva con `?perfdebug=1` nell'URL — altrimenti non renderizza nulla, quindi
- * nessun utente reale la vede mai. Da rimuovere non appena raccolte le tre
- * misure dal telefono: non è pensata per restare nel repo.
+ * ⚠️ SEMPRE ATTIVA in questo giro, senza gating su query string/localStorage:
+ * un primo tentativo armava un flag in `localStorage` alla visita da Safari,
+ * ma l'app installata standalone NON condivide quella storage con Safari per
+ * lo stesso dominio su iOS (verificato dal telefono il 2026-09-14) — quindi
+ * l'icona vera non vedeva mai il flag. Sempre presente è l'unica via
+ * affidabile per vederla sull'icona reale senza reinstallarne una seconda.
+ * Innocuo: le registrazioni non sono ancora aperte (issue #40), quindi
+ * l'unico visitatore reale di produzione in questo momento è chi sta
+ * misurando. Da rimuovere non appena raccolte le tre misure dal telefono:
+ * non è pensata per restare nel repo.
  */
 
-const STORAGE_KEY = "seichi-perfdebug";
-
 function subscribeNever() {
-	// Né la query string né la localStorage cambiano durante la vita di questa
-	// pagina di prova: nessun evento a cui iscriversi, come già in PwaStatus.tsx.
+	// Nessun evento a cui iscriversi: serve solo a distinguere il render del
+	// server (nessun `window`) da quello del client, come già in PwaStatus.tsx.
 	return () => {};
 }
 
-/**
- * Sincrona e senza side-effect: legge la query string E la localStorage, mai
- * scrive. L'icona già installata sulla home screen apre sempre lo stesso
- * `start_url`, senza query string — è la localStorage (armata una volta sola
- * dall'effetto sotto, alla prima visita con `?perfdebug=1`) a far restare
- * attiva la diagnostica anche sui riavvii successivi dall'icona vera, senza
- * doverne installare una seconda.
- */
-function readActiveFlag() {
-	if (new URLSearchParams(window.location.search).get("perfdebug") === "1") return true;
-	try {
-		return window.localStorage.getItem(STORAGE_KEY) === "1";
-	} catch {
-		return false;
-	}
-}
-
 export default function PerfDebugOverlay() {
-	// `useSyncExternalStore`, non `useEffect`+`setState`: la differenza fra il
-	// render del server (nessun `window`) e quello del client è esattamente
-	// ciò che questo hook esiste per esprimere, come già in `PwaStatus.tsx`.
-	const active = useSyncExternalStore(subscribeNever, readActiveFlag, () => false);
+	const hydrated = useSyncExternalStore(subscribeNever, () => true, () => false);
 	const [fcp, setFcp] = useState<number | null>(null);
 
-	// L'unico side-effect (scrivere la localStorage) sta qui, non dentro
-	// `readActiveFlag`: un effetto è il posto giusto per sincronizzare con un
-	// sistema esterno, la lettura sincrona sopra resta pura.
 	useEffect(() => {
-		if (new URLSearchParams(window.location.search).get("perfdebug") !== "1") return;
-		try {
-			window.localStorage.setItem(STORAGE_KEY, "1");
-		} catch {
-			// Safari privato può rifiutare la scrittura: si perde solo l'arma
-			// persistente, la visita corrente resta comunque attiva.
-		}
-	}, []);
-
-	useEffect(() => {
-		if (!active) return;
+		if (!hydrated) return;
 
 		let cancelled = false;
 		let frame = 0;
@@ -91,9 +63,9 @@ export default function PerfDebugOverlay() {
 			cancelled = true;
 			cancelAnimationFrame(frame);
 		};
-	}, [active]);
+	}, [hydrated]);
 
-	if (!active) return null;
+	if (!hydrated) return null;
 
 	return (
 		<div
