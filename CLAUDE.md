@@ -5127,6 +5127,94 @@ attuali dicono non stare più lì. **Un lampo di ~150-200ms, sempre del
 colore giusto attorno, non giustifica altri interventi ciechi ORA — ma
 merita una rimisurazione vera in produzione prima di essere archiviato.**
 
+#### ✅ Chiuso il 2026-09-14: rimisurato in produzione — è latenza di trasporto pura, non correggibile da qui
+
+Rimisurato con lo stesso metodo promesso sopra, contro il deploy vero
+(`seichi-app.vercel.app`, disponibile dall'11/9). Stavolta senza un Mac né una
+rotta temporanea sulla LAN: una diagnostica ad-hoc analoga
+(`components/debug/PerfDebugOverlay.tsx`, mai rimasta nel repo più di
+qualche commit — vedi sotto) mostrava l'FCP direttamente sullo schermo del
+telefono.
+
+⚠️ **Primo tentativo sprecato, e vale la pena registrare perché**: la
+diagnostica armava un flag in `localStorage` visitando l'URL da Safari, con
+l'idea che l'icona già installata lo trovasse alla riapertura. Non
+succedeva — **iOS non condivide la `localStorage` fra Safari e un'app
+aggiunta alla home screen per lo stesso dominio**. Fatto nuovo, mai
+verificato prima in questo progetto: smentisce l'assunzione implicita di
+tutta la sezione "Fase 26a/26b" qui sopra, dove PIN e biometrico vivono
+"solo in `localStorage`, per dispositivo" — è per dispositivo, ma **anche
+per contesto** (Safari vs. standalone), non solo per origine. Le prime tre
+misure sono finite per sbaglio in un tab Safari (visibile dalla barra degli
+indirizzi negli screenshot: 427/474/535ms) e sono state scartate — utili
+solo a confermare che pure lì l'FCP reale è molto più alto che in LAN, ma
+Safari non passa mai dallo splash nativo, quindi non è il test giusto.
+Chiuso rendendo la diagnostica sempre attiva (senza gating) per il breve
+tempo della misura.
+
+Tre riaperture reali dell'icona standalone (schermo intero, nessuna barra
+Safari negli screenshot):
+
+| tentativo | `first-contentful-paint` |
+|---|---|
+| 1 (a freddo, app appena evitta dalla memoria) | 1056 ms |
+| 2 | 448 ms |
+| 3 | 409 ms |
+
+**E il bianco è tornato visibile** — confermato a voce guardando il
+telefono, non dedotto dai numeri: "appare dopo lo splashscreen per un
+attimo e poi appare il login/home". La lettura di sospensione ("il nostro
+contenuto è pronto in ~150ms, il resto è fuori portata") puntava nella
+direzione giusta, ma i numeri di allora — 115-181ms, contro `localhost`/LAN
+— non erano quelli di un utente vero: è esattamente la ragione per cui il
+debito era rimasto aperto invece che chiuso su quella base.
+
+**La causa: tempo di trasporto prima che arrivi un solo byte, non un costo
+del nostro codice.** Isolata confrontando via `curl` il TTFB di `/welcome`
+(pagina Server Component completa, passa dal proxy e da `getClaims()`) con
+quello di richieste che il proxy non tocca nemmeno (escluse dal matcher):
+
+| richiesta | TTFB (sei tentativi) |
+|---|---|
+| `/welcome` (SSR, passa dal proxy) | 260-425 ms |
+| `icon-512.png` (statico) | 111-353 ms |
+| `manifest.webmanifest` (dinamico, bypassa il proxy) | 227-547 ms |
+
+Stesso ordine di grandezza per richieste che non hanno NULLA in comune a
+livello applicativo — una passa dal render SSR e dal controllo di sessione,
+le altre no. Se il costo fosse nel nostro rendering o in `getClaims()`, il
+file statico sarebbe stato sistematicamente più veloce. Non lo è: è
+varianza di rete/edge, uguale per qualunque risposta — esattamente le
+variabili che la sezione precedente non poteva isolare da una LAN
+domestica (negoziazione TLS, instradamento, tempi di edge).
+
+Controllato anche che `style` inline e meta `color-scheme` siano davvero
+nel primo blocco di byte che arriva (`curl` sull'HTML grezzo): ci sono,
+corretti, nello stesso chunk iniziale della risposta — quindi una volta
+che il primo byte arriva, vengono applicati pressoché subito. **Il bianco
+che si vede sta PRIMA di quel primo byte**, nella finestra in cui
+letteralmente non esiste ancora nulla della nostra pagina da far leggere al
+motore: nessuna riga di HTML, CSS o JS può coprire un istante in cui non è
+ancora arrivata.
+
+**Chiuso così, e non con un'altra correzione al buio**: è lo stesso limite
+già scritto per la dissolvenza di sistema e per lo schermo bianco nativo di
+iOS — zona strutturalmente fuori portata da qui — confermato adesso con
+numeri di produzione invece che di LAN, invece di restare un'ipotesi.
+L'unica strada che lo eliminerebbe davvero è precaricare un app-shell
+statico da servire dalla cache del service worker anche al primissimo
+avvio, il che contraddice la decisione esplicita della Fase 25 ("nessuna
+pagina applicativa nel precache", ogni pagina di Seichi è dinamica) e non è
+giustificato da mezzo secondo di attesa su un'icona, non un'app nativa.
+Restano `style` inline e meta `color-scheme`: coprono l'istante subito dopo
+il primo byte, che è tutto quello che dal browser si può coprire.
+
+⚠️ **La diagnostica non resta nel repo.** Tre commit (`e16bf6f`, `3d2679f`,
+`daeefd8`, PR #92/#93/#94) l'hanno portata e corretta in produzione per la
+durata della misura; un quarto la rimuove non appena raccolti i dati —
+stesso principio dello script ad-hoc della sezione precedente, applicato
+stavolta a un vero deploy invece che alla LAN.
+
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 
 Il guasto è emerso guardando a occhio una data in `/impostazioni/ricorrenti`: una

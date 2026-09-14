@@ -3,7 +3,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
 import { SerwistProvider } from "@serwist/turbopack/react";
 import BootSplash from "@/components/UI/BootSplash";
-import PerfDebugOverlay from "@/components/debug/PerfDebugOverlay";
 import I18nProvider from "@/components/features/I18nProvider";
 import ThemeProvider from "@/components/features/ThemeProvider";
 import { getI18n } from "@/lib/i18n/server";
@@ -271,12 +270,6 @@ export default async function RootLayout({
 					BootSplash.tsx per il perché è sicuro farlo senza JS.
 				*/}
 				<BootSplash />
-				{/*
-					Diagnostica TEMPORANEA per rimisurare il lampo bianco contro un
-					deploy vero — vedi PerfDebugOverlay.tsx. Da togliere appena
-					raccolte le misure.
-				*/}
-				<PerfDebugOverlay />
 				{/*
 					Fase 25 — PWA. ⚠️⚠️ `withSerwist` in next.config.ts NON registra nulla:
 					è solo un wrapper di config (verificato nel sorgente del pacchetto —
