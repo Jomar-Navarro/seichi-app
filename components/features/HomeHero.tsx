@@ -167,9 +167,15 @@ export default function HomeHero({
 			{showBalance && (
 			<div className="flex items-center justify-center gap-1.5 mt-3">
 				{/*
-					issue #69 — il pallino visivo resta 6/22×6px (com'è nel mockup):
-					l'area toccabile vera è il bottone 44×44 che lo contiene, non il
-					pallino stesso.
+					issue #69 — un giro precedente aveva avvolto ogni pallino in un
+					bottone 44×44: `gap-1.5` si misura fra quelle SCATOLE, non fra i
+					pallini al loro interno, quindi i due pallini finivano a ~36px di
+					distanza visiva invece di 6 — regressione vista a schermo e non
+					dagli screenshot dello stesso giro. Residuo dichiarato, non corretto
+					con una scatola più grande: il commento qui sopra lo dice già, sul
+					TELEFONO il gesto primario è lo swipe, questi puntini servono
+					soprattutto a chi non ce l'ha (mouse desktop) — non vale complicare
+					la spaziatura per un bersaglio secondario.
 				*/}
 				{[0, 1].map((i) => (
 					<button
@@ -177,16 +183,12 @@ export default function HomeHero({
 						onClick={() => goTo(i)}
 						aria-label={i === 0 ? t.home.flowTitle : t.accounts.balanceHeading}
 						aria-current={page === i}
-						className="w-11 h-11 flex items-center justify-center"
-					>
-						<span
-							className="h-1.5 rounded-full transition-all"
-							style={{
-								width: page === i ? 22 : 6,
-								background: page === i ? "var(--ink-midori)" : "var(--border)",
-							}}
-						/>
-					</button>
+						className="h-1.5 rounded-full transition-all"
+						style={{
+							width: page === i ? 22 : 6,
+							background: page === i ? "var(--ink-midori)" : "var(--border)",
+						}}
+					/>
 				))}
 			</div>
 			)}
