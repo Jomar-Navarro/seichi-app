@@ -31,6 +31,9 @@ const LETTERS: Record<string, string> = {
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"];
 
+/** Vedi il commento su `lastPressRef` per perché 80ms e non 300. */
+const DUPLICATE_PRESS_WINDOW_MS = 80;
+
 /**
  * Vero se `key` è già la stessa cifra registrata da `ref` meno di
  * `windowMs` fa — e in ogni caso aggiorna `ref` al tentativo corrente.
@@ -145,9 +148,17 @@ export default function PinPad({
 	// sono due pressioni "legittime" dal suo punto di vista, perché non ha
 	// modo di sapere che nascono dallo stesso dito. Serve una difesa
 	// indipendente, sullo stesso RISULTATO invece che sulla causa: se la
-	// STESSA cifra arriva due volte a meno di 300ms di distanza è quasi
-	// certamente un duplicato, qualunque sia la sua origine — un dito vero
-	// raramente ripete lo stesso tasto così in fretta, anche digitando svelto.
+	// STESSA cifra arriva due volte a meno di `DUPLICATE_PRESS_WINDOW_MS` di
+	// distanza è quasi certamente un duplicato, qualunque sia la sua origine.
+	//
+	// ⚠️ Trovato dall'utente: un PIN con cifre ripetute (es. "00000") è un
+	// caso reale, non un edge case — e 300ms erano troppi per un dito che
+	// digita in fretta LO STESSO tasto più volte di seguito, cosa che questo
+	// pad deve permettere. La finestra è stata abbassata a 80ms perché
+	// `touch-manipulation` (sotto) toglie al browser il ritardo fino a 300ms
+	// dell'ambiguità doppio-tocco-per-zoom: un duplicato vero arriva ora
+	// quasi subito (pochi millisecondi), non serve più una finestra larga
+	// quanto quel ritardo per intercettarlo.
 	const lastPressRef = useRef<{ key: string; time: number } | null>(null);
 
 	function press(key: string) {
@@ -159,7 +170,7 @@ export default function PinPad({
 		// diversa — un secondo `onComplete` prima che il primo timer del
 		// chiamante fosse scaduto, due tentativi in corsa fra loro.
 		if (disabled || rejected || key === "") return;
-		if (isDuplicatePress(lastPressRef, key, 300)) return;
+		if (isDuplicatePress(lastPressRef, key, DUPLICATE_PRESS_WINDOW_MS)) return;
 
 		if (key === "⌫") {
 			setValue(value.slice(0, -1));
