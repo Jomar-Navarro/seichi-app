@@ -1585,6 +1585,9 @@ export const it = {
 		title: "Notifiche",
 		markAllRead: "segna tutte come lette",
 		emptyDescription: "Qui arrivano gli avvisi su budget, obiettivi e rinnovi in arrivo.",
+		/** Il pannello parte compresso (~metà schermo): compaiono solo se la lista trabocca. */
+		showAll: "mostra tutto",
+		showLess: "mostra meno",
 		/**
 		 * Le frasi delle notifiche, composte dai FATTI salvati nel `payload` JSONB.
 		 *

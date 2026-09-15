@@ -118,10 +118,15 @@ export default function DatePicker({
 			{open && (
 				<div className="absolute top-full mt-1 left-0 right-0 z-20 rounded-2xl bg-deep ring-border p-3">
 					<div className="flex items-center justify-between mb-2">
+						{/*
+							issue #69 — w-11 h-11 -m-2: 44px di area toccabile senza
+							cambiare la dimensione visiva della pastiglia (12px di
+							padding del pannello assorbono l'estensione).
+						*/}
 						<button
 							type="button"
 							onClick={() => navigateMonth(-1)}
-							className="w-7 h-7 flex items-center justify-center rounded-xl bg-card ring-border"
+							className="w-11 h-11 -m-2 flex items-center justify-center rounded-xl bg-card ring-border"
 						>
 							<ChevronLeft size={14} />
 						</button>
@@ -131,7 +136,7 @@ export default function DatePicker({
 						<button
 							type="button"
 							onClick={() => navigateMonth(1)}
-							className="w-7 h-7 flex items-center justify-center rounded-xl bg-card ring-border"
+							className="w-11 h-11 -m-2 flex items-center justify-center rounded-xl bg-card ring-border"
 						>
 							<ChevronRight size={14} />
 						</button>
@@ -164,7 +169,12 @@ export default function DatePicker({
 									type="button"
 									disabled={disabled}
 									onClick={() => selectDay(day)}
-									className={`h-8 w-full rounded-xl text-xs flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+									// issue #69 — h-11: la larghezza la decide la griglia 7
+									// colonne (già vicina o oltre i 44px sulla maggior parte
+									// dei contenitori), qui si porta a soglia l'altezza. Non
+									// forzo la larghezza: farebbe uscire la griglia dal
+									// pannello su schermi stretti.
+									className={`h-11 w-full rounded-xl text-xs flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
 										isSelected
 											? "btn-primary font-semibold"
 											: isToday
@@ -187,7 +197,9 @@ export default function DatePicker({
 								onChange("");
 								setOpen(false);
 							}}
-							className="w-full mt-2 pt-2 border-t border-subtle text-[11px] text-muted active:opacity-60"
+							// issue #69 — pt-3.5 pb-3.5 invece di pt-2: ~44px, bottone
+							// largo quanto il pannello, solo l'altezza era corta.
+							className="w-full mt-2 pt-3.5 pb-3.5 border-t border-subtle text-[11px] text-muted active:opacity-60"
 						>
 							{placeholder}
 						</button>

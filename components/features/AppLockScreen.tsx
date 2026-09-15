@@ -188,7 +188,9 @@ export default function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
 							type="button"
 							onClick={forgotPin}
 							disabled={signingOut}
-							className="text-[13px] font-semibold mt-7 disabled:opacity-50"
+							// issue #69 — py-3.5 porta l'area toccabile a 44px: il link è
+							// solo, sotto il tastierino, senza vicini da rispettare.
+							className="text-[13px] font-semibold mt-7 py-3.5 disabled:opacity-50"
 							style={{ color: "var(--ink-aka)" }}
 						>
 							{signingOut ? "…" : t.appLock.signOutAndReset}
@@ -197,7 +199,8 @@ export default function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
 						<button
 							type="button"
 							onClick={() => setConfirmingForgot(true)}
-							className="text-[13px] font-medium text-muted underline underline-offset-2 mt-7"
+							// issue #69 — py-3.5 porta l'area toccabile a 44px.
+							className="text-[13px] font-medium text-muted underline underline-offset-2 mt-7 py-3.5"
 						>
 							{t.appLock.forgotPin}
 						</button>

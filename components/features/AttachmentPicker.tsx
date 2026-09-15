@@ -394,6 +394,14 @@ export default function AttachmentPicker({
 								la conferma nello stato locale, il secondo rimuove. Una ricevuta
 								cancellata non torna, e il bersaglio qui è un quadratino da 20px
 								nell'angolo di una miniatura.
+
+								issue #69 — residuo dichiarato, non corretto: le miniature sono
+								affiancate con solo gap-2.5 (10px) e il cestino sporge già di
+								6px nel corner (-top-1.5 -right-1.5), quindi restano ~4px
+								prima di toccare la miniatura vicina — non c'è margine per
+								arrivare a 44px senza far leggere il cestino di una miniatura
+								come se appartenesse a quella accanto. La conferma in due
+								tocchi è la mitigazione per un bersaglio piccolo, non 44px.
 							*/}
 							<button
 								type="button"
@@ -495,7 +503,9 @@ export default function AttachmentPicker({
 					<button
 						type="button"
 						onClick={() => setZoomed(null)}
-						className="absolute top-5 right-5 w-9 h-9 rounded-xl bg-control ring-border flex items-center justify-center"
+						// issue #69 — w-11 h-11 (44px): isolato nell'angolo dello schermo
+						// intero, molto spazio libero.
+						className="absolute top-4 right-4 w-11 h-11 rounded-xl bg-control ring-border flex items-center justify-center"
 						aria-label={t.common.close}
 					>
 						<X size={16} />

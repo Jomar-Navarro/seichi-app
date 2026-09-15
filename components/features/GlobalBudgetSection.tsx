@@ -262,7 +262,10 @@ export default function GlobalBudgetSection() {
 							// issue #81 — bordo TRASPARENTE a riposo (l'anello lo sostituisce
 							// via box-shadow), bordo VERO solo a fuoco: `--text-muted` è
 							// opaco, quindi lì il bug di Firefox non si applica.
-							className="w-20 px-2.5 py-1.5 rounded-lg text-right bg-input border border-transparent ring-border text-[13px] outline-none focus:border-muted placeholder:text-muted/60 disabled:opacity-50"
+							// issue #69 — text-base (16px, sotto zooma da solo su iOS) e w-24 invece
+							// di w-20: a 16px "1.234" allineato a destra si sarebbe sentito
+							// compresso nei 60px di contenuto del campo stretto originale.
+							className="w-24 px-2.5 py-1.5 rounded-lg text-right bg-input border border-transparent ring-border text-base outline-none focus:border-muted placeholder:text-muted/60 disabled:opacity-50"
 						/>
 						<span className="text-[13px] text-muted">{t.budget.perMonth}</span>
 					</span>

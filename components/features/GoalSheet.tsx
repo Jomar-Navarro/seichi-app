@@ -132,7 +132,9 @@ export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 					</h2>
 					<button
 						onClick={onClose}
-						className="w-8 h-8 flex items-center justify-center rounded-xl bg-control ring-border"
+							// issue #69 — w-11 h-11 (44px): area toccabile minima, isolata
+						// nell'angolo dell'header, l'icona resta 15px.
+						className="w-11 h-11 flex items-center justify-center rounded-xl bg-control ring-border"
 					>
 						<X size={15} />
 					</button>
@@ -147,7 +149,7 @@ export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 							placeholder={t.goals.namePlaceholder}
 							value={form.name}
 							onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-							className={`w-full rounded-[18px] px-4 py-3.5 text-[14.5px] bg-input outline-none placeholder:text-muted/60 ${nameError ? "" : "ring-border"}`}
+							className={`w-full rounded-[18px] px-4 py-3.5 text-base bg-input outline-none placeholder:text-muted/60 ${nameError ? "" : "ring-border"}`}
 							style={nameError ? { boxShadow: "var(--color-aka) 0px 0px 0px 1px inset" } : undefined}
 						/>
 						{nameError && (
@@ -174,7 +176,7 @@ export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 								placeholder="0"
 								value={form.targetAmount}
 								onChange={(e) => setForm((f) => ({ ...f, targetAmount: e.target.value }))}
-								className="flex-1 bg-transparent outline-none text-[14.5px] placeholder:text-muted/60"
+								className="flex-1 bg-transparent outline-none text-base placeholder:text-muted/60"
 							/>
 						</div>
 						{amountError && (

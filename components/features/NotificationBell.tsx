@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell } from "lucide-react";
+import { Bell, ChevronDown } from "lucide-react";
 import {
 	getNotifications,
 	markAllNotificationsRead,
@@ -26,11 +26,31 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
+	/*
+	 * issue: il pannello copriva la campanella che l'ha aperto. Era `fixed`
+	 * con un `top` FISSO (un numero indovinato per il layout comune), che non
+	 * si sposta se l'header cresce — la barra di stato "in chiamata" di iOS
+	 * allunga la safe-area in alto e sposta la campanella più in basso, ma il
+	 * pannello restava dov'era e finiva sopra di lei.
+	 *
+	 * Stesso schema del menu "richiedi il PIN dopo" in `AppLockSettings.tsx`:
+	 * la posizione si calcola al TOCCO da `getBoundingClientRect()` del
+	 * bottone vero, non da un numero scritto a mano. Qui serve solo `top` —
+	 * `left-5 right-5` restano fissi ai margini della pagina (il pannello è
+	 * largo quanto il contenuto, non quanto la campanella: ancorarlo anche in
+	 * orizzontale al bottone, che sta a destra, lo farebbe uscire dallo
+	 * schermo — vedi il commento più sotto).
+	 */
+	const bellRef = useRef<HTMLButtonElement>(null);
+	const [panelTop, setPanelTop] = useState<number | null>(null);
+
 	async function toggle() {
 		if (open) {
 			setOpen(false);
 			return;
 		}
+		const rect = bellRef.current?.getBoundingClientRect();
+		setPanelTop(rect ? rect.bottom + 10 : null);
 		setOpen(true);
 		// Si ricarica a ogni apertura, non solo la prima. La versione precedente
 		// caricava una volta sola: dopo un errore restava bloccata sul messaggio
@@ -38,6 +58,31 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 		// o lette altrove nel frattempo.
 		await load();
 	}
+
+	/*
+	 * Il pannello prendeva TUTTO lo schermo (`70dvh`, quasi la sua interezza
+	 * su un telefono) per una lista che nella maggior parte dei casi è più
+	 * corta. Ora parte a "metà" (`50dvh`) e un comando "mostra tutto" la
+	 * espande fino all'altezza precedente — la stessa scelta già fatta per
+	 * `ATTACHMENT_MAX_EDGE` e per ogni altro numero di questo tipo: 70dvh
+	 * resta il tetto pensato in origine, non un valore nuovo.
+	 *
+	 * ⚠️ Il comando compare SOLO quando la lista è davvero più alta dello
+	 * spazio compresso — altrimenti sarebbe un bottone che non cambia niente,
+	 * e un comando sempre presente e inerte insegna a ignorarlo (stessa
+	 * regola di "Azzera filtri", issue #9). Si misura leggendo `scrollHeight`
+	 * contro `clientHeight` DOPO che le righe sono arrivate: è il DOM, non un
+	 * calcolo in `dvh`, a dire se il contenuto trabocca.
+	 */
+	const listRef = useRef<HTMLDivElement>(null);
+	const [expanded, setExpanded] = useState(false);
+	const [overflowing, setOverflowing] = useState(false);
+
+	useEffect(() => {
+		if (!items || expanded) return;
+		const el = listRef.current;
+		if (el) setOverflowing(el.scrollHeight > el.clientHeight + 1);
+	}, [items, expanded]);
 
 	async function load() {
 		setLoading(true);
@@ -98,6 +143,7 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 	return (
 		<div className="relative">
 			<button
+				ref={bellRef}
 				onClick={toggle}
 				// `z-50` quando aperto: senza, l'overlay (z-40) coprirebbe il bottone
 				// e il secondo tocco finirebbe sull'overlay. Funzionava per caso —
@@ -139,21 +185,25 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 					/>
 
 					{/*
-						Posizionato `fixed` sui margini della pagina invece che ancorato al
-						bottone: il pannello è largo quanto il contenuto, e un dropdown
-						agganciato alla campanella uscirebbe dallo schermo a destra.
+						`left-5 right-5` fissi ai margini della pagina: il pannello è largo
+						quanto il contenuto, e ancorarlo anche in ORIZZONTALE alla
+						campanella (che sta a destra) lo farebbe uscire dallo schermo. Solo
+						`top` è dinamico — vedi `panelTop` più sopra.
 
 						`--color-deep` (superficie solida) al 94% e non `bg-modal`: quello
 						sta a 0.85, tarato per i bottom sheet che coprono uno sfondo già
 						oscurato. Qui il pannello galleggia sulla dashboard piena di numeri.
 					*/}
 					{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
-					<div className="fixed left-5 right-5 top-23 z-50 rounded-[28px] overflow-hidden modal-shadow-ring">
+					<div
+						className="fixed left-5 right-5 z-50 rounded-[28px] overflow-hidden modal-shadow-ring"
+						style={{ top: panelTop ?? 92 }}
+					>
 						<div
 							className="absolute inset-0 backdrop-blur-2xl"
 							style={{ background: "color-mix(in srgb, var(--color-deep) 94%, transparent)" }}
 						/>
-						<div className="relative flex flex-col max-h-[70dvh]">
+						<div className={`relative flex flex-col ${expanded ? "max-h-[70dvh]" : "max-h-[50dvh]"}`}>
 						<div className="flex items-center justify-between px-5 py-4 border-b border-subtle shrink-0">
 							<h2 className="text-[15px] font-semibold">{t.notifications.title}</h2>
 							{unread > 0 && (
@@ -166,7 +216,7 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 							)}
 						</div>
 
-						<div className="overflow-y-auto scrollbar-none">
+						<div ref={listRef} className="overflow-y-auto overscroll-contain scrollbar-none">
 							{error && (
 								<div className="px-5 py-4 border-b border-subtle">
 									<p className="text-[12.5px]" style={{ color: "var(--ink-aka)" }}>
@@ -235,6 +285,26 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 								);
 							})}
 						</div>
+
+						{/*
+							Fuori dall'area che scorre, o bisognerebbe scorrere fino in
+							fondo per trovarlo — proprio ciò che serve a evitare. Compare
+							solo se `overflowing` (compresso) o se è già espanso (per poter
+							tornare indietro): mai un comando presente e inerte.
+						*/}
+						{(overflowing || expanded) && (
+							<button
+								type="button"
+								onClick={() => setExpanded((v) => !v)}
+								className="shrink-0 flex items-center justify-center gap-1.5 py-3 text-[12px] text-muted border-t border-subtle active:opacity-60"
+							>
+								{expanded ? t.notifications.showLess : t.notifications.showAll}
+								<ChevronDown
+									size={13}
+									className={`transition-transform ${expanded ? "rotate-180" : ""}`}
+								/>
+							</button>
+						)}
 						</div>
 					</div>
 				</>

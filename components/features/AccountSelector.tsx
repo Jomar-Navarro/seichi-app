@@ -105,7 +105,9 @@ export default function AccountSelector({
 				className={`relative rounded-2xl overflow-hidden ring-border ${open ? "z-50" : ""}`}
 			>
 				<span className="absolute inset-0 bg-surface backdrop-blur-md" />
-				<span className="relative flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-secondary">
+				{/* issue #69 — py-4 invece di py-2: ~44px, il bottone è isolato
+				    nell'header, niente vicini da rispettare. */}
+				<span className="relative flex items-center gap-1.5 px-3.5 py-4 text-xs font-medium text-secondary">
 					{selected ? selected.name : t.accounts.all}
 					<ChevronDown size={13} className={open ? "rotate-180 transition-transform" : "transition-transform"} />
 				</span>

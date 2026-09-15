@@ -124,7 +124,9 @@ export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 					<h2 className="text-xl font-semibold">{t.recurring.editTitle}</h2>
 					<button
 						onClick={onClose}
-						className="w-8 h-8 flex items-center justify-center rounded-xl bg-control ring-border"
+							// issue #69 — w-11 h-11 (44px): area toccabile minima, isolata
+						// nell'angolo dell'header, l'icona resta 15px.
+						className="w-11 h-11 flex items-center justify-center rounded-xl bg-control ring-border"
 					>
 						<X size={15} />
 					</button>
@@ -193,7 +195,8 @@ export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 							placeholder={t.recurring.descriptionPlaceholder}
 							value={notes}
 							onChange={(e) => setNotes(e.target.value)}
-							className="w-full rounded-2xl px-4 py-3 text-sm bg-card ring-border outline-none placeholder:text-muted/60"
+							// issue #69 — text-base: sotto i 16px iOS zooma da solo al focus.
+							className="w-full rounded-2xl px-4 py-3 text-base bg-card ring-border outline-none placeholder:text-muted/60"
 						/>
 					</div>
 				</div>

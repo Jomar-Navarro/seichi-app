@@ -215,7 +215,9 @@ export default function CategorySheet({
 					</h2>
 					<button
 						onClick={onClose}
-						className="w-8 h-8 flex items-center justify-center rounded-xl bg-control ring-border"
+							// issue #69 — w-11 h-11 (44px): area toccabile minima, isolata
+						// nell'angolo dell'header, l'icona resta 15px.
+						className="w-11 h-11 flex items-center justify-center rounded-xl bg-control ring-border"
 					>
 						<X size={15} />
 					</button>
@@ -307,7 +309,9 @@ export default function CategorySheet({
 											key={period}
 											type="button"
 											onClick={() => setBudgetPeriod(period)}
-											className="text-center py-2 rounded-xl text-xs font-medium transition-all border"
+											// issue #69 — py-3.5 invece di py-2: griglia 3 colonne
+											// fisse, sempre 3 voci, una riga sola.
+											className="text-center py-3.5 rounded-xl text-xs font-medium transition-all border"
 											style={{
 												background: selected
 													? `color-mix(in srgb, ${color} 14%, transparent)`

@@ -28,7 +28,8 @@ export default function Input({
 				value={value}
 				placeholder={placeholder}
 				onChange={(e) => onChange?.(e.target.value)}
-				className="grow shrink basis-0 bg-transparent outline-none text-foreground text-sm py-4"
+				// issue #69 — text-base: sotto i 16px iOS zooma da solo al focus.
+				className="grow shrink basis-0 bg-transparent outline-none text-foreground text-base py-4"
 			/>
 		</div>
 	);

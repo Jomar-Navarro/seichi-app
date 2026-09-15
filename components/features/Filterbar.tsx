@@ -133,7 +133,8 @@ export default function FilterBar({
 					placeholder={t.transactions.searchPlaceholder}
 					value={search}
 					onChange={(e) => onSearchChange(e.target.value)}
-					className="bg-transparent text-sm flex-1 outline-none placeholder:text-muted"
+					// issue #69 — text-base: sotto i 16px iOS zooma da solo al focus.
+					className="bg-transparent text-base flex-1 outline-none placeholder:text-muted"
 				/>
 			</div>
 
@@ -218,7 +219,7 @@ export default function FilterBar({
 							// decine, e senza tetto la tendina uscirebbe dallo schermo con
 							// le ultime voci irraggiungibili. Stessa difesa di `Select`
 							// nella Fase 21.
-							<div className="absolute top-full mt-1.5 left-0 z-20 min-w-44 max-h-64 overflow-y-auto scrollbar-none rounded-2xl bg-deep card-shadow-ring">
+							<div className="absolute top-full mt-1.5 left-0 z-20 min-w-44 max-h-64 overflow-y-auto overscroll-contain scrollbar-none rounded-2xl bg-deep card-shadow-ring">
 								{categoriaOptions.map((opt) => (
 									<button
 										key={opt.value}

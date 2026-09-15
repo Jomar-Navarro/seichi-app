@@ -53,7 +53,7 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 
 	if (state.emailSent) {
 		return (
-			<div className="grow shrink basis-0 flex flex-col h-full overflow-y-auto scrollbar-none pt-12 px-7 pb-7 md:py-18 md:px-20 lg:p-8">
+			<div className="grow shrink basis-0 flex flex-col h-full overflow-y-auto overscroll-contain scrollbar-none pt-12 px-7 pb-7 md:py-18 md:px-20 lg:p-8">
 				{/* ⚠️ TRE livelli, solo `lg:` conta — issue #81. Vedi la nota in LoginForm. */}
 			<div className="relative w-full max-w-md xl:max-w-lg 2xl:max-w-xl mx-auto my-auto lg:rounded-2xl lg:overflow-hidden lg:ring-border">
 				<div className="absolute inset-0 lg:bg-surface lg:backdrop-blur-sm" />
@@ -75,7 +75,9 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 							{t.auth.signUp.alreadyVerified}{" "}
 							<button
 								onClick={() => onTabChange?.("signin")}
-								className="text-midori-ink font-medium cursor-pointer"
+								// issue #69 — -m-2 p-2, residuo dichiarato (link inline in una
+								// frase, vedi LoginForm).
+								className="-m-2 p-2 text-midori-ink font-medium cursor-pointer"
 							>
 								{t.auth.welcome.signIn}
 							</button>
@@ -88,7 +90,7 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 	}
 
 	return (
-		<div className="grow shrink basis-0 flex flex-col h-full overflow-y-auto scrollbar-none pt-12 px-7 pb-7 md:py-18 md:px-20 lg:p-8">
+		<div className="grow shrink basis-0 flex flex-col h-full overflow-y-auto overscroll-contain scrollbar-none pt-12 px-7 pb-7 md:py-18 md:px-20 lg:p-8">
 			{/* ⚠️ TRE livelli, solo `lg:` conta — issue #81. Vedi la nota in LoginForm. */}
 			<div className="relative w-full max-w-md xl:max-w-lg 2xl:max-w-xl mx-auto my-auto lg:rounded-2xl lg:overflow-hidden lg:ring-border">
 				<div className="absolute inset-0 lg:bg-surface lg:backdrop-blur-sm" />
@@ -199,7 +201,15 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 						)}
 					</div>
 
-					<div className="flex items-start gap-3 mb-4 cursor-pointer">
+					{/*
+						issue #69 — `<label>` e non `<div>`: prima il checkbox 20×20
+						era l'unica area toccabile (il `cursor-pointer` sulla riga era
+						un'indicazione visiva senza un gestore che lo rendesse vero). Un
+						`<label htmlFor>` estende il tocco a tutta la riga senza aggiungere
+						JS, ed è lo stesso schema già usato per il campo budget in
+						GlobalBudgetSection.
+					*/}
+					<label htmlFor="privacy" className="flex items-start gap-3 mb-4 cursor-pointer">
 						<input
 							id="privacy"
 							name="privacy"
@@ -215,7 +225,7 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 							<span className="text-midori-ink">{t.auth.signUp.consentPrivacy}</span>
 							{t.auth.signUp.consentAfter}
 						</div>
-					</div>
+					</label>
 
 					<Button title={t.auth.signUp.submit} />
 				</form>
@@ -245,7 +255,9 @@ export default function SignUpForm({ onTabChange }: SignUpFormProps) {
 					<span className="me-1 text-muted">{t.auth.welcome.haveAccount}</span>
 					<button
 						onClick={() => onTabChange?.("signin")}
-						className="text-midori-ink cursor-pointer font-medium"
+						// issue #69 — -m-2 p-2, residuo dichiarato (link inline in una
+						// frase, vedi LoginForm).
+						className="-m-2 p-2 text-midori-ink cursor-pointer font-medium"
 					>
 						{t.auth.welcome.signIn}
 					</button>

@@ -393,7 +393,9 @@ function TransactionModalContent() {
 									key={v}
 									type="button"
 									onClick={() => setAmount(String(v))}
-									className="px-1 py-2.5 rounded-full text-sm font-semibold card-shadow-ring"
+									// issue #69 — py-3 invece di py-2.5: griglia 5 colonne fisse,
+									// sempre 5 voci, una riga sola.
+									className="px-1 py-3 rounded-full text-sm font-semibold card-shadow-ring"
 								>
 									{formatMoney(v, { locale, currency: DISPLAY_CURRENCY })}
 								</button>

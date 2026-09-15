@@ -166,6 +166,17 @@ export default function HomeHero({
 			*/}
 			{showBalance && (
 			<div className="flex items-center justify-center gap-1.5 mt-3">
+				{/*
+					issue #69 — un giro precedente aveva avvolto ogni pallino in un
+					bottone 44×44: `gap-1.5` si misura fra quelle SCATOLE, non fra i
+					pallini al loro interno, quindi i due pallini finivano a ~36px di
+					distanza visiva invece di 6 — regressione vista a schermo e non
+					dagli screenshot dello stesso giro. Residuo dichiarato, non corretto
+					con una scatola più grande: il commento qui sopra lo dice già, sul
+					TELEFONO il gesto primario è lo swipe, questi puntini servono
+					soprattutto a chi non ce l'ha (mouse desktop) — non vale complicare
+					la spaziatura per un bersaglio secondario.
+				*/}
 				{[0, 1].map((i) => (
 					<button
 						key={i}

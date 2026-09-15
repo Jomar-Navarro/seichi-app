@@ -35,7 +35,9 @@ export default function WelcomePage() {
 					{t.auth.welcome.haveAccount}{" "}
 					<button
 						onClick={() => router.push("/sign")}
-						className="text-midori-ink cursor-pointer font-medium"
+						// issue #69 — -m-2 p-2, residuo dichiarato (link inline in una
+						// frase, vedi LoginForm).
+						className="-m-2 p-2 text-midori-ink cursor-pointer font-medium"
 					>
 						{t.auth.welcome.signIn}
 					</button>

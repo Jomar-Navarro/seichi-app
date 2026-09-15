@@ -182,7 +182,8 @@ export default function AccountDetailClient({ account }: AccountDetailClientProp
 					</div>
 					<button
 						onClick={() => setSheetOpen(true)}
-						className="flex items-center gap-1.5 px-4 py-2.5 rounded-full text-[12.5px] font-semibold card-shadow-ring shrink-0"
+						// issue #69 — py-3.5 invece di py-2.5: ~44px, isolato a fine header.
+						className="flex items-center gap-1.5 px-4 py-3.5 rounded-full text-[12.5px] font-semibold card-shadow-ring shrink-0"
 						style={{ background: "var(--surface-elevated)" }}
 					>
 						<Pencil size={13} strokeWidth={2.2} />

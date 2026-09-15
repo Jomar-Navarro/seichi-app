@@ -68,7 +68,9 @@ export default function RecentTransaction({
 				<p className="font-semibold">{t.home.recentTitle}</p>
 				<Link
 					href="/transazioni"
-					className="text-sm font-medium"
+					// issue #69 — -m-2.5 p-2.5: area toccabile ~44px, link isolato a
+					// fine riga.
+					className="-m-2.5 p-2.5 text-sm font-medium"
 					style={{ color: "var(--ink-midori)" }}
 				>
 					{t.home.seeAll}

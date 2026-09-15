@@ -125,7 +125,7 @@ export default function BudgetCards({ overview }: { overview: BudgetOverview }) 
 				)}
 			</div>
 
-			<div className="flex gap-3 overflow-x-auto -mx-5 px-5 pb-1">
+			<div className="flex gap-3 overflow-x-auto overscroll-x-contain -mx-5 px-5 pb-1">
 				{cards.map((b) => (
 					<BudgetCard key={b.budgetId} budget={b} />
 				))}

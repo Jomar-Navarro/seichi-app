@@ -82,7 +82,9 @@ export default function ThemeSection() {
 							role="radio"
 							aria-checked={active}
 							onClick={() => setChoice(value)}
-							className={`flex items-center justify-center gap-2 h-10 rounded-xl text-[13px] font-medium cursor-pointer ${
+							// issue #69 — h-11 (44px): griglia 3 colonne fisse, sempre 3
+							// opzioni, una riga sola — nessun rischio crescendo.
+							className={`flex items-center justify-center gap-2 h-11 rounded-xl text-[13px] font-medium cursor-pointer ${
 								active ? "active-tab" : "text-muted active:opacity-70"
 							}`}
 						>

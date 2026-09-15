@@ -50,7 +50,9 @@ export default function DeleteAccountFlow({ email, hasPasswordIdentity }: Delete
 				<button
 					type="button"
 					onClick={() => setConfirmed(true)}
-					className="w-full text-center text-sm font-medium mt-4.5 py-2 cursor-pointer"
+					// issue #69 — py-3.5 invece di py-2: ~44px, link isolato sotto il
+					// bottone Annulla.
+					className="w-full text-center text-sm font-medium mt-4.5 py-3.5 cursor-pointer"
 					style={{ color: AKA }}
 				>
 					{t.common.continue}

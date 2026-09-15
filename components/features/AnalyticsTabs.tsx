@@ -43,7 +43,9 @@ export default function AnalyticsTabs() {
 				<button
 					key={tab}
 					onClick={() => handleClick(tab)}
-					className={`flex-1 text-center py-2.25 rounded-xl text-[13px] transition-all border-none cursor-pointer ${
+					// issue #69 — py-3.5 invece di py-2.25: ~44px, unica riga di tab,
+					// nessun vicino sotto/sopra da rispettare.
+					className={`flex-1 text-center py-3.5 rounded-xl text-[13px] transition-all border-none cursor-pointer ${
 						active === tab
 							? "font-semibold active-tab"
 							: "font-medium text-muted bg-transparent"

@@ -131,7 +131,7 @@ export default function PreferencePage() {
 						{/*
 							⚠️ NIENTE `overflow-hidden` — issue #81 (i quadrati di Firefox).
 							Questo pannello contiene DUE `Select`, e la loro tendina —
-							`max-h-[min(340px,50vh)]` — è quasi certamente più alta del
+							`max-h-[min(340px,50dvh)]` — è quasi certamente più alta del
 							pannello stesso, che qui è poco più di due righe di campo.
 							Ritagliarlo taglierebbe la lista delle valute a metà. Stessa
 							classe del riquadro categoria in `ImportFlow`: rimandato a un

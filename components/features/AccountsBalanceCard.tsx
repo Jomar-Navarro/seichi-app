@@ -95,7 +95,9 @@ export default function AccountsBalanceCard({
 				</div>
 				<button
 					onClick={onToggleHidden}
-					className="w-7 h-7 flex items-center justify-center rounded-lg text-muted shrink-0"
+					// issue #69 — w-11 h-11 (44px): unico elemento a fine riga,
+					// l'icona resta 15px.
+					className="w-11 h-11 -my-2 -mr-2 flex items-center justify-center rounded-lg text-muted shrink-0"
 					aria-label={t.common.toggleVisibility}
 				>
 					{hidden ? <EyeOff size={15} /> : <Eye size={15} />}
