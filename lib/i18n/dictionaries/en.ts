@@ -956,6 +956,8 @@ export const en: Dictionary = {
 		title: "Notifications",
 		markAllRead: "mark all as read",
 		emptyDescription: "Alerts about budgets, goals and upcoming renewals show up here.",
+		showAll: "show all",
+		showLess: "show less",
 		messages: {
 			budgetExceeded: 'Budget "{category}" exceeded',
 			budgetNearLimit: 'Budget "{category}" almost used up',
