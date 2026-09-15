@@ -31,6 +31,31 @@ const LETTERS: Record<string, string> = {
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"];
 
+/** Vedi il commento su `lastPressRef` per perché 80ms e non 300. */
+const DUPLICATE_PRESS_WINDOW_MS = 80;
+
+/**
+ * Vero se `key` è già la stessa cifra registrata da `ref` meno di
+ * `windowMs` fa — e in ogni caso aggiorna `ref` al tentativo corrente.
+ *
+ * ⚠️ A livello di MODULO, non dentro `PinPad`: `Date.now()` è una chiamata
+ * impura, e il lint di questo progetto la vieta nel corpo di un componente
+ * (anche in una funzione annidata come `press`) — stesso motivo per cui
+ * `chiaveLocale()` in `AttachmentPicker.tsx` vive fuori dal suo componente.
+ * `ref` arriva come parametro esplicito invece che per chiusura.
+ */
+function isDuplicatePress(
+	ref: { current: { key: string; time: number } | null },
+	key: string,
+	windowMs: number,
+): boolean {
+	const now = Date.now();
+	const last = ref.current;
+	const duplicate = last !== null && last.key === key && now - last.time < windowMs;
+	ref.current = { key, time: now };
+	return duplicate;
+}
+
 /**
  * Assorbe il PROSSIMO click, ovunque cada, una volta sola — poi si toglie.
  *
@@ -115,6 +140,27 @@ export default function PinPad({
 	// l'updater funzionale può essere invocato PIÙ VOLTE da React (lo fa già in
 	// sviluppo, sotto Strict Mode, apposta per scovare updater impuri) — ed
 	// `onComplete` con un effetto collaterale dentro era esattamente quell'errore.
+	//
+	// ⚠️ Trovato ancora sul telefono, dopo il fix del contatore qui sopra: quel
+	// contatore accoppia un pointerdown con IL SUO click fantasma, ma non può
+	// vedere un secondo `pointerdown` DUPLICATO per lo stesso tocco fisico
+	// (hardware/browser che sintetizza due volte l'evento di discesa) — lì
+	// sono due pressioni "legittime" dal suo punto di vista, perché non ha
+	// modo di sapere che nascono dallo stesso dito. Serve una difesa
+	// indipendente, sullo stesso RISULTATO invece che sulla causa: se la
+	// STESSA cifra arriva due volte a meno di `DUPLICATE_PRESS_WINDOW_MS` di
+	// distanza è quasi certamente un duplicato, qualunque sia la sua origine.
+	//
+	// ⚠️ Trovato dall'utente: un PIN con cifre ripetute (es. "00000") è un
+	// caso reale, non un edge case — e 300ms erano troppi per un dito che
+	// digita in fretta LO STESSO tasto più volte di seguito, cosa che questo
+	// pad deve permettere. La finestra è stata abbassata a 80ms perché
+	// `touch-manipulation` (sotto) toglie al browser il ritardo fino a 300ms
+	// dell'ambiguità doppio-tocco-per-zoom: un duplicato vero arriva ora
+	// quasi subito (pochi millisecondi), non serve più una finestra larga
+	// quanto quel ritardo per intercettarlo.
+	const lastPressRef = useRef<{ key: string; time: number } | null>(null);
+
 	function press(key: string) {
 		// ⚠️ `rejected` blocca TUTTO, cancellare compreso — non solo le nuove
 		// cifre. Trovato dal code-review: senza, la cancellazione (non era
@@ -124,6 +170,8 @@ export default function PinPad({
 		// diversa — un secondo `onComplete` prima che il primo timer del
 		// chiamante fosse scaduto, due tentativi in corsa fra loro.
 		if (disabled || rejected || key === "") return;
+		if (isDuplicatePress(lastPressRef, key, DUPLICATE_PRESS_WINDOW_MS)) return;
+
 		if (key === "⌫") {
 			setValue(value.slice(0, -1));
 			return;
@@ -227,7 +275,10 @@ export default function PinPad({
 								}}
 								onClick={() => onClickAction(onBiometric)}
 								aria-label={biometricLabel}
-								className="w-19 h-19 rounded-full flex items-center justify-center text-midori active:opacity-70 disabled:opacity-50"
+								// `touch-manipulation` (`touch-action: manipulation`): toglie al
+								// browser l'ambiguità del doppio-tocco-per-zoom, la causa più
+								// comune di eventi fantasma duplicati su bottoni non nativi.
+								className="w-19 h-19 rounded-full flex items-center justify-center text-midori active:opacity-70 disabled:opacity-50 touch-manipulation"
 							>
 								<Fingerprint size={26} />
 							</button>
@@ -246,10 +297,11 @@ export default function PinPad({
 							}}
 							onClick={() => onClickKey(key)}
 							aria-label={isDelete ? deleteLabel : key}
+							// `touch-manipulation`: vedi il commento sul tasto biometrico.
 							className={
 								isDelete
-									? "w-19 h-19 rounded-full flex items-center justify-center text-muted active:opacity-70 disabled:opacity-50"
-									: "w-19 h-19 rounded-full bg-card ring-border flex flex-col items-center justify-center gap-0.5 active:opacity-70 disabled:opacity-50"
+									? "w-19 h-19 rounded-full flex items-center justify-center text-muted active:opacity-70 disabled:opacity-50 touch-manipulation"
+									: "w-19 h-19 rounded-full bg-card ring-border flex flex-col items-center justify-center gap-0.5 active:opacity-70 disabled:opacity-50 touch-manipulation"
 							}
 						>
 							{isDelete ? (
