@@ -120,7 +120,8 @@ export default function AccountsPageClient({ accounts }: AccountsPageClientProps
 				</div>
 				<button
 					onClick={openCreate}
-					className="flex items-center gap-1.5 px-4 py-2.5 rounded-full text-[12.5px] font-semibold card-shadow-ring shrink-0"
+					// issue #69 — py-3.5 invece di py-2.5: ~44px, isolato a fine header.
+					className="flex items-center gap-1.5 px-4 py-3.5 rounded-full text-[12.5px] font-semibold card-shadow-ring shrink-0"
 					style={{ background: "var(--surface-elevated)" }}
 				>
 					<Plus size={13} strokeWidth={2.2} />
@@ -212,7 +213,11 @@ export default function AccountsPageClient({ accounts }: AccountsPageClientProps
 												e.stopPropagation();
 												void reactivate(a.id);
 											}}
-											className="flex items-center gap-1 text-[11.5px] font-semibold text-ao-ink"
+												// issue #69 — area toccabile allargata (il massimo che i
+											// 4px verso l'importo sopra permettono): -m-3 p-3 con
+											// -mt-1 pt-1 sul solo lato in alto, dove lo spazio è
+											// stretto.
+											className="-mx-3 -mb-3 -mt-1 px-3 pb-3 pt-1 flex items-center gap-1 text-[11.5px] font-semibold text-ao-ink"
 										>
 											<RotateCcw size={11} />
 											{t.accounts.reactivate}

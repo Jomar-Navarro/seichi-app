@@ -94,7 +94,10 @@ export default function BottomNav() {
 						<Link
 							key={href}
 							href={href}
-							className={`flex flex-col items-center gap-0.5 w-13.5 ${active ? "text-foreground" : "text-muted"}`}
+							// issue #69 — -my-1 py-1: la barra è alta 64px e il contenuto
+							// (icona+etichetta) solo ~36, quindi c'è margine sopra/sotto
+							// per portare l'area toccabile a 44px senza spostare nulla.
+							className={`-my-1 py-1 flex flex-col items-center gap-0.5 w-13.5 ${active ? "text-foreground" : "text-muted"}`}
 						>
 							<Icon size={20} />
 							<span className="text-[10px] font-medium">{t.nav[key]}</span>
@@ -116,7 +119,10 @@ export default function BottomNav() {
 						<Link
 							key={href}
 							href={href}
-							className={`flex flex-col items-center gap-0.5 w-13.5 ${active ? "text-foreground" : "text-muted"}`}
+							// issue #69 — -my-1 py-1: la barra è alta 64px e il contenuto
+							// (icona+etichetta) solo ~36, quindi c'è margine sopra/sotto
+							// per portare l'area toccabile a 44px senza spostare nulla.
+							className={`-my-1 py-1 flex flex-col items-center gap-0.5 w-13.5 ${active ? "text-foreground" : "text-muted"}`}
 						>
 							<Icon size={20} />
 							<span className="text-[10px] font-medium">{t.nav[key]}</span>

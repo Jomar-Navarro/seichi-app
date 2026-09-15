@@ -121,18 +121,27 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 								</div>
 							</div>
 
+							{/*
+								issue #69 — solo espansione VERTICALE (-my-3.5 py-3.5), mai
+								orizzontale: Pausa/Modifica sono adiacenti con appena gap-4
+								(16px) fra loro, e allargare anche di lato le farebbe
+								sovrapporre. In verticale c'è spazio in entrambe le direzioni
+								(sopra: riga non interattiva; sotto: padding della card + gap
+								prima della prossima) — qui l'area toccabile arriva a 44px
+								senza toccare nient'altro.
+							*/}
 							<div className="flex items-center gap-4 mt-2.5 pt-2.5 border-t border-subtle">
 								<button
 									onClick={() => togglePause(r)}
 									disabled={busyId === r.id}
-									className="flex items-center gap-1.5 text-[11.5px] text-secondary active:opacity-70 disabled:opacity-50"
+									className="-my-3.5 py-3.5 flex items-center gap-1.5 text-[11.5px] text-secondary active:opacity-70 disabled:opacity-50"
 								>
 									{r.active ? <Pause size={12} /> : <Play size={12} />}
 									{r.active ? t.recurring.pause : t.recurring.resume}
 								</button>
 								<button
 									onClick={() => setEditing(r)}
-									className="flex items-center gap-1.5 text-[11.5px] text-secondary active:opacity-70"
+									className="-my-3.5 py-3.5 flex items-center gap-1.5 text-[11.5px] text-secondary active:opacity-70"
 								>
 									<Pencil size={12} />
 									{t.recurring.edit}
@@ -140,7 +149,7 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 								<span className="flex-1" />
 								<button
 									onClick={() => setPending(r)}
-									className="text-[11.5px] active:opacity-70"
+									className="-my-3.5 py-3.5 text-[11.5px] active:opacity-70"
 									style={{ color: "var(--ink-aka)" }}
 								>
 									{t.recurring.delete}

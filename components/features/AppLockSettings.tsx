@@ -396,7 +396,8 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 							<button
 								type="button"
 								onClick={reset}
-								className="text-[13px] font-medium text-muted underline underline-offset-2 mt-6"
+								// issue #69 — py-3.5 porta l'area toccabile a 44px.
+								className="text-[13px] font-medium text-muted underline underline-offset-2 mt-6 py-3.5"
 							>
 								{t.common.cancel}
 							</button>
@@ -526,7 +527,9 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 										onGraceChange(ms);
 										closeGraceMenu();
 									}}
-									className="w-full flex items-center justify-between gap-3 py-2.5 px-3 rounded-xl text-sm active:opacity-70"
+									// issue #69 — py-3 (invece di py-2.5): righe impilate senza
+									// vicini laterali, 4px in più per lato bastano per i 44px.
+									className="w-full flex items-center justify-between gap-3 py-3 px-3 rounded-xl text-sm active:opacity-70"
 								>
 									<span>{formatGrace(ms)}</span>
 									{ms === graceMs && <Check size={15} className="text-midori" />}

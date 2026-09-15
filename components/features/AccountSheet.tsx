@@ -204,7 +204,9 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 					</h2>
 					<button
 						onClick={onClose}
-						className="w-8 h-8 flex items-center justify-center rounded-xl bg-control ring-border"
+							// issue #69 — w-11 h-11 (44px): area toccabile minima, isolata
+						// nell'angolo dell'header, l'icona resta 15px.
+						className="w-11 h-11 flex items-center justify-center rounded-xl bg-control ring-border"
 					>
 						<X size={15} />
 					</button>
@@ -233,7 +235,7 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 								onChange={(e) => setName(e.target.value)}
 								// issue #81 — l'errore sovrascrive l'intero anello (box-shadow),
 								// non un `borderColor` che non ha più nulla da colorare.
-								className={`flex-1 min-w-0 rounded-[18px] px-4 py-3.5 text-[14.5px] bg-input outline-none placeholder:text-muted/60 ${nameError ? "" : "ring-border"}`}
+								className={`flex-1 min-w-0 rounded-[18px] px-4 py-3.5 text-base bg-input outline-none placeholder:text-muted/60 ${nameError ? "" : "ring-border"}`}
 								style={nameError ? { boxShadow: "var(--color-aka) 0px 0px 0px 1px inset" } : undefined}
 							/>
 						</div>
@@ -258,7 +260,9 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 										onClick={() => setType(id)}
 										// issue #81 — attivo: bordo vero (colore opaco). A riposo:
 										// anello (`--border` è traslucido).
-										className={`px-3.5 py-2 rounded-full text-[12.5px] font-medium transition-colors ${active ? "border" : ""}`}
+										// issue #69 — py-3.5 invece di py-2: righe a capo automatico
+										// (flex-wrap), niente rischio di sovrapposizione crescendo.
+										className={`px-3.5 py-3.5 rounded-full text-[12.5px] font-medium transition-colors ${active ? "border" : ""}`}
 										style={{
 											background: active
 												? `color-mix(in srgb, ${ACCOUNT_TYPE_COLOR[id]} 16%, transparent)`
@@ -287,24 +291,37 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 								senza testo visibile ha come nome accessibile solo quello, e
 								un token CSS non è una parola.
 							*/}
+							{/*
+								issue #69 — bottone 44×44 (-m-1.5 compensa parte
+								dell'estensione, il pallino visivo resta 32px in uno `<span>`
+								interno): senza lo `<span>`, allargare il bottone avrebbe
+								allargato anche il pallino colorato, che è il suo sfondo.
+								Residuo dichiarato: con gap-2.5 (10px) fra i pallini, 44px
+								fanno sconfinare di un paio di pixel nell'area del vicino —
+								innocuo, scegliere il colore adiacente non è distruttivo.
+							*/}
 							{COLOR_CHOICES.map(({ value, key }) => (
 								<button
 									key={key}
 									onClick={() => setColor(color === value ? null : value)}
 									aria-label={t.accounts.colors[key]}
 									aria-pressed={color === value}
-									className="w-8 h-8 rounded-full flex items-center justify-center border"
-									style={{
-										background: value,
-										borderColor: color === value ? "var(--text-primary)" : "transparent",
-									}}
+									className="w-11 h-11 -m-1.5 rounded-full flex items-center justify-center"
 								>
-									{color === value && (
-										// ⚠️ `--on-accent`, mai `#fff`: gli accenti invertono la
-										// luminosità fra i temi, quindi ciò che ci sta sopra deve
-										// invertirsi con loro.
-										<Check size={14} style={{ color: "var(--on-accent)" }} strokeWidth={3} />
-									)}
+									<span
+										className="w-8 h-8 rounded-full flex items-center justify-center border"
+										style={{
+											background: value,
+											borderColor: color === value ? "var(--text-primary)" : "transparent",
+										}}
+									>
+										{color === value && (
+											// ⚠️ `--on-accent`, mai `#fff`: gli accenti invertono la
+											// luminosità fra i temi, quindi ciò che ci sta sopra deve
+											// invertirsi con loro.
+											<Check size={14} style={{ color: "var(--on-accent)" }} strokeWidth={3} />
+										)}
+									</span>
 								</button>
 							))}
 						</div>
@@ -334,7 +351,7 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 								placeholder="0"
 								value={initialBalance}
 								onChange={(e) => setInitialBalance(e.target.value)}
-								className="flex-1 bg-transparent outline-none text-[14.5px] placeholder:text-muted/60"
+								className="flex-1 bg-transparent outline-none text-base placeholder:text-muted/60"
 							/>
 						</div>
 						{/*
@@ -387,7 +404,9 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 							<button
 								onClick={handleArchive}
 								disabled={loading || !canArchive}
-								className="w-full flex items-center justify-center gap-2 py-3 text-[13px] font-medium text-muted disabled:opacity-40"
+								// issue #69 — py-3.5 invece di py-3: ~44px, bottone a piena
+							// larghezza senza vicini.
+							className="w-full flex items-center justify-center gap-2 py-3.5 text-[13px] font-medium text-muted disabled:opacity-40"
 							>
 								<Archive size={14} />
 								{confirmArchive ? t.accounts.archiveConfirm : t.accounts.archive}
@@ -415,7 +434,9 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 							<button
 								onClick={handleDelete}
 								disabled={loading}
-								className="w-full flex items-center justify-center gap-2 py-3 text-[13px] font-medium disabled:opacity-40"
+								// issue #69 — py-3.5 invece di py-3: ~44px, bottone a piena
+							// larghezza senza vicini.
+							className="w-full flex items-center justify-center gap-2 py-3.5 text-[13px] font-medium disabled:opacity-40"
 								style={{ color: "var(--ink-aka)" }}
 							>
 								<Trash2 size={14} />

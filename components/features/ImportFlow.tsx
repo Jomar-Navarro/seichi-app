@@ -497,7 +497,8 @@ export default function ImportFlow({ accounts, categories, previous }: Props) {
 								<button
 									type="button"
 									onClick={() => setConfirmUndo(true)}
-									className="text-[13px] font-medium"
+									// issue #69 — -m-2.5 p-2.5: area toccabile ~44px, link isolato.
+									className="-m-2.5 p-2.5 text-[13px] font-medium"
 									style={{ color: "var(--ink-aka)" }}
 								>
 									{t.import.done.undo}
@@ -885,7 +886,8 @@ function AccountPicker({
 						onChange={(e) => setName(e.target.value)}
 						placeholder={t.import.file.newAccountName}
 						maxLength={50}
-						className="flex-1 min-w-0 h-11 px-3.5 rounded-2xl bg-input ring-border text-sm"
+						// issue #69 — text-base: sotto i 16px iOS zooma da solo al focus.
+						className="flex-1 min-w-0 h-11 px-3.5 rounded-2xl bg-input ring-border text-base"
 					/>
 					<button
 						type="button"
@@ -987,7 +989,7 @@ function ImportHistory({
 									<button
 										type="button"
 										onClick={() => setConfirming(null)}
-										className="flex-1 h-10 rounded-xl ring-border bg-control text-[13px] font-medium"
+										className="flex-1 h-11 rounded-xl ring-border bg-control text-[13px] font-medium"
 									>
 										{t.import.done.undoCancel}
 									</button>
@@ -995,7 +997,7 @@ function ImportHistory({
 										type="button"
 										disabled={busy}
 										onClick={() => run(it.id)}
-										className="flex-1 h-10 rounded-xl text-[13px] font-semibold disabled:opacity-50"
+										className="flex-1 h-11 rounded-xl text-[13px] font-semibold disabled:opacity-50"
 										style={{ color: "var(--on-accent)", background: "var(--color-aka)" }}
 									>
 										{t.import.done.undoConfirm}
@@ -1006,7 +1008,8 @@ function ImportHistory({
 							<button
 								type="button"
 								onClick={() => setConfirming(it.id)}
-								className="mt-2.5 text-[12px] font-medium flex items-center gap-1.5"
+								// issue #69 — -m-2.5 p-2.5: area toccabile ~44px, link isolato.
+								className="-m-2.5 p-2.5 mt-2.5 text-[12px] font-medium flex items-center gap-1.5"
 								style={{ color: "var(--ink-aka)" }}
 							>
 								<Undo2 size={12} />
@@ -1224,7 +1227,8 @@ function GroupCard({
 				<button
 					type="button"
 					onClick={() => setOpen((v) => !v)}
-					className="mt-3.5 text-[12px] text-muted flex items-center gap-1.5"
+					// issue #69 — -m-2.5 p-2.5: area toccabile ~44px, comando isolato.
+					className="-m-2.5 p-2.5 mt-3.5 text-[12px] text-muted flex items-center gap-1.5"
 				>
 					{open ? t.import.preview.hideRows : t.import.preview.showRows}
 					<ChevronDown

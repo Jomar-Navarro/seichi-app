@@ -166,18 +166,27 @@ export default function HomeHero({
 			*/}
 			{showBalance && (
 			<div className="flex items-center justify-center gap-1.5 mt-3">
+				{/*
+					issue #69 — il pallino visivo resta 6/22×6px (com'è nel mockup):
+					l'area toccabile vera è il bottone 44×44 che lo contiene, non il
+					pallino stesso.
+				*/}
 				{[0, 1].map((i) => (
 					<button
 						key={i}
 						onClick={() => goTo(i)}
 						aria-label={i === 0 ? t.home.flowTitle : t.accounts.balanceHeading}
 						aria-current={page === i}
-						className="h-1.5 rounded-full transition-all"
-						style={{
-							width: page === i ? 22 : 6,
-							background: page === i ? "var(--ink-midori)" : "var(--border)",
-						}}
-					/>
+						className="w-11 h-11 flex items-center justify-center"
+					>
+						<span
+							className="h-1.5 rounded-full transition-all"
+							style={{
+								width: page === i ? 22 : 6,
+								background: page === i ? "var(--ink-midori)" : "var(--border)",
+							}}
+						/>
+					</button>
 				))}
 			</div>
 			)}

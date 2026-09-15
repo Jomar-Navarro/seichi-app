@@ -25,7 +25,10 @@ export default function FrequencySelector({ value, onChange, color }: FrequencyS
 						// issue #81 — selezionato: bordo VERO (colore opaco, sicuro). A
 						// riposo: anello (`--border` è traslucido, un bordo vero lì
 						// romperebbe l'angolo su Firefox).
-						className={`py-2.5 rounded-xl text-[12.5px] font-medium transition-all ${selected ? "border" : ""}`}
+						// issue #69 — py-3.5 invece di py-2.5: griglia a 3 colonne fisse
+						// e sempre 3 voci (una riga sola), quindi crescere in verticale
+						// non rischia di scontrarsi con un'altra riga.
+						className={`py-3.5 rounded-xl text-[12.5px] font-medium transition-all ${selected ? "border" : ""}`}
 						style={{
 							background: selected
 								? `color-mix(in srgb, ${color} 16%, transparent)`

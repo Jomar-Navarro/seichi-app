@@ -143,7 +143,9 @@ export default function PwaStatus() {
 						<button
 							type="button"
 							onClick={() => window.location.reload()}
-							className="shrink-0 text-[13px] font-semibold text-ao-ink underline underline-offset-2"
+							// issue #69 — -m-2.5 p-2.5: area toccabile ~44px, link isolato
+							// nello slot `action` della notice.
+							className="shrink-0 -m-2.5 p-2.5 text-[13px] font-semibold text-ao-ink underline underline-offset-2"
 						>
 							{t.pwa.updateReload}
 						</button>
@@ -162,7 +164,8 @@ export default function PwaStatus() {
 							type="button"
 							onClick={dismissIosHint}
 							aria-label={t.common.close}
-							className="shrink-0 -m-1 p-1 text-muted"
+							// issue #69 — p-4/-m-4 (44px) invece di p-1/-m-1.
+							className="shrink-0 -m-4 p-4 text-muted"
 						>
 							<X size={15} strokeWidth={1.8} />
 						</button>

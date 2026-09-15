@@ -32,12 +32,16 @@ export default function PasswordField({
 				onChange={(e) => onChange?.(e.target.value)}
 				value={value}
 				required
-				className="grow shrink basis-0 bg-transparent outline-none text-foreground text-sm py-4"
+				// issue #69 — text-base (16px): sotto zooma da solo su iOS al focus.
+				className="grow shrink basis-0 bg-transparent outline-none text-foreground text-base py-4"
 			/>
 			<button
 				type="button"
 				onClick={() => setIsView(!isView)}
-				className="bg-transparent cursor-pointer p-1 flex items-center"
+				// issue #69 — p-3.5 (44px totali con l'icona 18px) invece di p-1,
+				// compensato da -m-2.5 così l'icona resta nella stessa posizione
+				// visiva: solo l'area toccabile invisibile cresce.
+				className="-m-2.5 bg-transparent cursor-pointer p-3.5 flex items-center"
 				aria-label={isView ? t.account.passwordCommon.hide : t.account.passwordCommon.show}
 			>
 				{/* L'icona mostra l'azione disponibile, non lo stato corrente */}

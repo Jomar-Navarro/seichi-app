@@ -45,7 +45,8 @@ export default function EmptyState({
 			{actionLabel && onAction && (
 				<button
 					onClick={onAction}
-					className="px-[22px] py-3 rounded-full text-[13px] font-medium card-shadow-ring"
+					// issue #69 — py-3.5 invece di py-3: ~44px, bottone isolato e centrato.
+					className="px-[22px] py-3.5 rounded-full text-[13px] font-medium card-shadow-ring"
 					style={{ background: "var(--surface)", color: "var(--text-secondary)" }}
 				>
 					{actionLabel}

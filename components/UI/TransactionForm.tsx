@@ -508,7 +508,8 @@ export default function TransactionForm({
 							placeholder={t.transactions.form.descriptionPlaceholder}
 							value={description ?? ""}
 							onChange={(e) => setDescription(e.target.value)}
-							className="bg-transparent text-sm flex-1 outline-none placeholder:text-muted"
+							// issue #69 — text-base: sotto i 16px iOS zooma da solo al focus.
+							className="bg-transparent text-base flex-1 outline-none placeholder:text-muted"
 						/>
 					</div>
 				</div>

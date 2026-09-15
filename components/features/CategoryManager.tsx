@@ -108,16 +108,24 @@ export default function CategoryManager({ categories }: { categories: Category[]
 											</span>
 											<span className="flex-1 text-sm font-medium truncate">{cat.name}</span>
 
+											{/*
+												issue #69 — 44px verticali (la riga è alta 62px, c'è
+												spazio), ma SOLO 28px orizzontali: i due bottoni sono
+												adiacenti con appena 12px di gap fra loro, e allargarli
+												anche in orizzontale li farebbe sovrapporre. Residuo
+												dichiarato — la larghezza piena servirebbe una riga
+												ridisegnata, non una correzione di rendering.
+											*/}
 											<button
 												onClick={() => openEdit(cat)}
-												className="w-7 h-7 rounded-[9px] flex items-center justify-center bg-control active:opacity-70"
+												className="w-7 h-11 -my-2 rounded-[9px] flex items-center justify-center bg-control active:opacity-70"
 												aria-label={t.common.edit}
 											>
 												<Pencil size={13} className="text-muted" />
 											</button>
 											<button
 												onClick={() => requestDelete(cat)}
-												className="w-7 h-7 rounded-[9px] flex items-center justify-center active:opacity-70"
+												className="w-7 h-11 -my-2 rounded-[9px] flex items-center justify-center active:opacity-70"
 												style={{ background: "color-mix(in srgb, var(--color-aka) 8%, transparent)" }}
 												aria-label={t.common.delete}
 											>

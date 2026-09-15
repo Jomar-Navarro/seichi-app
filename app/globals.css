@@ -317,11 +317,19 @@ html {
 	background-color: var(--background-secondary);
 }
 
+/*
+ * issue #69 — `min-height` NON sta qui: `@import "tailwindcss"` mette ogni
+ * utility Tailwind (inclusa `.min-h-lvh`, applicata a questo stesso <body>
+ * in app/layout.tsx) dentro il layer `utilities`. Questo blocco invece è CSS
+ * NON stratificato — e per la cascata degli @layer il non-stratificato vince
+ * SEMPRE sullo stratificato, ordine e specificità a parte. Un `min-height:
+ * 100vh` qui batteva silenziosamente `min-h-lvh`, vanificando l'intento di
+ * seguire il viewport dinamico invece della toolbar espansa di Safari.
+ */
 body {
 	background: var(--background);
 	background-attachment: fixed;
 	color: var(--text-primary);
-	min-height: 100vh;
 }
 
 /*

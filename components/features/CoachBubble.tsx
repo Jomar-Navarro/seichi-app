@@ -132,7 +132,9 @@ function CoachPanel({
 					<button
 						onClick={onClose}
 						aria-label={t.coach.close}
-						className="w-8 h-8 flex items-center justify-center rounded-xl bg-control ring-border shrink-0"
+							// issue #69 — w-11 h-11 (44px): area toccabile minima, isolata
+						// nell'angolo dell'header, l'icona resta 15px.
+						className="w-11 h-11 flex items-center justify-center rounded-xl bg-control ring-border shrink-0"
 					>
 						<X size={15} />
 					</button>
@@ -194,7 +196,9 @@ function CoachPanel({
 										type="button"
 										onClick={() => setScelto(attiva ? null : r.topic)}
 										aria-pressed={attiva}
-										className={`px-3.5 py-2.5 rounded-2xl text-[12.5px] ring-border transition-colors ${
+										// issue #69 — py-3.5 invece di py-2.5: flex-wrap, niente
+										// rischio crescendo.
+										className={`px-3.5 py-3.5 rounded-2xl text-[12.5px] ring-border transition-colors ${
 											attiva
 												? "bg-tab font-medium"
 												: "bg-control text-secondary"

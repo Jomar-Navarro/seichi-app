@@ -25,7 +25,9 @@ export default async function PageHeader({ title, backHref, tone, className = "m
 		<div className={`flex items-center gap-3.5 ${className}`}>
 			<Link
 				href={backHref}
-				className="w-10 h-10 rounded-xl flex items-center justify-center bg-control ring-border shrink-0 active:opacity-80"
+				// issue #69 — w-11 h-11 (44px): area toccabile minima, isolata a
+				// sinistra del titolo, l'icona resta 17px.
+				className="w-11 h-11 rounded-xl flex items-center justify-center bg-control ring-border shrink-0 active:opacity-80"
 				aria-label={t.common.back}
 			>
 				<ChevronLeft size={17} className="text-secondary" />

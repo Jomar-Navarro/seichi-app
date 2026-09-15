@@ -59,7 +59,10 @@ export default function PasswordInput({
 				<button
 					type="button"
 					onClick={() => setVisible((v) => !v)}
-					className="p-1 flex items-center shrink-0 cursor-pointer"
+					// issue #69 — p-3.5 (44px totali con l'icona 17px) invece di p-1,
+					// compensato da -m-2.5 così l'icona resta nella stessa posizione
+					// visiva: solo l'area toccabile invisibile cresce.
+					className="-m-2.5 p-3.5 flex items-center shrink-0 cursor-pointer"
 					aria-label={visible ? t.account.passwordCommon.hide : t.account.passwordCommon.show}
 				>
 					{/* L'icona mostra l'AZIONE, non lo stato: a password visibile si

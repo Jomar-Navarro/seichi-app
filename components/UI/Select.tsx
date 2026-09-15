@@ -143,7 +143,7 @@ export default function Select({
 					 * solo dentro le card dell'import.
 					 */
 					<div
-						className={`absolute ${openUp ? "bottom-full mb-1" : "top-full mt-1"} left-0 right-0 z-10 rounded-2xl bg-deep ring-border max-h-[min(320px,45vh)] overflow-y-auto scrollbar-none`}
+						className={`absolute ${openUp ? "bottom-full mb-1" : "top-full mt-1"} left-0 right-0 z-10 rounded-2xl bg-deep ring-border max-h-[min(320px,45dvh)] overflow-y-auto overscroll-contain scrollbar-none`}
 					>
 						{options.map((option) => (
 							<button
@@ -153,7 +153,9 @@ export default function Select({
 									setIsOpen(false);
 									onOpenChange?.(false);
 								}}
-								className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-card"
+								// issue #69 — py-3 invece di py-2.5: righe impilate in un
+								// elenco scorrevole, niente rischio crescendo.
+								className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-card"
 							>
 								{option.icon && <span className="shrink-0">{option.icon}</span>}
 								<span className="flex-1 text-left">{option.label}</span>
@@ -223,7 +225,7 @@ export default function Select({
 				 */
 				<div className="absolute top-full mt-2 left-0 right-0 z-30 rounded-[20px] overflow-hidden box-shadow-ring">
 					<div className="absolute inset-0 bg-deep backdrop-blur-[30px]" />
-					<div className="relative p-2 max-h-[min(340px,50vh)] overflow-y-auto scrollbar-none">
+					<div className="relative p-2 max-h-[min(340px,50dvh)] overflow-y-auto overscroll-contain scrollbar-none">
 						{options.map((option) => (
 							<div
 								onClick={() => {
@@ -232,7 +234,9 @@ export default function Select({
 									onOpenChange?.(false);
 								}}
 								key={option.value}
-								className="flex items-center justify-between py-2.5 px-3 cursor-pointer"
+								// issue #69 — py-3 invece di py-2.5: righe impilate in un
+								// elenco scorrevole, niente rischio crescendo.
+								className="flex items-center justify-between py-3 px-3 cursor-pointer"
 							>
 								<span className="flex items-center gap-3">
 									<span className="w-6 text-center text-sm text-foreground">
