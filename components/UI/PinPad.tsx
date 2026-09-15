@@ -145,29 +145,37 @@ export default function PinPad({
 	// chiuso fuori.
 	//
 	// `onClick` da solo raddoppierebbe la pressione per chi TOCCA lo schermo
-	// (pointerdown la esegue già), quindi si distingue con un ref: se il
-	// click arriva SUBITO dopo un pointerdown per la stessa cifra, è l'eco
-	// di compatibilità del browser per lo stesso gesto — si ignora. Se
-	// arriva senza un pointerdown appena precedente, è tastiera. Il timeout
-	// è la stessa rete di sicurezza di `swallowNextClick`: se il browser non
-	// sintetizzasse mai quell'eco, il flag non deve restare acceso in
-	// attesa di un tocco da tastiera successivo e del tutto legittimo.
-	const pointerHandledRef = useRef(false);
+	// (pointerdown la esegue già), quindi si distingue con un CONTATORE: ogni
+	// click fantasma si accoppia al PIÙ VECCHIO pointerdown non ancora
+	// confermato, invece che a "un pointerdown qualsiasi appena successo".
+	//
+	// ⚠️ Trovato usando l'app vera, digitando in fretta: con un booleano solo
+	// (versione precedente) due tocchi ravvicinati su cifre DIVERSE potevano
+	// far "rubare" il reset al click sbagliato — pointerdown(A) alza il
+	// flag, pointerdown(B) lo trova già alzato (nessun danno), il click
+	// fantasma di A lo consuma correttamente PER SÉ ma lo riporta a `false`
+	// anche per B, e il click fantasma di B — trovando il flag già basso —
+	// veniva scambiato per un tocco da tastiera vero: la cifra B risultava
+	// digitata due volte. Un contatore non ha questa ambiguità: ogni
+	// pointerdown incrementa, ogni click consuma UNA unità qualunque cifra
+	// l'abbia generata, quindi il conteggio resta corretto anche quando i
+	// gesti di due tasti diversi si intrecciano.
+	const pendingPointerPressesRef = useRef(0);
 
 	// Generalizzata rispetto alla versione originale (che prendeva solo una
 	// cifra) perché il tasto biometrico ha bisogno della STESSA deduplica
 	// pointerdown/click, non di una copia scritta apposta — due implementazioni
 	// dello stesso meccanismo sarebbero due occasioni di farle divergere.
 	function onPointerDownAction(action: () => void) {
-		pointerHandledRef.current = true;
+		pendingPointerPressesRef.current += 1;
 		action();
 		setTimeout(() => {
-			pointerHandledRef.current = false;
+			pendingPointerPressesRef.current = Math.max(0, pendingPointerPressesRef.current - 1);
 		}, 400);
 	}
 	function onClickAction(action: () => void) {
-		if (pointerHandledRef.current) {
-			pointerHandledRef.current = false;
+		if (pendingPointerPressesRef.current > 0) {
+			pendingPointerPressesRef.current -= 1;
 			return;
 		}
 		action();
