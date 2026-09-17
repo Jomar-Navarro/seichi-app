@@ -223,6 +223,32 @@ export async function generateViewport(): Promise<Viewport> {
 		initialScale: 1,
 		viewportFit: "cover",
 		colorScheme: resolved,
+		/*
+		 * issue #69 (Fase 27, punto 4 — tastiera) — `resizes-content`, non il
+		 * default del browser (`resizes-visual` su iOS ≥17.4, di fatto lo
+		 * stesso comportamento sulle versioni precedenti).
+		 *
+		 * Senza, quando compare la tastiera il browser restringe solo il
+		 * viewport VISIVO: il viewport di LAYOUT — quello contro cui si
+		 * calcolano `dvh` e un elemento `position: fixed` — resta della
+		 * dimensione piena, e la sua metà inferiore finisce dietro la
+		 * tastiera. È esattamente il bottone "Salva" `fixed` di
+		 * `TransactionForm` e il `90dvh` di `BottomSheetShell`: senza
+		 * questa proprietà la tastiera li avrebbe coperti, non spostati
+		 * sopra di sé — indipendentemente da qualunque `padding-bottom`
+		 * scritto in CSS, perché il problema non è lo spazio ma la base di
+		 * calcolo.
+		 *
+		 * Con `resizes-content` il layout viewport si restringe DAVVERO, e
+		 * `dvh`/`fixed` si ricalcolano contro la nuova dimensione — la
+		 * tastiera li spinge sopra di sé invece di coprirli. Resta un buco
+		 * separato che questa proprietà non chiude: lo scroll automatico
+		 * "porta il campo a fuoco in vista" che i browser fanno di serie non
+		 * è affidabile dentro un `overflow-y: auto` annidato in un antenato
+		 * `position: fixed` — la forma di ogni foglio di questo progetto.
+		 * Per quello c'è `useScrollFocusedIntoView` (`components/UI/`).
+		 */
+		interactiveWidget: "resizes-content",
 	};
 }
 
