@@ -21,6 +21,7 @@ import {
 import { useUIStore } from "@/store/useUIStore";
 import DatePicker from "@/components/UI/DatePicker";
 import { useI18n } from "@/components/features/I18nProvider";
+import { useScrollFocusedIntoView } from "@/components/UI/useScrollFocusedIntoView";
 
 /**
  * ⚠️ Il calendario NON sta più qui.
@@ -93,6 +94,15 @@ export default function TransactionForm({
 	 */
 	const pickerRef = useRef<AttachmentPickerHandle | null>(null);
 	const [attachmentError, setAttachmentError] = useState<string | null>(null);
+	/*
+	 * issue #69 — questo form vive dentro il foglio `fixed` di
+	 * `TransactionModal` (non `BottomSheetShell`: ha markup suo, vedi
+	 * quel file), e il suo scroll è quindi lo stesso caso — un campo a
+	 * fuoco (la descrizione) non finisce da solo sopra la tastiera.
+	 * Vedi useScrollFocusedIntoView.
+	 */
+	const scrollRef = useRef<HTMLDivElement>(null);
+	useScrollFocusedIntoView(scrollRef);
 	/**
 	 * L'id del movimento APPENA creato da questo form.
 	 *
@@ -425,7 +435,10 @@ export default function TransactionForm({
 				riserva lo spazio sotto, o l'ultimo campo (o il comando elimina)
 				resterebbe nascosto dietro il bottone.
 			*/}
-			<div className="flex flex-col flex-1 min-h-0 overflow-y-auto overscroll-contain scrollbar-none pb-24">
+			<div
+				ref={scrollRef}
+				className="flex flex-col flex-1 min-h-0 overflow-y-auto overscroll-contain scrollbar-none pb-24"
+			>
 			<div className="flex flex-col gap-2 mb-3">
 				{/*
 					Categoria — assente sui trasferimenti, dove la posizione la prende

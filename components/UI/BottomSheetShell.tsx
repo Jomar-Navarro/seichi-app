@@ -1,7 +1,8 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import { useCloseOnBack } from "./useCloseOnBack";
+import { useScrollFocusedIntoView } from "./useScrollFocusedIntoView";
 
 interface BottomSheetShellProps {
 	onClose: () => void;
@@ -67,6 +68,11 @@ export default function BottomSheetShell({ onClose, children, ariaLabel }: Botto
 	// che altrimenti naviga la pagina SOTTO invece di restare nel foglio.
 	useCloseOnBack(onClose);
 
+	// issue #69 — il campo a fuoco dentro questo scroll annidato in un
+	// `fixed` non finisce da solo sopra la tastiera. Vedi useScrollFocusedIntoView.
+	const scrollRef = useRef<HTMLDivElement>(null);
+	useScrollFocusedIntoView(scrollRef);
+
 	return (
 		<div className="fixed inset-0 z-50 flex items-end">
 			<div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={onClose} />
@@ -79,6 +85,7 @@ export default function BottomSheetShell({ onClose, children, ariaLabel }: Botto
 				<div className="absolute inset-0 bg-modal backdrop-blur-2xl" />
 
 				<div
+					ref={scrollRef}
 					// issue #69 — overscroll-contain: senza, il rimbalzo a fine scroll
 					// di questo contenitore annidato si propaga alla pagina sotto
 					// (rubber-band/pull che scappa dal foglio).
