@@ -51,24 +51,59 @@ function isTextEntry(el: HTMLElement): boolean {
  */
 export function useScrollFocusedIntoView(containerRef: RefObject<HTMLElement | null>) {
 	useEffect(() => {
-		const container = containerRef.current;
-		if (!container) return;
+		const maybeContainer = containerRef.current;
+		if (!maybeContainer) return;
+		// Tipo esplicito non-null: senza, TS resetta la narrowing di
+		// `maybeContainer` dentro `handleFocusIn` (una funzione che il
+		// controllo di flusso tratta come invocabile in un momento futuro
+		// imprecisato, quindi non fidabile).
+		const container: HTMLElement = maybeContainer;
 
 		let timer: ReturnType<typeof setTimeout> | null = null;
 
+		/*
+		 * ⚠️ In ascolto sul DOCUMENTO, non sul contenitore, e ogni focusin
+		 * annulla PRIMA di guardare dove sia andato il focus — non solo
+		 * quando il nuovo bersaglio è un campo di testo.
+		 *
+		 * La prima versione ascoltava solo sul contenitore e usciva subito
+		 * per un bersaglio non testuale: spostare il focus dalla descrizione
+		 * al bottone della data (`DatePicker`, un `<button>`) entro i 300ms
+		 * lasciava il timer del campo precedente VIVO, e scattava sul campo
+		 * ormai sfocato mentre l'utente stava scegliendo la data — un salto
+		 * di scroll a metà gesto. Un caso gemello: il bottone "Salva" di
+		 * `TransactionForm` è un FRATELLO del contenitore che scorre (non un
+		 * suo discendente), quindi un focusin lì non faceva nemmeno scattare
+		 * l'ascoltatore — stesso timer fantasma, mai annullato.
+		 *
+		 * Ascoltare sul documento e verificare `contains()` qui dentro
+		 * risolve entrambi: qualunque cambio di focus, ovunque avvenga,
+		 * annulla il pendente; se ne pianifica uno nuovo solo quando il
+		 * bersaglio è DENTRO questo contenitore ed è un campo di testo.
+		 */
 		function handleFocusIn(e: FocusEvent) {
-			const target = e.target;
-			if (!(target instanceof HTMLElement) || !isTextEntry(target)) return;
+			if (timer) {
+				clearTimeout(timer);
+				timer = null;
+			}
 
-			if (timer) clearTimeout(timer);
+			const target = e.target;
+			if (
+				!(target instanceof HTMLElement) ||
+				!container.contains(target) ||
+				!isTextEntry(target)
+			) {
+				return;
+			}
+
 			timer = setTimeout(() => {
 				target.scrollIntoView({ block: "center", behavior: "smooth" });
 			}, SCROLL_INTO_VIEW_DELAY_MS);
 		}
 
-		container.addEventListener("focusin", handleFocusIn);
+		document.addEventListener("focusin", handleFocusIn);
 		return () => {
-			container.removeEventListener("focusin", handleFocusIn);
+			document.removeEventListener("focusin", handleFocusIn);
 			if (timer) clearTimeout(timer);
 		};
 		// `containerRef` in dipendenza: è un useRef, stabile per l'intera vita
