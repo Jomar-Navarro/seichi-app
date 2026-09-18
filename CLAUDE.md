@@ -6171,7 +6171,7 @@ Seguire questo ordine, non saltare fasi:
       il 2026-09-11, appena disponibile il primo deploy pubblico: Face
       ID/Touch ID verificato funzionante su `https://seichi-app.vercel.app`.
       **L'issue #67 è ora chiusa per intero**, sia 26a sia 26b.
-27. Mobile nativo — comportamento su dispositivo reale (vedi sotto)
+27. ✅ Mobile nativo — comportamento su dispositivo reale (vedi sotto)
 28. Responsive tablet + desktop
 29. Animazioni: transizioni morbide, micro-interazioni
 
@@ -6192,6 +6192,19 @@ Ordine per priorità (il viewport è il problema più sentito):
 5. **Touch target** — area toccabile ≥ 44×44px su tutti gli elementi interattivi.
 6. **Scroll** — momentum scroll e `overscroll-behavior` per evitare bounce/pull
    indesiderati fuori dai container.
+
+#### ✅ Collaudata dal telefono sull'IP di LAN — 2026-09-18
+
+Tutti e sei i punti verificati a mano, PR1 (#96) e PR2 (#99) insieme come
+previsto da entrambi i test plan: toolbar dinamica di Safari (item 1) senza
+bottom nav o bottoni pinned nascosti sotto di lei; touch target delicati
+(item 5 — swatch colore di `AccountSheet`, righe azione di
+`RecurringManager`/`CategoryManager`, cestino sulle miniature di
+`AttachmentPicker`); overscroll contenuto nei pannelli/tendine senza
+propagarsi alla pagina sotto (item 6); scroll-into-view della tastiera su
+`TransactionForm` e sui `BottomSheetShell` di Goal/Categoria/Ricorrente/Conto,
+col bottone "Salva" fisso sempre sopra la tastiera (item 4). Chiude l'issue
+#69 e la Fase 27.
 
 ## Key Decisions
 
