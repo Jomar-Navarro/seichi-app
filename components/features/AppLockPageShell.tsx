@@ -26,7 +26,11 @@ export default function AppLockPageShell({ children }: { children: ReactNode }) 
 		// pb-12 durante il wizard (barra assente, stesso valore di
 		// `/analisi/report` — Fase 23b, la stessa idea di "route documento"
 		// applicata qui a un solo STATO invece che all'intera pagina).
-		<div className={`flex flex-col min-h-dvh px-5 pt-7 ${fullScreenActive ? "pb-12" : "pb-34"}`}>
+		<div
+			className={`flex flex-col min-h-dvh px-5 pt-7 ${fullScreenActive ? "pb-12" : "pb-34"} ${
+				fullScreenActive ? "" : "lg:max-w-3xl lg:mx-auto lg:w-full"
+			}`}
+		>
 			{children}
 		</div>
 	);

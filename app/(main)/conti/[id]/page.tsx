@@ -29,7 +29,7 @@ export default async function AccountDetailPage({
 		 * questa pagina non deve rifare quella distinzione — la eredita.
 		 */
 		return (
-			<div className="flex flex-col min-h-dvh px-5 pt-7 pb-36">
+			<div className="flex flex-col min-h-dvh px-5 pt-7 pb-36 lg:max-w-3xl lg:mx-auto lg:w-full">
 				<PageHeader title={t.accounts.title} backHref="/conti" />
 				<p className="text-muted text-sm mt-4">{result.error}</p>
 			</div>
@@ -37,7 +37,7 @@ export default async function AccountDetailPage({
 	}
 
 	return (
-		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-36">
+		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-36 lg:max-w-3xl lg:mx-auto lg:w-full">
 			<PageHeader title={result.data.name} backHref="/conti" />
 			<AccountDetailClient account={result.data} />
 		</div>

@@ -8,7 +8,7 @@ export default async function EliminaAccountPage() {
 	const { t } = await getI18n();
 
 	return (
-		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34">
+		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34 lg:max-w-3xl lg:mx-auto lg:w-full">
 			<PageHeader
 				title={t.settings.deleteAccount}
 				backHref="/impostazioni"

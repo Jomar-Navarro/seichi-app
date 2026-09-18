@@ -1,5 +1,7 @@
 import { cookies } from "next/headers";
 import BottomNav from "@/components/UI/BottomNav";
+import Sidebar from "@/components/UI/Sidebar";
+import MainContentShell from "@/components/UI/MainContentShell";
 import TransactionModal from "@/components/UI/TransactionModal";
 import AppLockProvider from "@/components/features/AppLockProvider";
 import PwaStatus from "@/components/features/PwaStatus";
@@ -43,7 +45,8 @@ export default async function RootLayout({
 		>
 			<AppLockProvider initialLocked={initialLocked}>
 				<PwaStatus />
-				{children}
+				<Sidebar />
+				<MainContentShell>{children}</MainContentShell>
 				<BottomNav />
 				<TransactionModal />
 			</AppLockProvider>

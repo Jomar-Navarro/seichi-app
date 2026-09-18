@@ -236,7 +236,7 @@ export default function MovimentiPage() {
 	// INTERNO invece che sul documento: `scrollbar-none` sull'`<html>` (root
 	// layout) non la raggiunge, va ripetuta qui.
 	return (
-		<div className="flex flex-col flex-1 px-5 pt-8 pb-34 overflow-y-auto scrollbar-none">
+		<div className="flex flex-col flex-1 px-5 pt-8 pb-34 overflow-y-auto scrollbar-none lg:max-w-3xl lg:mx-auto lg:w-full">
 			<h1 className="text-2xl font-semibold mb-5">{t.transactions.title}</h1>
 			<FilterBar
 				search={search}

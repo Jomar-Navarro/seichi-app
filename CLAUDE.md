@@ -6172,7 +6172,17 @@ Seguire questo ordine, non saltare fasi:
       ID/Touch ID verificato funzionante su `https://seichi-app.vercel.app`.
       **L'issue #67 è ora chiusa per intero**, sia 26a sia 26b.
 27. ✅ Mobile nativo — comportamento su dispositivo reale (vedi sotto)
-28. Responsive tablet + desktop
+28. Responsive tablet + desktop — **progettata per intero il 2026-09-18**,
+    mockup Claude Design prima di scrivere codice (sidebar applicata a Home e
+    Impostazioni, entrambe le larghezze, entrambi i temi). Quattro PR:
+    - **28a ✅ shell** (issue TBD) — sidebar a sei voci da `lg:` in su,
+      `MainContentShell`, contenitore di transizione su tutte le pagine.
+    - **28b** pagine dashboard (Home/Investimenti/Analisi/Risparmi/Conti) +
+      il fix del pannello notifiche
+    - **28c** pagine lineari — sostituisce il contenitore di transizione con
+      lo stretto definitivo
+    - **28d** sheet e modali centrati da `lg:` in su
+    Motivazioni e decisioni in "Fase 28" sotto.
 29. Animazioni: transizioni morbide, micro-interazioni
 
 ### Fase 27 — Mobile nativo (checklist)
@@ -6205,6 +6215,129 @@ propagarsi alla pagina sotto (item 6); scroll-into-view della tastiera su
 `TransactionForm` e sui `BottomSheetShell` di Goal/Categoria/Ricorrente/Conto,
 col bottone "Salva" fisso sempre sopra la tastiera (item 4). Chiude l'issue
 #69 e la Fase 27.
+
+### Fase 28 — responsive tablet e desktop
+
+Progettata per intero il 2026-09-18, mockup Claude Design prima di scrivere
+codice (sidebar applicata a Home e Impostazioni, alla larghezza del
+breakpoint `lg:` e a una più larga da desktop, entrambi i temi) — lo stesso
+principio già seguito per ogni fase grande di questo progetto. Prima di
+disegnare, l'audit del codice esistente: **zero classi `md:`/`lg:`/`xl:`/
+`2xl:`** in tutto `app/(main)/` e nei componenti che usa in esclusiva — l'app
+autenticata era al 100% mobile-only. L'unico precedente responsive nel repo è
+`(auth)`/`(onboarding)` (Fase 4-5): un pannello di contenuto senza chrome
+persistente, che non si applica direttamente qui — l'app autenticata ha
+bisogno di una navigazione che regga su schermi larghi, cosa che quel
+contesto non ha mai dovuto risolvere.
+
+#### La decisione che precede tutte le altre: sidebar, non pillola centrata
+
+La pillola mobile (`BottomNav`) ha deliberatamente solo 4 voci + FAB — un
+vincolo del pollice deciso in Fase 20a — quindi Analisi e Impostazioni
+restano oggi raggiungibili solo da una card scorciatoia in home e dal menu
+profilo. Su schermi larghi quel vincolo non esiste, e lasciarle secondarie
+avrebbe letto come un porting incompleto piuttosto che un'esperienza
+desktop pensata. Decisione (con l'utente, tre opzioni valutate): **una
+sidebar fissa a sinistra con tutte e sei le sezioni**, non la pillola solo
+centrata (avrebbe conservato il buco) né una barra orizzontale in alto
+(avrebbe introdotto un terzo paradigma di navigazione oltre a mobile e
+desktop). Chiude anche il gap che Analisi/Impostazioni avevano su desktop.
+
+**Breakpoint riusati identici al precedente auth/onboarding**, non inventati
+da zero: `lg:` (1024px, Tailwind default — nessun override in `globals.css`)
+per il cambio strutturale, `xl:` per rifinitura. Niente `md:`: un iPad in
+verticale (768px) resta nel layout mobile, esattamente come già fa
+auth/onboarding.
+
+#### Il mockup, prima del codice
+
+Pubblicato via Claude Design (Artifact "Design"): quattro artboard — Home e
+Impostazioni, ciascuna alla larghezza del breakpoint (1024px, il punto più
+stretto in cui sidebar e contenuto devono già convivere) e a una desktop
+(1440px) — con un componente sidebar condiviso via `<dc-import>` e un
+interruttore chiaro/scuro dal pannello Tweaks invece di board duplicate per
+tema. Verificato a mente, prima di disegnare, che la griglia a 4 colonne
+delle card riassuntive regga anche al punto più stretto (sidebar 256px +
+contenuto ~688px → card da ~163px, la stessa larghezza approssimativa delle
+card 2 colonne di oggi su mobile) — confermato poi dal collaudo vero.
+
+#### PR 28a — lo shell
+
+**`components/UI/Sidebar.tsx`** (nuovo) — rail fissa `hidden lg:flex fixed
+left-0 top-0 bottom-0 w-64`, stesso schema di `BottomNav.tsx`. Le sei voci
+usano gli stessi `SeichiIcon` già in `lib/seichi-icons.tsx`
+(`ChartNoAxesCombinedIcon`/`SettingsIcon` esistevano già, nella stessa
+sezione "Navigation" di `HomeIcon`/`ReceiptIcon`/`PiggyBankIcon`/
+`TrendingUpIcon` — riusati, non importati da `lucide-react`). Un bottone
+primario "Aggiungi transazione" in cima: l'azione del FAB non può sparire
+solo perché la pillola è `lg:hidden`, deve solo cambiare casa.
+
+**`components/UI/useNavVisibility.ts`** (nuovo) — estrae le due guardie che
+`BottomNav.tsx` aveva inline (`DOCUMENT_ROUTES`, `fullScreenActive`) in un
+hook condiviso. Non è un refactor cosmetico: sidebar e pillola devono
+nascondersi esattamente alle stesse condizioni, o una futura rotta-documento
+o un futuro flusso a schermo intero ne aggiornerebbe una sola.
+
+**`components/UI/MainContentShell.tsx`** (nuovo) — il gutter `lg:pl-64` che
+`{children}` guadagna in `(main)/layout.tsx`. ⚠️ **Legge lo stesso
+`useNavHidden()` della sidebar**, non solo `fullScreenActive` come la prima
+stesura del piano prevedeva: se la sidebar sparisce anche su una
+rotta-documento (`/analisi/report`), il gutter deve sparire con lei, o
+resterebbe uno spazio vuoto riservato a una sidebar che non c'è. Verificato
+che non confligge con `AppLockPageShell.tsx` (Fase 26a): quello gestisce
+solo il proprio `pb-*` interno, un livello diverso dal gutter esterno.
+
+**Il contenitore**: nella stessa PR, `lg:max-w-3xl lg:mx-auto lg:w-full`
+aggiunto a tutte le ~17 wrapper `className` esistenti (il pattern `flex
+flex-col min-h-dvh px-5 pt-7 pb-3X`, ripetuto pagina per pagina — incluso
+`AppLockPageShell.tsx` per `/impostazioni/blocco`, condizionato a
+`!fullScreenActive` per lo stesso motivo del gutter: il wizard PIN resta
+edge-to-edge anche su desktop). Un valore di transizione uniforme (768px),
+non ancora differenziato in stretto/largo — quello arriva pagina per pagina
+con 28b/28c. Esclusa deliberatamente `/analisi/report`: è una rotta-documento
+(Fase 23b), fuori dal trattamento responsive normale.
+
+⚠️ **`t.nav` guadagna due chiavi** (`analytics`/`settings`, in `it.ts` e
+`en.ts`) copiando i valori letterali già in uso altrove
+(`t.home.analyticsTitle`, `t.settings.title`/`t.profileMenu.settings`) — non
+una nuova traduzione, la stessa parola già scritta altrove.
+
+#### Il collaudo — driver Playwright ad hoc, sessione riusata via cookie
+
+Il driver esistente (`collauda-app`) è fissato a un viewport mobile
+(414×896): questa fase ne richiedeva uno nuovo, a più larghezze. Verificato:
+768px invariato (nessuna sidebar, pillola presente come sempre — screenshot
+a conferma), 1024px e 1440px con la sidebar e tutte e sei le voci, la
+pillola assente, "Home" evidenziata come voce attiva, navigazione reale
+click-per-click verso Impostazioni e Analisi con l'evidenziazione che segue,
+e il wizard PIN che fa sparire la sidebar (verificato `fullScreenActive`
+condiviso). Zero errori console in ogni scatto.
+
+⚠️ **Un KO ripetuto due volte, diagnosticato prima di crederci**: il click
+sui link di navigazione, letto con `page.url()` subito dopo
+`waitForLoadState("networkidle")`, dava "KO" in modo riproducibile dentro il
+driver completo ma **non** isolando la stessa identica sequenza di contesti
+in uno script a parte, dove un `waitForTimeout` piatto al posto di
+`networkidle` vedeva sempre l'evento `framenavigated` corretto. La causa:
+`networkidle` dopo una navigazione CLIENT-SIDE di Next.js può risolvere
+prima che il router applichi l'URL — una corsa nel test, non nella pagina.
+Vale come nota di metodo per ogni futuro driver di questo repo che debba
+cliccare un link interno: dopo un click su una navigazione client-side,
+un'attesa fissa è più affidabile di `networkidle`.
+
+#### Emerso preparando 28b, non ancora corretto
+
+`components/features/NotificationBell.tsx` ha il pannello `fixed left-5
+right-5` — ancorato ai margini del **viewport**, deliberatamente (il
+pannello mobile è largo quanto il contenuto, non quanto la campanella). Con
+la sidebar e un contenuto centrato su una finestra larga, il pannello si
+allargherebbe su quasi tutta la finestra, staccato dalla campanella che lo
+apre. `CoachBubble`/`ProfileMenu` non hanno lo stesso problema: il primo usa
+già `BottomSheetShell` (coperto da 28d), il secondo è già ancorato al
+proprio trigger (`absolute left-0 top-13`). Il fix — ancorare il pannello
+al trigger a `lg:`, il `top` già calcolato da `getBoundingClientRect()`
+resta invariato — è nello scope di 28b, quando la home viene comunque
+toccata per la griglia dashboard.
 
 ## Key Decisions
 
