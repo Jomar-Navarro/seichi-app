@@ -12,7 +12,7 @@ export default async function ContiPage() {
 	}
 
 	return (
-		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-36">
+		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-36 lg:max-w-3xl lg:mx-auto lg:w-full">
 			<AccountsPageClient accounts={result.data} />
 		</div>
 	);

@@ -67,6 +67,12 @@ export const it = {
 		transactions: "Transazioni",
 		goals: "Obiettivi",
 		investments: "Investimenti",
+		// analytics/settings: solo la sidebar da `lg:` in su (Fase 28a) — sulla
+		// pillola mobile Analisi e Impostazioni restano fuori per scelta
+		// (Fase 20a). Stessi valori già in uso altrove (analyticsTitle,
+		// profileMenu.settings/settings.title): non una nuova traduzione.
+		analytics: "Analisi",
+		settings: "Impostazioni",
 		addTransaction: "Aggiungi transazione",
 	},
 

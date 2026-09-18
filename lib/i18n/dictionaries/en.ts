@@ -47,6 +47,8 @@ export const en: Dictionary = {
 		transactions: "Transactions",
 		goals: "Goals",
 		investments: "Investments",
+		analytics: "Analytics",
+		settings: "Settings",
 		addTransaction: "Add transaction",
 	},
 

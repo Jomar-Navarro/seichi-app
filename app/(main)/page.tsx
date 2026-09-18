@@ -193,7 +193,7 @@ async function DashboardContent({
 				Il contenuto sta comunque sopra gli aloni perché entrambi sono
 				posizionati con z-index auto e vince l'ordine nel DOM.
 			*/}
-			<div className="relative flex flex-col gap-4 px-5 pt-7 pb-32">
+			<div className="relative flex flex-col gap-4 px-5 pt-7 pb-32 lg:max-w-3xl lg:mx-auto lg:w-full">
 			{/*
 				Come nel mockup: a sinistra l'avatar col saluto e il nome (è il
 				gruppo intero ad aprire il menu), a destra le due pastiglie.

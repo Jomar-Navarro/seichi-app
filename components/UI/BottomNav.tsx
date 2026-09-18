@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUIStore } from "@/store/useUIStore";
 import { useI18n } from "@/components/features/I18nProvider";
+import { useNavHidden } from "./useNavVisibility";
 import {
 	HomeIcon,
 	ReceiptIcon,
@@ -20,35 +21,17 @@ const NAV_ITEMS = [
 	{ href: "/investimenti", icon: TrendingUpIcon, key: "investments" },
 ] as const;
 
-/**
- * Le rotte che sono un DOCUMENTO, non una schermata dell'app.
- *
- * ⚠️ Qui la barra non si limita a occupare spazio: è `fixed`, quindi
- * galleggia sopra il contenuto mentre si scorre, e su un'anteprima di stampa
- * copre proprio le parti che si sta andando a controllare — il donut delle
- * spese, nel caso che l'ha fatta notare. `no-print` la toglie dalla carta ma
- * non dallo schermo, e l'anteprima serve a vedere prima ciò che uscirà.
- *
- * ⚠️ Nascondere qui è meglio che spostare il report fuori dal gruppo
- * `(main)`: quello vorrebbe un layout proprio e un secondo controllo di
- * autenticazione, per ottenere la stessa cosa in più righe.
- *
- * ⚠️ `/impostazioni/blocco` (Fase 26a) NON è qui, ed è deliberato: il design
- * la vuole a schermo intero SOLO durante il wizard PIN (crea/conferma/done),
- * non sulla lista di riposo che la ospita ("Seichi Blocco PIN
- * Impostazioni.dc.html" mostra la barra presente lì). Una singola route con
- * stati diversi non si esprime con un elenco di path — vedi
- * `fullScreenActive` più sotto.
- */
-const DOCUMENT_ROUTES = ["/analisi/report"];
-
 export default function BottomNav() {
-	const { openTransactionModal, fullScreenActive } = useUIStore();
+	const { openTransactionModal } = useUIStore();
 	const pathname = usePathname();
 	const { t } = useI18n();
+	// Le rotte-documento e il flusso a schermo intero (wizard PIN) sono in
+	// `useNavVisibility.ts`, condiviso con `Sidebar.tsx` (Fase 28a): le due
+	// barre devono sparire esattamente insieme, o una futura rotta o un
+	// futuro flusso ne aggiornerebbe una sola.
+	const hidden = useNavHidden();
 
-	if (DOCUMENT_ROUTES.includes(pathname)) return null;
-	if (fullScreenActive) return null;
+	if (hidden) return null;
 
 	return (
 		<>
@@ -60,7 +43,7 @@ export default function BottomNav() {
 				ripete su OGNI foglio, perché ogni pagina è un nuovo viewport.
 			*/}
 			<div
-				className="no-print fixed bottom-0 left-0 right-0 h-28 pointer-events-none z-39 backdrop-blur-2xl"
+				className="no-print lg:hidden fixed bottom-0 left-0 right-0 h-28 pointer-events-none z-39 backdrop-blur-2xl"
 				style={{
 					WebkitMaskImage:
 						"linear-gradient(to top, black 35%, transparent 100%)",
@@ -80,7 +63,7 @@ export default function BottomNav() {
 				barra era già esclusa dal giro precedente.
 			*/}
 			<div
-				className="no-print fixed left-[50%] translate-[-50%] min-w-88 flex items-center justify-between py-2 px-4 rounded-3xl z-40 bg-surface backdrop-blur-[26px] box-shadow-ring h-16"
+				className="no-print lg:hidden fixed left-[50%] translate-[-50%] min-w-88 flex items-center justify-between py-2 px-4 rounded-3xl z-40 bg-surface backdrop-blur-[26px] box-shadow-ring h-16"
 				// issue #86 — `bottom-0` metteva la pillola a filo del bordo reale
 				// dello schermo: su un device con home indicator finiva dietro la
 				// sua zona di gesto. `env()` la solleva di quel tanto; su un device

@@ -12,7 +12,7 @@ export default async function CambiaPasswordPage() {
 	if (!account.hasPasswordIdentity) redirect("/impostazioni");
 
 	return (
-		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34">
+		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34 lg:max-w-3xl lg:mx-auto lg:w-full">
 			<PageHeader title={t.settings.changePassword} backHref="/impostazioni" />
 			<PasswordChangeForm />
 		</div>

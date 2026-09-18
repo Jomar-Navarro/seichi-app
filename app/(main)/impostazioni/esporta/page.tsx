@@ -77,7 +77,7 @@ export default async function EsportaPage() {
 	// `pb-34` come ogni altra pagina di impostazioni: la `BottomNav` è `fixed`, e
 	// con un padding più corto l'ultimo elemento finisce sotto la barra.
 	return (
-		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34">
+		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34 lg:max-w-3xl lg:mx-auto lg:w-full">
 			<PageHeader title={t.export.title} backHref="/impostazioni" className="mb-5" />
 			<ExportPanel
 				accounts={accountsRes.data ?? []}
