@@ -414,11 +414,36 @@ function ActiveAccountRow({
 	 */
 	const traySmontato = !revealed && dragOffset === null;
 
+	/*
+	 * ⚠️ Eventi POINTER filtrati su `pointerType === "mouse"`, non
+	 * `onMouseEnter`/`onMouseLeave`. Un tap vero spinge `mouseenter` fino
+	 * alla radice del documento — verificato con un tocco reale (Chromium
+	 * con `hasTouch`): il browser sintetizza l'intera catena mouseover →
+	 * mouseenter, RISALENDO ogni antenato, per compatibilità con siti che
+	 * ascoltano solo eventi mouse. Con `onMouseEnter` nudo, lo stesso tap
+	 * che naviga a `/conti/[id]` avrebbe anche rivelato il vassoio per
+	 * l'istante prima della navigazione — un lampo, non un blocco (la
+	 * navigazione stessa non dipende da `hovered`), ma comunque un tocco
+	 * che dice "sto passando il mouse" mentre non c'è alcun mouse.
+	 *
+	 * I Pointer Event non hanno lo stesso problema per la stessa via — ma
+	 * NE hanno uno gemello: un tocco genera comunque un `pointerenter`
+	 * NATIVO (verificato: `pointerType: "touch"`), perché è così che la
+	 * Pointer Events API rappresenta l'inizio di un contatto. Da qui il
+	 * controllo esplicito sul tipo, non un dettaglio difensivo in più.
+	 */
+	function onRowPointerEnter(e: PointerEvent<HTMLDivElement>) {
+		if (e.pointerType === "mouse") setHovered(true);
+	}
+	function onRowPointerLeave(e: PointerEvent<HTMLDivElement>) {
+		if (e.pointerType === "mouse") setHovered(false);
+	}
+
 	return (
 		<div
 			className="relative z-30"
-			onMouseEnter={() => setHovered(true)}
-			onMouseLeave={() => setHovered(false)}
+			onPointerEnter={onRowPointerEnter}
+			onPointerLeave={onRowPointerLeave}
 		>
 			{!traySmontato && (
 				<div className="absolute inset-0 flex items-center justify-end gap-2 px-3 rounded-3xl">
