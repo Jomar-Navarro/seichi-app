@@ -6373,15 +6373,16 @@ voce di scala Tailwind più vicina).
   larghezza guadagnano `lg:col-span-full`.
 - ⚠️ **Hover-reveal su Conti, riusando la logica dello swipe invece di
   duplicarla.** Lo swipe touch-only non ha un gesto equivalente col mouse:
-  `ActiveAccountRow` guadagna uno stato locale `hovered`
-  (`onMouseEnter`/`onMouseLeave` sul wrapper) che si unisce a `isOpen` in un
-  `revealed = isOpen || hovered` condiviso — lo stesso valore decide se
-  disegnare il vassoio (`traySmontato`, principio della Fase 20a: non
-  disegnare ciò che deve restare nascosto dietro il vetro traslucido) e di
-  quanto traslare la riga (`offset`). Nessun overlay nuovo, nessuna
-  duplicazione di markup. Niente gate `lg:` in JS: i browser touch non
-  emettono `mouseenter` su un tap, quindi su telefono `hovered` resta sempre
-  `false` e il comportamento è identico a prima.
+  `ActiveAccountRow` guadagna uno stato locale `hovered` che si unisce a
+  `isOpen` in un `revealed = isOpen || hovered` condiviso — lo stesso valore
+  decide se disegnare il vassoio (`traySmontato`, principio della Fase 20a:
+  non disegnare ciò che deve restare nascosto dietro il vetro traslucido) e
+  di quanto traslare la riga (`offset`). Nessun overlay nuovo, nessuna
+  duplicazione di markup.
+  ⚠️⚠️ **La prima stesura usava `onMouseEnter`/`onMouseLeave` nudi**, con la
+  giustificazione — MAI verificata — che "i browser touch non emettono
+  `mouseenter` su un tap". Falsa, trovata dal code-review prima di mergiare
+  la PR successiva: vedi "Emerso dal code-review della 28b" più sotto.
 - **`NotificationBell.tsx`** (il debito qui sopra): da `lg:` il pannello si
   ancora al bottone campanella — `panelRight = window.innerWidth -
   rect.right`, letto una volta al tocco come `panelTop`, con `right-5`
@@ -6397,13 +6398,24 @@ bordo destro della campanella contro ~20px dal bordo del viewport su
 mobile), hover-reveal che apre/richiude, zero errori console.
 
 ⚠️ Due controlli hanno segnalato KO, e **nessuno dei due era un difetto
-dell'app** — la stessa lezione ripetuta più volte in questo documento:
+dell'app** — la stessa lezione ripetuta più volte in questo documento. Ma la
+prima diagnosi scritta qui sotto per il primo era essa stessa sbagliata a
+metà, corretta solo dopo (vedi "Emerso dal code-review" più sotto):
 
 - il confronto "le 4 SummaryCard sulla stessa riga" leggeva le posizioni di
-  elementi trovati per TESTO (`text=Investimenti`, `text=Risparmi`): la
-  sidebar ha voci di navigazione con lo stesso nome, e il locatore agganciava
-  quelle invece delle card. Confermato via screenshot che la griglia è
-  corretta;
+  elementi trovati per TESTO, e due delle quattro etichette hanno agganciato
+  l'elemento sbagliato — ma non per lo stesso motivo. **"Investimenti"** è
+  davvero anche una voce della sidebar (`t.nav.investments`), quindi il
+  locatore ha preso quella. **"Risparmi" invece non è un'etichetta della
+  sidebar** (quella voce dice "Obiettivi", `t.nav.goals`) — a sbagliare è
+  stato **"Entrate"**, che ha agganciato una frase minuscola dentro
+  `FlowCard` ("entrate meno uscite di questo mese…"): il locatore testuale
+  di Playwright fa un confronto case-INSENSITIVE per sottostringa, quindi
+  "Entrate" ha trovato "entrate" in mezzo a una frase completamente diversa.
+  Confermato via screenshot che la griglia è corretta, e poi via uno script
+  isolato che stampa `outerHTML` di ogni match per capire ESATTAMENTE cosa
+  avesse agganciato ciascuna etichetta — non solo "sembra un problema di
+  sidebar", il meccanismo vero;
 - il test del click-dopo-hover falliva dentro lo script completo (hover →
   mouseleave → `.click()` sullo stesso locator) ma non isolando la
   sequenza a parte: il `.click()` di Playwright ri-passa dal bottone prima
@@ -6414,6 +6426,42 @@ dell'app** — la stessa lezione ripetuta più volte in questo documento:
   in entrambi i casi.
 
 Merged 2026-09-21, PR #103.
+
+#### Emerso dal code-review della 28b, prima di mergiare la PR successiva
+
+Fatto su richiesta esplicita ("prima di mergiare fai una code review su
+tutto"), non di routine — e ha trovato un difetto vero in codice già
+mergiato, non nella sola documentazione che lo descriveva.
+
+⚠️⚠️ **"I browser touch non emettono `mouseenter` su un tap" era
+un'affermazione MAI verificata**, scritta per giustificare
+`onMouseEnter`/`onMouseLeave` nudi sull'hover-reveal di `ActiveAccountRow`.
+Verificato con un tocco reale (Chromium con `hasTouch: true` +
+`page.touchscreen.tap()`, non un click sintetico da mouse): **falsa**. Un
+tap fa risalire `mouseover`→`mouseenter` fino alla RADICE del documento —
+`<html>`, `<body>`, ogni contenitore intermedio, il wrapper della riga
+compreso — perché il browser sintetizza l'intera sequenza per
+compatibilità con siti che ascoltano solo eventi mouse. Lo stesso tocco che
+naviga a `/conti/[id]` faceva quindi scattare `onMouseEnter` sulla riga un
+istante prima della navigazione, rivelando il vassoio Modifica/Archivia per
+un lampo — non bloccava il click (`hovered` non influenza `handleTap`), ma
+era un tocco che diceva "sto passando il mouse" mentre non c'era alcun mouse.
+
+⚠️ **Un solo cambio di API non sarebbe bastato**, ed è la parte che vale
+come regola generale: passare a `onPointerEnter`/`onPointerLeave` (i Pointer
+Event, che NON ricevono la sequenza mouse di compatibilità) sembrava la
+correzione ovvia, ma verificato con lo stesso tocco reale che un tap genera
+comunque un `pointerenter` NATIVO — con `pointerType: "touch"` — perché è
+così che la Pointer Events API rappresenta l'inizio di un contatto,
+indipendentemente dalla sequenza di compatibilità mouse. Serve il controllo
+esplicito `pointerType === "mouse"`, non il solo cambio di evento: due
+meccanismi diversi arrivano allo stesso sintomo, e chiuderne uno solo
+avrebbe lasciato l'altro aperto senza che nessun test lo dicesse.
+
+Corretto in PR #106, verificato con lo stesso metodo: dopo il fix un tap
+reale lascia `transform: translateX(0px)` invariato (nessuna rivelazione
+spuria) e naviga comunque; l'hover da mouse continua a rivelare/richiudere
+e il click dopo hover naviga come prima.
 
 ## Key Decisions
 
