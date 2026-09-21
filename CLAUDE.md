@@ -6177,8 +6177,9 @@ Seguire questo ordine, non saltare fasi:
     Impostazioni, entrambe le larghezze, entrambi i temi). Quattro PR:
     - **28a ✅ shell** (issue TBD) — sidebar a sei voci da `lg:` in su,
       `MainContentShell`, contenitore di transizione su tutte le pagine.
-    - **28b** pagine dashboard (Home/Investimenti/Analisi/Risparmi/Conti) +
-      il fix del pannello notifiche
+    - **28b ✅ pagine dashboard** (Home/Investimenti/Analisi/Risparmi/Conti) —
+      container definitivo, griglie/donut/grafico più grandi, hover-reveal
+      su Conti, fix del pannello notifiche. Merged 2026-09-21, PR #103.
     - **28c** pagine lineari — sostituisce il contenitore di transizione con
       lo stretto definitivo
     - **28d** sheet e modali centrati da `lg:` in su
@@ -6325,7 +6326,7 @@ Vale come nota di metodo per ogni futuro driver di questo repo che debba
 cliccare un link interno: dopo un click su una navigazione client-side,
 un'attesa fissa è più affidabile di `networkidle`.
 
-#### Emerso preparando 28b, non ancora corretto
+#### Emerso preparando 28b — poi chiuso nella stessa PR
 
 `components/features/NotificationBell.tsx` ha il pannello `fixed left-5
 right-5` — ancorato ai margini del **viewport**, deliberatamente (il
@@ -6334,10 +6335,85 @@ la sidebar e un contenuto centrato su una finestra larga, il pannello si
 allargherebbe su quasi tutta la finestra, staccato dalla campanella che lo
 apre. `CoachBubble`/`ProfileMenu` non hanno lo stesso problema: il primo usa
 già `BottomSheetShell` (coperto da 28d), il secondo è già ancorato al
-proprio trigger (`absolute left-0 top-13`). Il fix — ancorare il pannello
-al trigger a `lg:`, il `top` già calcolato da `getBoundingClientRect()`
-resta invariato — è nello scope di 28b, quando la home viene comunque
-toccata per la griglia dashboard.
+proprio trigger (`absolute left-0 top-13`).
+
+#### PR 28b ✅ — pagine dashboard (2026-09-21)
+
+Design in **Claude Design prima del codice**, come per la 28a: il mockup
+`Seichi — Responsive tablet/desktop` non copriva Investimenti/Analisi/
+Risparmi/Conti, quindi è stato **esteso** (non ricreato) con quattro nuovi
+artboard — uno per pagina, al breakpoint `lg:`/1024px, quello vincolante —
+riusando lo stesso `<dc-import name="Sidebar">` e gli stessi token colore
+già stabiliti per Home/Impostazioni. La lettura del mockup esistente ha
+anche confermato due decisioni prima di scrivere una riga: le due card hero
+di Home sono già disegnate **affiancate** (`grid-template-columns:1fr 1fr`),
+non in carosello, e a 1440px il contenuto resta incorniciato a
+`max-width:1080px` — non piena pagina — da cui `xl:max-w-5xl` (1024px, la
+voce di scala Tailwind più vicina).
+
+- **Container definitivo** sulle cinque pagine: `lg:max-w-3xl xl:max-w-5xl
+  lg:mx-auto lg:w-full`, al posto del valore transitorio uniforme della 28a.
+- **Home**: `SummaryCard` a `grid-cols-2 lg:grid-cols-4`. `HomeHero.tsx`
+  esce dal carosello a scorrimento da `lg:` in su (`lg:grid`, due colonne se
+  c'è il saldo altrimenti una — ternario fra due classi COMPLETE, mai
+  un'interpolazione: Tailwind non genera `grid-cols-${n}`) e annulla il
+  workaround del ritaglio d'ombra (`-mx-5 pt-4 …`) che serve solo con
+  `overflow-x-auto`. I puntini di paginazione spariscono con `lg:hidden`:
+  inutili quando entrambe le card sono visibili insieme.
+- **Investimenti/Analisi**: i due donut crescono da `lg:` (`w-40 h-40` →
+  `lg:w-52 lg:h-52` su Investimenti, `w-32 h-32` → `lg:w-44 lg:h-44` su
+  Analisi). La lista posizioni diventa `lg:grid lg:grid-cols-2`. Il grafico a
+  linea di `MonthlyLineChart.tsx` passava `height={160}` fisso a
+  `ResponsiveContainer`: Recharts non varia l'altezza per breakpoint via
+  prop, quindi ora è avvolto in un contenitore `h-40 lg:h-56` con
+  `height="100%"`.
+- **Risparmi/Conti**: stessa griglia (`lg:grid-cols-2 xl:grid-cols-3`) su
+  `GoalsPageClient.tsx` e `AccountsPageClient.tsx`; le intestazioni di
+  sezione (completati/archiviati) e le card che devono restare a piena
+  larghezza guadagnano `lg:col-span-full`.
+- ⚠️ **Hover-reveal su Conti, riusando la logica dello swipe invece di
+  duplicarla.** Lo swipe touch-only non ha un gesto equivalente col mouse:
+  `ActiveAccountRow` guadagna uno stato locale `hovered`
+  (`onMouseEnter`/`onMouseLeave` sul wrapper) che si unisce a `isOpen` in un
+  `revealed = isOpen || hovered` condiviso — lo stesso valore decide se
+  disegnare il vassoio (`traySmontato`, principio della Fase 20a: non
+  disegnare ciò che deve restare nascosto dietro il vetro traslucido) e di
+  quanto traslare la riga (`offset`). Nessun overlay nuovo, nessuna
+  duplicazione di markup. Niente gate `lg:` in JS: i browser touch non
+  emettono `mouseenter` su un tap, quindi su telefono `hovered` resta sempre
+  `false` e il comportamento è identico a prima.
+- **`NotificationBell.tsx`** (il debito qui sopra): da `lg:` il pannello si
+  ancora al bottone campanella — `panelRight = window.innerWidth -
+  rect.right`, letto una volta al tocco come `panelTop`, con `right-5`
+  sostituito via `style` e una larghezza fissa (`lg:w-96`) invece che "quanto
+  il contenuto". Sotto `lg:` (`panelRight` resta `null`) il comportamento non
+  cambia.
+
+##### Il collaudo, e due KO diagnosticati prima di crederci
+
+Driver Playwright ad hoc a 768/1024/1280px (sessione via cookie): tutte le
+griglie confermate via bounding box, pannello notifiche ancorato (~0px dal
+bordo destro della campanella contro ~20px dal bordo del viewport su
+mobile), hover-reveal che apre/richiude, zero errori console.
+
+⚠️ Due controlli hanno segnalato KO, e **nessuno dei due era un difetto
+dell'app** — la stessa lezione ripetuta più volte in questo documento:
+
+- il confronto "le 4 SummaryCard sulla stessa riga" leggeva le posizioni di
+  elementi trovati per TESTO (`text=Investimenti`, `text=Risparmi`): la
+  sidebar ha voci di navigazione con lo stesso nome, e il locatore agganciava
+  quelle invece delle card. Confermato via screenshot che la griglia è
+  corretta;
+- il test del click-dopo-hover falliva dentro lo script completo (hover →
+  mouseleave → `.click()` sullo stesso locator) ma non isolando la
+  sequenza a parte: il `.click()` di Playwright ri-passa dal bottone prima
+  di cliccare, re-innescando l'hover-reveal e la sua transizione da 200ms,
+  una corsa nello SCRIPT. Verificato con due prove isolate — un click "a
+  freddo" su una riga mai toccata, e un hover reale seguito da un click sullo
+  stesso punto senza muovere il mouse — che il click naviga a `/conti/[id]`
+  in entrambi i casi.
+
+Merged 2026-09-21, PR #103.
 
 ## Key Decisions
 
