@@ -304,16 +304,25 @@ function ActiveAccountRow({
 	/*
 	 * ⚠️ Il mouse non sa fare lo swipe — su desktop (Fase 28b) il vassoio si
 	 * rivela al passaggio del mouse, invece che con un drag che non ha un
-	 * gesto naturale equivalente. `hovered` alimenta la STESSA logica dello
-	 * swipe (nessun overlay nuovo, nessuna duplicazione di markup): una riga
-	 * è "rivelata" se è aperta O sotto il mouse.
+	 * gesto naturale equivalente. `hovered` è locale alla riga (mai passato
+	 * al genitore): a differenza di `isOpen`, che vive nell'`openId`
+	 * condiviso apposta per garantire "un vassoio aperto per volta"
+	 * (issue #62), l'hover di per sé è già esclusivo — il mouse sta sopra
+	 * una riga sola alla volta, per costruzione.
 	 *
-	 * Niente controllo `lg:` in JS: i browser touch non emettono
-	 * `mouseenter` su un tap, quindi su telefono `hovered` resta sempre
-	 * `false` e il comportamento è identico a prima di questa fase.
+	 * ⚠️⚠️ Ma quell'esclusività vale SOLO fra righe in hover fra loro, non
+	 * contro una riga aperta con lo swipe: `hovered` non passa mai da
+	 * `openId`, quindi senza guardia una riga trascinata aperta (`isOpen`
+	 * vero, backdrop a schermo) e una riga SOTTO IL MOUSE in quel momento
+	 * (`hovered` vero, riga diversa) avrebbero mostrato **due vassoi aperti
+	 * insieme** — l'invariante che l'`openId` condiviso esiste apposta per
+	 * impedire, aggirato dal canale nuovo. `!anyOpen` chiude il buco: se
+	 * QUALUNQUE riga è aperta via swipe, l'hover sulle altre non rivela
+	 * finché quella non si richiude — `isOpen` copre comunque il caso in
+	 * cui sia la riga aperta stessa a essere anche sotto il mouse.
 	 */
 	const [hovered, setHovered] = useState(false);
-	const revealed = isOpen || hovered;
+	const revealed = isOpen || (hovered && !anyOpen);
 
 	const offset = dragOffset ?? (revealed ? -TRAY_WIDTH : 0);
 
@@ -414,11 +423,51 @@ function ActiveAccountRow({
 	 */
 	const traySmontato = !revealed && dragOffset === null;
 
+	/*
+	 * ⚠️ Eventi POINTER, non `onMouseEnter`/`onMouseLeave`. Un tap spinge
+	 * `mouseenter` fino alla radice del documento — verificato con l'emulazione
+	 * touch di Chromium (`hasTouch: true` + `page.touchscreen.tap()`, non un
+	 * dispositivo fisico: resta da confermare da un telefono vero, come ogni
+	 * altra API di questo tipo in questo progetto): il browser sintetizza
+	 * l'intera catena mouseover → mouseenter, RISALENDO ogni antenato, per
+	 * compatibilità con siti che ascoltano solo eventi mouse. Con
+	 * `onMouseEnter` nudo, lo stesso tap che naviga a `/conti/[id]` avrebbe
+	 * anche rivelato il vassoio per l'istante prima della navigazione — un
+	 * lampo, non un blocco (la navigazione non dipende da `hovered`), ma
+	 * comunque un tocco che dice "sto passando il mouse" mentre non c'è
+	 * alcun mouse.
+	 *
+	 * ⚠️⚠️ Filtrato su `pressure === 0`, non su `pointerType`. Il primo
+	 * tentativo escludeva `pointerType === "touch"` (poi allargato a
+	 * `!== "touch"` per non perdere le penne con hover reale) — ma un
+	 * NOME di dispositivo non è la domanda giusta: la domanda è "questo
+	 * pointer sta davvero sopra, o è già in contatto?", e quella la
+	 * `pressure` la dice direttamente. Una penna SENZA hardware di hover
+	 * (un Apple Pencil di prima generazione, per dire) tocca lo schermo
+	 * senza una fase di avvicinamento — genera un `pointerenter` nativo
+	 * identico a quello del touch, con `pointerType: "pen"`: un filtro per
+	 * nome l'avrebbe lasciato passare, riaprendo lo stesso lampo per una
+	 * platea diversa. `pressure` non pretende di sapere COSA sta toccando,
+	 * solo SE sta toccando — la stessa domanda in una forma che nessun
+	 * elenco di stringhe di dispositivo può esaurire.
+	 *
+	 * Verificato con la stessa emulazione: il `pointerenter` che arriva a
+	 * questo wrapper riporta `pressure: 1` per un tap (in contatto) e
+	 * `pressure: 0` per un mouse o una penna in hover, senza alcun bottone
+	 * premuto — nessuno dei due è stato confermato su un dispositivo fisico.
+	 */
+	function onRowPointerEnter(e: PointerEvent<HTMLDivElement>) {
+		if (e.pressure === 0) setHovered(true);
+	}
+	function onRowPointerLeave(e: PointerEvent<HTMLDivElement>) {
+		if (e.pressure === 0) setHovered(false);
+	}
+
 	return (
 		<div
 			className="relative z-30"
-			onMouseEnter={() => setHovered(true)}
-			onMouseLeave={() => setHovered(false)}
+			onPointerEnter={onRowPointerEnter}
+			onPointerLeave={onRowPointerLeave}
 		>
 			{!traySmontato && (
 				<div className="absolute inset-0 flex items-center justify-end gap-2 px-3 rounded-3xl">
@@ -459,7 +508,12 @@ function ActiveAccountRow({
 				onPointerUp={onPointerUp}
 				onPointerCancel={onPointerUp}
 				onClick={handleTap}
-				aria-expanded={isOpen}
+				// `revealed`, non `isOpen`: da questa fase il vassoio si vede anche
+				// sotto hover del mouse, non solo a swipe completato. `aria-expanded`
+				// deve seguire ciò che è VISIBILE, o direbbe "chiuso" a chi usa
+				// l'accessibilità mentre le pastiglie Modifica/Archivia sono a
+				// schermo e già montate nel DOM.
+				aria-expanded={revealed}
 				style={{ transform: `translateX(${offset}px)`, touchAction: "pan-y" }}
 				className={`relative w-full rounded-3xl card-shadow-ring overflow-hidden text-left ${
 					dragOffset === null ? "transition-transform duration-200" : ""
