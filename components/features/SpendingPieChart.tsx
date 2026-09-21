@@ -80,8 +80,8 @@ export default function SpendingPieChart({
 				{t.analytics.spendingByCategory}
 			</p>
 			<div className="flex items-center gap-5">
-				{/* Donut */}
-				<div className="relative w-32 h-32 shrink-0">
+				{/* Donut — lg: più grande (Fase 28b), stesso trattamento di InvestimentiTab. */}
+				<div className="relative w-32 h-32 lg:w-44 lg:h-44 shrink-0">
 					<ResponsiveContainer width="100%" height="100%">
 						<PieChart>
 							<Pie

@@ -73,7 +73,8 @@ export default function GoalsPageClient({ goals }: GoalsPageClientProps) {
 					/>
 				</div>
 			) : (
-				<div className="flex flex-col gap-3 mt-5">
+				// lg: griglia a 2/3 colonne (Fase 28b), invariata su mobile.
+				<div className="flex flex-col gap-3 mt-5 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-3">
 					{active.map((g) => (
 						<GoalCard key={g.id} goal={g} onEdit={openEdit} />
 					))}
@@ -81,7 +82,7 @@ export default function GoalsPageClient({ goals }: GoalsPageClientProps) {
 					{completed.length > 0 && (
 						<>
 							{active.length > 0 && (
-								<p className="text-xs text-muted font-medium mt-1 mb-0.5 ml-1 tracking-wide">
+								<p className="text-xs text-muted font-medium mt-1 mb-0.5 ml-1 tracking-wide lg:col-span-full">
 									{t.goals.completedSection}
 								</p>
 							)}

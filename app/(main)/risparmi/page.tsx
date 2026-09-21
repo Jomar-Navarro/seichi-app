@@ -9,7 +9,7 @@ export default async function RisparmiPage() {
 	if ("error" in result) return <p className="p-6 text-muted text-sm">{t.goals.loadError}</p>;
 
 	return (
-		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-36 lg:max-w-3xl lg:mx-auto lg:w-full">
+		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-36 lg:max-w-3xl xl:max-w-5xl lg:mx-auto lg:w-full">
 			<GoalsPageClient goals={result.data} />
 		</div>
 	);

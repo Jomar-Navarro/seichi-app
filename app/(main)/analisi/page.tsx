@@ -76,7 +76,7 @@ export default async function AnalyticsPage({
 	const isPositive = analytics.saldoMese >= 0;
 
 	return (
-		<div className="px-5 pt-7 pb-36 flex flex-col lg:max-w-3xl lg:mx-auto lg:w-full">
+		<div className="px-5 pt-7 pb-36 flex flex-col lg:max-w-3xl xl:max-w-5xl lg:mx-auto lg:w-full">
 			{/* Header */}
 			<div className="flex items-center justify-between mb-4">
 				<h1 className="text-2xl font-bold">{t.analytics.title}</h1>

@@ -48,8 +48,15 @@ export default function MonthlyLineChart({ trend, animated = true }: MonthlyLine
 					<span className="text-xs text-muted">{t.analytics.legendExpenses}</span>
 				</div>
 			</div>
-			<ResponsiveContainer width="100%" height={160}>
-				<AreaChart
+			{/*
+				L'altezza varia per breakpoint (Fase 28b: più spazio da `lg:` in
+				su) — `ResponsiveContainer` vuole un numero fisso in `height`, non
+				una classe, quindi la misura viene dal contenitore (`h-40 lg:h-56`)
+				e Recharts la legge con `height="100%"`.
+			*/}
+			<div className="h-40 lg:h-56">
+				<ResponsiveContainer width="100%" height="100%">
+					<AreaChart
 					data={trend}
 					margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
 				>
@@ -118,7 +125,8 @@ export default function MonthlyLineChart({ trend, animated = true }: MonthlyLine
 						activeDot={{ r: 4, fill: "var(--color-aka)" }}
 					/>
 				</AreaChart>
-			</ResponsiveContainer>
+				</ResponsiveContainer>
+			</div>
 		</div>
 	);
 }

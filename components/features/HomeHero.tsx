@@ -104,11 +104,21 @@ export default function HomeHero({
 
 				`-mx-5` porta il contenitore ai bordi dello schermo: è il padding
 				della pagina, restituito alle pagine del carosello.
+
+				⚠️ Da `lg:` in su non è più un carosello: le due card stanno
+				AFFIANCATE (validato nel mockup Claude Design, dove la sezione è
+				già `grid-template-columns:1fr 1fr`) — c'è spazio per entrambe, e
+				uno swipe senza dito non ha un modo naturale di essere azionato col
+				mouse. Il workaround per il ritaglio dell'ombra (punto 1 sopra)
+				serve solo finché c'è `overflow-x-auto`: annullato a `lg:`, insieme
+				al padding che compensava il margine negativo (sulle pagine, sotto).
+				`showBalance` sceglie fra due classi COMPLETE, mai un'interpolazione
+				del numero di colonne — Tailwind non genera `grid-cols-${n}`.
 			*/}
 			<div
 				ref={trackRef}
 				onScroll={onScroll}
-				className="flex overflow-x-auto -mx-5 pt-4 -mt-4 pb-8 -mb-8 snap-x snap-mandatory scrollbar-none"
+				className={`flex overflow-x-auto -mx-5 pt-4 -mt-4 pb-8 -mb-8 snap-x snap-mandatory scrollbar-none lg:mx-0 lg:mt-0 lg:mb-0 lg:pt-0 lg:pb-0 lg:overflow-visible lg:snap-none lg:grid lg:gap-4 ${showBalance ? "lg:grid-cols-2" : "lg:grid-cols-1"}`}
 			>
 				{/*
 					⚠️ La GIACENZA viene prima, il flusso dopo — chiesto usando l'app.
@@ -140,7 +150,7 @@ export default function HomeHero({
 					dei conti — senza, la home diceva "scorri →" verso il nulla.
 				*/}
 				{showBalance && (
-					<div className="snap-center shrink-0 w-full px-5">
+					<div className="snap-center shrink-0 w-full px-5 lg:px-0">
 						<AccountsBalanceCard
 							accounts={accounts}
 							selectedId={selectedId}
@@ -149,7 +159,7 @@ export default function HomeHero({
 						/>
 					</div>
 				)}
-				<div className="snap-center shrink-0 w-full px-5">
+				<div className="snap-center shrink-0 w-full px-5 lg:px-0">
 					<FlowCard
 						flussoMese={flussoMese}
 						monthLabel={monthLabel}
@@ -161,11 +171,15 @@ export default function HomeHero({
 
 			{/*
 				I puntini: attivo = pastiglia allungata, come nel mockup. Sono anche
-				comandi, non solo indicatori — su desktop non c'è lo swipe, e un
+				comandi, non solo indicatori — su una finestra stretta senza tocco un
 				carosello senza modo di girarlo col mouse nasconde metà del contenuto.
+
+				⚠️ `lg:hidden`: da `lg:` in su le due card sono affiancate (sopra),
+				quindi non c'è più nulla da far scorrere e i puntini non avrebbero
+				niente da indicare.
 			*/}
 			{showBalance && (
-			<div className="flex items-center justify-center gap-1.5 mt-3">
+			<div className="flex items-center justify-center gap-1.5 mt-3 lg:hidden">
 				{/*
 					issue #69 — un giro precedente aveva avvolto ogni pallino in un
 					bottone 44×44: `gap-1.5` si misura fra quelle SCATOLE, non fra i

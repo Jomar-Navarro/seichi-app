@@ -66,7 +66,7 @@ export default async function InvestimentiPage({
 	}
 
 	return (
-		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-36 lg:max-w-3xl lg:mx-auto lg:w-full">
+		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-36 lg:max-w-3xl xl:max-w-5xl lg:mx-auto lg:w-full">
 			<h1 className="text-[26px] font-semibold leading-tight mb-1">{t.investments.title}</h1>
 
 			{accounts.length > 0 && (
