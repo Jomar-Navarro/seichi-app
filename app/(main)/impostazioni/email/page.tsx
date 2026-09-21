@@ -13,7 +13,7 @@ export default async function ModificaEmailPage() {
 	if (!account.hasPasswordIdentity) redirect("/impostazioni");
 
 	return (
-		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34 lg:max-w-3xl lg:mx-auto lg:w-full">
+		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34 lg:max-w-2xl lg:mx-auto lg:w-full">
 			<PageHeader title={t.settings.editEmail} backHref="/impostazioni" />
 			<EmailChangeForm currentEmail={account.email} />
 		</div>

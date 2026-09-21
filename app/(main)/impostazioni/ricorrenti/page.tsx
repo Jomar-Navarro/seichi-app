@@ -19,7 +19,7 @@ export default async function RicorrentiPage() {
 	const { t } = await getI18n();
 
 	return (
-		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34 lg:max-w-3xl lg:mx-auto lg:w-full">
+		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34 lg:max-w-2xl lg:mx-auto lg:w-full">
 			{/* Come per /impostazioni/categorie: intestazione ricopiata a mano,
 			    ora sul componente condiviso. */}
 			<PageHeader title={t.settings.recurringTitle} backHref="/impostazioni" />

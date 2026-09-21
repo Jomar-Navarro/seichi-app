@@ -63,7 +63,7 @@ export default async function ImpostazioniPage() {
 	const pinEnabled = (await cookies()).get(APP_LOCK_ENABLED_COOKIE)?.value === "1";
 
 	return (
-		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34 lg:max-w-3xl lg:mx-auto lg:w-full">
+		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34 lg:max-w-2xl lg:mx-auto lg:w-full">
 			<PageHeader title={t.settings.title} backHref="/" className="mb-5.5" />
 
 			{/* Profilo */}

@@ -28,7 +28,7 @@ export default function AppLockPageShell({ children }: { children: ReactNode }) 
 		// applicata qui a un solo STATO invece che all'intera pagina).
 		<div
 			className={`flex flex-col min-h-dvh px-5 pt-7 ${fullScreenActive ? "pb-12" : "pb-34"} ${
-				fullScreenActive ? "" : "lg:max-w-3xl lg:mx-auto lg:w-full"
+				fullScreenActive ? "" : "lg:max-w-2xl lg:mx-auto lg:w-full"
 			}`}
 		>
 			{children}

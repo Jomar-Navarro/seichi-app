@@ -9,7 +9,7 @@ export default async function CategoriePage() {
 	const { t } = await getI18n();
 
 	return (
-		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34 lg:max-w-3xl lg:mx-auto lg:w-full">
+		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34 lg:max-w-2xl lg:mx-auto lg:w-full">
 			{/* Era il markup di PageHeader ricopiato a mano, freccia e aria-label
 			    compresi. Con l'i18n sarebbe diventata una seconda stringa "Indietro"
 			    da tradurre a parte, quindi le due copie collassano sul componente. */}
