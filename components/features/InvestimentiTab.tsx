@@ -154,7 +154,8 @@ export default function InvestimentiTab({
 						{t.investments.composition}
 					</p>
 					<div className="flex items-center gap-5">
-						<div className="relative w-40 h-40 shrink-0">
+						{/* lg: più spazio dopo la sidebar (Fase 28b) — donut più grande, come nel mockup. */}
+						<div className="relative w-40 h-40 lg:w-52 lg:h-52 shrink-0">
 							<ResponsiveContainer width="100%" height="100%">
 								<PieChart>
 									<Pie
@@ -228,7 +229,9 @@ export default function InvestimentiTab({
 			<p className="text-[14.5px] font-semibold mt-5 mb-3 text-foreground">
 				{t.investments.positions}
 			</p>
-			<div className="flex flex-col gap-2.5">
+			{/* lg: griglia a 2 colonne (Fase 28b) — ogni card posizione è un `div`
+			    block-level, riempie la colonna senza bisogno di ritocchi interni. */}
+			<div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-2 lg:gap-3">
 				{items.map((pos) => {
 					const Icon = ICON_MAP[pos.icon] ?? TrendingUpIcon;
 					const accent = `var(--color-${pos.accent})`;

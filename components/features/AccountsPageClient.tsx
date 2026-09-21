@@ -139,7 +139,8 @@ export default function AccountsPageClient({ accounts }: AccountsPageClientProps
 					/>
 				</div>
 			) : (
-				<div className="relative flex flex-col gap-3 mt-5">
+				// lg: griglia a 2/3 colonne (Fase 28b) — stesso trattamento di Risparmi.
+				<div className="relative flex flex-col gap-3 mt-5 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-3">
 					{/*
 						⚠️ Copre l'INTERO viewport, non solo la lista: "il tap altrove lo
 						chiude" (issue #62) vale anche per la card del saldo e per lo
@@ -147,6 +148,8 @@ export default function AccountsPageClient({ accounts }: AccountsPageClientProps
 						sole (vedi `handleTap` nelle righe), qui serve per il resto.
 						z-20, sotto le righe (z-30) e ben sotto i fogli modali (z-40/50):
 						sparisce prima che "Modifica" possa aprirne uno.
+						`fixed`, quindi fuori dal flusso della griglia: non le serve
+						`col-span-full`.
 					*/}
 					{openId !== null && (
 						<div className="fixed inset-0 z-20" onClick={() => setOpenId(null)} />
@@ -154,7 +157,7 @@ export default function AccountsPageClient({ accounts }: AccountsPageClientProps
 
 					{/* Il saldo complessivo dei soli conti attivi. */}
 					{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
-					<div className="relative rounded-3xl card-shadow-ring overflow-hidden">
+					<div className="relative rounded-3xl card-shadow-ring overflow-hidden lg:col-span-full">
 						<div className="absolute inset-0 bg-surface backdrop-blur-md" />
 						<div className="relative p-5">
 						<p className="text-sm text-muted mb-2">{t.accounts.balanceHeading}</p>
@@ -169,7 +172,7 @@ export default function AccountsPageClient({ accounts }: AccountsPageClientProps
 					</div>
 
 					{rowError && (
-						<p className="text-xs ml-1" style={{ color: "var(--ink-aka)" }}>
+						<p className="text-xs ml-1 lg:col-span-full" style={{ color: "var(--ink-aka)" }}>
 							{rowError}
 						</p>
 					)}
@@ -190,7 +193,7 @@ export default function AccountsPageClient({ accounts }: AccountsPageClientProps
 
 					{archived.length > 0 && (
 						<>
-							<p className="text-xs text-muted font-medium mt-1 mb-0.5 ml-1 tracking-wide">
+							<p className="text-xs text-muted font-medium mt-1 mb-0.5 ml-1 tracking-wide lg:col-span-full">
 								{plural(t.accounts.archivedSection, archived.length, locale)}
 							</p>
 							{archived.map((a) => (
@@ -298,7 +301,21 @@ function ActiveAccountRow({
 	const drag = useRef<{ x: number; y: number; axis: "x" | "y" | null; base: number } | null>(null);
 	const suppressClick = useRef(false);
 
-	const offset = dragOffset ?? (isOpen ? -TRAY_WIDTH : 0);
+	/*
+	 * ⚠️ Il mouse non sa fare lo swipe — su desktop (Fase 28b) il vassoio si
+	 * rivela al passaggio del mouse, invece che con un drag che non ha un
+	 * gesto naturale equivalente. `hovered` alimenta la STESSA logica dello
+	 * swipe (nessun overlay nuovo, nessuna duplicazione di markup): una riga
+	 * è "rivelata" se è aperta O sotto il mouse.
+	 *
+	 * Niente controllo `lg:` in JS: i browser touch non emettono
+	 * `mouseenter` su un tap, quindi su telefono `hovered` resta sempre
+	 * `false` e il comportamento è identico a prima di questa fase.
+	 */
+	const [hovered, setHovered] = useState(false);
+	const revealed = isOpen || hovered;
+
+	const offset = dragOffset ?? (revealed ? -TRAY_WIDTH : 0);
 
 	function onPointerDown(e: PointerEvent<HTMLButtonElement>) {
 		if (e.pointerType === "mouse" && e.button !== 0) return;
@@ -308,7 +325,7 @@ function ActiveAccountRow({
 		// sempre, e il primo tap genuino dopo quello swipe verrebbe ignorato
 		// in silenzio invece di navigare.
 		suppressClick.current = false;
-		drag.current = { x: e.clientX, y: e.clientY, axis: null, base: isOpen ? -TRAY_WIDTH : 0 };
+		drag.current = { x: e.clientX, y: e.clientY, axis: null, base: revealed ? -TRAY_WIDTH : 0 };
 		/*
 		 * ⚠️ Senza la CATTURA, un dito che esce dai confini della riga prima di
 		 * sollevarsi (finisce sulla riga sotto, per esempio) può far perdere gli
@@ -389,11 +406,20 @@ function ActiveAccountRow({
 	 * l'opacità della riga avrebbe rotto la coerenza con ogni altra card
 	 * dell'app, che è vetro ovunque: la correzione giusta è non disegnare ciò
 	 * che deve restare nascosto, non nasconderlo meglio.
+	 *
+	 * ⚠️ Vale anche per l'hover: un vassoio disegnato sotto una riga a
+	 * riposo (non rivelata) sarebbe visibile in trasparenza esattamente
+	 * come nel caso dello swipe — `revealed`, non `isOpen`, decide se
+	 * montarlo.
 	 */
-	const traySmontato = !isOpen && dragOffset === null;
+	const traySmontato = !revealed && dragOffset === null;
 
 	return (
-		<div className="relative z-30">
+		<div
+			className="relative z-30"
+			onMouseEnter={() => setHovered(true)}
+			onMouseLeave={() => setHovered(false)}
+		>
 			{!traySmontato && (
 				<div className="absolute inset-0 flex items-center justify-end gap-2 px-3 rounded-3xl">
 					<button

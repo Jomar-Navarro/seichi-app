@@ -35,14 +35,27 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 	 *
 	 * Stesso schema del menu "richiedi il PIN dopo" in `AppLockSettings.tsx`:
 	 * la posizione si calcola al TOCCO da `getBoundingClientRect()` del
-	 * bottone vero, non da un numero scritto a mano. Qui serve solo `top` —
-	 * `left-5 right-5` restano fissi ai margini della pagina (il pannello è
-	 * largo quanto il contenuto, non quanto la campanella: ancorarlo anche in
-	 * orizzontale al bottone, che sta a destra, lo farebbe uscire dallo
-	 * schermo — vedi il commento più sotto).
+	 * bottone vero, non da un numero scritto a mano. Su telefono serve solo
+	 * `top` — `left-5 right-5` restano fissi ai margini della pagina (il
+	 * pannello è largo quanto il contenuto, non quanto la campanella:
+	 * ancorarlo anche in orizzontale al bottone, che sta a destra, lo
+	 * farebbe uscire dallo schermo).
+	 *
+	 * ⚠️ Da `lg:` in su quel ragionamento si rovescia. La pagina non è più
+	 * larga quanto il viewport (Fase 28b: un contenitore centrato dopo la
+	 * sidebar), quindi "i margini della pagina" non coincidono più coi
+	 * margini dello SCHERMO — `right-5` ancorerebbe il pannello al bordo
+	 * della finestra, staccato dalla campanella che sta molto più a
+	 * sinistra. Da `lg:` si ancora quindi al bottone stesso: `panelRight` è
+	 * la distanza fra il bordo destro del bottone e il bordo destro del
+	 * viewport, letta una volta sola al tocco (come `panelTop`), e il
+	 * pannello guadagna una larghezza fissa (`lg:w-96`) invece che "quanto
+	 * il contenuto" — sotto `lg:` resta `null` e il comportamento di sempre
+	 * non cambia.
 	 */
 	const bellRef = useRef<HTMLButtonElement>(null);
 	const [panelTop, setPanelTop] = useState<number | null>(null);
+	const [panelRight, setPanelRight] = useState<number | null>(null);
 
 	async function toggle() {
 		if (open) {
@@ -51,6 +64,8 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 		}
 		const rect = bellRef.current?.getBoundingClientRect();
 		setPanelTop(rect ? rect.bottom + 10 : null);
+		const isDesktop = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
+		setPanelRight(isDesktop && rect ? window.innerWidth - rect.right : null);
 		setOpen(true);
 		// Si ricarica a ogni apertura, non solo la prima. La versione precedente
 		// caricava una volta sola: dopo un errore restava bloccata sul messaggio
@@ -185,10 +200,13 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 					/>
 
 					{/*
-						`left-5 right-5` fissi ai margini della pagina: il pannello è largo
-						quanto il contenuto, e ancorarlo anche in ORIZZONTALE alla
-						campanella (che sta a destra) lo farebbe uscire dallo schermo. Solo
-						`top` è dinamico — vedi `panelTop` più sopra.
+						`left-5 right-5` fissi ai margini della pagina su telefono: il
+						pannello è largo quanto il contenuto. Da `lg:` in su (Fase 28b)
+						`panelRight` non è più `null`: `lg:left-auto` toglie `left-5`,
+						`lg:w-96` fissa una larghezza (non più "quanto il contenuto") e lo
+						`style` inline sovrascrive `right-5` con la distanza vera dal
+						bottone — vedi il commento su `panelRight` più sopra. Solo `top`
+						resta sempre dinamico.
 
 						`--color-deep` (superficie solida) al 94% e non `bg-modal`: quello
 						sta a 0.85, tarato per i bottom sheet che coprono uno sfondo già
@@ -196,8 +214,8 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 					*/}
 					{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
 					<div
-						className="fixed left-5 right-5 z-50 rounded-[28px] overflow-hidden modal-shadow-ring"
-						style={{ top: panelTop ?? 92 }}
+						className="fixed left-5 right-5 lg:left-auto lg:w-96 z-50 rounded-[28px] overflow-hidden modal-shadow-ring"
+						style={{ top: panelTop ?? 92, right: panelRight ?? undefined }}
 					>
 						<div
 							className="absolute inset-0 backdrop-blur-2xl"
