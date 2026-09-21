@@ -53,7 +53,7 @@ export default async function ImportaPage() {
 	 * `pb-24` il pulsante "Continua" era coperto.
 	 */
 	return (
-		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34 lg:max-w-3xl lg:mx-auto lg:w-full">
+		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34 lg:max-w-2xl lg:mx-auto lg:w-full">
 			<PageHeader title={t.import.title} backHref="/impostazioni" className="mb-5" />
 			<ImportFlow
 				accounts={accounts ?? []}

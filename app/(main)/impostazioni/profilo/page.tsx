@@ -8,7 +8,7 @@ export default async function ProfiloPage() {
 	const { t } = await getI18n();
 
 	return (
-		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34 lg:max-w-3xl lg:mx-auto lg:w-full">
+		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34 lg:max-w-2xl lg:mx-auto lg:w-full">
 			<PageHeader title={t.settings.profilePhoto} backHref="/impostazioni" />
 			<ProfileEditor
 				fullName={account.fullName}
