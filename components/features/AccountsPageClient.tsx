@@ -431,12 +431,19 @@ function ActiveAccountRow({
 	 * NATIVO (verificato: `pointerType: "touch"`), perché è così che la
 	 * Pointer Events API rappresenta l'inizio di un contatto. Da qui il
 	 * controllo esplicito sul tipo, non un dettaglio difensivo in più.
+	 *
+	 * ⚠️ Il filtro esclude `!== "touch"`, non pretende `=== "mouse"`: una
+	 * penna con hover reale (Surface Pen, Apple Pencil 2 su iPadOS) manda un
+	 * `pointerenter` genuino — `pointerType: "pen"` — PRIMA di toccare lo
+	 * schermo, esattamente come un mouse. Pretendere `"mouse"` avrebbe
+	 * tolto silenziosamente l'hover-reveal a quel pubblico, una regressione
+	 * per una platea piccola ma reale rispetto a prima di questo fix.
 	 */
 	function onRowPointerEnter(e: PointerEvent<HTMLDivElement>) {
-		if (e.pointerType === "mouse") setHovered(true);
+		if (e.pointerType !== "touch") setHovered(true);
 	}
 	function onRowPointerLeave(e: PointerEvent<HTMLDivElement>) {
-		if (e.pointerType === "mouse") setHovered(false);
+		if (e.pointerType !== "touch") setHovered(false);
 	}
 
 	return (
