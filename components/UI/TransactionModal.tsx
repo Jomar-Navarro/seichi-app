@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, X, Check, Delete } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useUIStore } from "@/store/useUIStore";
 import { TRANSACTION_TYPES } from "@/types";
 import TransactionForm, {
@@ -83,7 +83,13 @@ function TransactionModalContent() {
 			: "",
 	);
 	const AMOUNT_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ",", "0", "⌫"];
-	function handleAmountKey(key: string) {
+	// `useCallback` con dipendenze vuote (usa solo l'updater funzionale di
+	// `setAmount`, mai `amount` per chiusura): serve un riferimento STABILE
+	// perché anche la tastiera fisica, qui sotto, lo richiama da un
+	// `useEffect` — con una funzione ricreata a ogni render quell'effetto
+	// dovrebbe riattaccarsi ogni volta, o il lint (`exhaustive-deps`) lo
+	// segnalerebbe come dipendenza mancante.
+	const handleAmountKey = useCallback((key: string) => {
 		if (key === "⌫") {
 			setAmount((prev) => prev.slice(0, -1));
 			return;
@@ -93,8 +99,47 @@ function TransactionModalContent() {
 			return;
 		}
 		setAmount((prev) => prev + key);
-	}
+	}, []);
 	const amountValid = amount !== "" && parseFloat(amount.replace(",", ".")) > 0;
+
+	/*
+	 * La tastiera FISICA scrive l'importo tanto quanto il tastierino a
+	 * schermo — utile soprattutto ora che il wizard è anche un dialog
+	 * desktop (Fase 28d), dove un mouse per ogni cifra è più lento di
+	 * digitare. Attivo SOLO al passo "importo": il passo "dettagli" ha
+	 * campi di testo veri (`TransactionForm`), e un ascoltatore sempre
+	 * acceso ruberebbe le cifre digitate lì dentro prima che arrivino
+	 * all'input giusto.
+	 *
+	 * Su `window`, non su un elemento a fuoco: il passo "importo" non ha
+	 * alcun `<input>` — è un tastierino disegnato, come il resto di questo
+	 * passo — quindi non c'è un campo con cui il listener possa entrare in
+	 * conflitto. `e.key` (non `e.code`) copre sia la riga cifre sia il
+	 * tastierino numerico della tastiera fisica: entrambi riportano lo
+	 * stesso carattere.
+	 */
+	useEffect(() => {
+		if (step !== "amount") return;
+		function handlePhysicalKey(e: KeyboardEvent) {
+			// Lascia passare le scorciatoie del browser (Ctrl/Cmd/Alt+cifra).
+			if (e.ctrlKey || e.metaKey || e.altKey) return;
+			if (e.key >= "0" && e.key <= "9") {
+				e.preventDefault();
+				handleAmountKey(e.key);
+			} else if (e.key === "," || e.key === ".") {
+				e.preventDefault();
+				handleAmountKey(",");
+			} else if (e.key === "Backspace") {
+				// `preventDefault`: senza, Backspace con nessun campo a fuoco
+				// naviga "indietro" in alcuni browser (Firefox) invece di
+				// cancellare l'ultima cifra.
+				e.preventDefault();
+				handleAmountKey("⌫");
+			}
+		}
+		window.addEventListener("keydown", handlePhysicalKey);
+		return () => window.removeEventListener("keydown", handlePhysicalKey);
+	}, [step, handleAmountKey]);
 
 	// Blocca lo scroll della pagina dietro il modale. Ora che il componente vive
 	// solo da aperto, la guardia sullo stato del modale non serve: montaggio e

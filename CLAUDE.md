@@ -6610,6 +6610,38 @@ passa dal bottone X o dal tasto/gesto indietro, mai dal tap fuori, perché
 "fuori" non esiste). Il test provava un gesto che l'interfaccia non ha mai
 promesso sotto `lg:`.
 
+##### Tastiera fisica sul passo "importo" — chiesto dopo il merge
+
+Il tastierino del passo "importo" rispondeva solo al mouse/tocco
+(`onPointerDown` sui tasti disegnati): comodo su un telefono, un passo
+indietro su un dialog che ora vive anche su desktop, dove digitare le
+cifre sulla tastiera è più naturale che cliccare un tasto alla volta.
+
+`handleAmountKey` è diventato un `useCallback` a dipendenze vuote (usa
+solo l'updater funzionale di `setAmount`) apposta perché un secondo
+`useEffect` — attivo SOLO mentre `step === "amount"`, su `window` — lo
+richiama per ogni tasto fisico premuto: cifre, `,`/`.` (entrambi mappati
+alla virgola, per non legare la funzione al layout di tastiera di chi
+digita), `Backspace`. Vincolato al passo "importo" perché il passo
+"dettagli" ha campi di testo veri (`TransactionForm`): un ascoltatore
+sempre acceso ruberebbe le cifre digitate lì prima che arrivino al campo
+giusto. `e.preventDefault()` su `Backspace` in particolare — senza,
+Firefox con nessun campo a fuoco lo legge come "torna indietro" invece
+che "cancella l'ultima cifra".
+
+⚠️ **Il mouse resta utilizzabile insieme alla tastiera**, non alternativo:
+nessuna delle due vie disabilita l'altra, `handleAmountKey` è la stessa
+funzione per entrambe.
+
+Collaudato con Playwright a 768px e 1024px: digitazione fisica, Backspace,
+virgola, bottone "Continua" che si abilita, e un click sul tastierino a
+schermo subito dopo — a conferma che le due vie convivono. ⚠️ Il primo giro
+a 1024px dava tutto vuoto: non un difetto del listener, ma del driver di
+collaudo — un click "neutro" prima di digitare cadeva sul backdrop esposto
+sopra il dialog centrato e lo chiudeva. Tolto il click superfluo (il
+listener è su `window`, non serve alcun fuoco), il giro successivo è
+verde su entrambe le larghezze.
+
 ## Key Decisions
 
 - **Storage**: Supabase cloud (multi-device, non localStorage)
