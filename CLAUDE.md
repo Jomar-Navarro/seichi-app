@@ -6182,7 +6182,9 @@ Seguire questo ordine, non saltare fasi:
       su Conti, fix del pannello notifiche. Merged 2026-09-21, PR #103.
     - **28c** pagine lineari — sostituisce il contenitore di transizione con
       lo stretto definitivo
-    - **28d** sheet e modali centrati da `lg:` in su
+    - **28d ✅** sheet e modali centrati da `lg:` in su — `BottomSheetShell`
+      (i cinque fogli) e `TransactionModal`/`TransactionForm` diventano
+      dialog centrati sopra il breakpoint, invariati sotto.
     Motivazioni e decisioni in "Fase 28" sotto.
 29. Animazioni: transizioni morbide, micro-interazioni
 
@@ -6494,6 +6496,151 @@ mirato al sintomo touch — non aveva motivo di cercare: un giro di review
 copre le domande che si è fatto, non tutte quelle che si potevano fare.
 
 Merged 2026-09-21, PR #106.
+
+#### PR 28d — sheet e modali centrati da `lg:` in su
+
+Ultima delle quattro PR. Mockup Claude Design **prima** del codice, come
+ogni fase grande di questo progetto: due nuovi artboard sul canvas esistente
+("Seichi — Responsive tablet/desktop") — `Sheet-Tablet.dc.html` (un dialog
+generico, contenuto ispirato a `CategorySheet`) e
+`TransazioneModale-Tablet.dc.html` (il wizard, con un `data-props` enum
+`step` per passare fra i tre passi dal pannello Tweaks, come già fa
+`Sidebar.dc.html` con `active`).
+
+Scope confermato con un giro di esplorazione dedicato, non assunto:
+**esclusivamente** `BottomSheetShell.tsx` (guscio condiviso da
+`AccountSheet`/`CategorySheet`/`GoalSheet`/`RecurringSheet`/`CoachBubble`) e
+`TransactionModal.tsx`/`TransactionForm.tsx` (wizard transazione, markup
+proprio perché montato direttamente dal layout di `(main)`, non da un
+genitore che lo apre/chiude). Fuori scope, verificato invece di supposto: i
+dialog di conferma eliminazione (`CategoryManager`/`RecurringManager`) sono
+già centrati, `AttachmentPicker` (visore ricevute) è già centrato,
+`NotificationBell`/`AccountSelector` sono pannelli ANCORATI al trigger — non
+sheet — e `AppLockScreen`/`AppLockSettings` restano deliberatamente a
+schermo intero (Fase 26a).
+
+##### `BottomSheetShell.tsx` — solo classi `lg:`, zero nuova logica
+
+- `lg:items-center lg:justify-center lg:p-6` sul contenitore (era solo
+  `items-end`), `lg:max-w-md` sul pannello (448px — verificato contro il
+  contenuto reale: griglie a colonne FISSE come `grid-cols-5` di
+  `CategorySheet`, quindi più larghezza è sempre più comodo, mai più
+  stretto), `lg:hidden` sul manico (nessuno swipe da mouse).
+- ⚠️ **L'ombra cambia UTILITY, non solo intensità.** `modal-shadow-ring` è
+  direzionale (`0px -24px 70px`, tarata per un foglio il cui fondo è fuori
+  schermo — niente ombra sotto, perché sotto non c'è nulla da illuminare).
+  Un dialog centrato fluttua libero su tutti i lati e ne avrebbe bisogno:
+  `lg:box-shadow-ring` (già esistente in `globals.css` per i box a caduta
+  simmetrica) la sostituisce interamente sopra il breakpoint. Stesso schema
+  — classe base + variante `lg:` sulla stessa proprietà — già usato da
+  `LoginForm.tsx:32` per lo stesso issue #81.
+- `rounded-t-4xl` (solo gli angoli superiori, corretto per un foglio a filo
+  col fondo) diventa anche `lg:rounded-4xl` (tutti e quattro, il dialog
+  fluttua libero).
+- `maxHeight: "90dvh"` è uscito dallo `style` inline per entrare in classi
+  (`max-h-[90dvh] lg:max-h-[85dvh]`): un valore inline non può differenziarsi
+  per breakpoint, una classe sì.
+
+##### `TransactionModal.tsx` + `TransactionForm.tsx` — stesso guscio, più un bug vero
+
+Stesso trattamento (`lg:items-center lg:justify-center lg:p-6`,
+`lg:rounded-4xl`, `lg:box-shadow-ring` su `modal-shadow`, manico
+`lg:hidden`), applicato al markup proprio del wizard. `h-dvh` resta
+invariato sotto `lg:`; sopra diventa `lg:h-[min(760px,85dvh)]
+lg:max-w-md` — un'altezza fissa validata prima sul mockup (il passo
+"importo" è il più vincolante: tastierino `grid-cols-3` a proporzione fissa
+`flex:6`/`flex:4`, pensato per riempire lo schermo di un telefono SENZA
+scroll) e poi confermata sui numeri veri, che si sono rivelati persino più
+comodi della stima a mano.
+
+⚠️⚠️ **Il bug reale, non solo estetico**: i bottoni "Continua" (passo
+importo, `TransactionModal.tsx`) e "Salva movimento" (passo dettagli,
+`TransactionForm.tsx`, stesso identico pattern — anzi lo stesso commento nel
+codice lo dichiarava già "stessa posizione del Continua") erano entrambi
+`fixed left-6 right-6`, ancorati ai bordi REALI del **viewport**. Su un
+dialog centrato `fixed` avrebbe fatto scappare il bottone ai bordi della
+finestra del browser invece che a quelli della card — un bottone che
+galleggia fuori dal dialog. Corretto con `fixed lg:absolute` su entrambi:
+l'antenato posizionato più vicino (il div "contenuto", `relative`) esiste
+già in entrambi i punti, non serve aggiungerlo. `left-6`/`right-6`/il
+`bottom` inline restano identici: coincidono già col `px-6` del contenitore
+di riferimento in entrambi i casi, ed `env(safe-area-inset-bottom)` risolve
+a 0 su desktop.
+
+##### Tasto Esc — valutato e scartato
+
+Nessun componente dell'app gestisce oggi Escape (solo `useCloseOnBack` per
+il tasto/gesto "indietro" del browser). Aggiungerlo sembrava
+l'affordance ovvia per un dialog centrato desktop, ma `AttachmentPicker.tsx`
+(il visore ricevute a schermo intero) monta DENTRO `TransactionForm` — quindi
+dentro `TransactionModal` — e non ha alcuna gestione di Escape propria. Un
+listener `keydown` globale sul wizard avrebbe intercettato Escape anche
+mentre l'utente guarda una ricevuta ingrandita, chiudendo l'INTERO wizard
+(form compreso) invece del solo visore: un difetto vero, introdotto da
+un'aggiunta non richiesta. Risolverlo bene avrebbe richiesto coordinare
+l'ordine dei listener fra due componenti indipendenti — più complessità di
+quanta ne serva per un'affordance che l'issue non chiedeva. La chiusura
+resta quindi su tre meccanismi identici sotto e sopra `lg:`: bottone X
+(sempre presente, ogni foglio ha il proprio), tap sul backdrop, tasto/gesto
+"indietro" del browser.
+
+##### Il collaudo
+
+Driver Playwright ad hoc (come 28a/28b), sessione riusata via cookie, tema
+forzato con i due cookie della Fase 18 (`seichi-theme`/`seichi-theme-resolved`)
+per evitare di dover toccare l'interfaccia. Verificato a 768px (invariato:
+pannello ancorato al fondo, larghezza piena, solo angoli superiori
+arrotondati, manico visibile), 1024px e 1440px (dialog centrato
+orizzontalmente E verticalmente, larghezza ridotta, angoli tutti
+arrotondati, ombra presente, manico nascosto) per `CategorySheet` e
+`GoalSheet` — bastano loro due a rappresentare tutti e cinque i fogli,
+condividono lo stesso guscio — e per i tre passi di `TransactionModal`, con
+misura diretta (bounding box) che il bottone "Continua"/"Salva movimento"
+resta DENTRO i bordi della card in ogni combinazione. Tema scuro per il giro
+completo, tema chiaro per un passaggio più leggero (`CategorySheet`@1024,
+wizard@1440) — entrambi confermano il contrasto e la leggibilità della
+griglia icone a 5 colonne. Zero errori console in ogni giro.
+
+⚠️ **Un KO, diagnosticato prima di scartarlo — la regola di sempre.** Il
+click sul backdrop per chiudere il wizard falliva SOLO a 768px. Non un
+difetto: a quella larghezza il pannello è `w-full h-dvh`, cioè copre
+**l'intero schermo** — non c'è alcun backdrop esposto su cui cliccare, ed è
+il comportamento di sempre, non toccato da questa fase (la chiusura lì
+passa dal bottone X o dal tasto/gesto indietro, mai dal tap fuori, perché
+"fuori" non esiste). Il test provava un gesto che l'interfaccia non ha mai
+promesso sotto `lg:`.
+
+##### Tastiera fisica sul passo "importo" — chiesto dopo il merge
+
+Il tastierino del passo "importo" rispondeva solo al mouse/tocco
+(`onPointerDown` sui tasti disegnati): comodo su un telefono, un passo
+indietro su un dialog che ora vive anche su desktop, dove digitare le
+cifre sulla tastiera è più naturale che cliccare un tasto alla volta.
+
+`handleAmountKey` è diventato un `useCallback` a dipendenze vuote (usa
+solo l'updater funzionale di `setAmount`) apposta perché un secondo
+`useEffect` — attivo SOLO mentre `step === "amount"`, su `window` — lo
+richiama per ogni tasto fisico premuto: cifre, `,`/`.` (entrambi mappati
+alla virgola, per non legare la funzione al layout di tastiera di chi
+digita), `Backspace`. Vincolato al passo "importo" perché il passo
+"dettagli" ha campi di testo veri (`TransactionForm`): un ascoltatore
+sempre acceso ruberebbe le cifre digitate lì prima che arrivino al campo
+giusto. `e.preventDefault()` su `Backspace` in particolare — senza,
+Firefox con nessun campo a fuoco lo legge come "torna indietro" invece
+che "cancella l'ultima cifra".
+
+⚠️ **Il mouse resta utilizzabile insieme alla tastiera**, non alternativo:
+nessuna delle due vie disabilita l'altra, `handleAmountKey` è la stessa
+funzione per entrambe.
+
+Collaudato con Playwright a 768px e 1024px: digitazione fisica, Backspace,
+virgola, bottone "Continua" che si abilita, e un click sul tastierino a
+schermo subito dopo — a conferma che le due vie convivono. ⚠️ Il primo giro
+a 1024px dava tutto vuoto: non un difetto del listener, ma del driver di
+collaudo — un click "neutro" prima di digitare cadeva sul backdrop esposto
+sopra il dialog centrato e lo chiudeva. Tolto il click superfluo (il
+listener è su `window`, non serve alcun fuoco), il giro successivo è
+verde su entrambe le larghezze.
 
 ## Key Decisions
 

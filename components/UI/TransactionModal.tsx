@@ -1,10 +1,13 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, X, Check, Delete } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useUIStore } from "@/store/useUIStore";
 import { TRANSACTION_TYPES } from "@/types";
-import TransactionForm from "./TransactionForm";
+import TransactionForm, {
+	WIZARD_FOOTER_BUTTON_CLASS,
+	WIZARD_FOOTER_BUTTON_STYLE,
+} from "./TransactionForm";
 import { useI18n } from "@/components/features/I18nProvider";
 import { useCloseOnBack } from "./useCloseOnBack";
 import { DISPLAY_CURRENCY, currencySymbol, formatMoney } from "@/lib/i18n/format";
@@ -80,7 +83,13 @@ function TransactionModalContent() {
 			: "",
 	);
 	const AMOUNT_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ",", "0", "⌫"];
-	function handleAmountKey(key: string) {
+	// `useCallback` con dipendenze vuote (usa solo l'updater funzionale di
+	// `setAmount`, mai `amount` per chiusura): serve un riferimento STABILE
+	// perché anche la tastiera fisica, qui sotto, lo richiama da un
+	// `useEffect` — con una funzione ricreata a ogni render quell'effetto
+	// dovrebbe riattaccarsi ogni volta, o il lint (`exhaustive-deps`) lo
+	// segnalerebbe come dipendenza mancante.
+	const handleAmountKey = useCallback((key: string) => {
 		if (key === "⌫") {
 			setAmount((prev) => prev.slice(0, -1));
 			return;
@@ -90,8 +99,47 @@ function TransactionModalContent() {
 			return;
 		}
 		setAmount((prev) => prev + key);
-	}
+	}, []);
 	const amountValid = amount !== "" && parseFloat(amount.replace(",", ".")) > 0;
+
+	/*
+	 * La tastiera FISICA scrive l'importo tanto quanto il tastierino a
+	 * schermo — utile soprattutto ora che il wizard è anche un dialog
+	 * desktop (Fase 28d), dove un mouse per ogni cifra è più lento di
+	 * digitare. Attivo SOLO al passo "importo": il passo "dettagli" ha
+	 * campi di testo veri (`TransactionForm`), e un ascoltatore sempre
+	 * acceso ruberebbe le cifre digitate lì dentro prima che arrivino
+	 * all'input giusto.
+	 *
+	 * Su `window`, non su un elemento a fuoco: il passo "importo" non ha
+	 * alcun `<input>` — è un tastierino disegnato, come il resto di questo
+	 * passo — quindi non c'è un campo con cui il listener possa entrare in
+	 * conflitto. `e.key` (non `e.code`) copre sia la riga cifre sia il
+	 * tastierino numerico della tastiera fisica: entrambi riportano lo
+	 * stesso carattere.
+	 */
+	useEffect(() => {
+		if (step !== "amount") return;
+		function handlePhysicalKey(e: KeyboardEvent) {
+			// Lascia passare le scorciatoie del browser (Ctrl/Cmd/Alt+cifra).
+			if (e.ctrlKey || e.metaKey || e.altKey) return;
+			if (e.key >= "0" && e.key <= "9") {
+				e.preventDefault();
+				handleAmountKey(e.key);
+			} else if (e.key === "," || e.key === ".") {
+				e.preventDefault();
+				handleAmountKey(",");
+			} else if (e.key === "Backspace") {
+				// `preventDefault`: senza, Backspace con nessun campo a fuoco
+				// naviga "indietro" in alcuni browser (Firefox) invece di
+				// cancellare l'ultima cifra.
+				e.preventDefault();
+				handleAmountKey("⌫");
+			}
+		}
+		window.addEventListener("keydown", handlePhysicalKey);
+		return () => window.removeEventListener("keydown", handlePhysicalKey);
+	}, [step, handleAmountKey]);
 
 	// Blocca lo scroll della pagina dietro il modale. Ora che il componente vive
 	// solo da aperto, la guardia sullo stato del modale non serve: montaggio e
@@ -127,7 +175,7 @@ function TransactionModalContent() {
 	useCloseOnBack(handleClose);
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-end">
+		<div className="fixed inset-0 z-50 flex items-end lg:items-center lg:justify-center lg:p-6">
 			{/* Backdrop */}
 			<div
 				className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -151,8 +199,20 @@ function TransactionModalContent() {
 				galleggia sotto la notch invece di uno schermo intero. Gli altri
 				fogli (`BottomSheetShell`, `90dvh`, DAVVERO sospesi sopra il resto
 				della pagina) restano arrotondati apposta — è un caso diverso.
+
+				Fase 28d — da `lg:` in su questo NON è più vero: il wizard diventa
+				un dialog a dimensione fissa (`lg:h-[min(760px,85dvh)]`, largo
+				`lg:max-w-md` come `BottomSheetShell`) che fluttua libero, quindi
+				torna ad avere senso arrotondare tutti gli angoli
+				(`lg:rounded-4xl`) e un'ombra simmetrica (`lg:box-shadow-ring` sopra
+				`modal-shadow`: stesso motivo di `BottomSheetShell`, la direzionale
+				è tarata per un foglio ancorato al fondo). `h-dvh` resta invariato
+				sotto `lg:`. L'altezza 760px è stata validata sul mockup Claude
+				Design prima di scriverla qui (il passo "importo" è il più
+				vincolante: il tastierino resta un rettangolo moderato, non
+				schiacciato).
 			*/}
-			<div className="relative w-full h-dvh overflow-hidden modal-shadow">
+			<div className="relative w-full h-dvh lg:h-[min(760px,85dvh)] lg:max-w-md overflow-hidden lg:rounded-4xl modal-shadow lg:box-shadow-ring">
 				<div className="absolute inset-0 bg-modal backdrop-blur-2xl" />
 				<div
 					className="relative w-full h-full flex flex-col px-6"
@@ -167,8 +227,9 @@ function TransactionModalContent() {
 						paddingBottom: "max(1.625rem, env(safe-area-inset-bottom))",
 					}}
 				>
-				{/* Handle */}
-				<div className="w-10 h-1 rounded-full mx-auto mb-1 bg-modal-handle" />
+				{/* Handle — issue #86 lo introduce, Fase 28d lo nasconde da `lg:`:
+				    nessuno swipe da mouse su un dialog centrato desktop. */}
+				<div className="w-10 h-1 rounded-full mx-auto mb-1 bg-modal-handle lg:hidden" />
 
 				{/* Header */}
 				<div className="flex items-start justify-between mt-3 mb-4">
@@ -437,12 +498,24 @@ function TransactionModalContent() {
 							quel contenitore), e il fondo rispetta la stessa safe-area del
 							padding generale. Il wrapper qui sopra riserva lo spazio con
 							`pb-19`, o il tastierino finirebbe nascosto sotto.
+
+							⚠️ Fase 28d — `lg:absolute`, non più `fixed` sopra il
+							breakpoint: `fixed` è relativo al VIEWPORT, e su un dialog
+							centrato il bottone scapperebbe ai bordi della finestra del
+							browser invece che a quelli della card. L'antenato posizionato
+							più vicino (il div "contenuto", `relative`, due livelli sopra)
+							c'è già — non serve aggiungerlo. `left-6 right-6` e lo `style`
+							col `bottom` restano identici: coincidono già col `px-6` del
+							contenitore di riferimento in entrambi i casi, e
+							`env(safe-area-inset-bottom)` risolve a 0 su desktop. Classe e
+							stile condivisi con "Salva movimento" — vedi
+							`WIZARD_FOOTER_BUTTON_CLASS` in `TransactionForm.tsx`.
 						*/}
 						<button
 							onClick={() => setStep("form")}
 							disabled={!amountValid}
-							className="fixed left-6 right-6 py-4 rounded-2xl btn-primary font-semibold flex items-center justify-center gap-2 disabled:opacity-40"
-							style={{ bottom: "max(1.625rem, env(safe-area-inset-bottom))" }}
+							className={WIZARD_FOOTER_BUTTON_CLASS}
+							style={WIZARD_FOOTER_BUTTON_STYLE}
 						>
 							{t.common.continue}
 						</button>

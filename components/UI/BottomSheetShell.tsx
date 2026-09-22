@@ -62,6 +62,22 @@ interface BottomSheetShellProps {
  * stesso elemento. `modal-shadow-ring` sostituisce il bordo con un
  * `box-shadow: inset`, che Firefox ritaglia correttamente da solo — vedi la
  * nota in `globals.css`.
+ *
+ * ⚠️ Fase 28d — da `lg:` in su il foglio diventa un dialog CENTRATO, non più
+ * ancorato al fondo: `lg:items-center lg:justify-center`, larghezza
+ * `lg:max-w-md` (verificato contro il contenuto reale dei cinque fogli —
+ * griglie a colonne fisse, mai più strette con più spazio), angoli TUTTI
+ * arrotondati (`lg:rounded-4xl`, non solo quelli in alto) e manico nascosto
+ * (`lg:hidden`: nessuno swipe da mouse).
+ *
+ * ⚠️⚠️ L'ombra cambia utility, non solo intensità. `modal-shadow-ring` è
+ * un'ombra DIREZIONALE (`0px -24px 70px`, solo verso l'alto): corretta per un
+ * foglio il cui fondo è fuori schermo, sbagliata per un dialog che fluttua
+ * libero su tutti i lati — mancherebbe l'ombra sotto. `lg:box-shadow-ring`
+ * (già esistente in `globals.css` per i box a caduta simmetrica) la
+ * sostituisce interamente sopra il breakpoint: stesso schema — classe base +
+ * variante `lg:` sulla stessa proprietà — già usato da `LoginForm.tsx` per lo
+ * stesso issue #81.
  */
 export default function BottomSheetShell({ onClose, children, ariaLabel }: BottomSheetShellProps) {
 	// issue #86 — vedi useCloseOnBack: neutralizza l'edge-swipe di WKWebView
@@ -74,12 +90,12 @@ export default function BottomSheetShell({ onClose, children, ariaLabel }: Botto
 	useScrollFocusedIntoView(scrollRef);
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-end">
+		<div className="fixed inset-0 z-50 flex items-end lg:items-center lg:justify-center lg:p-6">
 			<div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={onClose} />
 
 			<div
 				{...(ariaLabel ? { role: "dialog", "aria-modal": true, "aria-label": ariaLabel } : {})}
-				className="relative w-full rounded-t-4xl overflow-hidden modal-shadow-ring"
+				className="relative w-full lg:max-w-md rounded-t-4xl lg:rounded-4xl overflow-hidden modal-shadow-ring lg:box-shadow-ring"
 			>
 				{/* Il vetro: riempie il guscio, non ha angoli propri da ritagliare. */}
 				<div className="absolute inset-0 bg-modal backdrop-blur-2xl" />
@@ -89,19 +105,20 @@ export default function BottomSheetShell({ onClose, children, ariaLabel }: Botto
 					// issue #69 — overscroll-contain: senza, il rimbalzo a fine scroll
 					// di questo contenitore annidato si propaga alla pagina sotto
 					// (rubber-band/pull che scappa dal foglio).
-					className="relative flex flex-col pt-3.5 px-6 scrollbar-none overscroll-contain"
+					// Fase 28d — `maxHeight` sposta da inline a classi: un valore
+					// inline non può differenziarsi per breakpoint, una classe sì.
+					className="relative flex flex-col pt-3.5 px-6 scrollbar-none overscroll-contain max-h-[90dvh] lg:max-h-[85dvh]"
 					// issue #86 — il foglio è flush col fondo reale dello schermo
 					// (`items-end`, nessun margine): senza l'inset l'ultimo elemento
 					// finisce ridosso alla home indicator. `max()` perché `pb-8` (32px)
 					// resta il minimo voluto anche su un device senza notch, dove
 					// l'inset è 0 — altrimenti lì si perderebbe il respiro attuale.
 					style={{
-						maxHeight: "90dvh",
 						overflowY: "auto",
 						paddingBottom: "max(2rem, env(safe-area-inset-bottom))",
 					}}
 				>
-					<div className="w-10 h-1 rounded-full mx-auto mb-1 bg-modal-handle shrink-0" />
+					<div className="w-10 h-1 rounded-full mx-auto mb-1 bg-modal-handle shrink-0 lg:hidden" />
 					{children}
 				</div>
 			</div>
