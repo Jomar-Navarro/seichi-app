@@ -676,11 +676,15 @@ export default function TransactionForm({
 			"Continua" del passo "importo": `left-6 right-6` ripete il `px-6`
 			del foglio (qui non è dentro quel contenitore) e il fondo rispetta
 			la stessa safe-area.
+
+			⚠️ Fase 28d — `lg:absolute`, stesso motivo e stessa correzione del
+			"Continua": sopra il breakpoint il dialog è centrato e `fixed`
+			scapperebbe ai bordi della finestra invece che a quelli della card.
 		*/}
 		<button
 			onClick={handleSave}
 			disabled={!isValid || isSaving}
-			className="fixed left-6 right-6 py-4 rounded-2xl btn-primary font-semibold flex items-center justify-center gap-2 disabled:opacity-40"
+			className="fixed lg:absolute left-6 right-6 py-4 rounded-2xl btn-primary font-semibold flex items-center justify-center gap-2 disabled:opacity-40"
 			style={{ bottom: "max(1.625rem, env(safe-area-inset-bottom))" }}
 		>
 			<Check size={18} />

@@ -127,7 +127,7 @@ function TransactionModalContent() {
 	useCloseOnBack(handleClose);
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-end">
+		<div className="fixed inset-0 z-50 flex items-end lg:items-center lg:justify-center lg:p-6">
 			{/* Backdrop */}
 			<div
 				className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -151,8 +151,20 @@ function TransactionModalContent() {
 				galleggia sotto la notch invece di uno schermo intero. Gli altri
 				fogli (`BottomSheetShell`, `90dvh`, DAVVERO sospesi sopra il resto
 				della pagina) restano arrotondati apposta — è un caso diverso.
+
+				Fase 28d — da `lg:` in su questo NON è più vero: il wizard diventa
+				un dialog a dimensione fissa (`lg:h-[min(760px,85dvh)]`, largo
+				`lg:max-w-md` come `BottomSheetShell`) che fluttua libero, quindi
+				torna ad avere senso arrotondare tutti gli angoli
+				(`lg:rounded-4xl`) e un'ombra simmetrica (`lg:box-shadow-ring` sopra
+				`modal-shadow`: stesso motivo di `BottomSheetShell`, la direzionale
+				è tarata per un foglio ancorato al fondo). `h-dvh` resta invariato
+				sotto `lg:`. L'altezza 760px è stata validata sul mockup Claude
+				Design prima di scriverla qui (il passo "importo" è il più
+				vincolante: il tastierino resta un rettangolo moderato, non
+				schiacciato).
 			*/}
-			<div className="relative w-full h-dvh overflow-hidden modal-shadow">
+			<div className="relative w-full h-dvh lg:h-[min(760px,85dvh)] lg:max-w-md overflow-hidden lg:rounded-4xl modal-shadow lg:box-shadow-ring">
 				<div className="absolute inset-0 bg-modal backdrop-blur-2xl" />
 				<div
 					className="relative w-full h-full flex flex-col px-6"
@@ -167,8 +179,9 @@ function TransactionModalContent() {
 						paddingBottom: "max(1.625rem, env(safe-area-inset-bottom))",
 					}}
 				>
-				{/* Handle */}
-				<div className="w-10 h-1 rounded-full mx-auto mb-1 bg-modal-handle" />
+				{/* Handle — issue #86 lo introduce, Fase 28d lo nasconde da `lg:`:
+				    nessuno swipe da mouse su un dialog centrato desktop. */}
+				<div className="w-10 h-1 rounded-full mx-auto mb-1 bg-modal-handle lg:hidden" />
 
 				{/* Header */}
 				<div className="flex items-start justify-between mt-3 mb-4">
@@ -437,11 +450,21 @@ function TransactionModalContent() {
 							quel contenitore), e il fondo rispetta la stessa safe-area del
 							padding generale. Il wrapper qui sopra riserva lo spazio con
 							`pb-19`, o il tastierino finirebbe nascosto sotto.
+
+							⚠️ Fase 28d — `lg:absolute`, non più `fixed` sopra il
+							breakpoint: `fixed` è relativo al VIEWPORT, e su un dialog
+							centrato il bottone scapperebbe ai bordi della finestra del
+							browser invece che a quelli della card. L'antenato posizionato
+							più vicino (il div "contenuto", `relative`, due livelli sopra)
+							c'è già — non serve aggiungerlo. `left-6 right-6` e lo `style`
+							col `bottom` restano identici: coincidono già col `px-6` del
+							contenitore di riferimento in entrambi i casi, e
+							`env(safe-area-inset-bottom)` risolve a 0 su desktop.
 						*/}
 						<button
 							onClick={() => setStep("form")}
 							disabled={!amountValid}
-							className="fixed left-6 right-6 py-4 rounded-2xl btn-primary font-semibold flex items-center justify-center gap-2 disabled:opacity-40"
+							className="fixed lg:absolute left-6 right-6 py-4 rounded-2xl btn-primary font-semibold flex items-center justify-center gap-2 disabled:opacity-40"
 							style={{ bottom: "max(1.625rem, env(safe-area-inset-bottom))" }}
 						>
 							{t.common.continue}
