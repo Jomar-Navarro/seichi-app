@@ -33,6 +33,22 @@ import { useScrollFocusedIntoView } from "@/components/UI/useScrollFocusedIntoVi
  * copie sono coesistite: sbagliato, e già stavano divergendo (`min` e il comando
  * "svuota" esistevano solo nella nuova). Ora il picker è uno solo.
  */
+/*
+ * Fase 28d — condivisa con `TransactionModal.tsx` (che importa già questo
+ * file per il componente stesso). Il bottone "Continua" del passo "importo"
+ * e il "Salva movimento" del passo "dettagli" sono lo STESSO bottone di
+ * chiusura del wizard, ripetuto in due punti: `fixed` sotto `lg:` (ancorato
+ * al viewport, comportamento mobile), `absolute` sopra (dentro la card
+ * centrata — l'antenato posizionato più vicino è sempre il div "contenuto"
+ * `relative` del passo). Una costante sola evita che i due bottoni
+ * divergano alla prossima modifica fatta su un solo file.
+ */
+export const WIZARD_FOOTER_BUTTON_CLASS =
+	"fixed lg:absolute left-6 right-6 py-4 rounded-2xl btn-primary font-semibold flex items-center justify-center gap-2 disabled:opacity-40";
+export const WIZARD_FOOTER_BUTTON_STYLE = {
+	bottom: "max(1.625rem, env(safe-area-inset-bottom))",
+} as const;
+
 interface TransactionFormProps {
 	selectedType: TransactionType;
 	transaction?: Transaction;
@@ -675,17 +691,14 @@ export default function TransactionForm({
 			`fixed`, non l'ultimo elemento dello scroll — stessa posizione del
 			"Continua" del passo "importo": `left-6 right-6` ripete il `px-6`
 			del foglio (qui non è dentro quel contenitore) e il fondo rispetta
-			la stessa safe-area.
-
-			⚠️ Fase 28d — `lg:absolute`, stesso motivo e stessa correzione del
-			"Continua": sopra il breakpoint il dialog è centrato e `fixed`
-			scapperebbe ai bordi della finestra invece che a quelli della card.
+			la stessa safe-area. Classe e stile condivisi con quel bottone —
+			vedi `WIZARD_FOOTER_BUTTON_CLASS` qui sopra.
 		*/}
 		<button
 			onClick={handleSave}
 			disabled={!isValid || isSaving}
-			className="fixed lg:absolute left-6 right-6 py-4 rounded-2xl btn-primary font-semibold flex items-center justify-center gap-2 disabled:opacity-40"
-			style={{ bottom: "max(1.625rem, env(safe-area-inset-bottom))" }}
+			className={WIZARD_FOOTER_BUTTON_CLASS}
+			style={WIZARD_FOOTER_BUTTON_STYLE}
 		>
 			<Check size={18} />
 			{isEditing

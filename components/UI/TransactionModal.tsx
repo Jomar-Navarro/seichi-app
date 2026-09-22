@@ -4,7 +4,10 @@ import { ChevronLeft, ChevronRight, X, Check, Delete } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useUIStore } from "@/store/useUIStore";
 import { TRANSACTION_TYPES } from "@/types";
-import TransactionForm from "./TransactionForm";
+import TransactionForm, {
+	WIZARD_FOOTER_BUTTON_CLASS,
+	WIZARD_FOOTER_BUTTON_STYLE,
+} from "./TransactionForm";
 import { useI18n } from "@/components/features/I18nProvider";
 import { useCloseOnBack } from "./useCloseOnBack";
 import { DISPLAY_CURRENCY, currencySymbol, formatMoney } from "@/lib/i18n/format";
@@ -459,13 +462,15 @@ function TransactionModalContent() {
 							c'è già — non serve aggiungerlo. `left-6 right-6` e lo `style`
 							col `bottom` restano identici: coincidono già col `px-6` del
 							contenitore di riferimento in entrambi i casi, e
-							`env(safe-area-inset-bottom)` risolve a 0 su desktop.
+							`env(safe-area-inset-bottom)` risolve a 0 su desktop. Classe e
+							stile condivisi con "Salva movimento" — vedi
+							`WIZARD_FOOTER_BUTTON_CLASS` in `TransactionForm.tsx`.
 						*/}
 						<button
 							onClick={() => setStep("form")}
 							disabled={!amountValid}
-							className="fixed lg:absolute left-6 right-6 py-4 rounded-2xl btn-primary font-semibold flex items-center justify-center gap-2 disabled:opacity-40"
-							style={{ bottom: "max(1.625rem, env(safe-area-inset-bottom))" }}
+							className={WIZARD_FOOTER_BUTTON_CLASS}
+							style={WIZARD_FOOTER_BUTTON_STYLE}
 						>
 							{t.common.continue}
 						</button>
