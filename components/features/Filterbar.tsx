@@ -32,6 +32,17 @@ interface FilterBarProps {
  * pagina categorie.
  */
 
+/*
+ * I quattro chip dei filtri — una classe sola, o divergerebbero alla prima
+ * modifica. Da `lg:` in su prendono le misure del mockup desktop di Movimenti
+ * (issue #108): vetro più leggero (`bg-surface`), raggio 14, testo 12.5px
+ * secondario, e uno sfondo al passaggio del mouse. Sotto `lg:` le classi sono
+ * quelle di prima, e `hover:` in Tailwind v4 vale comunque solo dove un
+ * puntatore può davvero sorvolare.
+ */
+const CHIP =
+	"flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-card ring-border text-sm font-medium lg:px-3.75 lg:py-2.25 lg:rounded-[14px] lg:bg-surface lg:text-[12.5px] lg:text-secondary lg:hover:bg-surface-elevated";
+
 export default function FilterBar({
 	search,
 	tipo,
@@ -125,15 +136,18 @@ export default function FilterBar({
 
 	return (
 		<div className="space-y-3" ref={ref}>
-			{/* Search */}
-			<div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-card ring-border">
-				<Search size={15} className="text-muted shrink-0" />
+			{/* Search — da `lg:` alto 50px, raggio 18, vetro leggero (mockup #108). */}
+			<div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-card ring-border lg:h-12.5 lg:py-0 lg:rounded-[18px] lg:bg-surface">
+				<Search size={15} className="text-muted shrink-0 lg:size-4.5" />
 				<input
 					type="text"
 					placeholder={t.transactions.searchPlaceholder}
 					value={search}
 					onChange={(e) => onSearchChange(e.target.value)}
 					// issue #69 — text-base: sotto i 16px iOS zooma da solo al focus.
+					// ⚠️ Resta a 16px anche da `lg:` in su, dove il mockup ne scrive 14:
+					// un iPad in orizzontale supera i 1024px ed è `lg:` a tutti gli
+					// effetti, con Safari che zooma come su un telefono.
 					className="bg-transparent text-base flex-1 outline-none placeholder:text-muted"
 				/>
 			</div>
@@ -149,15 +163,16 @@ export default function FilterBar({
 				di aprirsi sopra la lista. È la stessa regola già pagata dal carosello
 				della home, dove `overflow-x-auto` ritagliava il `box-shadow`.
 			*/}
-			<div className="flex flex-wrap items-center gap-2">
+			<div className="flex flex-wrap items-center gap-2 lg:gap-2.5">
 				{/* Periodo dropdown */}
 				<div className="relative">
 					<button
 						onClick={() => setOpen(open === "periodo" ? null : "periodo")}
-						className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-card ring-border text-sm font-medium"
+						aria-expanded={open === "periodo"}
+						className={CHIP}
 					>
 						{periodoLabel}
-						<ChevronDown size={13} className={`text-muted transition-transform ${open === "periodo" ? "rotate-180" : ""}`} />
+						<ChevronDown size={13} className={`text-muted transition-transform lg:size-2.75 ${open === "periodo" ? "rotate-180" : ""}`} />
 					</button>
 					{open === "periodo" && (
 						<div className="absolute top-full mt-1.5 left-0 z-20 min-w-36 rounded-2xl bg-deep overflow-hidden card-shadow-ring">
@@ -179,10 +194,11 @@ export default function FilterBar({
 				<div className="relative">
 					<button
 						onClick={() => setOpen(open === "tipo" ? null : "tipo")}
-						className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-card ring-border text-sm font-medium"
+						aria-expanded={open === "tipo"}
+						className={CHIP}
 					>
 						{tipoLabel}
-						<ChevronDown size={13} className={`text-muted transition-transform ${open === "tipo" ? "rotate-180" : ""}`} />
+						<ChevronDown size={13} className={`text-muted transition-transform lg:size-2.75 ${open === "tipo" ? "rotate-180" : ""}`} />
 					</button>
 					{open === "tipo" && (
 						<div className="absolute top-full mt-1.5 left-0 z-20 min-w-40 rounded-2xl bg-deep overflow-hidden card-shadow-ring">
@@ -209,10 +225,11 @@ export default function FilterBar({
 					<div className="relative">
 						<button
 							onClick={() => setOpen(open === "categoria" ? null : "categoria")}
-							className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-card ring-border text-sm font-medium max-w-44"
+							aria-expanded={open === "categoria"}
+							className={`${CHIP} max-w-44`}
 						>
 							<span className="truncate">{categoriaLabel}</span>
-							<ChevronDown size={13} className={`text-muted shrink-0 transition-transform ${open === "categoria" ? "rotate-180" : ""}`} />
+							<ChevronDown size={13} className={`text-muted shrink-0 transition-transform lg:size-2.75 ${open === "categoria" ? "rotate-180" : ""}`} />
 						</button>
 						{open === "categoria" && (
 							// ⚠️ `max-h` + scorrimento interno: le categorie possono essere
@@ -247,10 +264,11 @@ export default function FilterBar({
 					<div className="relative">
 						<button
 							onClick={() => setOpen(open === "conto" ? null : "conto")}
-							className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-card ring-border text-sm font-medium"
+							aria-expanded={open === "conto"}
+							className={CHIP}
 						>
 							{contoLabel}
-							<ChevronDown size={13} className={`text-muted transition-transform ${open === "conto" ? "rotate-180" : ""}`} />
+							<ChevronDown size={13} className={`text-muted transition-transform lg:size-2.75 ${open === "conto" ? "rotate-180" : ""}`} />
 						</button>
 						{open === "conto" && (
 							<div className="absolute top-full mt-1.5 right-0 z-20 min-w-44 rounded-2xl bg-deep overflow-hidden card-shadow-ring">
@@ -280,11 +298,13 @@ export default function FilterBar({
 					partenza — questo componente vede i filtri ma non i loro default.
 				*/}
 				{onReset && (
+					// Stesse misure dei chip da `lg:` in su, ma senza vetro: è un
+					// comando, non un filtro, e resta un gradino sotto.
 					<button
 						onClick={() => { onReset(); setOpen(null); }}
-						className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl ring-border text-sm font-medium text-secondary"
+						className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl ring-border text-sm font-medium text-secondary lg:px-3.75 lg:py-2.25 lg:rounded-[14px] lg:text-[12.5px] lg:hover:bg-surface"
 					>
-						<X size={13} className="text-muted shrink-0" />
+						<X size={13} className="text-muted shrink-0 lg:size-2.75" />
 						{t.transactions.resetFilters}
 					</button>
 				)}

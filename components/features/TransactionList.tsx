@@ -64,12 +64,24 @@ interface TransactionListProps {
 	viewedAccountId?: string | null;
 }
 
+/*
+ * Da `lg:` in su ogni movimento è la card del mockup desktop di Movimenti
+ * (issue #108): raggio 20, padding 15/18, vetro leggero, testi un filo più
+ * grandi. Sotto `lg:` nulla cambia.
+ *
+ * ⚠️ Vale anche per `/conti/[id]`, che rende questa stessa lista: è voluto —
+ * l'estratto di un conto e la lista di tutti i movimenti sono la stessa riga,
+ * e due misure diverse per lo stesso oggetto si leggerebbero come due oggetti.
+ *
+ * Lo scheletro prende le stesse misure, o all'arrivo dei dati le card
+ * cambierebbero forma sotto gli occhi.
+ */
 function Skeleton() {
 	return (
 		<div className="space-y-2">
 			{Array.from({ length: 4 }).map((_, i) => (
-				<div key={i} className="flex items-center gap-3.5 px-4 py-3.5 rounded-2xl bg-card ring-border animate-pulse">
-					<div className="w-10 h-10 rounded-xl bg-surface-elevated shrink-0" />
+				<div key={i} className="flex items-center gap-3.5 px-4 py-3.5 rounded-2xl bg-card ring-border animate-pulse lg:px-4.5 lg:py-3.75 lg:rounded-[20px] lg:bg-surface">
+					<div className="w-10 h-10 rounded-xl bg-surface-elevated shrink-0 lg:rounded-[13px]" />
 					<div className="flex-1 space-y-2">
 						<div className="h-3 rounded-full bg-surface-elevated w-28" />
 						<div className="h-2.5 rounded-full bg-surface-elevated w-16" />
@@ -137,7 +149,13 @@ export default function TransactionList({
 		<div className="space-y-5">
 			{Object.entries(groups).map(([date, items]) => (
 				<div key={date}>
-					<p className="text-xs font-medium tracking-[1.6px] text-muted mb-2.5 ms-1">{date}</p>
+					{/* Da `lg:` in su l'etichetta del giorno del mockup: 11px maiuscolo,
+					    spaziatura 2px, colore da etichetta di sezione. Le distanze
+					    restano quelle di sempre (20px sopra, 10px sotto), vicine a
+					    quelle del mockup: cambia la voce, non il ritmo della lista. */}
+					<p className="text-xs font-medium tracking-[1.6px] text-muted mb-2.5 ms-1 lg:text-[11px] lg:uppercase lg:tracking-[2px] lg:text-disabled">
+						{date}
+					</p>
 					<div className="space-y-2">
 						{items.map((tx) => {
 							const isTransfer = tx.type === "trasferimento";
@@ -169,14 +187,31 @@ export default function TransactionList({
 								? `${accountName.get(tx.account_id) ?? "—"} ${DIRECTION_ARROW} ${toName ?? "—"}`
 								: (cat?.name ?? "—");
 
+							/*
+								Da `lg:` in su le ENTRATE hanno un velo verde (mockup #108).
+								⚠️ Mescolato con `--surface` e non col trasparente: col
+								trasparente, in tema chiaro, la card perderebbe il vetro
+								bianco delle vicine e si leggerebbe come un buco nella lista
+								invece che come una riga tinta.
+								Solo `entrata`, come l'inchiostro dell'importo: è il TIPO a
+								dire "reddito", non il segno — una vendita è un `+` ma non è
+								reddito, e un trasferimento in arrivo nemmeno.
+							*/
+							const cardBg =
+								tx.type === "entrata"
+									? "lg:bg-[color-mix(in_srgb,var(--color-midori)_7%,var(--surface))]"
+									: "lg:bg-surface";
+
 							return (
 								<button
 									key={tx.id}
 									onClick={() => openEditModal(tx)}
-									className="w-full flex items-center gap-3.5 px-4 py-3.5 rounded-2xl bg-card card-shadow-ring text-left active:opacity-75 transition-opacity"
+									// `lg:hover:` — col mouse la card deve dire da sé che si apre;
+									// col dito lo dice già `active:opacity-75`.
+									className={`w-full flex items-center gap-3.5 px-4 py-3.5 rounded-2xl bg-card card-shadow-ring text-left active:opacity-75 transition-opacity lg:px-4.5 lg:py-3.75 lg:rounded-[20px] ${cardBg} lg:hover:bg-surface-elevated`}
 								>
 									<div
-										className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+										className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 lg:rounded-[13px]"
 										style={{ background: `color-mix(in srgb, ${color} 16%, transparent)` }}
 									>
 										{Icon
@@ -185,7 +220,7 @@ export default function TransactionList({
 										}
 									</div>
 									<div className="flex-1 min-w-0">
-										<p className="text-sm font-semibold flex items-center gap-1.5">
+										<p className="text-sm font-semibold flex items-center gap-1.5 lg:text-[14.5px]">
 											<span className="truncate">{title}</span>
 											{/*
 												⚠️ Il segnaposto sta accanto al TITOLO e non in fondo
@@ -211,7 +246,7 @@ export default function TransactionList({
 											{!isTransfer && toName && ` · ${DIRECTION_ARROW} ${toName}`}
 										</p>
 									</div>
-									<p className="text-sm font-semibold shrink-0" style={{ color: amountColor }}>
+									<p className="text-sm font-semibold shrink-0 lg:text-[15px]" style={{ color: amountColor }}>
 										{formatAmount(tx.amount, amountSign(tx, viewedAccountId), locale)}
 									</p>
 								</button>
