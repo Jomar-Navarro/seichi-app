@@ -51,7 +51,8 @@ export default function ThemeSection() {
 	return (
 		// La card e l'etichetta di sezione le mette SettingsGroup: rifarle qui
 		// significava tenere allineati a mano quattro punti a ogni ritocco.
-		<div className="p-4">
+		// Da `lg:` il padding da 20 della card "Aspetto" del mockup desktop (#108).
+		<div className="p-4 lg:p-5">
 			<div className="flex items-center gap-3 mb-3.5">
 				<span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-control">
 					{!knowsResolved ? (

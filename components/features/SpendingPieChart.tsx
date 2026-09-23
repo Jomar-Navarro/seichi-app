@@ -16,6 +16,15 @@ interface SpendingPieChartProps {
 	 * essere stampata. A schermo l'animazione resta, che è dove serve.
 	 */
 	animated?: boolean;
+	/**
+	 * Donut e legenda dentro una card di vetro da `lg:`, su `/analisi` (issue
+	 * #108). Il titolo resta FUORI dalla card, come nel mockup desktop — ed è
+	 * il motivo per cui la card non può metterla la pagina attorno al
+	 * componente: il titolo lo rende lui.
+	 *
+	 * ⚠️ Il report stampabile NON lo passa: il documento (Fase 23b) resta com'è.
+	 */
+	inCard?: boolean;
 }
 
 /**
@@ -47,12 +56,25 @@ export default function SpendingPieChart({
 	spese,
 	periodo = "mese",
 	animated = true,
+	inCard = false,
 }: SpendingPieChartProps) {
 	const { locale, t } = useI18n();
 	/** Importi con i decimali, nel formato del locale. */
 	const money = (v: number) =>
 		formatMoney(v, { locale, currency: DISPLAY_CURRENCY, decimals: 2 });
 	const { style: tooltipStyle, pieHandlers } = useDonutTooltipPosition();
+
+	/*
+	 * Le classi di `inCard`, scritte intere: Tailwind non genera classi composte
+	 * a runtime. La card è vetro SENZA `backdrop-filter`: su `/analisi` dietro
+	 * c'è solo il gradiente di fondo, che sfocato resta identico, e un filtro su
+	 * un elemento arrotondato è proprio il caso di Firefox della issue #81 —
+	 * l'anello è un `box-shadow` (`ring-border`), mai un bordo.
+	 */
+	const titleClass = inCard
+		? "text-[14.5px] font-semibold mt-5 mb-3.5 text-foreground lg:mt-0 lg:text-[15px]"
+		: "text-[14.5px] font-semibold mt-5 mb-3.5 text-foreground";
+	const card = inCard ? " lg:rounded-[26px] lg:p-6 lg:bg-surface lg:ring-border" : "";
 
 	const totale = spese.reduce((acc, s) => acc + s.total, 0);
 	const data = spese.map((s, i) => ({
@@ -64,10 +86,10 @@ export default function SpendingPieChart({
 		const periodoLabel = t.analytics.windows[periodo as keyof typeof t.analytics.windows] ?? t.analytics.windows.mese;
 		return (
 			<>
-				<p className="text-[14.5px] font-semibold mt-5 mb-3.5 text-foreground">
+				<p className={titleClass}>
 					{t.analytics.spendingByCategory}
 				</p>
-				<p className="text-[13px] text-muted text-center py-6">
+				<p className={`text-[13px] text-muted text-center py-6${card}`}>
 					{fill(t.analytics.noSpending, { window: periodoLabel })}
 				</p>
 			</>
@@ -76,12 +98,25 @@ export default function SpendingPieChart({
 
 	return (
 		<>
-			<p className="text-[14.5px] font-semibold mt-5 mb-3.5 text-foreground">
+			<p className={titleClass}>
 				{t.analytics.spendingByCategory}
 			</p>
-			<div className="flex items-center gap-5">
+			{/*
+				Con `inCard`, da `lg:` il donut scende a 150px (mockup desktop) e la
+				riga va a capo (`flex-wrap`): la legenda sta accanto finché ha almeno
+				144px, altrimenti passa sotto — succede nella colonna stretta di `xl:`
+				con nomi lunghi. Il tetto a 288px le evita, nella colonna larga di
+				`lg:`, un nome e la sua percentuale ai due capi della card.
+			*/}
+			<div className={`flex items-center gap-5${inCard ? " lg:flex-wrap" : ""}${card}`}>
 				{/* Donut — lg: più grande (Fase 28b), stesso trattamento di InvestimentiTab. */}
-				<div className="relative w-32 h-32 lg:w-44 lg:h-44 shrink-0">
+				<div
+					className={
+						inCard
+							? "relative w-32 h-32 lg:w-37.5 lg:h-37.5 shrink-0"
+							: "relative w-32 h-32 lg:w-44 lg:h-44 shrink-0"
+					}
+				>
 					<ResponsiveContainer width="100%" height="100%">
 						<PieChart>
 							<Pie
@@ -144,7 +179,7 @@ export default function SpendingPieChart({
 				</div>
 
 				{/* Legenda */}
-				<div className="flex-1 flex flex-col gap-2.5">
+				<div className={inCard ? "flex-1 flex flex-col gap-2.5 lg:min-w-36 lg:max-w-72" : "flex-1 flex flex-col gap-2.5"}>
 					{data.map((s) => {
 						const pct = totale > 0 ? Math.round((s.total / totale) * 100) : 0;
 						return (

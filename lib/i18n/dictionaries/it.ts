@@ -877,6 +877,18 @@ export const it = {
 		deadline: "Scadenza · {date}",
 		/** "€ 400 di € 1.000" — il connettivo fra risparmiato e traguardo. */
 		of: "di",
+		/**
+		 * "mancano € 600" — la riga sotto la barra delle card obiettivo da `lg:`
+		 * (mockup desktop, issue #108).
+		 *
+		 * ⚠️ Plurale anche se il numero è un importo: in italiano il verbo si
+		 * accorda con la cifra — "manca € 1", "mancano € 2" — ed è la classe di
+		 * "Nuova investimento" (Fase 19) e di "il 0%" (24b), che un template
+		 * pensato in inglese nasconde. `plural()` sceglie la forma sul numero
+		 * arrotondato come lo mostra `formatMoney`, poi `fill()` mette `{amount}`
+		 * già formattato in valuta.
+		 */
+		remaining: { one: "manca {amount}", other: "mancano {amount}" },
 
 		editTitle: "Modifica obiettivo",
 		newTitle: "Nuovo obiettivo",

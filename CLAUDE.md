@@ -47,6 +47,7 @@ components/
 ├── UI/                   # Button, Input, Select, card, BrandHeader, OnboardingProgress,
 │   │                     # SignTab, TransactionForm, TransactionModal, BottomNav,
 │   │                     # SummaryCard, Sparkline, EmptyState, Avatar, PageHeader,
+│   │                     # DashedAddButton (il "Nuovo …" tratteggiato, #108),
 │   │                     # SettingsRow (+ SettingsGroup), PasswordInput,
 │   │                     # PasswordStrength, SubmitButton, StatusScreen, AuthShell,
 │   │                     # Switch, FrequencySelector, DatePicker
@@ -96,6 +97,8 @@ lib/
 ├── auth.ts               # getSessionUser() — id + email dalle CLAIMS, senza rete (è una FOTOGRAFIA)
 ├── account.ts            # getAccountContext() — identità VIVA + profilo, per le impostazioni
 │                         #   getProfileHeader() — avatar/nome per la home, dalle claims
+│                         #   getSidebarProfile() — footer della sidebar (#108), non
+│                         #   rifiuta MAI; countActiveAccounts() — la query UNA sola
 ├── profile.ts            # getInitials, getDisplayName
 ├── password.ts           # PASSWORD_MIN_LENGTH, scorePassword, validateNewPassword
 ├── notifications.ts      # icone/colori per tipo + renderNotification (frasi dal payload)
@@ -6185,7 +6188,11 @@ Seguire questo ordine, non saltare fasi:
     - **28d ✅** sheet e modali centrati da `lg:` in su — `BottomSheetShell`
       (i cinque fogli) e `TransactionModal`/`TransactionForm` diventano
       dialog centrati sopra il breakpoint, invariati sotto.
-    Motivazioni e decisioni in "Fase 28" sotto.
+    - **28e ✅ nuovo design desktop (issue #108)** — un progetto Claude Design
+      più recente rivede pezzi della 28: footer profilo nella sidebar, griglie
+      di Conti/Investimenti invertite, Impostazioni a due colonne (revisione
+      esplicita della 28c). Implementata con 5 stream paralleli.
+    Motivazioni e decisioni in "Fase 28" e "Fase 28e" sotto.
 29. Animazioni: transizioni morbide, micro-interazioni
 
 ### Fase 27 — Mobile nativo (checklist)
@@ -6641,6 +6648,163 @@ collaudo — un click "neutro" prima di digitare cadeva sul backdrop esposto
 sopra il dialog centrato e lo chiudeva. Tolto il click superfluo (il
 listener è su `window`, non serve alcun fuoco), il giro successivo è
 verde su entrambe le larghezze.
+
+### Fase 28e — nuovo design desktop da Claude Design (issue #108)
+
+Implementata il 2026-09-23. Un progetto Claude Design più recente ("Seichi
+budgeting app homepage", 7 mockup desktop a 1440px in tema scuro) sostituisce
+i riferimenti su cui erano state costruite 28b e 28c. Nessuna migration. Il
+confronto pagina per pagina e il piano sono il commento del 2026-09-22 sulla
+issue.
+
+#### Come è stata fatta: 5 stream in parallelo, e cosa costa
+
+- Cinque stream a file disgiunti — A sidebar/layout, B Home+Analisi, C
+  Conti+Investimenti, D Movimenti, E Impostazioni+Obiettivi — ciascuno con la
+  propria review, poi un consolidamento con review d'insieme `high`.
+- ⚠️ **Worktree FUORI dal repo, non `isolation: worktree`.** Quelli
+  dell'harness nascono in `.claude/worktrees/` — dentro il progetto, sotto gli
+  occhi del dev server che gira sulla 3000 — e partono da `origin/master`,
+  cioè senza i pezzi condivisi. `node_modules` è una junction verso quella del
+  repo: ⚠️ si toglie con `cmd /c rmdir`, **mai** con `Remove-Item -Recurse`, che
+  in PowerShell 5.1 può svuotarne il target.
+- **I pezzi usati da più stream si scrivono PRIMA della fan-out**, sul branch
+  di integrazione (`Avatar` con `rounded`, `DashedAddButton`): scritti in
+  parallelo due volte divergono, e nessuno stream può importare quello
+  dell'altro.
+- ⚠️ **`DesignSync` non arriva ai subagent**: hanno lavorato dalle specifiche
+  distillate dall'orchestratore. Una frase ambigua ("legenda … flex-wrap") è
+  diventata una legenda in riga dove il mockup la vuole in colonna — corretta
+  al consolidamento. La specifica per un agente che non vede il mockup va
+  scritta come se fosse il mockup.
+- ⚠️ **Il limite d'uso del piano**: cinque contesti in parallelo l'hanno
+  esaurito due volte. Gli stream si riprendono col loro contesto
+  (`SendMessage`), non da capo; e conviene chiedere un commit di checkpoint
+  appena una parte passa i controlli, o uno stop costa il lavoro non salvato.
+
+#### Le convenzioni comuni — perché 7 pagine sembrino un'app sola
+
+- Sotto `lg:` niente cambia: tutto passa da `lg:`/`xl:`.
+- Contenitore da `lg:`: `lg:px-10 lg:pt-9 lg:pb-12 lg:max-w-6xl lg:mx-auto
+  lg:w-full` — il mockup ha 34/40/48 di padding e ~1080–1180px di contenuto.
+- Titolo `lg:text-[30px] lg:tracking-[-0.6px]`.
+- **Gli split di PAGINA a due colonne partono da `xl:`**: a 1024 la colonna di
+  contenuto è ~688px (1024 − 256 sidebar − 80 di padding), e un importo a 46px
+  come "€ 12.345,67" è largo ~280px.
+
+#### Le decisioni
+
+- **Footer della sidebar: SÌ** — era la decisione che la issue lasciava
+  aperta. Avatar, nome, "N conti attivi", chevron, e apre lo STESSO
+  `ProfileMenu` della home (variante `sidebar`, verso l'alto), non un secondo
+  menu. I dati partono nel layout come **promise** letta con `use()` in un
+  Suspense attorno al solo footer, quindi non ritardano la pagina, e la promise
+  non rifiuta mai: un error boundary che avvolga il layout non c'è.
+  Costo: una HEAD count (`countActiveAccounts`, ora una sola in
+  `lib/account.ts` anche per le regole di eliminazione dei conti) più
+  `profiles`, condivisa con la home via `cache()`; per render del LAYOUT —
+  caricamento, `router.refresh()`, `revalidatePath("/", "layout")` — non per
+  pagina vista. ⚠️ **Residuo dichiarato**, e rilevato anche dalla review: la
+  rail è `hidden lg:flex`, quindi sul telefono le due query girano per un
+  footer che nessuno vede.
+- **Il marchio della sidebar è l'ensō**, come nel mockup; icona PWA,
+  BrandHeader e BootSplash restano col germoglio. Precedente: la schermata di
+  sblocco (26b), dove il cambio era stato chiesto prima.
+- **Voce attiva per prefisso**: `/impostazioni/categorie` accende Impostazioni.
+  `/conti` non accende niente — non è in nav, ci si arriva dalla home.
+- **Home**: da `lg:` il saluto è testo (il menu profilo è nel footer) e il
+  selettore conti sta in riga col saluto — una sola istanza, spostata col CSS.
+  Movimenti recenti in UNA card con divisori e scorciatoia Analisi affiancati
+  da `xl:`. La sparkline del Flusso viene da `flussoTrend`: stessa
+  `flussoDaTotali()` della cifra, composta dalle serie già calcolate, zero
+  query — `entrate − spese` sarebbe stata la quinta definizione di «uscita».
+  `Sparkline` ora scala dal minimo con lo zero incluso (identica per ogni serie
+  ≥ 0) e chiude l'area sulla linea dello zero quando la serie scende sotto.
+- **Analisi**: il KPI Flusso entra nella card del grafico; da `xl:` grafico |
+  (donut + uscite fisse). `inCard` su `MonthlyLineChart`/`SpendingPieChart`:
+  il report stampabile non la passa e resta identico.
+- ⚠️ **Conti e Investimenti: la griglia della 28b è INVERTITA** — eroe fisso a
+  sinistra, lista a colonna singola a destra, come nel mockup. La logica di
+  swipe/hover-reveal di `ActiveAccountRow` è invariata byte per byte;
+  `overflow-x-clip` sulla lista, perché lo scorrimento del vassoio finiva sopra
+  la card del saldo (e, a `lg:`, sotto la sidebar). `AccountSelector` ha
+  `alignEndFromLg`: col chip all'estremità destra, il pannello da 20rem
+  ancorato a sinistra sforava lo schermo.
+- **Movimenti**: la 28c l'aveva stretta a 672px senza un mockup; ora è larga
+  come le altre. Budget in una card sola, a righe; la finestra temporale nel
+  titolo della card SOLO se tutti i budget hanno lo stesso periodo (la regola
+  della 17a). La ricerca resta a 16px anche da `lg:`: un iPad in orizzontale è
+  `lg:`, e Safari zoomerebbe al fuoco (#69).
+- ⚠️ **Impostazioni: revisione ESPLICITA della 28c.** Due colonne da `xl:`,
+  come il mockup nuovo; fra `lg:` e `xl:` una colonna da 672px allineata a
+  sinistra, sotto il proprio titolo. Tutte le righe esistenti mantenute.
+- **Obiettivi**: tessera "Nuovo obiettivo" in coda; "completato" deciso sul
+  valore esatto come la pagina, e un obiettivo mancato si ferma al 99%.
+- **`DashedAddButton`**: il tratteggio è un SVG, non un `border-dashed` — un
+  bordo traslucido su un raggio riaprirebbe la #81. Tratto da 1 su un
+  rettangolo rientrato di mezzo pixel: la prima stesura (tratto da 2 ritagliato
+  a metà dall'svg) aveva angoli da 2px, perché il ritaglio agisce solo sui
+  lati dritti.
+
+#### Difetti trovati facendo la fase
+
+- ⚠️ **L'anello della zona pericolo era sparito dalla #81 in poi**, a ogni
+  larghezza: `tone` di `SettingsGroup` scriveva un `borderColor` su una card
+  che non aveva più un bordo. Ora ridefinisce `--border` sulla card e
+  `card-shadow-ring` disegna l'anello tinto; la tinta da `lg:` si mescola col
+  vetro (`--card`), non col trasparente, o in chiaro la card perde la
+  superficie. È l'unica differenza visibile sotto `lg:`, ed è voluta.
+- `PwaStatus` era fratello di `MainContentShell`: da `lg:` i suoi avvisi
+  finivano sotto la sidebar fissa. Ora sta dentro il gutter.
+- La review d'insieme ha trovato 10 rilievi, 8 applicati; i due lasciati sono
+  il residuo del footer qui sopra e l'override `lg:size-13.5!` sulla misura
+  dell'avatar (stile, non difetto).
+
+#### `audit:tokens`: due falsi positivi e un buco
+
+Il primo giro sul branch unito usciva con due errori del CONTROLLO, non del
+codice: `var(--group-tint)`, definita inline sullo stesso elemento, e `.to-fit`,
+estratto da dentro `repeat(auto-fit,…)`. Ora una variabile dichiarata come
+chiave di `style` nel file che la usa conta come definita, e una classe deve
+cominciare a un confine di token. E il buco: la forma abbreviata di Tailwind v4
+`bg-(--nome)` sfuggiva del tutto al controllo A. Controprova su un file sonda:
+4 difetti iniettati, 4 segnalati; 2 casi sani, 0 segnalati.
+
+#### Il collaudo, e due artefatti che somigliavano a regressioni
+
+Driver ad hoc nello scratchpad: 7 pagine più report e categorie, a
+414/768/1024/1280/1440, chiaro e scuro, con confronto pixel sotto `lg:` contro
+una base scattata al commit di partenza.
+
+- ⚠️ La prima base aveva il grafico di /analisi ancora VUOTO: scatto troppo
+  presto, non un difetto. Il driver ora aspetta che Recharts disegni.
+- ⚠️ In un contesto Playwright nuovo il service worker prende il controllo a
+  metà della prima visita, e `controllerchange` accende il banner "nuova
+  versione" (56px) di `PwaStatus` a caso. Bloccare il service worker non va —
+  la registrazione fallita accende il badge d'errore di Next su ogni pagina —
+  serve un giro di riscaldamento che aspetti `navigator.serviceWorker.controller`.
+  ⚠️ Lo stesso meccanismo potrebbe mostrare il banner a un utente vero alla
+  primissima visita, senza alcun aggiornamento: da verificare, fuori scope.
+- Esito sotto `lg:`: 24 foto su 36 identiche al pixel; le altre sono
+  antialiasing (importi spezzati in più span), la zona pericolo (voluta) e una
+  striscia di 6px dietro la bottom nav — il vetro sfocato che campiona un
+  contenuto diverso, smentita da un secondo scatto.
+- Da `lg:`: nessuno scroll orizzontale e nessun errore di console su nessuna
+  pagina; la tendina dei conti misurata con un clic vero, dentro lo schermo a
+  1024 e 1440.
+
+⚠️ Resta da fare a mano: **Firefox** sulle superfici nuove (la #81 si vede solo
+lì) e un giro sull'app vera.
+
+#### Aperti, preesistenti e fuori scope
+
+- `NotificationBell`: aria-label e "riprova" cablati in italiano; il tooltip di
+  `MonthlyLineChart` scrive `€ ${toFixed(2)}` ignorando la lingua.
+- `elimina/page.tsx` colora il titolo con l'accento aka: va l'inchiostro
+  (Fase 18).
+- `/conti/[id]`: l'etichetta "Movimenti" e "carica altri" nello stile vecchio.
+- Il chip di `AccountSelector` è alto 48px con testo da 12px; il mockup lo
+  vuole ~40px, 13px e con un pallino colorato.
 
 ## Key Decisions
 

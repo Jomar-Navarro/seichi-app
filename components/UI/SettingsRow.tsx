@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 /* ------------------------------------------------------------------ */
 /* Group                                                               */
@@ -10,13 +10,46 @@ interface SettingsGroupProps {
 	children: ReactNode;
 	/** Etichetta maiuscoletta sopra il gruppo */
 	label?: string;
-	/** Bordo di enfasi — usato dalla zona pericolo */
+	/**
+	 * Colore di enfasi della card — l'ACCENTO pieno (`var(--color-aka)`), usato
+	 * dalla zona pericolo. Le due tinte il gruppo le ricava da sé: l'anello al
+	 * 30% sempre, il fondo al 7% da `lg:` (mockup desktop, issue #108).
+	 */
 	tone?: string;
 	className?: string;
 }
 
 /** Card che raggruppa più righe, con separatori automatici fra i figli. */
 export function SettingsGroup({ children, label, tone, className = "mb-6" }: SettingsGroupProps) {
+	/*
+	 * ⚠️ `tone` era MUTO dalla issue #81, e nessuno se n'era accorto.
+	 *
+	 * Colorava il bordo con `borderColor`, ma il refactor dell'#81 ha sostituito
+	 * il `border` vero con l'anello di `card-shadow-ring`: un `borderColor` su un
+	 * elemento senza bordo non colora niente e non dà errori. È la classe che il
+	 * secondo giro dell'#81 cercava — "un borderColor su un elemento senza più
+	 * border è un difetto silenzioso per costruzione" — e questo punto gli era
+	 * sfuggito: la zona pericolo aveva perso il bordo d'enfasi anche su mobile.
+	 *
+	 * Si ridefinisce `--border` sul sottoalbero invece di ricopiare l'ombra
+	 * inline: `card-shadow-ring` legge proprio quel token, quindi l'anello cambia
+	 * colore senza duplicare i valori dell'ombra — il principio di `.paper` nella
+	 * 23b, si condivide il selettore e non i valori. Tinge anche i separatori fra
+	 * le righe (`border-subtle` è `var(--border)`), ed è voluto: un gruppo
+	 * d'enfasi lo è per intero.
+	 */
+	const toneStyle = tone
+		? ({
+				"--border": `color-mix(in srgb, ${tone} 30%, transparent)`,
+				// ⚠️ Mescolata col VETRO della card (`--card`), non col trasparente:
+				// il mockup è solo scuro, dove il vetro è quasi trasparente, ma in
+				// chiaro è lui che fa da card — un 7% d'accento su `transparent`
+				// lasciava la zona pericolo senza superficie, un buco nella colonna.
+				// Stessa scelta di FlowCard e TransactionList (review del #108).
+				"--group-tint": `color-mix(in srgb, ${tone} 7%, var(--card))`,
+			} as CSSProperties)
+		: undefined;
+
 	return (
 		<div className={className}>
 			{label && (
@@ -25,8 +58,12 @@ export function SettingsGroup({ children, label, tone, className = "mb-6" }: Set
 				</p>
 			)}
 			<div
-				className="rounded-[22px] bg-card card-shadow-ring overflow-hidden [&>*+*]:border-t [&>*+*]:border-subtle"
-				style={tone ? { borderColor: tone } : undefined}
+				className={`rounded-[22px] bg-card card-shadow-ring overflow-hidden [&>*+*]:border-t [&>*+*]:border-subtle${
+					// Da `lg:` la card d'enfasi è anche TINTA, come nel mockup desktop.
+					// Sotto resta il vetro di sempre: il layout mobile non cambia.
+					tone ? " lg:bg-[color:var(--group-tint)]" : ""
+				}`}
+				style={toneStyle}
 			>
 				{children}
 			</div>

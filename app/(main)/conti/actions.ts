@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { plural } from "@/lib/i18n/format";
 import { isAccountId } from "@/lib/accounts";
+import { countActiveAccounts } from "@/lib/account";
 import { ACCOUNT_TYPES, type Account, type AccountWithBalance } from "@/types";
 import type { SupabaseServerClient } from "@/lib/supabase/server";
 
@@ -413,27 +414,6 @@ async function hasAnyMovement(
 	};
 }
 
-/**
- * Quanti conti ATTIVI ha l'utente — il numero su cui poggia "non si può
- * restare a zero conti attivi", condiviso da `canDeleteAccount()` e
- * `deleteAccount()`. Scritta una volta per non farla divergere fra le due,
- * che è esattamente la classe di difetto per cui l'issue #62 nasce nel primo
- * finding: due punti che decidono la stessa cosa devono decidere la STESSA
- * cosa.
- */
-async function countActiveAccounts(
-	supabase: SupabaseServerClient,
-	userId: string,
-): Promise<{ data: number } | { error: string }> {
-	const { count, error } = await supabase
-		.from("accounts")
-		.select("id", { count: "exact", head: true })
-		.eq("user_id", userId)
-		.eq("archived", false);
-
-	if (error) return { error: error.message };
-	return { data: count ?? 0 };
-}
 
 /**
  * Se QUESTO conto è eliminabile — cioè se `deleteAccount()` ha qualche

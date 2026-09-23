@@ -4,7 +4,8 @@ import { getAccounts } from "../conti/actions";
 import InvestimentiTab from "@/components/features/InvestimentiTab";
 import AccountSelector from "@/components/features/AccountSelector";
 import { getSelectedAccount } from "@/lib/accounts-server";
-import { getDictionary } from "@/lib/i18n/server";
+import { getI18n } from "@/lib/i18n/server";
+import { plural } from "@/lib/i18n/format";
 
 export default async function InvestimentiPage({
 	searchParams,
@@ -35,7 +36,7 @@ export default async function InvestimentiPage({
 		getInvestments(accountId),
 		getAccounts(),
 	]);
-	const t = await getDictionary();
+	const { locale, t } = await getI18n();
 
 	const data = "error" in result ? null : result.data;
 
@@ -66,18 +67,55 @@ export default async function InvestimentiPage({
 	}
 
 	return (
-		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-36 lg:max-w-3xl xl:max-w-5xl lg:mx-auto lg:w-full">
-			<h1 className="text-[26px] font-semibold leading-tight mb-1">{t.investments.title}</h1>
+		/*
+		 * lg: la cornice del mockup desktop (#108) — 34/40/48 di margine e fino a
+		 * 1152px di larghezza, la stessa di tutte le pagine della issue. Il
+		 * `pb-36` mobile esiste per la bottom nav, che da lg non c'è più.
+		 */
+		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-36 lg:px-10 lg:pt-9 lg:pb-12 lg:max-w-6xl lg:mx-auto lg:w-full">
+			{/*
+				Intestazione. Su mobile tre righe una sotto l'altra — titolo,
+				selettore, riepilogo — com'è sempre stata. Da lg la griglia del
+				mockup (#108): titolo e riepilogo a sinistra, il selettore a destra
+				su entrambe le righe. Posizioni esplicite solo da lg, così l'ordine
+				del DOM resta quello del mobile.
 
-			{accounts.length > 0 && (
-				<div className="mt-3 mb-1">
-					<AccountSelector
-						accounts={accounts}
-						selectedId={accountId}
-						basePath="/investimenti"
-					/>
-				</div>
-			)}
+				⚠️ Il riepilogo è salito qui da `InvestimentiTab`: sta fra il titolo
+				e il selettore nel disegno, e da dentro il componente non poteva
+				raggiungere quella riga. Stesse parole, stesso `plural()`, e compare
+				alle stesse condizioni — solo con delle posizioni, come prima.
+			*/}
+			<div className="flex flex-col lg:grid lg:grid-cols-[1fr_auto] lg:items-center lg:gap-x-6">
+				<h1 className="text-[26px] font-semibold leading-tight mb-1 lg:col-start-1 lg:row-start-1 lg:mb-0 lg:text-[30px] lg:tracking-[-0.6px]">
+					{t.investments.title}
+				</h1>
+
+				{/*
+					⚠️ Da lg il chip sta all'estremità DESTRA della riga, quindi il
+					pannello si apre ancorato a destra (`alignEndFromLg`): ancorato a
+					sinistra, i suoi 20rem partivano dal chip e sforavano di ~150px
+					oltre il bordo, dove `overflow-x-hidden` di `(main)` lo tagliava.
+					La colonna della griglia è `auto`, quindi il contenitore è largo
+					quanto il chip e i due bordi destri coincidono.
+				*/}
+				{accounts.length > 0 && (
+					<div className="mt-3 mb-1 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:mt-0 lg:mb-0">
+						<AccountSelector
+							accounts={accounts}
+							selectedId={accountId}
+							basePath="/investimenti"
+							alignEndFromLg
+						/>
+					</div>
+				)}
+
+				{data && data.positions.length > 0 && (
+					<p className="text-[12.5px] text-muted mt-1 lg:col-start-1 lg:row-start-2 lg:text-[13px] lg:mt-1.5">
+						{plural(t.investments.positionCount, data.positions.length, locale)} ·{" "}
+						{plural(t.investments.typeCount, data.byType.length, locale)}
+					</p>
+				)}
+			</div>
 
 			<InvestimentiTab data={data} />
 		</div>
