@@ -65,17 +65,36 @@ const definite = new Set(
 );
 
 const usate = new Map(); // nome → [file:riga]
+// Variabili definite NEL COMPONENTE, come chiave di uno `style` inline
+// (`{ "--group-tint": … }`) e lette dallo stesso elemento o da un figlio — la
+// via per dare a una classe `lg:` un colore calcolato a runtime (issue #108,
+// `SettingsRow`, `BudgetCards`). Valgono SOLO nel file che le definisce: una
+// custom property è visibile al sottoalbero che la dichiara, quindi usata in
+// un altro file sarebbe di nuovo una scommessa, e l'audit la segnala.
+const definiteNelFile = new Map(); // file → Set(nomi)
+for (const file of sources) {
+	if (file.endsWith(".css")) continue;
+	const nomi = new Set(
+		[...readFileSync(file, "utf8").matchAll(/["'](--[a-zA-Z0-9_-]+)["'][ \t]*:/g)].map((m) => m[1]),
+	);
+	if (nomi.size) definiteNelFile.set(file, nomi);
+}
 for (const file of sources) {
 	readFileSync(file, "utf8")
 		.split("\n")
 		.forEach((line, i) => {
-			for (const m of line.matchAll(/var\((--[a-zA-Z0-9_-]+)/g)) {
+			// ⚠️ Anche la forma abbreviata di Tailwind v4, `bg-(--nome)`, che è
+			// `var(--nome)` scritto da Tailwind: fino all'issue #108 questo
+			// controllo non la vedeva, e un nome sbagliato lì fallisce in silenzio
+			// esattamente come uno dentro `var()`.
+			for (const m of line.matchAll(/(?:var\(|[a-z]-\()(--[a-zA-Z0-9_-]+)/g)) {
 				// I nomi costruiti a pezzi (`var(--color-${accent})`) arrivano qui
 				// troncati al prefisso: si riconoscono dal trattino finale e si
 				// saltano, perché il suffisso non è visibile staticamente.
 				// ⚠️ Restano quindi FUORI da questo audit: vanno enumerati a mano,
 				// come dice la Fase 19.
 				if (m[1].endsWith("-")) continue;
+				if (definiteNelFile.get(file)?.has(m[1])) continue;
 				if (!usate.has(m[1])) usate.set(m[1], []);
 				usate.get(m[1]).push(`${relative(ROOT, file)}:${i + 1}`);
 			}
@@ -128,8 +147,12 @@ if (cssBuilt.length === 0) {
 	// ⚠️ La variante può iniziare con una CIFRA (`2xl:`). Pretendendo una lettera,
 	// il match partiva a metà token — da `xl:` — e cercava nel CSS un selettore
 	// che non esiste: due falsi positivi, entrambi su breakpoint sani.
+	// ⚠️ E il token deve cominciare a un CONFINE: senza il lookbehind il match
+	// partiva a metà parola dentro un valore arbitrario, e
+	// `grid-cols-[repeat(auto-fit,minmax(300px,1fr))]` produceva `to-fit` — una
+	// "classe di gradiente" mai generata, cioè un falso positivo (issue #108).
 	const CLASS_RE = new RegExp(
-		`(?:[a-z0-9][a-z0-9-]*:)*(?:${PREFIX})-[a-zA-Z0-9-]+(?:/[a-z0-9.]+)?`,
+		`(?<![A-Za-z0-9_-])(?:[a-z0-9][a-z0-9-]*:)*(?:${PREFIX})-[a-zA-Z0-9-]+(?:/[a-z0-9.]+)?`,
 		"g",
 	);
 	// Solo ciò che sta dentro un className: i commenti di questo progetto sono
