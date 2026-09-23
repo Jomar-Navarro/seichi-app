@@ -238,7 +238,14 @@ async function DashboardContent({
 					accounts.length > 0 ? "" : "mb-1 lg:mb-0"
 				}`}
 			>
-				<div className="lg:hidden">
+				{/*
+					⚠️ `justify-self-start`: in una cella di griglia l'elemento si
+					allarga a tutta la colonna, mentre da figlio flex era largo quanto il
+					proprio contenuto. `ProfileMenu` chiude il pannello sui clic FUORI dal
+					proprio contenitore: allargato, lo spazio vuoto fino alle pastiglie
+					sarebbe diventato "dentro", e toccarlo non l'avrebbe più chiuso.
+				*/}
+				<div className="justify-self-start lg:hidden">
 					<ProfileMenu
 						initials={profile.initials}
 						avatarUrl={profile.avatarUrl}
