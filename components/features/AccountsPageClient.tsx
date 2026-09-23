@@ -5,6 +5,7 @@ import { Archive, Pencil, Plus, RotateCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import AccountSheet from "./AccountSheet";
 import EmptyState from "@/components/UI/EmptyState";
+import DashedAddButton from "@/components/UI/DashedAddButton";
 import { useI18n } from "./I18nProvider";
 import {
 	DISPLAY_CURRENCY,
@@ -111,20 +112,29 @@ export default function AccountsPageClient({ accounts }: AccountsPageClientProps
 
 	return (
 		<div className="flex flex-col flex-1">
-			<div className="flex items-start justify-between mb-1.5">
+			<div className="flex items-start justify-between mb-1.5 lg:items-center lg:mb-0">
 				<div>
-					<h1 className="text-[26px] font-semibold leading-tight">{t.accounts.title}</h1>
-					<p className="text-[12.5px] text-muted mt-1">
+					<h1 className="text-[26px] font-semibold leading-tight lg:text-[30px] lg:tracking-[-0.6px]">
+						{t.accounts.title}
+					</h1>
+					<p className="text-[12.5px] text-muted mt-1 lg:text-[13px] lg:mt-1.5">
 						{plural(t.accounts.activeCount, active.length, locale)}
 					</p>
 				</div>
 				<button
 					onClick={openCreate}
 					// issue #69 — py-3.5 invece di py-2.5: ~44px, isolato a fine header.
-					className="flex items-center gap-1.5 px-4 py-3.5 rounded-full text-[12.5px] font-semibold card-shadow-ring shrink-0"
-					style={{ background: "var(--surface-elevated)" }}
+					//
+					// lg: il bottone PRIMARIO del mockup desktop (#108), lo stesso
+					// `btn-primary` di "Aggiungi transazione" nella sidebar — alto 44,
+					// raggio 16, niente ombra. ⚠️ Il fondo mobile è passato dallo
+					// `style` inline alla classe `bg-surface-elevated` (stesso valore,
+					// stessa resa): una dichiarazione inline batte qualunque classe, e
+					// `lg:btn-primary` non avrebbe mai potuto sostituirla.
+					className="flex items-center gap-1.5 px-4 py-3.5 rounded-full text-[12.5px] font-semibold card-shadow-ring shrink-0 bg-surface-elevated lg:btn-primary lg:shadow-none lg:h-11 lg:py-0 lg:px-5 lg:gap-2 lg:rounded-2xl lg:text-[13.5px] lg:cursor-pointer"
 				>
-					<Plus size={13} strokeWidth={2.2} />
+					{/* `size` scrive gli attributi dell'SVG; le classi li scavalcano da lg (16px). */}
+					<Plus size={13} strokeWidth={2.2} className="lg:w-4 lg:h-4" />
 					{t.accounts.newTitle}
 				</button>
 			</div>
@@ -139,8 +149,20 @@ export default function AccountsPageClient({ accounts }: AccountsPageClientProps
 					/>
 				</div>
 			) : (
-				// lg: griglia a 2/3 colonne (Fase 28b) — stesso trattamento di Risparmi.
-				<div className="relative flex flex-col gap-3 mt-5 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-3">
+				/*
+				 * Sotto lg: una colonna, saldo sopra e conti sotto — com'è sempre stata.
+				 * lg (contenuto largo ≈688px): lo stesso ordine, con le righe del
+				 * mockup desktop. xl: due colonne `1fr 1.6fr` (#108), il saldo fermo a
+				 * sinistra e l'elenco a destra.
+				 *
+				 * ⚠️ È una revisione DELIBERATA della 28b, che qui aveva messo i conti
+				 * in griglia a 2/3 colonne con il saldo a tutta larghezza sopra. Il
+				 * mockup desktop della #108 va nel verso opposto — una colonna sola di
+				 * righe larghe accanto al saldo — e ha ragione: una riga conto si
+				 * legge da sinistra a destra (icona, nome, saldo), e spezzata in
+				 * tessere strette il saldo finiva a ridosso del nome.
+				 */
+				<div className="relative flex flex-col gap-3 mt-5 lg:mt-7 lg:gap-5 xl:grid xl:grid-cols-[1fr_1.6fr] xl:items-start">
 					{/*
 						⚠️ Copre l'INTERO viewport, non solo la lista: "il tap altrove lo
 						chiude" (issue #62) vale anche per la card del saldo e per lo
@@ -148,8 +170,8 @@ export default function AccountsPageClient({ accounts }: AccountsPageClientProps
 						sole (vedi `handleTap` nelle righe), qui serve per il resto.
 						z-20, sotto le righe (z-30) e ben sotto i fogli modali (z-40/50):
 						sparisce prima che "Modifica" possa aprirne uno.
-						`fixed`, quindi fuori dal flusso della griglia: non le serve
-						`col-span-full`.
+						`fixed`, quindi fuori dal flusso della griglia di xl: non occupa
+						una cella.
 					*/}
 					{openId !== null && (
 						<div className="fixed inset-0 z-20" onClick={() => setOpenId(null)} />
@@ -157,79 +179,134 @@ export default function AccountsPageClient({ accounts }: AccountsPageClientProps
 
 					{/* Il saldo complessivo dei soli conti attivi. */}
 					{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
-					<div className="relative rounded-3xl card-shadow-ring overflow-hidden lg:col-span-full">
+					<div className="relative rounded-3xl card-shadow-ring overflow-hidden lg:rounded-[28px]">
 						<div className="absolute inset-0 bg-surface backdrop-blur-md" />
-						<div className="relative p-5">
-						<p className="text-sm text-muted mb-2">{t.accounts.balanceHeading}</p>
+						<div className="relative p-5 lg:pt-6.5 lg:px-7 lg:pb-6">
+						<p className="text-sm text-muted mb-2 lg:text-[12.5px] lg:mb-2.5">{t.accounts.balanceHeading}</p>
+						{/*
+							⚠️ NEUTRO anche a 46px (Fase 20): una giacenza non è né buona né
+							cattiva, semplicemente è. Il verde lo porta il flusso, non questo.
+						*/}
 						<p className="font-semibold tracking-tight flex items-baseline gap-0.5">
-							<span className="text-2xl font-semibold mr-1">
+							<span className="text-2xl font-semibold mr-1 lg:text-[28px]">
 								{currencySymbol(DISPLAY_CURRENCY, locale)}
 							</span>
-							<span className="text-4xl">{sign}{integer}</span>
-							<span className="text-2xl font-medium text-muted">{decimal}</span>
+							<span className="text-4xl lg:text-[46px]">{sign}{integer}</span>
+							<span className="text-2xl font-medium text-muted lg:text-[28px]">{decimal}</span>
+						</p>
+						{/*
+							lg: la didascalia del mockup. Dice cosa somma — e soprattutto
+							cosa NON somma — con la stessa frase della card saldo della home,
+							così lo stesso numero ha la stessa spiegazione nei due posti.
+							Su mobile manca, com'è sempre mancata: là il sottotitolo
+							"N conti attivi" sta a un dito di distanza.
+						*/}
+						<p className="hidden lg:block text-[12px] text-muted leading-snug mt-3">
+							{t.accounts.balanceExplainAll}
 						</p>
 						</div>
 					</div>
 
-					{rowError && (
-						<p className="text-xs ml-1 lg:col-span-full" style={{ color: "var(--ink-aka)" }}>
-							{rowError}
-						</p>
-					)}
+					{/*
+						L'elenco. ⚠️ `overflow-x: clip` da lg, ed è ciò che tiene il vassoio
+						dentro la propria colonna.
 
-					{active.map((a) => (
-						<ActiveAccountRow
-							key={a.id}
-							account={a}
-							locale={locale}
-							isOpen={openId === a.id}
-							anyOpen={openId !== null}
-							onOpen={() => setOpenId(a.id)}
-							onClose={() => setOpenId(null)}
-							onEdit={() => openEdit(a)}
-							onArchive={() => void archiveFromTray(a.id)}
-						/>
-					))}
+						Il vassoio si rivela TRASLANDO la riga di `TRAY_WIDTH` a sinistra
+						(vedi `ActiveAccountRow`). Su mobile quella parte finisce oltre il
+						bordo dello schermo, e la ritaglia il contenitore di `(main)`. Su
+						desktop a sinistra non c'è il bordo dello schermo: a xl c'è la card
+						del saldo, a lg la sidebar — e la riga, che è `z-30`, ci passava
+						SOPRA. Succedeva già con la griglia della 28b, dove le righe della
+						prima colonna scivolavano sulla sidebar.
 
-					{archived.length > 0 && (
-						<>
-							<p className="text-xs text-muted font-medium mt-1 mb-0.5 ml-1 tracking-wide lg:col-span-full">
-								{plural(t.accounts.archivedSection, archived.length, locale)}
+						`clip` e non `hidden`: un asse `hidden` rende non-visibile anche
+						l'altro (la trappola già pagata col carosello della home), e le
+						ombre sotto le righe sparirebbero; `clip` con `overflow-y: visible`
+						resta visibile in verticale. E niente contesto di impilamento: lo
+						z-20 del velo e lo z-30 delle righe restano confrontabili.
+
+						`-mx-3 px-3` sposta il bordo del ritaglio 12px fuori dalle righe,
+						così l'alone laterale della loro ombra (`0 8px 24px`) non viene
+						tagliato a riposo. Il prezzo: una riga aperta mostra 12px oltre il
+						proprio bordo — a xl dentro i 20px di distacco dal saldo.
+					*/}
+					<div className="flex flex-col gap-3 min-w-0 lg:overflow-x-clip lg:-mx-3 lg:px-3">
+						{rowError && (
+							<p className="text-xs ml-1" style={{ color: "var(--ink-aka)" }}>
+								{rowError}
 							</p>
-							{archived.map((a) => (
-								<ArchivedAccountRow
-									key={a.id}
-									account={a}
-									locale={locale}
-									anyOpen={openId !== null}
-									onCloseOthers={() => setOpenId(null)}
-									action={
-										/*
-											⚠️ `text-ao-ink` e non `--color-ao`: il mockup usava
-											l'accento pieno come colore del testo a 11,5px, cioè
-											~3,2:1 su fondo chiaro, sotto il 4,5:1 di WCAG AA. È
-											l'unico punto del mockup che sbaglia, quindi è una
-											svista isolata e non un pattern.
-										*/
-										<button
-											onClick={(e) => {
-												e.stopPropagation();
-												void reactivate(a.id);
-											}}
-												// issue #69 — area toccabile allargata (il massimo che i
-											// 4px verso l'importo sopra permettono): -m-3 p-3 con
-											// -mt-1 pt-1 sul solo lato in alto, dove lo spazio è
-											// stretto.
-											className="-mx-3 -mb-3 -mt-1 px-3 pb-3 pt-1 flex items-center gap-1 text-[11.5px] font-semibold text-ao-ink"
-										>
-											<RotateCcw size={11} />
-											{t.accounts.reactivate}
-										</button>
-									}
-								/>
-							))}
-						</>
-					)}
+						)}
+
+						{active.map((a) => (
+							<ActiveAccountRow
+								key={a.id}
+								account={a}
+								locale={locale}
+								isOpen={openId === a.id}
+								anyOpen={openId !== null}
+								onOpen={() => setOpenId(a.id)}
+								onClose={() => setOpenId(null)}
+								onEdit={() => openEdit(a)}
+								onArchive={() => void archiveFromTray(a.id)}
+							/>
+						))}
+
+						{/*
+							lg: la riga tratteggiata che chiude l'elenco nel mockup (#108) —
+							lo stesso foglio del bottone in alto. Su mobile non c'è: il
+							bottone dell'intestazione è a un pollice, e un secondo ingresso
+							allungherebbe una lista che si scorre.
+						*/}
+						<div className="hidden lg:block">
+							<DashedAddButton variant="row" label={t.accounts.newTitle} onClick={openCreate} />
+						</div>
+
+						{archived.length > 0 && (
+							<>
+								{/*
+									Il mockup desktop non mostra gli archiviati, ma l'app li ha
+									(Fase 20a): restano in coda all'elenco, sotto la riga
+									"Nuovo conto" — che chiude la lista dei conti ATTIVI, cioè
+									quelli a cui si aggiunge.
+								*/}
+								<p className="text-xs text-muted font-medium mt-1 mb-0.5 ml-1 tracking-wide lg:mt-3">
+									{plural(t.accounts.archivedSection, archived.length, locale)}
+								</p>
+								{archived.map((a) => (
+									<ArchivedAccountRow
+										key={a.id}
+										account={a}
+										locale={locale}
+										anyOpen={openId !== null}
+										onCloseOthers={() => setOpenId(null)}
+										action={
+											/*
+												⚠️ `text-ao-ink` e non `--color-ao`: il mockup usava
+												l'accento pieno come colore del testo a 11,5px, cioè
+												~3,2:1 su fondo chiaro, sotto il 4,5:1 di WCAG AA. È
+												l'unico punto del mockup che sbaglia, quindi è una
+												svista isolata e non un pattern.
+											*/
+											<button
+												onClick={(e) => {
+													e.stopPropagation();
+													void reactivate(a.id);
+												}}
+													// issue #69 — area toccabile allargata (il massimo che i
+												// 4px verso l'importo sopra permettono): -m-3 p-3 con
+												// -mt-1 pt-1 sul solo lato in alto, dove lo spazio è
+												// stretto.
+												className="-mx-3 -mb-3 -mt-1 px-3 pb-3 pt-1 flex items-center gap-1 text-[11.5px] font-semibold text-ao-ink lg:cursor-pointer"
+											>
+												<RotateCcw size={11} />
+												{t.accounts.reactivate}
+											</button>
+										}
+									/>
+								))}
+							</>
+						)}
+					</div>
 				</div>
 			)}
 
@@ -464,13 +541,22 @@ function ActiveAccountRow({
 	}
 
 	return (
+		/*
+		 * `group`: da lg il vetro della riga schiarisce al passaggio del mouse
+		 * (mockup #108). Sul contenitore e non sul `<button>`, per la stessa
+		 * ragione per cui `hovered` si ascolta qui — il mouse può stare sul
+		 * vassoio appena rivelato, e la riga deve restare "sotto il mouse".
+		 * ⚠️ Solo aspetto: l'hover-reveal resta quello di `onRowPointerEnter`,
+		 * e `hover:` in Tailwind v4 vive dentro `@media (hover: hover)`, quindi
+		 * un tap non lo accende.
+		 */
 		<div
-			className="relative z-30"
+			className="group relative z-30"
 			onPointerEnter={onRowPointerEnter}
 			onPointerLeave={onRowPointerLeave}
 		>
 			{!traySmontato && (
-				<div className="absolute inset-0 flex items-center justify-end gap-2 px-3 rounded-3xl">
+				<div className="absolute inset-0 flex items-center justify-end gap-2 px-3 rounded-3xl lg:rounded-[22px]">
 					<button
 						onClick={(e) => {
 							e.stopPropagation();
@@ -478,7 +564,7 @@ function ActiveAccountRow({
 							onEdit();
 						}}
 						aria-label={t.common.edit}
-						className="w-11 h-11 rounded-2xl flex items-center justify-center bg-control ring-border shrink-0"
+						className="w-11 h-11 rounded-2xl flex items-center justify-center bg-control ring-border shrink-0 lg:cursor-pointer"
 					>
 						<Pencil size={17} className="text-secondary" />
 					</button>
@@ -489,7 +575,7 @@ function ActiveAccountRow({
 							onArchive();
 						}}
 						aria-label={t.accounts.archive}
-						className="w-11 h-11 rounded-2xl flex items-center justify-center bg-control ring-border shrink-0"
+						className="w-11 h-11 rounded-2xl flex items-center justify-center bg-control ring-border shrink-0 lg:cursor-pointer"
 					>
 						<Archive size={17} style={{ color: "var(--ink-aka)" }} />
 					</button>
@@ -515,29 +601,32 @@ function ActiveAccountRow({
 				// schermo e già montate nel DOM.
 				aria-expanded={revealed}
 				style={{ transform: `translateX(${offset}px)`, touchAction: "pan-y" }}
-				className={`relative w-full rounded-3xl card-shadow-ring overflow-hidden text-left ${
+				// lg: la riga del mockup desktop (#108) — raggio 22, 18/20 di
+				// margine interno, tessera 44 a raggio 15. Il vassoio da 120px ci sta
+				// con largo avanzo: la riga più stretta è quella di lg, ≈688px.
+				className={`relative w-full rounded-3xl card-shadow-ring overflow-hidden text-left lg:rounded-[22px] lg:cursor-pointer ${
 					dragOffset === null ? "transition-transform duration-200" : ""
 				}`}
 			>
-				<span className="absolute inset-0 bg-surface backdrop-blur-md" />
-				<span className="relative flex items-center gap-3 p-4">
+				<span className="absolute inset-0 bg-surface backdrop-blur-md lg:transition-colors lg:group-hover:bg-surface-elevated" />
+				<span className="relative flex items-center gap-3 p-4 lg:gap-3.75 lg:py-4.5 lg:px-5">
 					<span
-						className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
+						className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 lg:rounded-[15px]"
 						style={{ background: `color-mix(in srgb, ${color} 16%, transparent)` }}
 					>
 						<Icon size={19} style={{ color }} />
 					</span>
 
 					<span className="flex-1 min-w-0">
-						<span className="block text-[14.5px] font-medium text-foreground truncate">
+						<span className="block text-[14.5px] font-medium text-foreground truncate lg:text-[15px] lg:font-semibold">
 							{account.name}
 						</span>
-						<span className="block text-[11.5px] text-muted">
+						<span className="block text-[11.5px] text-muted lg:text-[12px] lg:mt-0.5">
 							{accountTypeLabel(account.type, t)}
 						</span>
 					</span>
 
-					<span className="text-[14.5px] font-semibold text-foreground shrink-0">
+					<span className="text-[14.5px] font-semibold text-foreground shrink-0 lg:text-[16px]">
 						{formatMoney(account.balance, { locale, currency: DISPLAY_CURRENCY, decimals: 2 })}
 					</span>
 				</span>
@@ -589,29 +678,31 @@ function ArchivedAccountRow({
 
 	return (
 		/* ⚠️ TRE livelli — issue #81. Guscio (opacità, ritaglio) → vetro → contenuto. */
-		<div className="relative z-30 w-full rounded-3xl card-shadow-ring overflow-hidden opacity-55">
-			<div className="absolute inset-0 bg-surface backdrop-blur-md" />
-			<div className="relative flex items-center gap-3 p-4">
-			<button onClick={handleTap} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+		/* lg: la stessa geometria delle righe attive (#108), o i due elenchi uno
+		   sotto l'altro avrebbero raggi e margini diversi. */
+		<div className="group relative z-30 w-full rounded-3xl card-shadow-ring overflow-hidden opacity-55 lg:rounded-[22px]">
+			<div className="absolute inset-0 bg-surface backdrop-blur-md lg:transition-colors lg:group-hover:bg-surface-elevated" />
+			<div className="relative flex items-center gap-3 p-4 lg:gap-3.75 lg:py-4.5 lg:px-5">
+			<button onClick={handleTap} className="flex items-center gap-3 flex-1 min-w-0 text-left lg:gap-3.75 lg:cursor-pointer">
 				<span
-					className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
+					className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 lg:rounded-[15px]"
 					style={{ background: `color-mix(in srgb, ${color} 16%, transparent)` }}
 				>
 					<Icon size={19} style={{ color }} />
 				</span>
 
 				<span className="flex-1 min-w-0">
-					<span className="block text-[14.5px] font-medium text-foreground truncate">
+					<span className="block text-[14.5px] font-medium text-foreground truncate lg:text-[15px] lg:font-semibold">
 						{account.name}
 					</span>
-					<span className="block text-[11.5px] text-muted">
+					<span className="block text-[11.5px] text-muted lg:text-[12px] lg:mt-0.5">
 						{t.accounts.archivedNote}
 					</span>
 				</span>
 			</button>
 
 			<div className="flex flex-col items-end gap-1 shrink-0">
-				<span className="text-[14.5px] font-semibold text-foreground">
+				<span className="text-[14.5px] font-semibold text-foreground lg:text-[16px]">
 					{formatMoney(account.balance, { locale, currency: DISPLAY_CURRENCY, decimals: 2 })}
 				</span>
 				{action}
