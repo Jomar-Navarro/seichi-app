@@ -235,9 +235,19 @@ export default function MovimentiPage() {
 	// issue #86 — l'unica pagina di `(main)` che scorre su un contenitore
 	// INTERNO invece che sul documento: `scrollbar-none` sull'`<html>` (root
 	// layout) non la raggiunge, va ripetuta qui.
+	//
+	// ⚠️ issue #108 — da `lg:` in su la pagina è LARGA (`max-w-6xl`, 1152px con
+	// 40px di margine per lato: il contenuto sta a ~1080px su una finestra da
+	// 1440, come nel mockup desktop di Movimenti). È una revisione esplicita della
+	// 28c, che l'aveva stretta a 672px (`lg:max-w-2xl`) come "pagina lineare"
+	// SENZA un mockup di questa pagina: il mockup ora c'è, e mette budget e
+	// filtri su tutta la larghezza. Il `pb-34` (spazio per la bottom nav) scende
+	// a `pb-12` perché da `lg:` la bottom nav non c'è.
 	return (
-		<div className="flex flex-col flex-1 px-5 pt-8 pb-34 overflow-y-auto scrollbar-none lg:max-w-2xl lg:mx-auto lg:w-full">
-			<h1 className="text-2xl font-semibold mb-5">{t.transactions.title}</h1>
+		<div className="flex flex-col flex-1 px-5 pt-8 pb-34 overflow-y-auto scrollbar-none lg:px-10 lg:pt-9 lg:pb-12 lg:max-w-6xl lg:mx-auto lg:w-full">
+			<h1 className="text-2xl font-semibold mb-5 lg:text-[30px] lg:tracking-[-0.6px]">
+				{t.transactions.title}
+			</h1>
 			<FilterBar
 				search={search}
 				tipo={tipo}
@@ -254,21 +264,13 @@ export default function MovimentiPage() {
 				onReset={hasFilters ? resetFilters : undefined}
 			/>
 			<div className="mt-5">
-				{budgets && <BudgetCards overview={budgets} />}
 				{/*
-					⚠️ I budget NON si filtrano per conto, e con un filtro attivo lo
-					dicono. Sono limiti su una CATEGORIA: "€ 400 per la spesa" non si
-					divide fra contanti e carta, quindi filtrarli inventerebbe budget
-					per-conto che nessuno ha impostato. Nasconderli toglierebbe di
-					vista i budget proprio a chi sta guardando le sue uscite. Resta la
-					terza via, già usata due volte in questa fase: quando due numeri
-					hanno ambiti diversi, si DICE.
+					La nota "i budget valgono su tutti i conti" la rende ora
+					`BudgetCards` stessa (`accountFiltered`): qui dipendeva da una
+					risposta arrivata, anche vuota, e con zero budget compariva a
+					spiegare card che non c'erano. Vedi il commento là.
 				*/}
-				{budgets && conto && (
-					<p className="-mt-1 mb-4 ml-1 text-[11px] text-disabled leading-relaxed">
-						{t.budget.acrossAllAccounts}
-					</p>
-				)}
+				{budgets && <BudgetCards overview={budgets} accountFiltered={Boolean(conto)} />}
 				<TransactionList
 					transactions={filtered}
 					loading={loading}
