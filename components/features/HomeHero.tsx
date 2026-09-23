@@ -106,19 +106,23 @@ export default function HomeHero({
 				della pagina, restituito alle pagine del carosello.
 
 				⚠️ Da `lg:` in su non è più un carosello: le due card stanno
-				AFFIANCATE (validato nel mockup Claude Design, dove la sezione è
-				già `grid-template-columns:1fr 1fr`) — c'è spazio per entrambe, e
-				uno swipe senza dito non ha un modo naturale di essere azionato col
-				mouse. Il workaround per il ritaglio dell'ombra (punto 1 sopra)
-				serve solo finché c'è `overflow-x-auto`: annullato a `lg:`, insieme
-				al padding che compensava il margine negativo (sulle pagine, sotto).
+				AFFIANCATE — c'è spazio per entrambe, e uno swipe senza dito non ha
+				un modo naturale di essere azionato col mouse. Il workaround per il
+				ritaglio dell'ombra (punto 1 sopra) serve solo finché c'è
+				`overflow-x-auto`: annullato a `lg:`, insieme al padding che
+				compensava il margine negativo (sulle pagine, sotto).
 				`showBalance` sceglie fra due classi COMPLETE, mai un'interpolazione
 				del numero di colonne — Tailwind non genera `grid-cols-${n}`.
+
+				Proporzioni `1.15fr 1fr` e gap 18 dal mockup desktop della issue
+				#108, che ha sostituito il `1fr 1fr` della 28b: la giacenza viene
+				prima e ha un piè di pagina in più, quindi le spetta la colonna
+				più larga.
 			*/}
 			<div
 				ref={trackRef}
 				onScroll={onScroll}
-				className={`flex overflow-x-auto -mx-5 pt-4 -mt-4 pb-8 -mb-8 snap-x snap-mandatory scrollbar-none lg:mx-0 lg:mt-0 lg:mb-0 lg:pt-0 lg:pb-0 lg:overflow-visible lg:snap-none lg:grid lg:gap-4 ${showBalance ? "lg:grid-cols-2" : "lg:grid-cols-1"}`}
+				className={`flex overflow-x-auto -mx-5 pt-4 -mt-4 pb-8 -mb-8 snap-x snap-mandatory scrollbar-none lg:mx-0 lg:mt-0 lg:mb-0 lg:pt-0 lg:pb-0 lg:overflow-visible lg:snap-none lg:grid lg:gap-4.5 ${showBalance ? "lg:grid-cols-[1.15fr_1fr]" : "lg:grid-cols-1"}`}
 			>
 				{/*
 					⚠️ La GIACENZA viene prima, il flusso dopo — chiesto usando l'app.

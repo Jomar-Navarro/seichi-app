@@ -193,7 +193,12 @@ async function DashboardContent({
 				Il contenuto sta comunque sopra gli aloni perché entrambi sono
 				posizionati con z-index auto e vince l'ordine nel DOM.
 			*/}
-			<div className="relative flex flex-col gap-4 px-5 pt-7 pb-32 lg:max-w-3xl xl:max-w-5xl lg:mx-auto lg:w-full">
+			{/*
+				Da `lg:` padding e larghezza del mockup desktop (issue #108): main
+				36/40/48, contenuto fino a ~1070px, 22px fra le sezioni. Il `pb-32`
+				del telefono è lo spazio della bottom nav, che da `lg:` non c'è.
+			*/}
+			<div className="relative flex flex-col gap-4 px-5 pt-7 pb-32 lg:gap-5.5 lg:px-10 lg:pt-9 lg:pb-12 lg:max-w-6xl lg:mx-auto lg:w-full">
 			{/*
 				Come nel mockup: a sinistra l'avatar col saluto e il nome (è il
 				gruppo intero ad aprire il menu), a destra le due pastiglie.
@@ -207,14 +212,69 @@ async function DashboardContent({
 				nel varco fra le card non era allineato a niente, e dentro la card
 				Investimenti sembrava un controllo di quella card — cioè di un numero,
 				non dell'app. Un assistente sta dove stanno gli altri comandi globali.
+
+				⚠️ Da `lg:` l'header è UNA riga sola (mockup desktop, issue #108):
+				saluto e nome senza avatar — il menu profilo vive nel piede della
+				sidebar — poi il selettore conti, poi le pastiglie spinte a destra.
+				Sul telefono resta com'era: avatar e pastiglie, e il selettore sotto.
+
+				⚠️ Il selettore è UNO solo e si sposta; renderne due (uno per
+				breakpoint) vorrebbe dire due pannelli e due stati per lo stesso
+				filtro. Da qui l'ordine nel DOM — saluto, selettore, pastiglie — che
+				è quello della riga desktop, quindi anche l'ordine del TAB, dove la
+				tastiera si usa davvero. Sul telefono una griglia a due colonne rimette
+				il selettore nella seconda riga (`row-start-2 col-span-2`) e le
+				pastiglie in alto a destra: identico a prima a vista, con i 20px di
+				sempre fra le due righe (`gap-y-5`: era `mb-1` più il `gap-4` della
+				pagina).
 			*/}
-			<div className="flex items-center justify-between mb-1">
-				<ProfileMenu
-					initials={profile.initials}
-					avatarUrl={profile.avatarUrl}
-					name={profile.displayName}
-					greeting={t.home.greeting}
-				/>
+			<div
+				className={`grid grid-cols-[1fr_auto] items-center gap-y-5 lg:flex lg:gap-4.5 ${
+					/*
+					 * Senza selettore la seconda riga non c'è, e con lei il suo gap:
+					 * il `mb-1` di prima torna qui, o la card sotto salirebbe di 4px
+					 * proprio quando i conti non si caricano.
+					 */
+					accounts.length > 0 ? "" : "mb-1 lg:mb-0"
+				}`}
+			>
+				{/*
+					⚠️ `justify-self-start`: in una cella di griglia l'elemento si
+					allarga a tutta la colonna, mentre da figlio flex era largo quanto il
+					proprio contenuto. `ProfileMenu` chiude il pannello sui clic FUORI dal
+					proprio contenitore: allargato, lo spazio vuoto fino alle pastiglie
+					sarebbe diventato "dentro", e toccarlo non l'avrebbe più chiuso.
+				*/}
+				<div className="justify-self-start lg:hidden">
+					<ProfileMenu
+						initials={profile.initials}
+						avatarUrl={profile.avatarUrl}
+						name={profile.displayName}
+						greeting={t.home.greeting}
+					/>
+				</div>
+				{/*
+					Il saluto del desktop. Non è un comando — il menu profilo sta nella
+					sidebar — quindi niente bottone e niente chevron: un bottone che non
+					apre niente sarebbe un comando che mente sulla propria natura.
+				*/}
+				<div className="hidden lg:block min-w-0">
+					<p className="text-xs text-disabled tracking-[0.3px]">{t.home.greeting}</p>
+					<p className="text-[23px] font-semibold tracking-[-0.3px] leading-tight mt-0.75 truncate">
+						{profile.displayName}
+					</p>
+				</div>
+				{/*
+					Il selettore sta SOPRA la card e non dentro: filtra tutta la pagina —
+					la cifra grande, le quattro card e le sparkline — non solo il numero
+					che ha accanto. Ed è anche l'ingresso alla pagina conti, perché la
+					bottom nav è già a quattro voci più il FAB.
+				*/}
+				{accounts.length > 0 && (
+					<div className="row-start-2 col-span-2 lg:ml-2.5">
+						<AccountSelector accounts={accounts} selectedId={accountId} />
+					</div>
+				)}
 				{/*
 					⚠️ `shrink-0` sul gruppo, non sulle singole pastiglie: sono figli
 					flex con `min-width: auto`, quindi senza questo si comprimono in
@@ -222,23 +282,15 @@ async function DashboardContent({
 					pastiglia sola non si vedeva; con due il contenuto dell'header
 					supera i 320px e il difetto compare sui telefoni più stretti.
 					`ProfileMenu` il nome lo tronca già (`truncate max-w-36`), quindi
-					è lui a cedere — che è l'ordine giusto.
+					è lui a cedere — che è l'ordine giusto. Vale per la riga flex del
+					desktop; sul telefono lo stesso lo garantisce la colonna `auto`
+					della griglia, che non scende mai sotto il proprio contenuto.
 				*/}
-				<div className="flex items-center gap-2 shrink-0">
+				<div className="flex items-center gap-2 shrink-0 row-start-1 col-start-2 lg:ml-auto">
 					<CoachBubble accountFiltered={!!accountId} />
 					<NotificationBell initialUnread={unreadCount} />
 				</div>
 			</div>
-
-			{/*
-				Il selettore sta SOPRA la card e non dentro: filtra tutta la pagina —
-				la cifra grande, le quattro card e le sparkline — non solo il numero
-				che ha accanto. Ed è anche l'ingresso alla pagina conti, perché la
-				bottom nav è già a quattro voci più il FAB.
-			*/}
-			{accounts.length > 0 && (
-				<AccountSelector accounts={accounts} selectedId={accountId} />
-			)}
 
 			{/*
 				⚠️ `monthLabel` si calcola QUI, nel server component, non nella card.
@@ -255,7 +307,7 @@ async function DashboardContent({
 				selectedId={accountId}
 			/>
 
-			<div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+			<div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
 				<SummaryCard
 					amount={result.entrateMese}
 					icon={entrata.icon}
@@ -291,48 +343,79 @@ async function DashboardContent({
 			</div>
 
 			{/*
-				Analisi shortcut.
-				⚠️ Il conto selezionato viaggia nel link. Senza, questa scorciatoia
-				portava da un "Flusso · € 120" filtrato a un "Flusso netto · € 1.540"
-				su tutti i conti — la stessa parola, due numeri, a un tap di distanza:
-				esattamente il difetto che `sommaUscite()` era stata scritta per
-				chiudere, riaperto dal filtro introdotto nella stessa fase.
-			*/}
-			<Link
-				href={accountId ? `/analisi?conto=${accountId}` : "/analisi"}
-				className="flex items-center justify-between px-4 py-3.5 rounded-2xl card-shadow-ring"
-				style={{ background: "var(--surface)" }}
-			>
-				<div className="flex items-center gap-3">
-					<div
-						className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-						style={{ background: "color-mix(in srgb, var(--color-ao) 14%, transparent)" }}
-					>
-						<ChartNoAxesCombinedIcon size={17} strokeWidth={1.5} style={{ color: "var(--color-ao)" }} />
-					</div>
-					<div>
-						<p className="text-sm font-semibold">{t.home.analyticsTitle}</p>
-						<p className="text-xs text-muted">{t.home.analyticsSubtitle}</p>
-					</div>
-				</div>
-				<div className="flex items-center gap-2">
-					<Sparkline
-						values={result.speseTrend}
-						color="var(--color-kiri)"
-						width={48}
-						height={22}
-						opacity={0.5}
-						pad={3}
-					/>
-					<ChevronRight size={16} className="text-muted" />
-				</div>
-			</Link>
+				La riga in fondo: scorciatoia Analisi e movimenti recenti.
 
-			<RecentTransaction
-				transactions={transaction.data}
-				accounts={accounts}
-				viewedAccountId={accountId}
-			/>
+				Sul telefono (e fino a `xl:`) restano impilate come prima: la
+				scorciatoia in riga, la lista sotto. Da `xl:` stanno AFFIANCATE come
+				nel mockup desktop (issue #108) — lista a sinistra (`1.6fr`), Analisi
+				a destra (`1fr`) — e la scorciatoia diventa una card col grafico
+				grande. A `lg:` la colonna utile è ~690px: la lista starebbe in 410,
+				ma la card Analisi in 260 non avrebbe più niente di un grafico.
+
+				⚠️ L'ordine nel DOM resta quello del telefono (Analisi, poi lista):
+				le celle del desktop sono assegnate a mano (`col-start`/`row-start`).
+
+				⚠️ La lista è un SUBGRID a due righe (titolo, card): la card Analisi
+				sta nella seconda, quindi il suo bordo alto combacia con quello della
+				card della lista e non col titolo "Transazioni recenti". Il mockup ci
+				arriva con un `margin-top: 35px` scritto a mano, che smetterebbe di
+				combaciare al primo cambio di font o di lingua.
+			*/}
+			<div className="flex flex-col gap-4 lg:gap-5.5 xl:grid xl:grid-cols-[1.6fr_1fr] xl:grid-rows-[auto_auto] xl:gap-x-4.5 xl:gap-y-0 xl:items-start">
+				{/*
+					Analisi shortcut.
+					⚠️ Il conto selezionato viaggia nel link. Senza, questa scorciatoia
+					portava da un "Flusso · € 120" filtrato a un "Flusso netto · € 1.540"
+					su tutti i conti — la stessa parola, due numeri, a un tap di distanza:
+					esattamente il difetto che `sommaUscite()` era stata scritta per
+					chiudere, riaperto dal filtro introdotto nella stessa fase.
+
+					Da `xl:` è una griglia: in alto icona, titoli e chevron, sotto la
+					sparkline a tutta larghezza e alta 120. Sono gli STESSI elementi della
+					riga del telefono — il gruppo a destra diventa `xl:contents` e i suoi
+					due figli prendono ciascuno la propria cella — non una seconda copia:
+					una sparkline sola, stirata dalle classi (vedi `Sparkline`).
+				*/}
+				<Link
+					href={accountId ? `/analisi?conto=${accountId}` : "/analisi"}
+					className="flex items-center justify-between px-4 py-3.5 rounded-2xl card-shadow-ring xl:grid xl:grid-cols-[minmax(0,1fr)_auto] xl:gap-x-3.25 xl:gap-y-5 xl:col-start-2 xl:row-start-2 xl:rounded-3xl xl:pt-5.5 xl:px-6 xl:pb-6"
+					style={{ background: "var(--surface)" }}
+				>
+					<div className="flex items-center gap-3 xl:gap-3.25 xl:col-start-1 xl:row-start-1">
+						<div
+							className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 xl:w-10 xl:h-10 xl:rounded-[13px]"
+							style={{ background: "color-mix(in srgb, var(--color-ao) 14%, transparent)" }}
+						>
+							<ChartNoAxesCombinedIcon size={17} strokeWidth={1.5} style={{ color: "var(--color-ao)" }} />
+						</div>
+						<div>
+							<p className="text-sm font-semibold xl:text-[14.5px]">{t.home.analyticsTitle}</p>
+							<p className="text-xs text-muted xl:text-[11.5px] xl:mt-0.75">{t.home.analyticsSubtitle}</p>
+						</div>
+					</div>
+					<div className="flex items-center gap-2 xl:contents">
+						<Sparkline
+							values={result.speseTrend}
+							color="var(--color-kiri)"
+							width={48}
+							height={22}
+							opacity={0.5}
+							pad={3}
+							className="xl:col-span-2 xl:row-start-2 xl:w-full xl:h-30"
+							areaOpacity={0.08}
+							areaClassName="hidden xl:inline"
+						/>
+						<ChevronRight size={16} className="text-muted xl:col-start-2 xl:row-start-1" />
+					</div>
+				</Link>
+
+				<RecentTransaction
+					transactions={transaction.data}
+					accounts={accounts}
+					viewedAccountId={accountId}
+					className="xl:col-start-1 xl:row-start-1 xl:row-span-2 xl:grid xl:grid-rows-subgrid"
+				/>
+			</div>
 			<DashboardRefresher />
 			</div>
 		</div>

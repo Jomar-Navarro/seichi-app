@@ -49,12 +49,20 @@ interface RecentTransactionProps {
 	 * peggiore da comunicare subito dopo un salvataggio andato a buon fine.
 	 */
 	viewedAccountId?: string | null;
+	/**
+	 * Classi sul contenitore, decise dalla PAGINA (issue #108): in home da `xl:`
+	 * la sezione diventa un subgrid della riga in fondo, così la card Analisi
+	 * accanto si allinea alla card della lista e non al suo titolo. Una stringa
+	 * attraversa il confine server→client; una funzione no (Fase 19).
+	 */
+	className?: string;
 }
 
 export default function RecentTransaction({
 	transactions,
 	accounts = [],
 	viewedAccountId = null,
+	className,
 }: RecentTransactionProps) {
 	const { openEditModal } = useUIStore();
 	const { locale, t } = useI18n();
@@ -62,15 +70,20 @@ export default function RecentTransaction({
 	const accountName = new Map(accounts.map((a) => [a.id, a.name]));
 
 	return (
-		<div>
-			{/* Header — esterno al card */}
-			<div className="flex items-center justify-between mb-3">
-				<p className="font-semibold">{t.home.recentTitle}</p>
+		<div className={className}>
+			{/*
+				Header — esterno al card.
+				⚠️ Da `lg:` altezza FISSATA (riga 22px + margine 13px = 35, come nel
+				mockup desktop): in home, a `xl:`, la riga del titolo è la prima traccia
+				del subgrid che allinea la card Analisi accanto.
+			*/}
+			<div className="flex items-center justify-between mb-3 lg:mb-3.25 lg:px-1">
+				<p className="font-semibold lg:text-[15px] lg:leading-5.5">{t.home.recentTitle}</p>
 				<Link
 					href="/transazioni"
 					// issue #69 — -m-2.5 p-2.5: area toccabile ~44px, link isolato a
 					// fine riga.
-					className="-m-2.5 p-2.5 text-sm font-medium"
+					className="-m-2.5 p-2.5 text-sm font-medium lg:text-[12.5px]"
 					style={{ color: "var(--ink-midori)" }}
 				>
 					{t.home.seeAll}
@@ -109,14 +122,21 @@ export default function RecentTransaction({
 									: (cat?.name ?? "—");
 								const isLast = i === transactions.length - 1;
 
+								/*
+									Da `lg:` le misure del mockup desktop (issue #108): riga 14/18,
+									tessera 38 a raggio 13, titolo 500, importo 14.5px. E un
+									velo al passaggio del mouse — solo da `lg:`, perché sul telefono
+									il tocco resta `active:opacity-75` e un `:hover` rimasto
+									appiccicato dopo il tap sarebbe un falso stato.
+								*/
 								return (
 									<button
 										key={tx.id}
 										onClick={() => openEditModal(tx)}
-										className={`w-full flex items-center gap-3.5 px-4 py-3.5 text-left active:opacity-75 transition-opacity ${!isLast ? "border-b border-subtle" : ""}`}
+										className={`w-full flex items-center gap-3.5 px-4 py-3.5 text-left active:opacity-75 transition-opacity lg:px-4.5 lg:hover:bg-surface ${!isLast ? "border-b border-subtle" : ""}`}
 									>
 										<div
-											className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+											className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 lg:w-9.5 lg:h-9.5 lg:rounded-[13px]"
 											style={{
 												background: `color-mix(in srgb, ${color} 16%, transparent)`,
 											}}
@@ -131,17 +151,17 @@ export default function RecentTransaction({
 											)}
 										</div>
 										<div className="flex-1 min-w-0">
-											<p className="text-sm font-semibold truncate">
+											<p className="text-sm font-semibold truncate lg:font-medium">
 												{title}
 											</p>
-											<p className="text-xs text-muted mt-0.5 truncate">
+											<p className="text-xs text-muted mt-0.5 truncate lg:text-[11.5px] lg:mt-0.75">
 												{t.types[tx.type as keyof typeof t.types]} · {formatDate(tx.date, locale)}
 												{/* La destinazione di un risparmio si dice: vedi TransactionList. */}
 												{!isTransfer && toName && ` · ${DIRECTION_ARROW} ${toName}`}
 											</p>
 										</div>
 										<p
-											className="text-sm font-semibold shrink-0"
+											className="text-sm font-semibold shrink-0 lg:text-[14.5px]"
 											style={{ color: amountColor }}
 										>
 											{formatAmount(tx.amount, amountSign(tx, viewedAccountId), locale)}

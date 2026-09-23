@@ -12,7 +12,7 @@ import AccountSelector from "@/components/features/AccountSelector";
 import { getSelectedAccount } from "@/lib/accounts-server";
 import { getI18n } from "@/lib/i18n/server";
 import { periodoLabel } from "@/lib/analytics";
-import { DISPLAY_CURRENCY, formatMoney } from "@/lib/i18n/format";
+import { DISPLAY_CURRENCY, currencySymbol, splitAmount } from "@/lib/i18n/format";
 
 export default async function AnalyticsPage({
 	searchParams,
@@ -74,49 +74,72 @@ export default async function AnalyticsPage({
 	 * distanza. Se un domani il selettore sparisse da qui, questa riga va rimessa.
 	 */
 	const isPositive = analytics.saldoMese >= 0;
+	/*
+	 * Il Flusso spezzato in intero e decimali, come le cifre grandi della home:
+	 * da `lg:` i decimali sono più piccoli e smorzati (mockup desktop, issue
+	 * #108). Sotto `lg:` lo span eredita tutto dal paragrafo, quindi il telefono
+	 * legge la stessa stringa di prima — "+ € 1.540,70" — carattere per carattere:
+	 * il valore è in modulo, e il segno resta quello tipografico scritto qui.
+	 */
+	const flow = splitAmount(Math.abs(analytics.saldoMese), locale);
 
 	return (
-		<div className="px-5 pt-7 pb-36 flex flex-col lg:max-w-3xl xl:max-w-5xl lg:mx-auto lg:w-full">
-			{/* Header */}
-			<div className="flex items-center justify-between mb-4">
-				<h1 className="text-2xl font-bold">{t.analytics.title}</h1>
-				<p className="text-sm text-muted text-right">{periodoLabel(periodo, locale, t)}</p>
-			</div>
-
+		<div className="px-5 pt-7 pb-36 flex flex-col lg:px-10 lg:pt-9 lg:pb-12 lg:max-w-6xl lg:mx-auto lg:w-full">
 			{/*
-				Il selettore conti e l'ingresso al report, sulla STESSA riga.
+				Header.
 
-				⚠️ Il collegamento stava su una riga propria, sotto i tab, e aggiungeva
-				un'altra fascia di pagina per una sola parola mentre accanto al chip
-				restava metà riga vuota. Su uno schermo da telefono lo spazio
-				verticale è la risorsa scarsa: un comando secondario si mette dove uno
-				spazio esiste già, non se ne apre uno nuovo.
-
-				⚠️ `keepParams` conserva il periodo: senza, scegliere un conto mentre
-				si guarda l'anno riportava al mese, cioè cambiava DUE variabili per un
-				tocco solo — e quella non scelta cambia in silenzio.
-
-				⚠️ `ml-auto` e non `justify-between`: senza conti il selettore non viene
-				reso affatto, e `justify-between` con un figlio solo lo appoggerebbe a
-				SINISTRA — il comando salterebbe da un lato all'altro a seconda di
-				quanti conti hai.
+				⚠️ Da `lg:` titolo, selettore, periodo e report stanno su UNA riga
+				(mockup desktop, issue #108) e sul telefono restano due righe come
+				prima. Le due righe diventano `lg:contents`, così i loro figli entrano
+				tutti nella stessa riga flex, e `order` rimette il periodo DOPO il
+				selettore. L'ordine del TAB non ne soffre: il periodo è testo, i due
+				soli comandi — selettore e report — restano nell'ordine in cui si
+				vedono.
 			*/}
-			<div className="flex items-center gap-3 mb-4">
-				{accounts.length > 0 && (
-					<AccountSelector
-						accounts={accounts}
-						selectedId={accountId}
-						basePath="/analisi"
-						keepParams={{ periodo }}
-					/>
-				)}
-				<Link
-					href={`/analisi/report?periodo=${periodo}${accountId ? `&conto=${accountId}` : ""}`}
-					className="ml-auto shrink-0 inline-flex items-center gap-1.5 text-[12.5px] font-medium text-secondary"
-				>
-					<Printer size={13} className="text-muted" />
-					{t.analytics.report.open}
-				</Link>
+			<div className="lg:flex lg:items-center lg:gap-4.5 lg:mb-6">
+				<div className="flex items-center justify-between mb-4 lg:contents">
+					<h1 className="text-2xl font-bold lg:text-[30px] lg:font-semibold lg:tracking-[-0.6px]">{t.analytics.title}</h1>
+					<p className="text-sm text-muted text-right lg:order-1 lg:ml-auto lg:text-[13px]">{periodoLabel(periodo, locale, t)}</p>
+				</div>
+
+				{/*
+					Il selettore conti e l'ingresso al report, sulla STESSA riga.
+
+					⚠️ Il collegamento stava su una riga propria, sotto i tab, e aggiungeva
+					un'altra fascia di pagina per una sola parola mentre accanto al chip
+					restava metà riga vuota. Su uno schermo da telefono lo spazio
+					verticale è la risorsa scarsa: un comando secondario si mette dove uno
+					spazio esiste già, non se ne apre uno nuovo.
+
+					⚠️ `keepParams` conserva il periodo: senza, scegliere un conto mentre
+					si guarda l'anno riportava al mese, cioè cambiava DUE variabili per un
+					tocco solo — e quella non scelta cambia in silenzio.
+
+					⚠️ `ml-auto` e non `justify-between`: senza conti il selettore non viene
+					reso affatto, e `justify-between` con un figlio solo lo appoggerebbe a
+					SINISTRA — il comando salterebbe da un lato all'altro a seconda di
+					quanti conti hai. Da `lg:` a spingere a destra è il periodo, e il
+					report lo segue: diventa una pastiglia, come nel mockup.
+				*/}
+				<div className="flex items-center gap-3 mb-4 lg:contents">
+					{accounts.length > 0 && (
+						<div className="lg:ml-2.5">
+							<AccountSelector
+								accounts={accounts}
+								selectedId={accountId}
+								basePath="/analisi"
+								keepParams={{ periodo }}
+							/>
+						</div>
+					)}
+					<Link
+						href={`/analisi/report?periodo=${periodo}${accountId ? `&conto=${accountId}` : ""}`}
+						className="ml-auto shrink-0 inline-flex items-center gap-1.5 text-[12.5px] font-medium text-secondary lg:order-2 lg:ml-0 lg:gap-2 lg:py-2.5 lg:px-4 lg:rounded-2xl lg:bg-surface lg:ring-border lg:text-[13px]"
+					>
+						<Printer size={13} className="text-muted lg:size-4" />
+						{t.analytics.report.open}
+					</Link>
+				</div>
 			</div>
 
 			{/* Tab selector — useSearchParams richiede Suspense */}
@@ -124,62 +147,108 @@ export default async function AnalyticsPage({
 				<AnalyticsTabs />
 			</Suspense>
 
+			{/*
+				Il corpo.
 
-			{/* KPI Flusso netto */}
-			<div className="mt-5 mb-4">
-				<p className="text-[13px] text-muted mb-1.5">{t.analytics.netFlow}</p>
-				<div className="flex items-center gap-2.5">
-					<p className="text-[34px] font-semibold tracking-[-0.5px] text-foreground">
-						{isPositive ? "+" : "−"} {formatMoney(Math.abs(analytics.saldoMese), { locale, currency: DISPLAY_CURRENCY, decimals: 2 })}
-					</p>
-					{analytics.variazionePct !== null ? (
-						<span
-							className={`inline-flex items-center gap-1 text-[12px] font-medium ${
-								analytics.variazionePct >= 0 ? "text-midori-ink" : "text-aka-ink"
-							}`}
-						>
-							<svg
-								width="10"
-								height="10"
-								viewBox="0 0 10 10"
-								fill="none"
-								className={analytics.variazionePct >= 0 ? "rotate-0" : "rotate-180"}
-							>
-								<path
-									d="M5 8.5V1.5M5 1.5L2 4.5M5 1.5L8 4.5"
-									stroke="currentColor"
-									strokeWidth="1.5"
-									strokeLinecap="round"
-									strokeLinejoin="round"
-								/>
-							</svg>
-							{Math.abs(analytics.variazionePct)}%
-						</span>
-					) : periodo === "tutto" ? null : (
-						/*
-						 * ⚠️ Su «tutto» questa riga NON si mostra: `variazionePct` è null per
-						 * costruzione — prima di tutta la storia non c'è niente con cui
-						 * confrontarsi — e la frase di ripiego dice "— primo mese", che su un
-						 * arco di quattro anni è semplicemente falsa.
-						 */
-						<span className="text-[12px] font-medium text-muted">{t.analytics.firstMonth}</span>
-					)}
+				Sul telefono è la colonna di sempre: KPI, grafico, donut, uscite fisse.
+				Da `lg:` (mockup desktop, issue #108) il KPI entra nella card del
+				grafico e il donut ne ha una sua; da `xl:` le due metà si affiancano,
+				`1.55fr 1fr`. Non prima: a `lg:` la colonna utile è ~690px, e la card
+				del grafico in 400 non terrebbe il KPI e la legenda sulla stessa riga.
+
+				⚠️ I contenitori aggiunti non spostano niente sul telefono: le distanze
+				sono i margini di prima (`mt-5` del KPI e del titolo del donut, `mt-4`
+				delle uscite fisse), che ora si fondono attraverso contenitori senza
+				bordi né padding e arrivano uguali.
+			*/}
+			<div className="lg:mt-6 xl:grid xl:grid-cols-[1.55fr_1fr] xl:gap-5 xl:items-start">
+				{/*
+					KPI + grafico: da `lg:` UNA card, griglia a due colonne — KPI a
+					sinistra, legenda a destra, grafico sotto a tutta larghezza. Il guscio
+					del grafico sparisce (`inCard` → `lg:contents`) e questa card ne
+					riprende vetro e anello, così non è una card dentro una card.
+
+					⚠️ Vetro SENZA `backdrop-filter`: qui dietro c'è solo il gradiente di
+					fondo, che sfocato resta identico, e un filtro su un elemento
+					arrotondato è il caso di Firefox della issue #81. Anello come
+					`box-shadow`, mai un bordo — gli stessi valori del guscio che sostituisce.
+				*/}
+				<div className="lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:gap-x-6 lg:gap-y-5 lg:rounded-[28px] lg:pt-6.5 lg:px-7 lg:pb-5.5 lg:bg-surface lg:shadow-[inset_0_1px_0_var(--shadow-inset),inset_0_0_0_1px_var(--border)]">
+					{/* KPI Flusso */}
+					<div className="mt-5 mb-4 lg:m-0 lg:col-start-1 lg:row-start-1 lg:min-w-0">
+						<p className="text-[13px] text-muted mb-1.5 lg:text-[12.5px] lg:mb-2.5">{t.analytics.netFlow}</p>
+						<div className="flex items-center gap-2.5 lg:flex-wrap">
+							<p className="text-[34px] font-semibold tracking-[-0.5px] text-foreground lg:text-[40px] lg:tracking-[-1px] lg:leading-none">
+								{isPositive ? "+" : "−"} {currencySymbol(DISPLAY_CURRENCY, locale)} {flow.integer}
+								<span className="lg:text-2xl lg:font-medium lg:tracking-[-0.4px] lg:text-muted">{flow.decimal}</span>
+							</p>
+							{analytics.variazionePct !== null ? (
+								/*
+								 * Da `lg:` la variazione diventa una pastiglia tinta del proprio
+								 * segno. La tinta è un riempimento (accento al 12%), il testo resta
+								 * l'inchiostro — la regola accento/inchiostro della Fase 18.
+								 */
+								<span
+									className={`inline-flex items-center gap-1 text-[12px] font-medium lg:px-2.5 lg:py-1 lg:rounded-full ${
+										analytics.variazionePct >= 0
+											? "text-midori-ink lg:bg-[color-mix(in_srgb,var(--color-midori)_12%,transparent)]"
+											: "text-aka-ink lg:bg-[color-mix(in_srgb,var(--color-aka)_12%,transparent)]"
+									}`}
+								>
+									<svg
+										width="10"
+										height="10"
+										viewBox="0 0 10 10"
+										fill="none"
+										className={analytics.variazionePct >= 0 ? "rotate-0" : "rotate-180"}
+									>
+										<path
+											d="M5 8.5V1.5M5 1.5L2 4.5M5 1.5L8 4.5"
+											stroke="currentColor"
+											strokeWidth="1.5"
+											strokeLinecap="round"
+											strokeLinejoin="round"
+										/>
+									</svg>
+									{Math.abs(analytics.variazionePct)}%
+								</span>
+							) : periodo === "tutto" ? null : (
+								/*
+								 * ⚠️ Su «tutto» questa riga NON si mostra: `variazionePct` è null per
+								 * costruzione — prima di tutta la storia non c'è niente con cui
+								 * confrontarsi — e la frase di ripiego dice "— primo mese", che su un
+								 * arco di quattro anni è semplicemente falsa.
+								 */
+								<span className="text-[12px] font-medium text-muted">{t.analytics.firstMonth}</span>
+							)}
+						</div>
+					</div>
+
+					{/* Area chart — da `lg:` legenda e grafico sono celle della card qui sopra. */}
+					<MonthlyLineChart trend={analytics.trend} inCard />
+				</div>
+
+				{/*
+					La colonna destra: donut e uscite fisse, 20px fra l'una e l'altra da
+					`lg:`. Il `div` attorno al donut non è decorativo: il componente rende
+					titolo e card come due fratelli, e il `gap` della colonna finirebbe
+					anche FRA titolo e card.
+				*/}
+				<div className="lg:mt-5 lg:flex lg:flex-col lg:gap-5 xl:mt-0">
+					{/* Donut spese — senza guscio proprio; da `lg:` la card la aggiunge `inCard`. */}
+					<div>
+						<SpendingPieChart spese={analytics.spese} periodo={periodo} inCard />
+					</div>
+
+					{/*
+						Scorciatoia verso le ricorrenti (issue #86): il donut sopra esclude
+						gli abbonamenti di proposito, quindi subito sotto è il posto dove
+						l'assenza si spiega da sola — "le tue spese variabili sono queste,
+						le tue uscite fisse sono di là".
+					*/}
+					<FixedOutflowsLink />
 				</div>
 			</div>
-
-			{/* Area chart */}
-			<MonthlyLineChart trend={analytics.trend} />
-
-			{/* Donut spese (no card wrapper) */}
-			<SpendingPieChart spese={analytics.spese} periodo={periodo} />
-
-			{/*
-				Scorciatoia verso le ricorrenti (issue #86): il donut sopra esclude
-				gli abbonamenti di proposito, quindi subito sotto è il posto dove
-				l'assenza si spiega da sola — "le tue spese variabili sono queste,
-				le tue uscite fisse sono di là".
-			*/}
-			<FixedOutflowsLink />
 		</div>
 	);
 }
