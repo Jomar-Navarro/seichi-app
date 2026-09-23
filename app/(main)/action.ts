@@ -644,6 +644,17 @@ export async function getDashboardTotals(accountId?: string | null) {
 		speseTrend: monthlyTrend("spesa"),
 		investimentiTrend: monthlyTrend("investimento"),
 		risparmiTrend: monthlyTrend("risparmio"),
+		/*
+		 * Il flusso di ciascun mese del trend, per la sparkline della card Flusso
+		 * da `lg:` (issue #108). Stessa `flussoDaTotali()` della cifra grande, sugli
+		 * stessi bucket: l'ultimo punto È `flussoMese`, e non costa una query.
+		 * ⚠️ Non `entrateTrend − speseTrend`: sarebbe un flusso senza gli
+		 * abbonamenti, cioè una quinta definizione di «uscita» sotto la parola
+		 * "Flusso" che la 20a ha fissato.
+		 */
+		flussoTrend: Array.from({ length: TREND_MONTHS }, (_, i) =>
+			flussoDaTotali(somma(i, "entrata"), somma(i, "spesa"), somma(i, "abbonamento")),
+		),
 	};
 }
 

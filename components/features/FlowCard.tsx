@@ -2,10 +2,16 @@
 import { Eye, EyeOff } from "lucide-react";
 import { useI18n } from "@/components/features/I18nProvider";
 import { DISPLAY_CURRENCY, currencySymbol, splitAmount } from "@/lib/i18n/format";
+import Sparkline from "@/components/UI/Sparkline";
 
 interface FlowCardProps {
 	/** entrate − spese − abbonamenti del mese. Vedi `getDashboardTotals`. */
 	flussoMese: number;
+	/**
+	 * Il flusso dei mesi del trend (`flussoTrend` di `getDashboardTotals`,
+	 * l'ultimo punto è `flussoMese`): la sparkline d'area da `lg:`.
+	 */
+	trend: number[];
 	/**
 	 * Il nome del mese, già formattato.
 	 *
@@ -45,6 +51,7 @@ interface FlowCardProps {
  */
 export default function FlowCard({
 	flussoMese,
+	trend,
 	monthLabel,
 	hidden,
 	onToggleHidden,
@@ -76,14 +83,13 @@ export default function FlowCard({
 			è il vetro bianco che fa da card — un 7% di verde da solo lascerebbe
 			la card trasparente sopra la carta.
 
-			⚠️ La sparkline d'area del mockup NON c'è, ed è una rinuncia dichiarata:
-			sotto "Flusso" può stare solo il flusso dei mesi scorsi (entrate − spese
-			− abbonamenti), e `getDashboardTotals` restituisce le serie di entrate e
-			spese ma non quella degli abbonamenti. Disegnare `entrate − spese`
-			sarebbe una quinta definizione di «uscita» sotto la parola che la 20a ha
-			fissato; disegnare un'altra serie, un grafico che mente sul proprio
-			titolo. Basta esporre `flussoTrend` da `getDashboardTotals` (i bucket ci
-			sono già, zero query) per aggiungerla.
+			⚠️ La sparkline d'area del mockup disegna SOLO il flusso dei mesi scorsi
+			(entrate − spese − abbonamenti): `flussoTrend`, calcolato in
+			`getDashboardTotals` con la stessa `flussoDaTotali()` della cifra, sugli
+			stessi bucket e senza query in più. Disegnare `entrate − spese` sarebbe
+			stata una quinta definizione di «uscita» sotto la parola che la 20a ha
+			fissato. E un mese in rosso resta dentro il disegno: `Sparkline` scala
+			dal minimo, zero compreso.
 		*/
 		<div className="relative h-full rounded-3xl overflow-hidden card-shadow-ring lg:rounded-[28px] lg:shadow-[0px_14px_40px_var(--shadow-drop),inset_0px_1px_0px_var(--shadow-inset),inset_0px_0px_0px_1px_color-mix(in_srgb,var(--color-midori)_16%,transparent)]">
 			<div className="absolute inset-0 bg-surface backdrop-blur-md lg:bg-[color-mix(in_srgb,var(--color-midori)_7%,var(--surface))]" />
@@ -134,6 +140,23 @@ export default function FlowCard({
 					</>
 				)}
 			</p>
+
+			{/*
+				Solo da `lg:`: il carosello del telefono resta com'era. Si nasconde
+				con l'occhio insieme alla cifra — la forma della curva dice quanto è
+				cambiato il flusso, cioè è parte del numero che l'occhio copre.
+			*/}
+			{!hidden && (
+				<Sparkline
+					values={trend}
+					color={isPositive ? "var(--color-midori)" : "var(--color-aka)"}
+					width={320}
+					height={46}
+					opacity={0.85}
+					areaOpacity={0.1}
+					className="hidden lg:block w-full h-11.5 mb-3.5"
+				/>
+			)}
 
 			{/*
 				⚠️ Il link "I saldi reali sono nella pagina conti" NON c'è più, e la

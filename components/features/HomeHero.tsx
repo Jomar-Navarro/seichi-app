@@ -8,6 +8,8 @@ import type { AccountWithBalance } from "@/types";
 
 interface HomeHeroProps {
 	flussoMese: number;
+	/** Il flusso dei mesi del trend, per la sparkline della card da `lg:`. */
+	flussoTrend: number[];
 	monthLabel: string;
 	accounts: AccountWithBalance[];
 	/** null = tutti i conti. Arriva dal search param. */
@@ -37,6 +39,7 @@ interface HomeHeroProps {
  */
 export default function HomeHero({
 	flussoMese,
+	flussoTrend,
 	monthLabel,
 	accounts,
 	selectedId,
@@ -166,6 +169,7 @@ export default function HomeHero({
 				<div className="snap-center shrink-0 w-full px-5 lg:px-0">
 					<FlowCard
 						flussoMese={flussoMese}
+						trend={flussoTrend}
 						monthLabel={monthLabel}
 						hidden={hidden}
 						onToggleHidden={() => setHidden((h) => !h)}

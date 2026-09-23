@@ -271,27 +271,27 @@ export default function InvestimentiTab({
 							</div>
 
 							{/*
-								Su mobile la legenda è una colonna con le percentuali in
-								colonna a destra; da lg le voci vanno a capo una accanto
-								all'altra, come nel mockup — la card è abbastanza larga da
-								tenerne due o tre per riga.
+								La legenda è una COLONNA a ogni larghezza, con le percentuali
+								allineate a destra: così nel mockup desktop (#108), dove da lg
+								cresce solo la misura — e la percentuale passa in semibold,
+								perché lì fa da colonna di cifre accanto ai nomi.
 							*/}
-							<div className="flex-1 flex flex-col gap-2.5 lg:flex-row lg:flex-wrap lg:gap-x-5 lg:gap-y-3">
+							<div className="flex-1 flex flex-col gap-2.5 lg:gap-3.5">
 								{chartItems.map((pos) => (
 									<div
 										key={pos.category_id}
-										className="flex items-center justify-between lg:justify-start lg:gap-2"
+										className="flex items-center justify-between lg:gap-3"
 									>
-										<div className="flex items-center gap-2.25">
+										<div className="flex items-center gap-2.25 min-w-0">
 											<span
 												className="inline-block w-2 h-2 rounded-full shrink-0 lg:w-2.25 lg:h-2.25"
 												style={{ background: pos.fill }}
 											/>
-											<span className="text-[12.5px] text-foreground truncate max-w-20 lg:text-[13px] lg:max-w-36">
+											<span className="text-[12.5px] text-foreground truncate max-w-20 lg:text-[13.5px] lg:max-w-none">
 												{pos.label}
 											</span>
 										</div>
-										<span className="text-[12.5px] text-muted shrink-0 lg:text-[13px]">{pos.pct}%</span>
+										<span className="text-[12.5px] text-muted shrink-0 lg:text-[13.5px] lg:font-semibold lg:text-secondary">{pos.pct}%</span>
 									</div>
 								))}
 							</div>

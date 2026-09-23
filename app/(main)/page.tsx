@@ -302,6 +302,7 @@ async function DashboardContent({
 			*/}
 			<HomeHero
 				flussoMese={result.flussoMese}
+				flussoTrend={result.flussoTrend}
 				monthLabel={formatDate(new Date(), locale, { month: "long" })}
 				accounts={accounts}
 				selectedId={accountId}

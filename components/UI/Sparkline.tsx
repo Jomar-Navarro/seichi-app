@@ -39,11 +39,19 @@ export default function Sparkline({
 	areaClassName,
 }: SparklineProps) {
 	if (values.length < 2) return null;
+	/*
+	 * ⚠️ Il minimo include lo ZERO: per ogni serie ≥ 0 (entrate, spese,
+	 * investimenti, risparmi) vale 0 e la formula si riduce a `v / max`, cioè il
+	 * disegno di sempre, ancorato al fondo. Serve al flusso (issue #108), che può
+	 * scendere sotto zero: con `v / max` un mese negativo finiva sotto il
+	 * riquadro, fuori dal disegno. `max − min` è sempre ≥ 1.
+	 */
+	const min = Math.min(...values, 0);
 	const max = Math.max(...values, 1);
 	const pts = values
 		.map((v, i) => {
 			const x = (i / (values.length - 1)) * width;
-			const y = height - pad - (v / max) * (height - pad * 2);
+			const y = height - pad - ((v - min) / (max - min)) * (height - pad * 2);
 			return `${x.toFixed(1)},${y.toFixed(1)}`;
 		})
 		.join(" ");
