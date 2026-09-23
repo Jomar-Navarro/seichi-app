@@ -59,8 +59,11 @@ export default function CoachBubble({ accountFiltered = false }: { accountFilter
 				 * di proposito: il bersaglio è quello che l'app usa già per la
 				 * campanella, e farne uno più grande accanto sarebbe peggio che
 				 * essere coerenti. Il giorno in cui si alza, si alzano entrambe.
+				 *
+				 * Da `lg:` raggio 15, come nel mockup desktop (issue #108) — anche
+				 * questo in coppia con la campanella.
 				 */
-				className="w-10.5 h-10.5 rounded-[14px] flex items-center justify-center bg-surface card-shadow-ring active:opacity-80 cursor-pointer"
+				className="w-10.5 h-10.5 rounded-[14px] lg:rounded-[15px] flex items-center justify-center bg-surface card-shadow-ring active:opacity-80 cursor-pointer"
 			>
 				<Compass size={18} strokeWidth={1.6} className="text-secondary" />
 			</button>

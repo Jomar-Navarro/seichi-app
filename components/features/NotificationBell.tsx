@@ -164,8 +164,9 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 				// e il secondo tocco finirebbe sull'overlay. Funzionava per caso —
 				// chiudeva lo stesso — ma la campanella non era davvero un interruttore.
 				// Pastiglia 42px a raggio 14 come nel mockup: è un comando, quindi
-				// una tessera. Il tondo resta all'avatar, che è una persona.
-				className={`relative w-10.5 h-10.5 rounded-[14px] flex items-center justify-center bg-surface card-shadow-ring active:opacity-80 cursor-pointer ${open ? "z-50" : ""}`}
+				// una tessera. Il tondo resta all'avatar, che è una persona. Da `lg:`
+				// raggio 15 (mockup desktop, issue #108), in coppia col coach.
+				className={`relative w-10.5 h-10.5 rounded-[14px] lg:rounded-[15px] flex items-center justify-center bg-surface card-shadow-ring active:opacity-80 cursor-pointer ${open ? "z-50" : ""}`}
 				aria-label={unread > 0 ? `Notifiche, ${unread} non lette` : "Notifiche"}
 				aria-expanded={open}
 			>

@@ -68,11 +68,27 @@ export default function FlowCard({
 			⚠️ TRE livelli — issue #81. `overflow-hidden` da solo non basta
 			(verificato da Firefox). Guscio → vetro → contenuto, stesso schema
 			di `AccountsBalanceCard`, che è la card gemella nello stesso carosello.
+
+			Da `lg:` (mockup desktop, issue #108) stesse misure della gemella, più
+			la tinta del flusso: vetro e anello al verde di `--color-midori`. Il
+			vetro MESCOLA l'accento con `--surface` invece di sostituirlo: il
+			mockup è solo scuro, dove `--surface` è quasi trasparente, ma in chiaro
+			è il vetro bianco che fa da card — un 7% di verde da solo lascerebbe
+			la card trasparente sopra la carta.
+
+			⚠️ La sparkline d'area del mockup NON c'è, ed è una rinuncia dichiarata:
+			sotto "Flusso" può stare solo il flusso dei mesi scorsi (entrate − spese
+			− abbonamenti), e `getDashboardTotals` restituisce le serie di entrate e
+			spese ma non quella degli abbonamenti. Disegnare `entrate − spese`
+			sarebbe una quinta definizione di «uscita» sotto la parola che la 20a ha
+			fissato; disegnare un'altra serie, un grafico che mente sul proprio
+			titolo. Basta esporre `flussoTrend` da `getDashboardTotals` (i bucket ci
+			sono già, zero query) per aggiungerla.
 		*/
-		<div className="relative h-full rounded-3xl overflow-hidden card-shadow-ring">
-			<div className="absolute inset-0 bg-surface backdrop-blur-md" />
-			<div className="relative h-full flex flex-col p-5">
-			<div className="flex items-center justify-between mb-3">
+		<div className="relative h-full rounded-3xl overflow-hidden card-shadow-ring lg:rounded-[28px] lg:shadow-[0px_14px_40px_var(--shadow-drop),inset_0px_1px_0px_var(--shadow-inset),inset_0px_0px_0px_1px_color-mix(in_srgb,var(--color-midori)_16%,transparent)]">
+			<div className="absolute inset-0 bg-surface backdrop-blur-md lg:bg-[color-mix(in_srgb,var(--color-midori)_7%,var(--surface))]" />
+			<div className="relative h-full flex flex-col p-5 lg:pt-6.5 lg:px-7 lg:pb-6">
+			<div className="flex items-center justify-between mb-3 lg:mb-4.5">
 				{/*
 					⚠️ Il mockup mette qui anche una pastiglia "Questo mese" con il
 					chevron, cioè un SELETTORE DI PERIODO. Non è stata resa: il
@@ -80,7 +96,7 @@ export default function FlowCard({
 					inerte sarebbe un comando che mente sulla propria natura. Il
 					mese è già nel titolo, quindi non si perde informazione.
 				*/}
-				<p className="text-sm text-muted">
+				<p className="text-sm text-muted lg:text-[12.5px] lg:tracking-[0.4px]">
 					{t.home.flowTitle} · {monthLabel}
 				</p>
 				<button
@@ -100,20 +116,21 @@ export default function FlowCard({
 				`#5C7350`, che è `--ink-midori` — accento e inchiostro coincidono
 				solo nel tema scuro.
 			*/}
+			{/* Da `lg:` stesse misure della cifra del saldo accanto — vedi lì. */}
 			<p
-				className={`font-semibold tracking-tight mb-1.5 flex items-baseline gap-0.5 ${
+				className={`font-semibold tracking-tight mb-1.5 flex items-baseline gap-0.5 lg:tracking-[-1.4px] lg:leading-none lg:mb-3.5 ${
 					isPositive ? "text-midori-ink" : "text-aka-ink"
 				}`}
 			>
-				<span className="text-2xl font-semibold mr-1">
+				<span className="text-2xl font-semibold mr-1 lg:mr-2 lg:text-[42px] xl:text-[52px]">
 					{currencySymbol(DISPLAY_CURRENCY, locale)}
 				</span>
 				{hidden ? (
-					<span className="text-4xl">••••••</span>
+					<span className="text-4xl lg:text-[42px] xl:text-[52px]">••••••</span>
 				) : (
 					<>
-						<span className="text-4xl">{sign}{integer}</span>
-						<span className="text-2xl font-medium text-muted">{decimal}</span>
+						<span className="text-4xl lg:text-[42px] xl:text-[52px]">{sign}{integer}</span>
+						<span className="text-2xl font-medium text-muted lg:tracking-[-0.4px] xl:text-[30px]">{decimal}</span>
 					</>
 				)}
 			</p>
@@ -133,7 +150,7 @@ export default function FlowCard({
 				altro accanto — che è il difetto tipico dei caroselli, metà del
 				contenuto invisibile a chi non sa che si scorre.
 			*/}
-			<p className="mt-auto text-[11.5px] leading-relaxed text-disabled">
+			<p className="mt-auto text-[11.5px] leading-relaxed text-disabled lg:text-xs lg:leading-[1.55]">
 				{t.home.flowExplain}
 			</p>
 			</div>

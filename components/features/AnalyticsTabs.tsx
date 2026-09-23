@@ -38,14 +38,18 @@ export default function AnalyticsTabs() {
 	return (
 		// Le utility segment-tab/active-tab esistono apposta e seguono i token:
 		// i valori cablati erano quelli del solo tema scuro.
-		<div className="flex p-1 rounded-2xl segment-tab">
+		// Da `lg:` le misure del mockup desktop (issue #108): contenitore a
+		// raggio 20 con padding e gap 6, tab a raggio 14 — concentrico, 20 − 6.
+		// Il fondo resta `segment-tab`: in scuro coincide col vetro del mockup,
+		// in chiaro è la tinta scavata su cui il tab attivo bianco risalta.
+		<div className="flex p-1 rounded-2xl segment-tab lg:p-1.5 lg:gap-1.5 lg:rounded-[20px]">
 			{TABS.map((tab) => (
 				<button
 					key={tab}
 					onClick={() => handleClick(tab)}
 					// issue #69 — py-3.5 invece di py-2.25: ~44px, unica riga di tab,
 					// nessun vicino sotto/sopra da rispettare.
-					className={`flex-1 text-center py-3.5 rounded-xl text-[13px] transition-all border-none cursor-pointer ${
+					className={`flex-1 text-center py-3.5 rounded-xl text-[13px] transition-all border-none cursor-pointer lg:rounded-[14px] ${
 						active === tab
 							? "font-semibold active-tab"
 							: "font-medium text-muted bg-transparent"

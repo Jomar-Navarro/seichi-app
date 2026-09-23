@@ -21,13 +21,30 @@ interface MonthlyLineChartProps {
 	 * essere stampata. A schermo l'animazione resta, che è dove serve.
 	 */
 	animated?: boolean;
+	/**
+	 * Il grafico dentro la card di `/analisi` da `lg:` (issue #108).
+	 *
+	 * Il mockup desktop mette il KPI "Flusso" DENTRO la card del grafico, con la
+	 * legenda a destra — mentre sul telefono il KPI sta sopra, fuori. Per non
+	 * rendere il KPI due volte, da `lg:` il guscio di questo componente diventa
+	 * `display: contents`: sparisce (vetro, anello, padding) e legenda e grafico
+	 * diventano celle della griglia della PAGINA, che porta la card con dentro
+	 * anche il KPI.
+	 *
+	 * ⚠️ Il report stampabile NON lo passa, e deve restare così: il documento
+	 * (Fase 23b) non ha KPI in testa al grafico e non deve cambiare di un pixel.
+	 */
+	inCard?: boolean;
 }
 
-export default function MonthlyLineChart({ trend, animated = true }: MonthlyLineChartProps) {
+export default function MonthlyLineChart({ trend, animated = true, inCard = false }: MonthlyLineChartProps) {
 	const { t } = useI18n();
 	const id = useId();
 	const gradE = `gradientEntrate-${id}`;
 	const gradU = `gradientUscite-${id}`;
+	// Classi complete e statiche, scelte da `inCard`: Tailwind non genera classi
+	// composte a runtime, quindi ogni variante deve comparire intera nel sorgente.
+	const swatch = inCard ? "inline-block w-2.5 h-0.75 rounded-full lg:w-3.5 lg:h-[2.5px]" : "inline-block w-2.5 h-0.75 rounded-full";
 
 	return (
 		/*
@@ -37,14 +54,23 @@ export default function MonthlyLineChart({ trend, animated = true }: MonthlyLine
 			taglierebbe. Il ritaglio di `backdrop-filter` sull'angolo resta quindi
 			un residuo aperto, come per la barra di navigazione.
 		*/
-		<div className="rounded-[26px] pt-4.5 px-4 pb-3 bg-surface backdrop-blur-[18px] shadow-[inset_0_1px_0_var(--shadow-inset),inset_0_0_0_1px_var(--border)]">
-			<div className="flex items-center gap-4 mb-4">
+		<div
+			className={`rounded-[26px] pt-4.5 px-4 pb-3 bg-surface backdrop-blur-[18px] shadow-[inset_0_1px_0_var(--shadow-inset),inset_0_0_0_1px_var(--border)]${
+				inCard ? " lg:contents" : ""
+			}`}
+		>
+			{/* Con `inCard`, da `lg:` la legenda sale in alto a destra, accanto al KPI. */}
+			<div
+				className={`flex items-center gap-4 mb-4${
+					inCard ? " lg:col-start-2 lg:row-start-1 lg:self-start lg:mt-0.5 lg:mb-0" : ""
+				}`}
+			>
 				<div className="flex items-center gap-1.75">
-					<span className="inline-block w-2.5 h-0.75 rounded-full bg-midori" />
+					<span className={`${swatch} bg-midori`} />
 					<span className="text-xs text-muted">{t.analytics.legendIncome}</span>
 				</div>
 				<div className="flex items-center gap-1.75">
-					<span className="inline-block w-2.5 h-0.75 rounded-full bg-aka" />
+					<span className={`${swatch} bg-aka`} />
 					<span className="text-xs text-muted">{t.analytics.legendExpenses}</span>
 				</div>
 			</div>
@@ -52,9 +78,11 @@ export default function MonthlyLineChart({ trend, animated = true }: MonthlyLine
 				L'altezza varia per breakpoint (Fase 28b: più spazio da `lg:` in
 				su) — `ResponsiveContainer` vuole un numero fisso in `height`, non
 				una classe, quindi la misura viene dal contenitore (`h-40 lg:h-56`)
-				e Recharts la legge con `height="100%"`.
+				e Recharts la legge con `height="100%"`. Dentro la card di
+				`/analisi` (`inCard`) il grafico prende tutta la seconda riga e da
+				`xl:` sale a 270px, la misura del mockup desktop.
 			*/}
-			<div className="h-40 lg:h-56">
+			<div className={inCard ? "h-40 lg:h-56 xl:h-67.5 lg:col-span-2 lg:row-start-2" : "h-40 lg:h-56"}>
 				<ResponsiveContainer width="100%" height="100%">
 					<AreaChart
 					data={trend}
