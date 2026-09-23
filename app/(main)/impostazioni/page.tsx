@@ -84,6 +84,14 @@ export default async function ImpostazioniPage() {
 				`xl:`, che misurano ~460–524px. Stessa misura di lettura a ogni
 				larghezza.
 
+				⚠️ Allineata a SINISTRA, non centrata come nella 28c, ed è voluto: da
+				`lg:` il titolo di ogni pagina sta sul bordo sinistro del contenuto
+				(convenzione di #108). Una colonna centrata da sola si staccherebbe
+				dal proprio titolo — fino a ~135px a 1279px — e centrare anche il
+				titolo lo farebbe saltare di posto passando da una pagina all'altra.
+				Così la colonna pende dal titolo come un documento; a 1024px lo spazio
+				a destra è 16px.
+
 				Sotto `xl:` le due colonne sono due blocchi in fila: l'ordine è
 				quello di sempre, e le spaziature pure — ogni sezione porta il
 				proprio `mb-6`, e fra un blocco e l'altro quel margine resta 24px.
