@@ -1,10 +1,17 @@
 "use client";
 
+import { Suspense, use } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Plus, Sprout } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useUIStore } from "@/store/useUIStore";
 import { useI18n } from "@/components/features/I18nProvider";
+import ProfileMenu from "@/components/features/ProfileMenu";
+import { plural } from "@/lib/i18n/format";
+// Solo TIPO: cancellato in compilazione, quindi `lib/account.ts` — che importa
+// il client Supabase del server — non entra nel bundle del browser. Stesso
+// schema di `JobHealthNotice` con `lib/jobs.ts`.
+import type { SidebarProfile } from "@/lib/account";
 import { useNavHidden } from "./useNavVisibility";
 import {
 	HomeIcon,
@@ -20,14 +27,42 @@ import {
 // bottom nav resta a quattro voci più il FAB). Su una rail non c'è quel
 // vincolo, e lasciarle raggiungibili solo da una card scorciatoia/dal menu
 // profilo leggerebbe come un porting incompleto.
+//
+// `dot` è il pallino della voce attiva nel colore della sezione (mockup
+// desktop, issue #108): verde per le viste generali, oro per gli obiettivi,
+// blu per gli investimenti — gli stessi accenti che quelle pagine usano per
+// i propri numeri. ⚠️ Classi SCRITTE PER INTERO, mai composte
+// (`bg-${accent}`): Tailwind genera solo le classi che legge nel sorgente, e
+// una classe inesistente non dà errore — il pallino semplicemente non si
+// colorerebbe (la trappola che `npm run audit:tokens` esiste per trovare).
 const NAV_ITEMS = [
-	{ href: "/", icon: HomeIcon, key: "home" },
-	{ href: "/transazioni", icon: ReceiptIcon, key: "transactions" },
-	{ href: "/risparmi", icon: PiggyBankIcon, key: "goals" },
-	{ href: "/investimenti", icon: TrendingUpIcon, key: "investments" },
-	{ href: "/analisi", icon: ChartNoAxesCombinedIcon, key: "analytics" },
-	{ href: "/impostazioni", icon: SettingsIcon, key: "settings" },
+	{ href: "/", icon: HomeIcon, key: "home", dot: "bg-midori" },
+	{ href: "/transazioni", icon: ReceiptIcon, key: "transactions", dot: "bg-midori" },
+	{ href: "/risparmi", icon: PiggyBankIcon, key: "goals", dot: "bg-kin" },
+	{ href: "/investimenti", icon: TrendingUpIcon, key: "investments", dot: "bg-ao" },
+	{ href: "/analisi", icon: ChartNoAxesCombinedIcon, key: "analytics", dot: "bg-midori" },
+	{ href: "/impostazioni", icon: SettingsIcon, key: "settings", dot: "bg-midori" },
 ] as const;
+
+/**
+ * Se la voce `href` descrive la pagina in `pathname`.
+ *
+ * ⚠️ Per PREFISSO, non per uguaglianza — che era il controllo fino alla 28a,
+ * e su una rail sempre visibile lasciava tutte le voci spente appena si
+ * entrava in una sottopagina: `/impostazioni/categorie` non evidenziava
+ * "Impostazioni". Il prefisso si ferma al confine di segmento (`href + "/"`),
+ * o una futura `/transazioni-ricorrenti` accenderebbe "Transazioni".
+ *
+ * La home è l'eccezione: `/` è prefisso di tutto, quindi vale solo esatta.
+ *
+ * ⚠️ `/conti` e `/conti/[id]` NON accendono niente, ed è corretto: la pagina
+ * conti si raggiunge dal selettore in home (Fase 20a), non da una voce della
+ * nav, e accendere "Home" su una pagina che non è la home direbbe il falso.
+ */
+function isActive(pathname: string, href: string) {
+	if (href === "/") return pathname === "/";
+	return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 /**
  * La rail persistente da `lg:` in su (Fase 28a) — sostituisce la pillola
@@ -35,8 +70,16 @@ const NAV_ITEMS = [
  * `hidden lg:flex`. Nasconde alle stesse condizioni della pillola
  * (`useNavHidden`), così il gutter che `MainContentShell` le riserva sparisce
  * in accordo, mai con uno spazio vuoto lasciato dietro.
+ *
+ * Dall'issue #108 segue il mockup desktop: marchio, "Aggiungi transazione",
+ * nav con la voce attiva in rilievo, e in fondo il footer del profilo — che
+ * apre lo STESSO menu della home (`ProfileMenu`, variante `sidebar`).
+ *
+ * `profile` è una PROMISE, non un valore: la avvia il layout di `(main)` senza
+ * attenderla, e qui la legge `use()` dentro un `<Suspense>` attorno al solo
+ * footer. Il perché — e quanto costa — è scritto nel layout.
  */
-export default function Sidebar() {
+export default function Sidebar({ profile }: { profile: Promise<SidebarProfile | null> }) {
 	const { openTransactionModal } = useUIStore();
 	const pathname = usePathname();
 	const { t } = useI18n();
@@ -52,39 +95,163 @@ export default function Sidebar() {
 				paddingBottom: "env(safe-area-inset-bottom)",
 			}}
 		>
-			<div className="flex flex-col flex-1 min-h-0 px-4 py-7 overflow-y-auto scrollbar-none">
-				<Link href="/" className="flex items-center gap-2.5 px-2.5 mb-7 shrink-0">
-					<Sprout size={20} className="text-midori" />
-					{/* "Seichi" non è tradotto nemmeno in BrandHeader.tsx: è il nome del prodotto, non testo. */}
-					<span className="text-[15px] font-semibold">Seichi</span>
+			{/*
+				Il mockup è largo 252px; qui resta `w-64` (256px) perché il gutter di
+				`MainContentShell` è `lg:pl-64`, e i due numeri devono restare lo
+				stesso numero — quattro pixel di rail valgono meno di un disallineamento.
+
+				⚠️ Il footer del profilo sta FUORI dal contenitore che scorre, non in
+				fondo a esso con `mt-auto` come nel mockup. Due ragioni: su una
+				finestra bassa scorrerebbe via insieme alla nav, portandosi dietro il
+				menu del profilo; e `overflow-y-auto` ritaglia per specifica ANCHE
+				l'asse orizzontale, quindi il pannello che si apre sopra la card
+				avrebbe l'ombra tagliata al bordo della rail — la stessa trappola già
+				pagata dal carosello della home (Fase 20a) e dalla barra filtri (21c).
+				Il `pt-6.5` del footer è il `gap` di 26px che nel mockup separa la nav
+				dal footer, garantito anche quando lo spazio manca.
+			*/}
+			<div className="flex flex-col gap-6.5 flex-1 min-h-0 px-4.5 pt-6.5 overflow-y-auto scrollbar-none">
+				<Link href="/" className="flex items-center gap-2.75 px-2 shrink-0 rounded-xl">
+					{/* ⚠️ issue #81 — anello nel box-shadow, non `border`: la pastiglia
+					    è arrotondata e `--border` è traslucido. Stessa classe della
+					    card del grafico in `MonthlyLineChart`. */}
+					<span className="w-8.5 h-8.5 rounded-xl bg-control shadow-[inset_0_1px_0_var(--shadow-inset),inset_0_0_0_1px_var(--border)] flex items-center justify-center shrink-0">
+						{/*
+							⚠️⚠️ Ensō, non lo Sprout — ed è un cambio di MARCHIO, qui soltanto.
+							Il mockup desktop (issue #108) lo mette in testa alla rail; lo
+							Sprout resta ovunque altrove (icona PWA, `BrandHeader`,
+							`BootSplash`). È lo stesso segno della schermata di sblocco
+							(`AppLockScreen`, Fase 26b) — stessa geometria, qui nel verde
+							d'accento invece che d'inchiostro e a 19px: là è un simbolo al
+							centro dello schermo, qui è il marchio accanto al nome.
+							`aria-hidden`: il nome del link lo dà "Seichi" accanto.
+						*/}
+						<svg width="19" height="19" viewBox="0 0 24 24" fill="none" className="text-midori" aria-hidden="true">
+							<circle
+								cx="12"
+								cy="12"
+								r="8.5"
+								stroke="currentColor"
+								strokeWidth="1.5"
+								strokeLinecap="round"
+								strokeDasharray="44 10"
+								transform="rotate(-20 12 12)"
+							/>
+						</svg>
+					</span>
+					{/* "Seichi" e 整地 non si traducono: sono il nome (vedi `brand` in
+					    it.ts), come in BrandHeader.tsx. */}
+					<span className="min-w-0">
+						<span className="block text-base font-semibold leading-tight tracking-[0.2px]">Seichi</span>
+						<span className="block text-[9.5px] leading-tight tracking-[2.2px] text-disabled mt-0.5">整地</span>
+					</span>
 				</Link>
 
 				<button
+					type="button"
 					onClick={() => openTransactionModal()}
-					className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl btn-primary font-semibold text-[13.5px] mb-5 cursor-pointer shrink-0"
+					className="flex items-center justify-center gap-2.25 w-full h-11.5 rounded-2xl btn-primary font-semibold text-[13.5px] cursor-pointer shrink-0"
 				>
-					<Plus size={16} />
+					<Plus size={17} strokeWidth={2} />
 					{t.nav.addTransaction}
 				</button>
 
-				<nav className="flex flex-col gap-0.5">
-					{NAV_ITEMS.map(({ href, icon: Icon, key }) => {
-						const active = pathname === href;
+				<nav className="flex flex-col gap-0.75">
+					{NAV_ITEMS.map(({ href, icon: Icon, key, dot }) => {
+						const active = isActive(pathname, href);
 						return (
 							<Link
 								key={href}
 								href={href}
-								className={`flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-[14px] font-medium ${
-									active ? "bg-control text-foreground" : "text-muted"
+								aria-current={active ? "page" : undefined}
+								/*
+									La voce attiva è `bg-tab`, non `bg-control` come fino alla 28a: è
+									il token nato apposta per "il selezionato" (Fase 18), bianco IN
+									RILIEVO in chiaro e appena più luminoso in scuro. `bg-control` in
+									chiaro è una tinta più SCURA del fondo, e uno stato scavato si
+									legge come disabilitato — la trappola che quel token esiste per
+									evitare. Per la stessa ragione il passaggio del mouse schiarisce
+									(`bg-surface`) invece di scurire: in entrambi i temi va nella
+									stessa direzione dello stato attivo, solo meno.
+									⚠️ issue #81 — l'anello sta nel box-shadow, non in un `border`.
+								*/
+								className={`flex items-center gap-3 px-3.25 py-2.75 rounded-[14px] text-[13.5px] transition-colors ${
+									active
+										? "bg-tab font-semibold text-foreground shadow-[inset_0_1px_0_var(--shadow-inset),inset_0_0_0_1px_var(--border)]"
+										: "font-medium text-secondary hover:bg-surface"
 								}`}
 							>
-								<Icon size={19} strokeWidth={1.7} />
+								<Icon size={18} strokeWidth={1.6} className={`shrink-0 ${active ? "text-foreground" : "text-muted"}`} />
 								{t.nav[key]}
+								{active && (
+									<span aria-hidden="true" className={`ml-auto w-1.25 h-1.25 rounded-full shrink-0 ${dot}`} />
+								)}
 							</Link>
 						);
 					})}
 				</nav>
 			</div>
+
+			<div className="shrink-0 px-4.5 pt-6.5 pb-5.5">
+				<Suspense fallback={<ProfileFooterSkeleton />}>
+					<ProfileFooter profile={profile} />
+				</Suspense>
+			</div>
+		</div>
+	);
+}
+
+/**
+ * Il footer del profilo, dalla promise del layout.
+ *
+ * `null` (nessun utente, o un guasto che `getSidebarProfile()` ha assorbito)
+ * non disegna niente: il menu è una comodità, e la voce "Impostazioni" nella
+ * nav porta comunque a tema, profilo e uscita.
+ *
+ * Il sottotitolo usa le STESSE parole della card saldo in home
+ * (`t.accounts.activeCount`), così i due conteggi non possono dire due cose.
+ * Senza conteggio non c'è sottotitolo: mai "0 conti attivi" per un errore.
+ */
+function ProfileFooter({ profile }: { profile: Promise<SidebarProfile | null> }) {
+	const { t, locale } = useI18n();
+	const data = use(profile);
+
+	if (!data) return null;
+
+	return (
+		<ProfileMenu
+			variant="sidebar"
+			initials={data.initials}
+			avatarUrl={data.avatarUrl}
+			name={data.displayName}
+			subtitle={
+				data.activeAccounts === null
+					? undefined
+					: plural(t.accounts.activeCount, data.activeAccounts, locale)
+			}
+		/>
+	);
+}
+
+/**
+ * Segnaposto della stessa misura della card vera — 54px, cioè `py-2.75` più
+ * l'avatar da 32 — o la rail salterebbe di qualche pixel quando la promise
+ * risolve. Stesso respiro (`zg-pulse`) degli scheletri della home.
+ */
+function ProfileFooterSkeleton() {
+	return (
+		<div aria-hidden="true" className="flex items-center gap-2.75 h-13.5 px-3 rounded-2xl bg-surface ring-border">
+			<span className="w-8 h-8 rounded-[11px] bg-surface-elevated zg-pulse shrink-0" />
+			<span className="flex flex-col gap-1.5">
+				<span
+					className="h-2.5 w-24 rounded-full bg-surface-elevated zg-pulse"
+					style={{ animationDelay: "0.1s" }}
+				/>
+				<span
+					className="h-2 w-16 rounded-full bg-surface-elevated zg-pulse"
+					style={{ animationDelay: "0.15s" }}
+				/>
+			</span>
 		</div>
 	);
 }

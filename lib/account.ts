@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/auth";
@@ -81,12 +82,44 @@ export async function getAccountContext(): Promise<AccountContext> {
  * ripiego quando manca `full_name`. Là uno scatto vecchio è innocuo — al più
  * un'iniziale diversa per un'ora — e le due funzioni degradano da sole
  * ("Account", "··") se manca del tutto.
+ *
+ * Dall'issue #108 la query vive in `loadProfileHeader()`, condivisa col footer
+ * della sidebar: qui resta solo il `redirect`, che è la parte che la home vuole
+ * e il layout no.
  */
 export async function getProfileHeader(): Promise<ProfileHeader> {
+	const header = await loadProfileHeader();
+	if (!header) redirect("/sign");
+	return header;
+}
+
+/**
+ * La lettura di `profiles` per l'intestazione — UNA per richiesta, chiunque la
+ * chieda (issue #108).
+ *
+ * La chiedono in due: la home (`getProfileHeader`) e il footer della sidebar
+ * (`getSidebarProfile`, dal layout di `(main)`). Al caricamento di `/` layout e
+ * pagina girano nello stesso render, e `cache()` fa sì che la seconda chiamata
+ * riceva la promise della prima invece di rifare la query — è il meccanismo
+ * che i doc indicano proprio per il layout che deve leggere un dato già letto
+ * dalla pagina (node_modules/next/dist/docs/01-app/03-api-reference/
+ * 03-file-conventions/layout.md, "Fetching Data").
+ *
+ * ⚠️ NIENTE `redirect()` qui dentro, ed è il motivo per cui la funzione
+ * esiste: senza utente torna `null` e decide il chiamante. La home rimanda al
+ * login; il footer semplicemente non si disegna. Un `redirect()` dentro la
+ * promise del layout sarebbe un'eccezione lanciata da un pezzo decorativo.
+ *
+ * ⚠️ Può invece SOLLEVARE: `getSessionUser()` solleva su un guasto di rete, di
+ * proposito ("non lo so" non è "non sei autenticato" — vedi lib/auth.ts). La
+ * home lo lascia salire, come ha sempre fatto; `getSidebarProfile()` lo
+ * assorbe.
+ */
+const loadProfileHeader = cache(async (): Promise<ProfileHeader | null> => {
 	const supabase = await createClient();
 	const user = await getSessionUser();
 
-	if (!user) redirect("/sign");
+	if (!user) return null;
 
 	const { data: profile } = await supabase
 		.from("profiles")
@@ -101,4 +134,74 @@ export async function getProfileHeader(): Promise<ProfileHeader> {
 		displayName: getDisplayName(fullName, user.email),
 		initials: getInitials(fullName, user.email),
 	};
+});
+
+/**
+ * Quanti conti ATTIVI ha l'utente — il sottotitolo del footer della sidebar
+ * (issue #108).
+ *
+ * ⚠️ Una HEAD count su `accounts`, MAI la vista `account_balances`: quella
+ * aggrega l'intero archivio dei movimenti per calcolare i saldi, mentre qui
+ * serve solo quante righe ha un utente in una tabella dove ne ha una manciata.
+ * `head: true` non trasferisce nemmeno quelle.
+ *
+ * ⚠️ `null` su errore, mai `0`. Uno zero sarebbe un'affermazione ("non hai
+ * conti attivi") prodotta da un guasto — la classe già corretta due volte
+ * nella 23a, *una lettura fallita travestita da fatto*. Con `null` il
+ * sottotitolo semplicemente non compare.
+ *
+ * Stessa query di `countActiveAccounts()` in `conti/actions.ts`, che da qui
+ * non si può riusare: è privata a un file `"use server"`, dove esportarla la
+ * trasformerebbe in una server action invocabile dal client. E ha il bisogno
+ * OPPOSTO davanti allo stesso guasto: là un errore deve rifiutare
+ * un'eliminazione, qui deve solo tacere.
+ */
+export const getActiveAccountCount = cache(async (): Promise<number | null> => {
+	const user = await getSessionUser();
+	if (!user) return null;
+
+	const supabase = await createClient();
+	const { count, error } = await supabase
+		.from("accounts")
+		.select("id", { count: "exact", head: true })
+		.eq("user_id", user.id)
+		.eq("archived", false);
+
+	if (error) {
+		console.error("[account] conteggio dei conti attivi:", error.message);
+		return null;
+	}
+	return count ?? null;
+});
+
+/** Ciò che il footer della sidebar disegna: l'intestazione più il conteggio. */
+export type SidebarProfile = ProfileHeader & {
+	/** `null` = conteggio non disponibile, e il sottotitolo non si mostra. */
+	activeAccounts: number | null;
+};
+
+/**
+ * I dati del footer della sidebar (issue #108), pensati per viaggiare come
+ * PROMISE dal layout di `(main)` al client — vedi il commento là per il costo.
+ *
+ * ⚠️ Questa promise NON RIFIUTA MAI, e non fa mai `redirect()`. La legge
+ * `use()` nel client, e un rifiuto salirebbe fino a un error boundary che nel
+ * layout non c'è: `error.js` non avvolge il `layout.js` del proprio segmento
+ * (node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/
+ * error.md) e questo progetto non ha `global-error` — l'intera app sparirebbe
+ * per un pezzo decorativo. Qualunque guasto degrada quindi a `null`, cioè a un
+ * footer che non si disegna: la voce "Impostazioni" resta nella nav, e con
+ * essa tema e uscita.
+ */
+export async function getSidebarProfile(): Promise<SidebarProfile | null> {
+	try {
+		const [header, activeAccounts] = await Promise.all([
+			loadProfileHeader(),
+			getActiveAccountCount(),
+		]);
+		return header ? { ...header, activeAccounts } : null;
+	} catch (error) {
+		console.error("[account] footer della sidebar:", error);
+		return null;
+	}
 }
