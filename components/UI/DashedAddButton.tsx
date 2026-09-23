@@ -26,8 +26,12 @@ interface DashedAddButtonProps {
  * cui il riquadro di `ImportFlow` era rimasto un residuo dichiarato. Un
  * `<rect>` con `stroke-dasharray` si arrotonda con `rx` in ogni motore.
  *
- * Il tratto è largo 2 e centrato sul bordo del riquadro: la metà esterna la
- * ritaglia l'`<svg>` stesso, quindi a schermo resta 1px, tutto all'interno.
+ * ⚠️ Il tratto è largo 1 e il rettangolo è rientrato di mezzo pixel, con
+ * l'`<svg>` in `overflow-visible`: così la linea va dal bordo del riquadro a
+ * 1px verso l'interno su TUTTO il perimetro. La prima stesura usava un tratto
+ * da 2 ritagliato a metà dall'svg — ma il ritaglio agisce solo sui lati dritti:
+ * gli archi degli angoli stanno dentro il riquadro, e lì il tratto restava
+ * intero, angoli da 2px su lati da 1px (review del #108).
  */
 export default function DashedAddButton({
 	label,
@@ -49,14 +53,17 @@ export default function DashedAddButton({
 			} ${className}`}
 			style={{ borderRadius: radius }}
 		>
-			<svg aria-hidden className="absolute inset-0 w-full h-full pointer-events-none">
+			<svg
+				aria-hidden
+				className="absolute left-[0.5px] top-[0.5px] w-[calc(100%-1px)] h-[calc(100%-1px)] overflow-visible pointer-events-none"
+			>
 				<rect
 					width="100%"
 					height="100%"
-					rx={radius}
-					ry={radius}
+					rx={radius - 0.5}
+					ry={radius - 0.5}
 					fill="none"
-					strokeWidth={2}
+					strokeWidth={1}
 					strokeDasharray="6 5"
 					className="stroke-subtle transition-colors group-hover:stroke-muted"
 				/>

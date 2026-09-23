@@ -145,6 +145,9 @@ export default function FlowCard({
 				Solo da `lg:`: il carosello del telefono resta com'era. Si nasconde
 				con l'occhio insieme alla cifra — la forma della curva dice quanto è
 				cambiato il flusso, cioè è parte del numero che l'occhio copre.
+				Il colore è quello del mese a schermo, come la cifra sopra: la curva
+				fa parte della card di QUESTO mese. I mesi negativi restano leggibili
+				comunque — l'area si chiude sulla linea dello zero, non sul fondo.
 			*/}
 			{!hidden && (
 				<Sparkline

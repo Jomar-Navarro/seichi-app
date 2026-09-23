@@ -91,24 +91,20 @@ export default async function InvestimentiPage({
 				</h1>
 
 				{/*
-					⚠️ `lg:w-80 lg:text-right`, ed è ciò che tiene la TENDINA dentro lo
-					schermo. `AccountSelector` apre il pannello (20rem) ancorato a
-					SINISTRA del proprio contenitore: col chip spinto a destra, il
-					pannello partiva dal chip e sforava di ~150px oltre il bordo, dove
-					`overflow-x-hidden` di `(main)` lo tagliava. Largo quanto il
-					pannello, il contenitore fa partire il pannello 20rem prima del
-					bordo destro, e `text-right` porta lì il chip (è un bottone in
-					linea): i due bordi destri coincidono.
-					Si appoggia alla forma interna del selettore — se un giorno il
-					pannello si ancorerà a destra da sé, questo resta giusto, ma le
-					due classi diventano superflue.
+					⚠️ Da lg il chip sta all'estremità DESTRA della riga, quindi il
+					pannello si apre ancorato a destra (`alignEndFromLg`): ancorato a
+					sinistra, i suoi 20rem partivano dal chip e sforavano di ~150px
+					oltre il bordo, dove `overflow-x-hidden` di `(main)` lo tagliava.
+					La colonna della griglia è `auto`, quindi il contenitore è largo
+					quanto il chip e i due bordi destri coincidono.
 				*/}
 				{accounts.length > 0 && (
-					<div className="mt-3 mb-1 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:mt-0 lg:mb-0 lg:w-80 lg:text-right">
+					<div className="mt-3 mb-1 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:mt-0 lg:mb-0">
 						<AccountSelector
 							accounts={accounts}
 							selectedId={accountId}
 							basePath="/investimenti"
+							alignEndFromLg
 						/>
 					</div>
 				)}

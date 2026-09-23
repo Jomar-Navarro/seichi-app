@@ -27,6 +27,14 @@ interface AccountSelectorProps {
 	 * vedono e che compare solo aprendo la pagina (regola della Fase 19).
 	 */
 	keepParams?: Record<string, string>;
+	/**
+	 * Da `lg:` il pannello si apre ancorato a DESTRA del chip invece che a
+	 * sinistra — per le pagine che mettono il chip all'estremità destra della
+	 * riga (issue #108, `/investimenti`): ancorato a sinistra, un pannello di
+	 * 20rem partiva dal chip e sforava oltre lo schermo, dove l'`overflow-x-hidden`
+	 * di `(main)` lo tagliava.
+	 */
+	alignEndFromLg?: boolean;
 }
 
 /**
@@ -51,6 +59,7 @@ export default function AccountSelector({
 	selectedId,
 	basePath = "/",
 	keepParams,
+	alignEndFromLg = false,
 }: AccountSelectorProps) {
 	const { locale, t } = useI18n();
 	const router = useRouter();
@@ -121,7 +130,11 @@ export default function AccountSelector({
 						className="fixed inset-0 z-40 bg-black/35 backdrop-blur-[1.5px]"
 					/>
 					{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
-					<div className="absolute left-0 top-full mt-2 z-50 w-[min(20rem,calc(100vw-2.5rem))] rounded-3xl overflow-hidden modal-shadow-ring">
+					<div
+						className={`absolute left-0 top-full mt-2 z-50 w-[min(20rem,calc(100vw-2.5rem))] rounded-3xl overflow-hidden modal-shadow-ring${
+							alignEndFromLg ? " lg:left-auto lg:right-0" : ""
+						}`}
+					>
 						<div
 							className="absolute inset-0 backdrop-blur-2xl"
 							style={{ background: "color-mix(in srgb, var(--color-deep) 94%, transparent)" }}

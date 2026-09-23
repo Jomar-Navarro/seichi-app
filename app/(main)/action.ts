@@ -633,6 +633,10 @@ export async function getDashboardTotals(accountId?: string | null) {
 		return Array.from({ length: TREND_MONTHS }, (_, i) => somma(i, tipo));
 	}
 
+	const entrateTrend = monthlyTrend("entrata");
+	const speseTrend = monthlyTrend("spesa");
+	const abbonamentiTrend = monthlyTrend("abbonamento");
+
 	return {
 		entrateMese,
 		speseMese,
@@ -640,20 +644,21 @@ export async function getDashboardTotals(accountId?: string | null) {
 		risparmiMese,
 		abbonaMese,
 		flussoMese,
-		entrateTrend: monthlyTrend("entrata"),
-		speseTrend: monthlyTrend("spesa"),
+		entrateTrend,
+		speseTrend,
 		investimentiTrend: monthlyTrend("investimento"),
 		risparmiTrend: monthlyTrend("risparmio"),
 		/*
 		 * Il flusso di ciascun mese del trend, per la sparkline della card Flusso
-		 * da `lg:` (issue #108). Stessa `flussoDaTotali()` della cifra grande, sugli
-		 * stessi bucket: l'ultimo punto È `flussoMese`, e non costa una query.
+		 * da `lg:` (issue #108). Stessa `flussoDaTotali()` della cifra grande,
+		 * composta dalle STESSE serie delle card qui sopra: l'ultimo punto È
+		 * `flussoMese`, e non costa una query.
 		 * ⚠️ Non `entrateTrend − speseTrend`: sarebbe un flusso senza gli
 		 * abbonamenti, cioè una quinta definizione di «uscita» sotto la parola
 		 * "Flusso" che la 20a ha fissato.
 		 */
-		flussoTrend: Array.from({ length: TREND_MONTHS }, (_, i) =>
-			flussoDaTotali(somma(i, "entrata"), somma(i, "spesa"), somma(i, "abbonamento")),
+		flussoTrend: entrateTrend.map((entrate, i) =>
+			flussoDaTotali(entrate, speseTrend[i], abbonamentiTrend[i]),
 		),
 	};
 }

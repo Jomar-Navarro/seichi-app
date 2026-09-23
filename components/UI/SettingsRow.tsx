@@ -41,7 +41,12 @@ export function SettingsGroup({ children, label, tone, className = "mb-6" }: Set
 	const toneStyle = tone
 		? ({
 				"--border": `color-mix(in srgb, ${tone} 30%, transparent)`,
-				"--group-tint": `color-mix(in srgb, ${tone} 7%, transparent)`,
+				// ⚠️ Mescolata col VETRO della card (`--card`), non col trasparente:
+				// il mockup è solo scuro, dove il vetro è quasi trasparente, ma in
+				// chiaro è lui che fa da card — un 7% d'accento su `transparent`
+				// lasciava la zona pericolo senza superficie, un buco nella colonna.
+				// Stessa scelta di FlowCard e TransactionList (review del #108).
+				"--group-tint": `color-mix(in srgb, ${tone} 7%, var(--card))`,
 			} as CSSProperties)
 		: undefined;
 

@@ -55,6 +55,8 @@ export default function Sparkline({
 			return `${x.toFixed(1)},${y.toFixed(1)}`;
 		})
 		.join(" ");
+	// Per le serie ≥ 0 la base resta il fondo del riquadro, come sempre.
+	const baseY = min < 0 ? height - pad - ((0 - min) / (max - min)) * (height - pad * 2) : height;
 	return (
 		<svg
 			width={width}
@@ -65,10 +67,13 @@ export default function Sparkline({
 			className={className ? `shrink-0 ${className}` : "shrink-0"}
 		>
 			{areaOpacity !== undefined && (
-				// Chiusa sul fondo del riquadro: la linea parte da x=0 e finisce a
-				// x=width, quindi bastano i due angoli in basso.
+				// Chiusa sul fondo del riquadro — o sulla linea dello ZERO, se la
+				// serie scende sotto: chiusa sul fondo, un mese negativo avrebbe
+				// avuto la sua area piena e si sarebbe letto come un piccolo valore
+				// positivo (review del #108). La linea parte da x=0 e finisce a
+				// x=width, quindi bastano due punti sulla base.
 				<polygon
-					points={`0,${height} ${pts} ${width},${height}`}
+					points={`0,${baseY} ${pts} ${width},${baseY}`}
 					fill={color}
 					fillOpacity={areaOpacity}
 					className={areaClassName}

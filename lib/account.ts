@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, type SupabaseServerClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/auth";
 import { getInitials, getDisplayName } from "@/lib/profile";
 import { DEFAULT_LOCALE, normalizeLocale } from "@/lib/i18n/config";
@@ -137,41 +137,58 @@ const loadProfileHeader = cache(async (): Promise<ProfileHeader | null> => {
 });
 
 /**
- * Quanti conti ATTIVI ha l'utente — il sottotitolo del footer della sidebar
- * (issue #108).
+ * Quanti conti ATTIVI ha l'utente — la query, UNA per l'intera app.
+ *
+ * La usano in tre: `canDeleteAccount()` e `deleteAccount()` (conti/actions.ts,
+ * "non si resta a zero conti attivi") e il footer della sidebar (qui sotto).
+ * Sta qui e non in quel file perché un file `"use server"` può esportare solo
+ * server action: esportata da là, sarebbe diventata invocabile dal client.
+ * Due copie della stessa query sono due definizioni di «conto attivo» pronte a
+ * divergere (review del #108) — la classe per cui l'issue #62 nasce nel primo
+ * finding: due punti che decidono la stessa cosa devono decidere la STESSA cosa.
  *
  * ⚠️ Una HEAD count su `accounts`, MAI la vista `account_balances`: quella
  * aggrega l'intero archivio dei movimenti per calcolare i saldi, mentre qui
  * serve solo quante righe ha un utente in una tabella dove ne ha una manciata.
  * `head: true` non trasferisce nemmeno quelle.
  *
+ * L'errore lo decide il chiamante, perché i bisogni sono OPPOSTI: là un guasto
+ * deve rifiutare un'eliminazione, nel footer deve solo tacere.
+ */
+export async function countActiveAccounts(
+	supabase: SupabaseServerClient,
+	userId: string,
+): Promise<{ data: number } | { error: string }> {
+	const { count, error } = await supabase
+		.from("accounts")
+		.select("id", { count: "exact", head: true })
+		.eq("user_id", userId)
+		.eq("archived", false);
+
+	if (error) return { error: error.message };
+	return { data: count ?? 0 };
+}
+
+/**
+ * Il sottotitolo del footer della sidebar (issue #108): `countActiveAccounts`
+ * con la politica d'errore del footer.
+ *
  * ⚠️ `null` su errore, mai `0`. Uno zero sarebbe un'affermazione ("non hai
  * conti attivi") prodotta da un guasto — la classe già corretta due volte
  * nella 23a, *una lettura fallita travestita da fatto*. Con `null` il
  * sottotitolo semplicemente non compare.
- *
- * Stessa query di `countActiveAccounts()` in `conti/actions.ts`, che da qui
- * non si può riusare: è privata a un file `"use server"`, dove esportarla la
- * trasformerebbe in una server action invocabile dal client. E ha il bisogno
- * OPPOSTO davanti allo stesso guasto: là un errore deve rifiutare
- * un'eliminazione, qui deve solo tacere.
  */
 export const getActiveAccountCount = cache(async (): Promise<number | null> => {
 	const user = await getSessionUser();
 	if (!user) return null;
 
 	const supabase = await createClient();
-	const { count, error } = await supabase
-		.from("accounts")
-		.select("id", { count: "exact", head: true })
-		.eq("user_id", user.id)
-		.eq("archived", false);
-
-	if (error) {
-		console.error("[account] conteggio dei conti attivi:", error.message);
+	const result = await countActiveAccounts(supabase, user.id);
+	if ("error" in result) {
+		console.error("[account] conteggio dei conti attivi:", result.error);
 		return null;
 	}
-	return count ?? null;
+	return result.data;
 });
 
 /** Ciò che il footer della sidebar disegna: l'intestazione più il conteggio. */

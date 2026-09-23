@@ -71,10 +71,18 @@ interface GoalCardProps {
 export default function GoalCard({ goal, onEdit }: GoalCardProps) {
 	const { locale, t } = useI18n();
 	const hasTarget = goal.target_amount != null && goal.target_amount > 0;
+	/*
+	 * ⚠️ Completato sul valore ESATTO, come `GoalsPageClient` che divide attivi e
+	 * completati con `saved < target`. Deciso sulla percentuale arrotondata, un
+	 * obiettivo al 99,6% stava fra gli ATTIVI con la spunta e senza la riga
+	 * "mancano € X" — cioè nascondeva proprio l'informazione che gli serve
+	 * (review del #108). Per lo stesso motivo un obiettivo non raggiunto si ferma
+	 * al 99%: "100%" su un traguardo mancato sarebbe una piccola bugia.
+	 */
+	const completed = hasTarget && goal.saved_amount >= goal.target_amount!;
 	const percent = hasTarget
-		? Math.min(100, Math.round((goal.saved_amount / goal.target_amount!) * 100))
+		? Math.min(completed ? 100 : 99, Math.round((goal.saved_amount / goal.target_amount!) * 100))
 		: 0;
-	const completed = hasTarget && percent >= 100;
 
 	/*
 	 * Quanto manca al traguardo, per la riga "mancano € X" del layout desktop.
