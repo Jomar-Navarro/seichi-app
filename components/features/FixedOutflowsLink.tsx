@@ -56,14 +56,27 @@ export default function FixedOutflowsLink() {
 	if (!amount) return null;
 
 	return (
-		<Link href="/impostazioni/ricorrenti" className="block mt-4">
-			{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto, come SummaryCard. */}
-			<div className="relative rounded-2xl overflow-hidden card-shadow-ring active:opacity-80">
-				<div className="absolute inset-0 bg-surface backdrop-blur-md" />
-				<div className="relative p-4 flex flex-col gap-3">
+		/*
+			`lg:mt-0`: da `lg:` la distanza dalla card sopra la dà la colonna di
+			`/analisi` (un flex col `gap`), l'unica pagina che rende questa card.
+		*/
+		<Link href="/impostazioni/ricorrenti" className="block mt-4 lg:mt-0">
+			{/*
+				⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto, come SummaryCard.
+
+				Da `lg:` la card del mockup desktop (issue #108): raggio 24, vetro e
+				anello tinti del viola delle ricorrenti — lo stesso accento della
+				pastiglia, quindi la card dice di che cosa parla anche prima di
+				leggerla. Il vetro MESCOLA l'accento con `--surface` invece di
+				sostituirlo, come la card del flusso in home: in chiaro è il vetro
+				bianco a fare la card.
+			*/}
+			<div className="relative rounded-2xl overflow-hidden card-shadow-ring active:opacity-80 lg:rounded-3xl lg:shadow-[inset_0px_1px_0px_var(--shadow-inset),inset_0px_0px_0px_1px_color-mix(in_srgb,var(--color-murasaki)_16%,transparent)]">
+				<div className="absolute inset-0 bg-surface backdrop-blur-md lg:bg-[color-mix(in_srgb,var(--color-murasaki)_7%,var(--surface))]" />
+				<div className="relative p-4 flex flex-col gap-3 lg:p-5.5 lg:gap-4">
 					<div className="flex items-start justify-between">
 						<div
-							className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+							className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 lg:w-10 lg:h-10 lg:rounded-[13px]"
 							style={{ background: "color-mix(in srgb, var(--color-murasaki) 16%, transparent)" }}
 						>
 							<RepeatIcon size={17} style={{ color: "var(--color-murasaki)" }} />
@@ -71,14 +84,14 @@ export default function FixedOutflowsLink() {
 						<ArrowUpRight size={16} className="text-muted mt-0.5" />
 					</div>
 					<div>
-						<p className="text-lg font-bold tracking-tight">
+						<p className="text-lg font-bold tracking-tight lg:text-2xl lg:font-semibold">
 							{formatMoney(amount, { locale, currency: DISPLAY_CURRENCY, decimals: 2 })}
 						</p>
 						{/* ⚠️ "Uscite fisse" da solo non dice di cosa — chiesto usando
 						    l'app. Seconda riga più muta, stessa frase usata dallo stato
 						    vuoto di RecurringManager: è la stessa lista, altra porta. */}
-						<p className="text-xs mt-0.5">{t.analytics.fixedOutflowsTitle}</p>
-						<p className="text-[11px] text-muted mt-0.5">{t.analytics.fixedOutflowsHint}</p>
+						<p className="text-xs mt-0.5 lg:text-[13.5px] lg:font-medium lg:mt-1">{t.analytics.fixedOutflowsTitle}</p>
+						<p className="text-[11px] text-muted mt-0.5 lg:text-xs">{t.analytics.fixedOutflowsHint}</p>
 					</div>
 				</div>
 			</div>
