@@ -200,10 +200,21 @@ export default function InvestimentiTab({
 							lg: donut e legenda dentro una card (#108) — il titolo resta
 							FUORI, come per le posizioni. Su mobile guscio e vetro non
 							esistono: il donut resta sul fondo, com'era.
-							⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto.
+
+							⚠️ QUATTRO livelli, non i soliti tre dell'issue #81: il ritaglio
+							arrotondato sta su uno strato a parte che contiene SOLO il vetro,
+							non sul guscio. Il tooltip del donut (`useDonutTooltipPosition`)
+							si apre fuori dall'anello, a `outerRadius + 10`: per le fette in
+							alto e in basso sporge di 40-50px oltre il grafico, e i 26px di
+							margine della card non bastano — col guscio `overflow-hidden`
+							l'importo usciva tagliato. Così il vetro resta ritagliato
+							(sfocatura e raggio mai sullo stesso nodo, la regola di Firefox),
+							l'anello lo disegna il guscio, e il contenuto è libero di sporgere.
 						*/}
-						<div className="lg:relative lg:rounded-[26px] lg:overflow-hidden lg:card-shadow-ring">
-							<div className="hidden lg:block absolute inset-0 bg-surface backdrop-blur-[18px]" />
+						<div className="lg:relative lg:rounded-[26px] lg:card-shadow-ring">
+							<div className="hidden lg:block absolute inset-0 rounded-[26px] overflow-hidden">
+								<div className="absolute inset-0 bg-surface backdrop-blur-[18px]" />
+							</div>
 							<div className="flex items-center gap-5 lg:relative lg:p-6.5 lg:gap-7">
 							{/* lg: 168px, la misura del mockup desktop (#108) — la 28b l'aveva
 							    portato a 208px quando il donut stava da solo su tutta la riga. */}
