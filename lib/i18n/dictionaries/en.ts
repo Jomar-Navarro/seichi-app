@@ -529,6 +529,8 @@ export const en: Dictionary = {
 		reached: "Reached · {date}",
 		deadline: "Due · {date}",
 		of: "of",
+		/** Due forme uguali: in inglese l'importo non si accorda con niente. */
+		remaining: { one: "{amount} to go", other: "{amount} to go" },
 
 		editTitle: "Edit goal",
 		newTitle: "New goal",
