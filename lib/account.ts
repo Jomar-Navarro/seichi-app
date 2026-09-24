@@ -177,8 +177,11 @@ export async function countActiveAccounts(
  * conti attivi") prodotta da un guasto — la classe già corretta due volte
  * nella 23a, *una lettura fallita travestita da fatto*. Con `null` il
  * sottotitolo semplicemente non compare.
+ *
+ * Non esportata e senza `cache()`: ha un solo chiamante, `getSidebarProfile()`,
+ * che gira una volta per render del layout (review post-merge del #108).
  */
-export const getActiveAccountCount = cache(async (): Promise<number | null> => {
+async function getActiveAccountCount(): Promise<number | null> {
 	const user = await getSessionUser();
 	if (!user) return null;
 
@@ -189,7 +192,7 @@ export const getActiveAccountCount = cache(async (): Promise<number | null> => {
 		return null;
 	}
 	return result.data;
-});
+}
 
 /** Ciò che il footer della sidebar disegna: l'intestazione più il conteggio. */
 export type SidebarProfile = ProfileHeader & {
