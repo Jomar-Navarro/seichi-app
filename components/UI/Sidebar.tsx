@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, use } from "react";
+import { Suspense, use, useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { useUIStore } from "@/store/useUIStore";
 import { useI18n } from "@/components/features/I18nProvider";
@@ -12,6 +12,7 @@ import { plural } from "@/lib/i18n/format";
 // il client Supabase del server — non entra nel bundle del browser. Stesso
 // schema di `JobHealthNotice` con `lib/jobs.ts`.
 import type { SidebarProfile } from "@/lib/account";
+import { SIDEBAR_MEDIA_QUERY, writeSidebarCookie } from "@/lib/sidebar";
 import { useNavHidden } from "./useNavVisibility";
 import {
 	HomeIcon,
@@ -78,12 +79,51 @@ function isActive(pathname: string, href: string) {
  * `profile` è una PROMISE, non un valore: la avvia il layout di `(main)` senza
  * attenderla, e qui la legge `use()` dentro un `<Suspense>` attorno al solo
  * footer. Il perché — e quanto costa — è scritto nel layout.
+ *
+ * `null` invece di una promise = il layout ha SALTATO le query, perché il
+ * cookie di `lib/sidebar.ts` diceva che su questo dispositivo la rail non si
+ * vede (review post-merge del #108).
  */
-export default function Sidebar({ profile }: { profile: Promise<SidebarProfile | null> }) {
+export default function Sidebar({ profile }: { profile: Promise<SidebarProfile | null> | null }) {
 	const { openTransactionModal } = useUIStore();
 	const pathname = usePathname();
+	const router = useRouter();
 	const { t } = useI18n();
 	const hidden = useNavHidden();
+	const skipped = profile === null;
+	const refreshed = useRef(false);
+
+	/*
+	 * Tiene aggiornato `SIDEBAR_COOKIE` con ciò che il browser sa e il server no:
+	 * se la rail si vede. Prima del `return null` qui sotto, perché gli hook
+	 * devono girare a ogni render — e scrivere il cookie è giusto anche mentre
+	 * la rail è nascosta per scelta (report, wizard del PIN).
+	 *
+	 * ⚠️ Il caso che conta è il PASSAGGIO del breakpoint verso l'alto — un iPad
+	 * ruotato, una finestra allargata — dopo un render che le query le aveva
+	 * saltate: la rail compare senza dati per il footer. Allora un
+	 * `router.refresh()` rifà il layout, che ora legge "1" e le avvia.
+	 * ⚠️ UNO per montaggio (`refreshed`): se il cookie non si potesse scrivere,
+	 * il server continuerebbe a leggere "0" e un refresh ne chiamerebbe un altro
+	 * per sempre. Verso il basso non serve niente: la rail sparisce da sé, e al
+	 * render successivo le query non partono più.
+	 *
+	 * Nessun `setState`: il valore non serve al render, solo al server e al
+	 * refresh — quindi niente render a cascata (`react-hooks/set-state-in-effect`).
+	 */
+	useEffect(() => {
+		const mq = window.matchMedia(SIDEBAR_MEDIA_QUERY);
+		function sync() {
+			writeSidebarCookie(mq.matches);
+			if (mq.matches && skipped && !hidden && !refreshed.current) {
+				refreshed.current = true;
+				router.refresh();
+			}
+		}
+		sync();
+		mq.addEventListener("change", sync);
+		return () => mq.removeEventListener("change", sync);
+	}, [skipped, hidden, router]);
 
 	if (hidden) return null;
 
@@ -193,9 +233,19 @@ export default function Sidebar({ profile }: { profile: Promise<SidebarProfile |
 			</div>
 
 			<div className="shrink-0 px-4.5 pt-6.5 pb-5.5">
-				<Suspense fallback={<ProfileFooterSkeleton />}>
-					<ProfileFooter profile={profile} />
-				</Suspense>
+				{/*
+					Senza promise il segnaposto, non il vuoto: se questa rail si vede
+					mentre il layout ha saltato le query, il refresh dell'effetto qui
+					sopra è già partito e i dati stanno arrivando. Se invece non si vede,
+					il segnaposto è dentro un contenitore `hidden` e non costa niente.
+				*/}
+				{profile ? (
+					<Suspense fallback={<ProfileFooterSkeleton />}>
+						<ProfileFooter profile={profile} />
+					</Suspense>
+				) : (
+					<ProfileFooterSkeleton />
+				)}
 			</div>
 		</div>
 	);

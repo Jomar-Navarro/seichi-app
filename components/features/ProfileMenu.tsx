@@ -79,7 +79,11 @@ export default function ProfileMenu({
 	// con la rail sugli schermi larghi. (Sul touch non ci sarebbe comunque un
 	// `:hover` appiccicato al dito: in Tailwind v4 `hover:` è già dentro
 	// `@media (hover: hover)`.)
-	const itemHover = sidebar ? " hover:bg-control transition-colors" : "";
+	// ⚠️ `bg-surface`, non `bg-control`: in chiaro `--icon-btn-bg` è inchiostro
+	// al 7% e SCURISCE la voce sul pannello color carta — uno stato scavato, che
+	// si legge come disabilitato. `--surface` schiarisce in entrambi i temi,
+	// come l'hover delle voci della nav nella stessa rail (review post-merge #108).
+	const itemHover = sidebar ? " hover:bg-surface transition-colors" : "";
 
 	const items = (
 		<>

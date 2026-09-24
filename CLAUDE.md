@@ -103,6 +103,8 @@ lib/
 ├── password.ts           # PASSWORD_MIN_LENGTH, scorePassword, validateNewPassword
 ├── notifications.ts      # icone/colori per tipo + renderNotification (frasi dal payload)
 ├── safe-redirect.ts      # safeNext() — blocca gli open redirect sul parametro next
+├── sidebar.ts            # cookie "la rail si vede qui": il layout salta le query
+│                         #   del footer sul telefono (review post-merge #108)
 └── theme.ts              # tipi, cookie e risoluzione del tema (Fase 18)
 
 supabase/migrations/      # SQL da eseguire a mano nel SQL Editor di Supabase
@@ -6704,9 +6706,10 @@ issue.
   `lib/account.ts` anche per le regole di eliminazione dei conti) più
   `profiles`, condivisa con la home via `cache()`; per render del LAYOUT —
   caricamento, `router.refresh()`, `revalidatePath("/", "layout")` — non per
-  pagina vista. ⚠️ **Residuo dichiarato**, e rilevato anche dalla review: la
-  rail è `hidden lg:flex`, quindi sul telefono le due query girano per un
-  footer che nessuno vede.
+  pagina vista. ~~⚠️ **Residuo dichiarato**: la rail è `hidden lg:flex`,
+  quindi sul telefono le due query girano per un footer che nessuno vede.~~ —
+  **chiuso dalla review post-merge** (sotto): le query partono solo dove la
+  rail si vede, e lo dice un cookie scritto dal client.
 - **Il marchio della sidebar è l'ensō**, come nel mockup; icona PWA,
   BrandHeader e BootSplash restano col germoglio. Precedente: la schermata di
   sblocco (26b), dove il cambio era stato chiesto prima.
@@ -6753,12 +6756,13 @@ issue.
   che non aveva più un bordo. Ora ridefinisce `--border` sulla card e
   `card-shadow-ring` disegna l'anello tinto; la tinta da `lg:` si mescola col
   vetro (`--card`), non col trasparente, o in chiaro la card perde la
-  superficie. È l'unica differenza visibile sotto `lg:`, ed è voluta.
+  superficie. ~~È l'unica differenza visibile sotto `lg:`~~ — non era vero,
+  vedi la review post-merge qui sotto: è la più evidente, non l'unica.
 - `PwaStatus` era fratello di `MainContentShell`: da `lg:` i suoi avvisi
   finivano sotto la sidebar fissa. Ora sta dentro il gutter.
 - La review d'insieme ha trovato 10 rilievi, 8 applicati; i due lasciati sono
-  il residuo del footer qui sopra e l'override `lg:size-13.5!` sulla misura
-  dell'avatar (stile, non difetto).
+  il residuo del footer qui sopra (chiuso dopo il merge) e l'override
+  `lg:size-13.5!` sulla misura dell'avatar (stile, non difetto).
 
 #### `audit:tokens`: due falsi positivi e un buco
 
@@ -6795,6 +6799,54 @@ una base scattata al commit di partenza.
 
 ⚠️ Resta da fare a mano: **Firefox** sulle superfici nuove (la #81 si vede solo
 lì) e un giro sull'app vera.
+
+#### Emerso dalla review post-merge (2026-09-24)
+
+Una rilettura dell'intero diff della PR #109, chiesta dopo il merge. Nessun
+difetto bloccante; quattro rilievi applicati, due lasciati.
+
+- ⚠️ **Il footer della sidebar faceva query anche dove la rail non si vede.**
+  Il commento le giustificava con la `profiles` "condivisa con la home", ma lo
+  è solo quando la pagina È la home: su ogni altra pagina, sul telefono, erano
+  due richieste per render del layout — cioè a ogni movimento salvato, perché
+  ogni mutazione chiama `revalidatePath("/", "layout")`. Il server non può
+  saperlo da solo: la larghezza della finestra non viaggia negli header. È il
+  caso del secondo cookie del tema (Fase 18), con la stessa soluzione:
+  `SIDEBAR_COOKIE` (`lib/sidebar.ts`) lo scrive la `Sidebar` da un
+  `matchMedia` sul breakpoint `lg:`, e il layout con "0" non avvia la promise.
+  ⚠️ **Cookie assente = si fanno le query**, com'era prima: sbagliare in quel
+  verso costa due query alla prima visita da un telefono, nell'altro
+  lascerebbe un desktop senza footer. Se la rail compare dopo un render che le
+  aveva saltate (iPad ruotato, finestra allargata) parte **un** `router.refresh()`
+  per montaggio — uno solo, o con un cookie non scrivibile il server leggerebbe
+  "0" per sempre e i refresh non finirebbero mai. Residuo minore: sul desktop
+  le query partono anche sul report e nel wizard del PIN, dove la rail è
+  nascosta per scelta, perché il layout non conosce il percorso.
+- ⚠️ **Sotto `lg:` le differenze visibili erano più d'una.** Due correzioni
+  della fase si vedono anche sul telefono, ed erano sfuggite al confronto pixel
+  perché l'account di prova non ha quei dati: un obiettivo al 99,6% mostra ora
+  "99%" invece della spunta (`GoalCard`, completato sul valore esatto), e con
+  un filtro conto e zero budget la nota "valgono su tutti i conti" non compare
+  più a spiegare card che non ci sono (`BudgetCards`). Entrambe giuste; era
+  sbagliata la frase che diceva "l'unica differenza". **Un confronto pixel
+  dimostra l'identità solo per i dati che ha davanti.**
+- **L'hover delle voci del menu profilo scuriva**, in chiaro: `bg-control` è
+  inchiostro al 7%, e sul pannello color carta la voce sembrava scavata, cioè
+  disabilitata — la trappola che il commento dell'hover della nav, nella stessa
+  rail, descrive. Ora `bg-surface`, che schiarisce in entrambi i temi.
+- `getActiveAccountCount` era esportata e dentro `cache()` con un solo
+  chiamante interno: ora è una funzione privata.
+
+Lasciati, entrambi minori:
+
+- **L'ordine di lettura della home sul telefono**: nel DOM il selettore conti
+  viene prima di coach e campanella, che a schermo stanno sulla riga sopra. È
+  il prezzo di un selettore solo, spostato col CSS, con l'ordine del Tab giusto
+  sul desktop; tastiera e screen reader sul telefono lo leggono in un ordine
+  diverso da quello visivo.
+- **Gli avvisi di `PwaStatus` da `lg:`** occupano tutto il gutter con `px-5`,
+  non la colonna della pagina (`lg:px-10`, `max-w-6xl`): non sono allineati al
+  contenuto. Si vede solo quando un avviso c'è.
 
 #### Aperti, preesistenti e fuori scope
 

@@ -6,6 +6,7 @@ import TransactionModal from "@/components/UI/TransactionModal";
 import AppLockProvider from "@/components/features/AppLockProvider";
 import PwaStatus from "@/components/features/PwaStatus";
 import { getSidebarProfile } from "@/lib/account";
+import { SIDEBAR_COOKIE, sidebarVisibleFromCookie } from "@/lib/sidebar";
 import {
 	APP_LOCK_ACTIVE_UNTIL_COOKIE,
 	APP_LOCK_ENABLED_COOKIE,
@@ -40,15 +41,22 @@ export default async function RootLayout({
 	 * eliminazione dei conti in `conti/actions.ts`): è ciò che lo tiene
 	 * fresco. Il costo è per render del LAYOUT, non per pagina vista.
 	 *
-	 * ⚠️ Residuo dichiarato: la rail è `hidden lg:flex`, quindi sul telefono le
-	 * due query girano per un footer che nessuno vede. Accettato perché quella
-	 * su `profiles` è condivisa con la home — la pagina mobile principale, che
-	 * la paga comunque — e il conteggio è una HEAD su una tabella minuscola.
+	 * ⚠️ E SOLO dove la rail si vede. Fino alla review post-merge del #108 le
+	 * query partivano sempre, anche sul telefono, dove la rail è `hidden
+	 * lg:flex`: il commento qui le giustificava con la `profiles` "condivisa con
+	 * la home", ma lo è solo quando la pagina È la home — su ogni altra pagina, a
+	 * ogni movimento salvato, erano due richieste per un footer invisibile. Ora
+	 * decide `SIDEBAR_COOKIE` (lib/sidebar.ts), scritto dal client che conosce la
+	 * larghezza della finestra: con "0" la promise non parte e la Sidebar riceve
+	 * `null`. Senza cookie le query partono, com'era prima.
+	 *
+	 * ⚠️ Residuo, minore: sul DESKTOP le query partono anche dove la rail è
+	 * nascosta per scelta (il report stampabile, il wizard del PIN), perché il
+	 * layout non conosce il percorso. Lì la Sidebar non legge la promise.
 	 *
 	 * ⚠️ `getSidebarProfile()` non rifiuta mai e non fa mai `redirect()`: il
 	 * perché è sulla funzione.
 	 */
-	const sidebarProfile = getSidebarProfile();
 
 	// Fase 26a — letti qui, non nel client, per lo stesso motivo del tema
 	// (Fase 18): il server deve già sapere se mostrare il velo, o un
@@ -59,6 +67,10 @@ export default async function RootLayout({
 		store.get(APP_LOCK_ENABLED_COOKIE)?.value,
 		store.get(APP_LOCK_ACTIVE_UNTIL_COOKIE)?.value,
 	);
+
+	const sidebarProfile = sidebarVisibleFromCookie(store.get(SIDEBAR_COOKIE)?.value)
+		? getSidebarProfile()
+		: null;
 
 	return (
 		<div
