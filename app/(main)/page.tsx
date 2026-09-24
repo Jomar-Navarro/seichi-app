@@ -218,15 +218,20 @@ async function DashboardContent({
 				sidebar — poi il selettore conti, poi le pastiglie spinte a destra.
 				Sul telefono resta com'era: avatar e pastiglie, e il selettore sotto.
 
-				⚠️ Il selettore è UNO solo e si sposta; renderne due (uno per
-				breakpoint) vorrebbe dire due pannelli e due stati per lo stesso
-				filtro. Da qui l'ordine nel DOM — saluto, selettore, pastiglie — che
-				è quello della riga desktop, quindi anche l'ordine del TAB, dove la
-				tastiera si usa davvero. Sul telefono una griglia a due colonne rimette
-				il selettore nella seconda riga (`row-start-2 col-span-2`) e le
-				pastiglie in alto a destra: identico a prima a vista, con i 20px di
-				sempre fra le due righe (`gap-y-5`: era `mb-1` più il `gap-4` della
-				pagina).
+				⚠️ Il selettore è montato DUE volte, una per breakpoint, e ne è
+				visibile sempre uno solo (issue #111). Con un'istanza sola, spostata
+				col CSS, l'ordine del DOM poteva seguire una sola delle due righe:
+				scelto quello del desktop, sul telefono tastiera e screen reader
+				leggevano il selettore PRIMA di coach e campanella, che a schermo
+				stanno sulla riga sopra. Lo stato del filtro non si sdoppia, perché
+				non vive nel componente ma nell'URL e nel cookie; ogni istanza tiene
+				solo il proprio aperto/chiuso. E quella nascosta è `display: none`,
+				quindi fuori dal Tab e dall'albero di accessibilità, pannello compreso.
+
+				Così l'ordine del DOM è quello che si vede in entrambi i casi: sul
+				telefono avatar, pastiglie, selettore (seconda riga, `row-start-2
+				col-span-2`, con i 20px di sempre fra le righe: `gap-y-5`); sul desktop
+				saluto, selettore, pastiglie.
 			*/}
 			<div
 				className={`grid grid-cols-[1fr_auto] items-center gap-y-5 lg:flex lg:gap-4.5 ${
@@ -269,9 +274,11 @@ async function DashboardContent({
 					la cifra grande, le quattro card e le sparkline — non solo il numero
 					che ha accanto. Ed è anche l'ingresso alla pagina conti, perché la
 					bottom nav è già a quattro voci più il FAB.
+					Questa è l'istanza del DESKTOP, in riga col saluto; quella del
+					telefono sta dopo le pastiglie.
 				*/}
 				{accounts.length > 0 && (
-					<div className="row-start-2 col-span-2 lg:ml-2.5">
+					<div className="hidden lg:block lg:ml-2.5">
 						<AccountSelector accounts={accounts} selectedId={accountId} />
 					</div>
 				)}
@@ -290,6 +297,12 @@ async function DashboardContent({
 					<CoachBubble accountFiltered={!!accountId} />
 					<NotificationBell initialUnread={unreadCount} />
 				</div>
+				{/* L'istanza del TELEFONO: dopo le pastiglie nel DOM, sotto di loro a schermo. */}
+				{accounts.length > 0 && (
+					<div className="row-start-2 col-span-2 lg:hidden">
+						<AccountSelector accounts={accounts} selectedId={accountId} />
+					</div>
+				)}
 			</div>
 
 			{/*
