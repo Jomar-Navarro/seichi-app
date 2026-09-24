@@ -108,9 +108,24 @@ export default function PwaStatus() {
 	// Questo è il caso ESPLICITAMENTE permesso dalla stessa regola sopra: uno
 	// `useEffect` che si ISCRIVE a un sistema esterno e chiama `setState`
 	// dentro il CALLBACK dell'evento, non sincronamente nel corpo dell'effetto.
+	//
+	// ⚠️ Non ogni "controllerchange" è un aggiornamento (issue #111). Alla PRIMA
+	// installazione `clientsClaim` prende il controllo di una pagina che non ne
+	// aveva nessuno, e l'evento scatta lo stesso: senza questo controllo, chi
+	// apriva l'app per la prima volta leggeva "è disponibile una nuova versione"
+	// senza che niente fosse cambiato — un avviso falso al primo contatto.
+	// Una versione nuova c'è solo se prima del cambio un controller esisteva.
+	// Il precedente si aggiorna a ogni cambio, non si fissa al montaggio: una
+	// scheda aperta alla prima visita e rimasta aperta fino al deploy
+	// successivo deve comunque ricevere l'avviso di quel deploy.
 	useEffect(() => {
 		if (!("serviceWorker" in navigator)) return;
-		const onControllerChange = () => setUpdateReady(true);
+		const sw = navigator.serviceWorker;
+		let previous = sw.controller;
+		const onControllerChange = () => {
+			if (previous) setUpdateReady(true);
+			previous = sw.controller;
+		};
 		navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
 		return () =>
 			navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
@@ -128,7 +143,11 @@ export default function PwaStatus() {
 	if (!isOffline && !updateReady && !showIosHint) return null;
 
 	return (
-		<div className="px-5 pt-3 space-y-2">
+		// Da `lg:` la stessa cornice delle pagine della #108 — `lg:px-10`,
+		// `max-w-6xl`, centrata — così l'avviso sta sopra la colonna del contenuto
+		// e non su tutto il gutter della sidebar (issue #111). Sotto `lg:` com'era.
+		<div className="px-5 pt-3 space-y-2 lg:px-10 lg:pt-5 lg:max-w-6xl lg:mx-auto lg:w-full">
+
 			{isOffline && (
 				<Notice accent="var(--color-aka)" icon={<WifiOff size={16} strokeWidth={1.6} className="shrink-0 mt-0.5" style={{ color: "var(--color-aka)" }} />}>
 					<p className="text-[13px] font-medium text-aka-ink">{t.pwa.offlineRetrying}</p>
