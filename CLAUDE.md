@@ -6822,6 +6822,10 @@ difetto bloccante; quattro rilievi applicati, due lasciati.
   "0" per sempre e i refresh non finirebbero mai. Residuo minore: sul desktop
   le query partono anche sul report e nel wizard del PIN, dove la rail è
   nascosta per scelta, perché il layout non conosce il percorso.
+  Collaudato con un driver sull'app vera (17/17, più la controprova: stessa
+  richiesta dal telefono, nome assente col cookie a "0" e presente a "1") e
+  ✅ **provato a mano su un iPad ruotato** il 2026-09-24: il passaggio al
+  breakpoint funziona.
 - ⚠️ **Sotto `lg:` le differenze visibili erano più d'una.** Due correzioni
   della fase si vedono anche sul telefono, ed erano sfuggite al confronto pixel
   perché l'account di prova non ha quei dati: un obiettivo al 99,6% mostra ora
