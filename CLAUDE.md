@@ -6787,8 +6787,9 @@ una base scattata al commit di partenza.
   versione" (56px) di `PwaStatus` a caso. Bloccare il service worker non va —
   la registrazione fallita accende il badge d'errore di Next su ogni pagina —
   serve un giro di riscaldamento che aspetti `navigator.serviceWorker.controller`.
-  ⚠️ Lo stesso meccanismo potrebbe mostrare il banner a un utente vero alla
-  primissima visita, senza alcun aggiornamento: da verificare, fuori scope.
+  ~~⚠️ Lo stesso meccanismo potrebbe mostrare il banner a un utente vero alla
+  primissima visita, senza alcun aggiornamento: da verificare, fuori scope.~~
+  — era vero, ed è **chiuso dalla #111** (sotto).
 - Esito sotto `lg:`: 24 foto su 36 identiche al pixel; le altre sono
   antialiasing (importi spezzati in più span), la zona pericolo (voluta) e una
   striscia di 6px dietro la bottom nav — il vetro sfocato che campiona un
@@ -6797,8 +6798,8 @@ una base scattata al commit di partenza.
   pagina; la tendina dei conti misurata con un clic vero, dentro lo schermo a
   1024 e 1440.
 
-⚠️ Resta da fare a mano: **Firefox** sulle superfici nuove (la #81 si vede solo
-lì) e un giro sull'app vera.
+~~⚠️ Resta da fare a mano: **Firefox** sulle superfici nuove (la #81 si vede solo
+lì) e un giro sull'app vera.~~ — **fatto il 2026-09-24** (#111, sotto).
 
 #### Emerso dalla review post-merge (2026-09-24)
 
@@ -6841,16 +6842,52 @@ difetto bloccante; quattro rilievi applicati, due lasciati.
 - `getActiveAccountCount` era esportata e dentro `cache()` con un solo
   chiamante interno: ora è una funzione privata.
 
-Lasciati, entrambi minori:
+Lasciati, entrambi minori — ~~e poi chiusi dalla #111 lo stesso giorno~~:
 
-- **L'ordine di lettura della home sul telefono**: nel DOM il selettore conti
-  viene prima di coach e campanella, che a schermo stanno sulla riga sopra. È
-  il prezzo di un selettore solo, spostato col CSS, con l'ordine del Tab giusto
-  sul desktop; tastiera e screen reader sul telefono lo leggono in un ordine
-  diverso da quello visivo.
-- **Gli avvisi di `PwaStatus` da `lg:`** occupano tutto il gutter con `px-5`,
-  non la colonna della pagina (`lg:px-10`, `max-w-6xl`): non sono allineati al
-  contenuto. Si vede solo quando un avviso c'è.
+- ~~**L'ordine di lettura della home sul telefono**: nel DOM il selettore conti
+  viene prima di coach e campanella, che a schermo stanno sulla riga sopra.~~
+- ~~**Gli avvisi di `PwaStatus` da `lg:`** occupano tutto il gutter con `px-5`,
+  non la colonna della pagina.~~
+
+#### Chiuso dalla #111 (2026-09-24)
+
+Le quattro imperfezioni rimaste dopo la 28e, in una PR sola.
+
+- ⚠️ **Il banner "nuova versione" compariva alla PRIMA visita**, senza alcun
+  aggiornamento. `app/sw.ts` ha `clientsClaim: true`: alla prima installazione
+  il service worker prende il controllo di una pagina che non ne aveva
+  nessuno, e `controllerchange` scatta lo stesso. Ora `PwaStatus` lo conta come
+  aggiornamento solo se prima del cambio un controller esisteva. Il precedente
+  si aggiorna a ogni cambio, non si fissa al montaggio: una scheda aperta alla
+  prima visita e rimasta aperta fino al deploy dopo deve comunque ricevere
+  l'avviso di quel deploy. **Un avviso falso al primo contatto è il peggiore
+  possibile**: insegna subito che gli avvisi di questa app si possono ignorare.
+  ⚠️ Il collaudo conta i `controllerchange` veri prima di credere al "nessun
+  banner": senza almeno un evento il verde sarebbe vuoto. Controprova con un
+  evento sintetico su una pagina già controllata: lì il banner compare.
+- **L'ordine di lettura della home**: il selettore conti è montato una volta
+  per breakpoint, e se ne vede sempre uno solo. È la scelta che la 28e aveva
+  scartato ("due pannelli e due stati per lo stesso filtro"), e il timore non
+  regge: lo stato del filtro vive nell'URL e nel cookie, non nel componente,
+  che tiene solo il proprio aperto/chiuso; e l'istanza nascosta è `display:
+  none`, quindi fuori dal Tab e dall'albero di accessibilità. Con un'istanza
+  sola, spostata col CSS, l'ordine del DOM poteva essere giusto per una sola
+  delle due righe. Verificato col Tab: sul telefono avatar → coach → campanella
+  → selettore, sul desktop selettore → coach → campanella.
+- **Gli avvisi di `PwaStatus` da `lg:`** hanno la cornice delle pagine
+  (`lg:px-10`, `max-w-6xl`): scarto misurato 0px dal titolo e dalla ricerca di
+  Movimenti a 1024, 1280 e 1440.
+- ✅ **Firefox**: i quattro angoli di 11 superfici della 28e — voce attiva e
+  footer della rail, menu del profilo aperto, card Flusso e Saldo, i due
+  tratteggi, uscite fisse, capitale versato, card Budget, zona pericolo —
+  ingranditi e messi in fila, in chiaro e in scuro. Nessun quadrato della #81.
+  Col Firefox di Playwright, cioè lo stesso motore Gecko in cui il difetto
+  nasce: `npx playwright install firefox` lo scarica fuori dal repo, senza
+  toccare `package.json`. ⚠️ **Il Firefox di Playwright manda `Accept-Language:
+  en-US`**, e senza cookie della lingua l'app risponde in inglese: i selettori
+  sui testi italiani non trovavano niente e davano un timeout che sembrava una
+  pagina rotta. Il contesto va aperto con `locale: "it-IT"`. È la stessa
+  trappola già pagata nella 23a con `context.request`, dall'altra parte.
 
 #### Aperti, preesistenti e fuori scope
 
