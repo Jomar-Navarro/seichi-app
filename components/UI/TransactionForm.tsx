@@ -199,9 +199,26 @@ export default function TransactionForm({
 				.order("created_at", { ascending: true });
 			if (!data) return;
 			setAccountList(data);
-			// Il default per un movimento NUOVO è il primo conto ATTIVO: proporre
-			// un archiviato significherebbe suggerire di scriverci sopra.
-			setAccountId((current) => current ?? data.find((a) => !a.archived)?.id ?? null);
+			/*
+			 * Il default per un movimento NUOVO: il conto che la pagina sotto sta
+			 * guardando (#112), altrimenti il primo ATTIVO. In modifica `current`
+			 * è già il conto del movimento, e il `??` lo lascia dov'è.
+			 *
+			 * ⚠️ Il conto guardato passa dallo stesso filtro `!archived` del
+			 * ripiego: una pagina può guardare un conto archiviato (la sua storia
+			 * resta consultabile), ma proporlo significherebbe suggerire di
+			 * scriverci sopra. E deve essere fra i conti appena caricati, così un
+			 * id che non è (più) dell'utente ricade sul primo attivo invece di
+			 * lasciare il form senza conto.
+			 *
+			 * Letto con `getState()` e non sottoscritto: serve il valore al
+			 * momento dell'apertura, non un form che cambia conto da solo se la
+			 * pagina sotto cambiasse mentre è aperto.
+			 */
+			const viewed = useUIStore.getState().viewedAccountId;
+			const proposed =
+				data.find((a) => a.id === viewed && !a.archived) ?? data.find((a) => !a.archived);
+			setAccountId((current) => current ?? proposed?.id ?? null);
 		}
 		loadAccounts();
 	}, []);

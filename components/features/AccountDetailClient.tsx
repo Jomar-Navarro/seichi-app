@@ -9,6 +9,7 @@ import { TRANSACTIONS_PAGE_SIZE } from "@/lib/transaction-utils";
 import AccountSheet from "./AccountSheet";
 import TransactionList from "./TransactionList";
 import { useI18n } from "./I18nProvider";
+import { useViewedAccount } from "./ViewedAccount";
 import { useUIStore } from "@/store/useUIStore";
 import {
 	DISPLAY_CURRENCY,
@@ -48,6 +49,8 @@ export default function AccountDetailClient({ account }: AccountDetailClientProp
 	const [hasMore, setHasMore] = useState(false);
 	const [loading, setLoading] = useState(true);
 	const transactionSavedAt = useUIStore((s) => s.transactionSavedAt);
+	// #112 — un movimento nuovo aperto da qui parte da questo conto (se attivo).
+	useViewedAccount(account.id);
 
 	const Icon = (account.type && ACCOUNT_TYPE_ICON[account.type]) || ACCOUNT_ICON_FALLBACK;
 	const color = accountColor(account.type, account.color);

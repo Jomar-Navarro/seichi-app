@@ -12,6 +12,7 @@ import SummaryCard from "@/components/UI/SummaryCard";
 import { TRANSACTION_TYPES } from "@/types";
 import RecentTransaction from "@/components/features/RecentTransaction";
 import DashboardRefresher from "@/components/features/DashboardRefresher";
+import ViewedAccount from "@/components/features/ViewedAccount";
 import HomeSkeleton from "@/components/features/HomeSkeleton";
 import ProfileMenu from "@/components/features/ProfileMenu";
 import NotificationBell from "@/components/features/NotificationBell";
@@ -431,6 +432,8 @@ async function DashboardContent({
 				/>
 			</div>
 			<DashboardRefresher />
+			{/* #112 — dopo il `redirect` qui sopra: dichiara solo un conto già validato. */}
+			<ViewedAccount id={accountId} />
 			</div>
 		</div>
 	);

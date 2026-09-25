@@ -9,6 +9,7 @@ import FixedOutflowsLink from "@/components/features/FixedOutflowsLink";
 import MonthlyLineChart from "@/components/features/MonthlyLineChart";
 import AnalyticsTabs from "@/components/features/AnalyticsTabs";
 import AccountSelector from "@/components/features/AccountSelector";
+import ViewedAccount from "@/components/features/ViewedAccount";
 import { getSelectedAccount } from "@/lib/accounts-server";
 import { getI18n } from "@/lib/i18n/server";
 import { periodoLabel } from "@/lib/analytics";
@@ -85,6 +86,8 @@ export default async function AnalyticsPage({
 
 	return (
 		<div className="px-5 pt-7 pb-36 flex flex-col lg:px-10 lg:pt-9 lg:pb-12 lg:max-w-6xl lg:mx-auto lg:w-full">
+			{/* #112 — dopo il `redirect` qui sopra: dichiara solo un conto già validato. */}
+			<ViewedAccount id={accountId} />
 			{/*
 				Header.
 

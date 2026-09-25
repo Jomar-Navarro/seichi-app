@@ -10,6 +10,7 @@ import FilterBar from "@/components/features/Filterbar";
 import TransactionList from "@/components/features/TransactionList";
 import BudgetCards from "@/components/features/BudgetCards";
 import { useUIStore } from "@/store/useUIStore";
+import { useViewedAccount } from "@/components/features/ViewedAccount";
 import { clientClock } from "@/lib/dates";
 import { useI18n } from "@/components/features/I18nProvider";
 import { fill } from "@/lib/i18n/format";
@@ -33,6 +34,13 @@ export default function MovimentiPage() {
 	const [budgets, setBudgets] = useState<BudgetOverview | null>(null);
 	const [loading, setLoading] = useState(true);
 	const transactionSavedAt = useUIStore((s) => s.transactionSavedAt);
+	/*
+	 * #112 — il filtro conto è anche il conto proposto a un nuovo movimento.
+	 * Questa pagina non eredita la memoria in cookie (Fase 20b), quindi qui il
+	 * conto guardato è SOLO quello scelto nella barra filtri: a filtro vuoto non
+	 * si dichiara niente, e il form parte dal primo conto attivo.
+	 */
+	useViewedAccount(conto || null);
 
 	/*
 	 * ⚠️ CERCARE E SFOGLIARE sono due modi diversi di leggere la stessa lista, e
