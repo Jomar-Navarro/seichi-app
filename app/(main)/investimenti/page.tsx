@@ -3,6 +3,7 @@ import { getInvestments } from "../risparmi/actions";
 import { getAccounts } from "../conti/actions";
 import InvestimentiTab from "@/components/features/InvestimentiTab";
 import AccountSelector from "@/components/features/AccountSelector";
+import ViewedAccount from "@/components/features/ViewedAccount";
 import { getSelectedAccount } from "@/lib/accounts-server";
 import { getI18n } from "@/lib/i18n/server";
 import { plural } from "@/lib/i18n/format";
@@ -73,6 +74,8 @@ export default async function InvestimentiPage({
 		 * `pb-36` mobile esiste per la bottom nav, che da lg non c'è più.
 		 */
 		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-36 lg:px-10 lg:pt-9 lg:pb-12 lg:max-w-6xl lg:mx-auto lg:w-full">
+			{/* #112 — dopo il `redirect` qui sopra: dichiara solo un conto già validato. */}
+			<ViewedAccount id={accountId} />
 			{/*
 				Intestazione. Su mobile tre righe una sotto l'altra — titolo,
 				selettore, riepilogo — com'è sempre stata. Da lg la griglia del

@@ -61,7 +61,9 @@ components/
 │   │                     # AttachmentPicker — ricevute; PROPRIETARIO UNICO della
 │   │                     #   coda in attesa, il form gliela chiede (Fase 22),
 │   │                     # ThemeProvider (+ useTheme), ThemeToggle, ThemeSection,
-│   │                     # I18nProvider (+ useI18n)
+│   │                     # I18nProvider (+ useI18n),
+│   │                     # ViewedAccount (+ useViewedAccount) — il conto che la
+│   │                     #   pagina guarda, proposto al nuovo movimento (#112)
 ├── LoginForm.tsx, SignUpForm.tsx, PasswordField.tsx
 └── icons.tsx             # GoogleIcon, FacebookIcon
 
@@ -109,7 +111,8 @@ lib/
 
 supabase/migrations/      # SQL da eseguire a mano nel SQL Editor di Supabase
 
-store/  useUIStore.ts      # Zustand: modal transazioni, edit, refresh trigger
+store/  useUIStore.ts      # Zustand: modal transazioni, edit, refresh trigger,
+                           #   conto guardato dalla pagina (#112, vedi ViewedAccount)
 types/  index.ts           # Transaction, Category, GoalWithProgress, Investment*, TRANSACTION_TYPES
 ```
 
@@ -1839,6 +1842,48 @@ mentre senza filtro lo lascia neutro con la freccia. Che la domanda sia sorta
 guardando la home è la prova che la separazione va **detta**, non dedotta: è
 esattamente il lavoro che fanno il sottotitolo "entrate meno uscite di questo
 mese" e la riga che insegna a scorrere.
+
+#### Il nuovo movimento propone il conto guardato (issue #112, 2026-09-25)
+
+Emerso usando l'app: con Revolut selezionato in home, "Nuovo movimento"
+proponeva "Conto principale", cioè il primo conto attivo. Bisognava cambiarlo a
+mano ogni volta, e dimenticarsene scriveva il movimento sul conto sbagliato.
+
+La causa è strutturale: il modale sta nel layout di `(main)` e lo aprono il FAB e
+la sidebar, che non sanno quale pagina c'è sotto. È lo stesso caso di
+`fullScreenActive` (Fase 26a) — componenti fratelli, non genitore e figlio — e ha
+la stessa soluzione: uno stato condiviso, `viewedAccountId` in `useUIStore`.
+
+- **Lo dichiarano le PAGINE**, con `<ViewedAccount>` (server) o
+  `useViewedAccount()` (client): home, `/analisi` e `/investimenti` il conto del
+  selettore, `/transazioni` il filtro conto, `/conti/[id]` il conto del dettaglio.
+  Nessuno lo ricalcola nel client: è la scelta che il server ha già risolto (URL
+  = istruzione, cookie = memoria), e le tre pagine server lo rendono **dopo** il
+  `redirect` che scarta un conto non tuo.
+- ⚠️ **La dichiarazione si ritira confrontando il TURNO, non l'id.** Nel passare
+  da una pagina all'altra l'ordine fra smontaggio della vecchia e montaggio della
+  nuova non è una garanzia su cui costruire; e con lo stesso conto su entrambe
+  (home → `/analisi`, stesso Revolut) un confronto sull'id farebbe cancellare alla
+  vecchia la dichiarazione della nuova. `viewAccount()` restituisce la funzione di
+  ritiro, che azzera solo se nessuno ha dichiarato dopo.
+- **Il form lo usa solo per un movimento NUOVO e solo se il conto è attivo.** Una
+  pagina può guardare un conto archiviato — la sua storia resta consultabile — ma
+  proporlo vorrebbe dire suggerire di scriverci sopra. In modifica resta il conto
+  del movimento. Letto con `getState()` all'apertura, non sottoscritto: un form
+  aperto non cambia conto da solo.
+- **`/transazioni` dichiara solo il filtro**, non la memoria in cookie, che
+  deliberatamente non eredita (20b): a filtro vuoto propone il primo attivo.
+
+Collaudo: 14 controlli nell'app vera, fra cui la navigazione soft home →
+`/analisi` (stesso conto, resta proposto) e `/analisi` → `/risparmi`
+(dichiarazione ritirata). L'archiviato si prova **senza scrivere** sul database:
+Playwright modifica nel browser la risposta REST dei conti. Controprova: tolta la
+modifica al form, i sette controlli sul conto guardato diventano rossi e quelli
+sul ripiego restano verdi.
+
+⚠️ E due KO erano del driver, non dell'app: la modifica di un movimento si apre
+sul passo dell'**importo** come la creazione (serve "Continua" prima del form), e
+la sidebar è un `div`, non un `<aside>`.
 
 ### Fase 21 — import da file (CSV / Trade Republic)
 
@@ -6905,7 +6950,7 @@ Le quattro imperfezioni rimaste dopo la 28e, in una PR sola.
 - **Auth**: Supabase Auth con RLS — ogni utente vede solo i propri dati
 - **Email confirmation**: abilitata — dopo signup l'utente vede "controlla la tua email" nella stessa pagina (nessun redirect)
 - **Onboarding gate**: `profiles.currency` è il flag — NULL = onboarding non completato
-- **State globale**: Zustand (`store/useUIStore.ts`) per stato UI — modal transazione, edit, trigger di refresh. I dati DB arrivano dai server components / server actions, non sono in Zustand
+- **State globale**: Zustand (`store/useUIStore.ts`) per stato UI — modal transazione, edit, trigger di refresh, conto guardato dalla pagina (#112). I dati DB arrivano dai server components / server actions, non sono in Zustand
 - **Obiettivi = categorie**: nessuna tabella goal separata — categorie `type='risparmio'` con `target_amount`/`target_date`; `saved_amount` calcolato dalle transazioni. Scelta confermata (no tabella dedicata finché non servono prelievi tracciati o stato completato persistito). Il "prelievo" da un obiettivo si fa cancellando la transazione (non lascia storico). Categorie risparmio e obiettivi **convivono** di proposito. NB Fase 13: eliminare una categoria risparmio = eliminare l'obiettivo → deve usare la stessa logica/conferma di `deleteGoal`, non un delete secco.
 - **Colonne DB in inglese**: `amount`, `type`, `category_id`, `notes`, `date` (non italiano)
 - **Ricorrenti**: generazione automatica lato server con pg_cron (non al login)
