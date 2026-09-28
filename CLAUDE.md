@@ -5759,6 +5759,22 @@ di lettura.
   l'`error`**: "la riga non c'è" porta a `/start`, "non sono riuscito a leggerla"
   porta in home. Prima un guasto passeggero mandava nell'onboarding un utente già
   configurato — cioè sulla strada della cancellazione qui sopra.
+- **Collaudo della #116 (2026-09-28), su un account di prova usa e getta**,
+  eliminato alla fine con `delete_current_user()`: registrazione → `/category`
+  lasciata aperta → categorie e movimenti creati nel frattempo → "Completa" sulla
+  pagina rimasta aperta. Codice nuovo: 2 movimenti → 2, una sola categoria
+  aggiunta. **Controprova col codice vecchio: 2 → 0.** Due trappole della prova,
+  da ricordare:
+  - ⚠️ **il layout nuovo NASCONDE il difetto del login.** Col vecchio login e il
+    guasto iniettato si finiva comunque in home, perché `/start` rimandava subito
+    indietro un utente con categorie; e il redirect di una server action rende la
+    destinazione nella stessa risposta, quindi il passaggio da `/start` non
+    compare nemmeno come richiesta. Per isolare il login serve un utente con
+    valuta e **zero** categorie: lì il vecchio codice resta su `/start`, il nuovo
+    va in home;
+  - il tab "Accedi" in cima al modulo ha lo stesso testo del bottone di invio: il
+    selettore va ristretto al `form`.
+  Non rifatto in inglese: la modifica non tocca la scelta della lingua.
 - **Recupero password**: `/recupera-password` → `resetPasswordForEmail` con
   `redirectTo=/callback?next=/reimposta-password` → `/reimposta-password` →
   al termine `signOut()` + `/sign?reset=1` (il login mostra la conferma).
