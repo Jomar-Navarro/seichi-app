@@ -24,11 +24,26 @@ export async function login(_prevState: { error: string }, formData: FormData) {
 	}
 
 	if (user) {
-		const { data: profile } = await supabase
+		/*
+		 * ⚠️ `maybeSingle()` e l'`error` letto: sono due domande diverse (#116).
+		 * "La riga non c'è" (utente precedente al trigger, mai passato dall'
+		 * onboarding) è un fatto, e porta a /start. "Non sono riuscito a leggerla"
+		 * no: con `.single()` e l'errore ignorato un guasto passeggero finiva in
+		 * `!profile?.currency` e mandava nell'onboarding un utente già configurato
+		 * — la strada che fino alla #116 portava a cancellargli tutti i dati. Nel
+		 * dubbio si entra nell'app, che rifà le proprie letture.
+		 */
+		const { data: profile, error: profileError } = await supabase
 			.from("profiles")
 			.select("currency, language")
 			.eq("id", user.id)
-			.single();
+			.maybeSingle();
+
+		if (profileError) {
+			console.error("[login] lettura del profilo:", profileError.message);
+			redirect("/");
+		}
+
 		// `language` viaggia con la query che c'era già per il gate dell'onboarding:
 		// è il momento in cui la preferenza salvata sul profilo diventa la lingua di
 		// questa sessione, ed è ciò che la rende valida su un dispositivo nuovo.

@@ -119,8 +119,35 @@ const CATEGORY_MAP: Record<string, { icon: string; color: string; type: string }
 	affitto:         { icon: "KeyRound",        color: "murasaki", type: "abbonamento" },
 };
 
-const ONBOARDING_TYPES = ["entrata", "spesa", "risparmio", "investimento", "abbonamento"];
+/** La chiave con cui due categorie si considerano la stessa: tipo + nome. */
+const categoryKey = (type: string, name: string) => `${type}\u0000${name.trim().toLowerCase()}`;
 
+/**
+ * Aggiunge le categorie scelte nell'onboarding. **Non ne cancella mai nessuna.**
+ *
+ * ⚠️⚠️ Fino alla #116 cancellava prima tutte le categorie dell'utente di ogni
+ * tipo e poi reinseriva le scelte, per poter "rifare" l'onboarding senza
+ * doppioni. Ma `transactions_category_id_fkey` è `on delete cascade`: tornare
+ * su `/category` dopo mesi d'uso (cronologia, tasto indietro, segnalibro) e
+ * toccare "Completa" cancellava ogni movimento tranne i trasferimenti, e con
+ * loro budget, obiettivi e le righe delle ricevute. Senza conferma.
+ *
+ * Ora l'idempotenza viene dal confronto, non dalla cancellazione: si inseriscono
+ * solo le scelte che l'utente non ha già, a parità di tipo e di nome. Un secondo
+ * invio non duplica, e rifare l'onboarding può solo aggiungere ciò che l'utente
+ * ha appena scelto.
+ *
+ * ⚠️ La garanzia sta QUI e non nel layout di `(onboarding)`, che rimanda in home
+ * chi ha già finito: un layout non si riesegue sulle navigazioni interne né su
+ * quelle indietro/avanti restaurate dalla cache del router (guida autenticazione
+ * di Next 16, "Layouts and auth checks"), e la action è raggiungibile anche con
+ * una POST diretta.
+ *
+ * Residuo dichiarato: una categoria preset rinominata dall'utente, o creata in
+ * un'altra lingua, non combacia col nome di adesso e verrebbe aggiunta di nuovo
+ * se riselezionata. È una categoria in più che l'utente ha appena scelto, non un
+ * dato perso.
+ */
 export async function saveCategories(selected: string[]) {
 	const { supabase, user, t } = await requireUser();
 
@@ -129,25 +156,41 @@ export async function saveCategories(selected: string[]) {
 	// Il nome si fissa QUI, nella lingua scelta all'onboarding — che il passo
 	// precedente ha appena scritto nel cookie, quindi `getDictionary()` la vede
 	// già. Da questo insert in poi è un dato dell'utente come qualsiasi altro.
-	const rows = selected
-		.filter((v) => CATEGORY_MAP[v])
+	//
+	// `Object.hasOwn` e non `CATEGORY_MAP[v]`: il valore arriva dal client, e
+	// "constructor" o "toString" sono veri su qualunque oggetto. Il `Set` toglie
+	// i doppioni di una stessa richiesta.
+	const rows = [...new Set(selected)]
+		.filter((v) => Object.hasOwn(CATEGORY_MAP, v))
 		.map((v) => ({
 			user_id: user.id,
 			...CATEGORY_MAP[v],
 			name: t.presetCategories[v as keyof typeof t.presetCategories].title,
 		}));
 
-	const { error: deleteError } = await supabase
-		.from("categories")
-		.delete()
-		.eq("user_id", user.id)
-		.in("type", ONBOARDING_TYPES);
-
-	if (deleteError) return { error: deleteError.message };
-
 	if (rows.length > 0) {
-		const { error } = await supabase.from("categories").insert(rows);
-		if (error) return { error: error.message };
+		const { data: existing, error: readError } = await supabase
+			.from("categories")
+			.select("type, name")
+			.eq("user_id", user.id);
+
+		// ⚠️ Una lettura fallita non si tratta come "nessuna categoria": si
+		// inserirebbero doppioni di tutto ciò che l'utente ha già.
+		if (readError) {
+			console.error("[onboarding] saveCategories, lettura:", readError.message);
+			return { error: t.common.genericError };
+		}
+
+		const present = new Set((existing ?? []).map((c) => categoryKey(c.type, c.name)));
+		const missing = rows.filter((r) => !present.has(categoryKey(r.type, r.name)));
+
+		if (missing.length > 0) {
+			const { error } = await supabase.from("categories").insert(missing);
+			if (error) {
+				console.error("[onboarding] saveCategories, inserimento:", error.message);
+				return { error: t.common.genericError };
+			}
+		}
 	}
 
 	return ensureFirstAccount(supabase, user.id, t);
@@ -167,10 +210,10 @@ export async function saveCategories(selected: string[]) {
  * richiederebbe una colonna `preset_key` e una regola "se è valorizzata ignora
  * `name`", che si sfalderebbe al primo rename.
  *
- * ⚠️ È idempotente: l'onboarding si può rifare (il gate è `profiles.currency`,
- * e `saveCategories` infatti cancella e reinserisce), ma i conti NON si
- * ricreano — a differenza delle categorie hanno movimenti attaccati, e
- * cancellarli è precisamente ciò che la FK `no action` impedisce.
+ * ⚠️ È idempotente: l'onboarding si può ripercorrere (per esempio tornando
+ * indietro), e un conto già esistente non si ricrea né si tocca — come le
+ * categorie di `saveCategories`, che dalla #116 si aggiungono e non si
+ * cancellano più.
  */
 async function ensureFirstAccount(
 	supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],

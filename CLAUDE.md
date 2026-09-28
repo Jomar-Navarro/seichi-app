@@ -5742,7 +5742,23 @@ di lettura.
 - `/callback` → gestisce OAuth (Google/Facebook) e verifica email → stesso check su `profiles.currency`
 - Onboarding: `/start` → `/preference` → `/category` → `/`
 - `savePreferences()` fa upsert su `profiles` (currency, language)
-- `saveCategories()` cancella le categorie onboarding esistenti e reinserisce quelle selezionate
+- `saveCategories()` **aggiunge** le categorie scelte che l'utente non ha già
+  (stesso tipo, stesso nome) e **non ne cancella mai nessuna**. ⚠️⚠️ Fino alla
+  #116 cancellava tutte le categorie dell'utente, di ogni tipo, e reinseriva le
+  scelte: siccome `transactions_category_id_fkey` è `on delete cascade`, tornare
+  su `/category` dopo mesi d'uso e toccare "Completa" cancellava ogni movimento
+  tranne i trasferimenti, con budget, obiettivi e ricevute. Nessuna conferma.
+  L'idempotenza ora viene dal confronto, non dalla cancellazione.
+- **Il layout di `(onboarding)` rimanda in home chi ha già finito**: valuta
+  **e** almeno una categoria. Non la sola `currency`, che si scrive al passo 2 e
+  rimanderebbe in home a metà strada, prima di `/category`. ⚠️ È una comodità,
+  non la protezione: un layout non si riesegue su navigazioni interne né su
+  indietro/avanti dalla cache del router (guida autenticazione di Next 16). La
+  garanzia è la action.
+- ⚠️ **Login e `/callback` leggono il profilo con `maybeSingle()` e guardano
+  l'`error`**: "la riga non c'è" porta a `/start`, "non sono riuscito a leggerla"
+  porta in home. Prima un guasto passeggero mandava nell'onboarding un utente già
+  configurato — cioè sulla strada della cancellazione qui sopra.
 - **Recupero password**: `/recupera-password` → `resetPasswordForEmail` con
   `redirectTo=/callback?next=/reimposta-password` → `/reimposta-password` →
   al termine `signOut()` + `/sign?reset=1` (il login mostra la conferma).

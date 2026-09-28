@@ -45,19 +45,28 @@ export async function GET(request: Request) {
 			if (next === "/") {
 				const { data: { user } } = await supabase.auth.getUser();
 				if (user) {
-					const { data: profile } = await supabase
+					const { data: profile, error: profileError } = await supabase
 						.from("profiles")
 						.select("currency, language")
 						.eq("id", user.id)
-						.single();
+						.maybeSingle();
 					// Stessa query del gate onboarding: nessun viaggio in più al
 					// database. È il ramo di ogni accesso vero — conferma email e
 					// OAuth arrivano entrambi con next="/" — mentre il recupero
 					// password, che non passa di qui, è un flusso di transito in cui
 					// la lingua non va toccata.
-					locale = normalizeLocale(profile?.language);
-					if (!profile?.currency) {
-						next = "/start";
+					//
+					// ⚠️ Su una lettura fallita `next` resta "/": un guasto non è
+					// "onboarding da fare" (#116, vedi `login` in sign/action.ts).
+					// "La riga non c'è" invece sì, ed è ciò che `maybeSingle()`
+					// distingue da un errore.
+					if (profileError) {
+						console.error("[callback] lettura del profilo:", profileError.message);
+					} else {
+						locale = normalizeLocale(profile?.language);
+						if (!profile?.currency) {
+							next = "/start";
+						}
 					}
 				}
 			}
