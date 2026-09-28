@@ -5742,7 +5742,39 @@ di lettura.
 - `/callback` → gestisce OAuth (Google/Facebook) e verifica email → stesso check su `profiles.currency`
 - Onboarding: `/start` → `/preference` → `/category` → `/`
 - `savePreferences()` fa upsert su `profiles` (currency, language)
-- `saveCategories()` cancella le categorie onboarding esistenti e reinserisce quelle selezionate
+- `saveCategories()` **aggiunge** le categorie scelte che l'utente non ha già
+  (stesso tipo, stesso nome) e **non ne cancella mai nessuna**. ⚠️⚠️ Fino alla
+  #116 cancellava tutte le categorie dell'utente, di ogni tipo, e reinseriva le
+  scelte: siccome `transactions_category_id_fkey` è `on delete cascade`, tornare
+  su `/category` dopo mesi d'uso e toccare "Completa" cancellava ogni movimento
+  tranne i trasferimenti, con budget, obiettivi e ricevute. Nessuna conferma.
+  L'idempotenza ora viene dal confronto, non dalla cancellazione.
+- **Il layout di `(onboarding)` rimanda in home chi ha già finito**: valuta
+  **e** almeno una categoria. Non la sola `currency`, che si scrive al passo 2 e
+  rimanderebbe in home a metà strada, prima di `/category`. ⚠️ È una comodità,
+  non la protezione: un layout non si riesegue su navigazioni interne né su
+  indietro/avanti dalla cache del router (guida autenticazione di Next 16). La
+  garanzia è la action.
+- ⚠️ **Login e `/callback` leggono il profilo con `maybeSingle()` e guardano
+  l'`error`**: "la riga non c'è" porta a `/start`, "non sono riuscito a leggerla"
+  porta in home. Prima un guasto passeggero mandava nell'onboarding un utente già
+  configurato — cioè sulla strada della cancellazione qui sopra.
+- **Collaudo della #116 (2026-09-28), su un account di prova usa e getta**,
+  eliminato alla fine con `delete_current_user()`: registrazione → `/category`
+  lasciata aperta → categorie e movimenti creati nel frattempo → "Completa" sulla
+  pagina rimasta aperta. Codice nuovo: 2 movimenti → 2, una sola categoria
+  aggiunta. **Controprova col codice vecchio: 2 → 0.** Due trappole della prova,
+  da ricordare:
+  - ⚠️ **il layout nuovo NASCONDE il difetto del login.** Col vecchio login e il
+    guasto iniettato si finiva comunque in home, perché `/start` rimandava subito
+    indietro un utente con categorie; e il redirect di una server action rende la
+    destinazione nella stessa risposta, quindi il passaggio da `/start` non
+    compare nemmeno come richiesta. Per isolare il login serve un utente con
+    valuta e **zero** categorie: lì il vecchio codice resta su `/start`, il nuovo
+    va in home;
+  - il tab "Accedi" in cima al modulo ha lo stesso testo del bottone di invio: il
+    selettore va ristretto al `form`.
+  Non rifatto in inglese: la modifica non tocca la scelta della lingua.
 - **Recupero password**: `/recupera-password` → `resetPasswordForEmail` con
   `redirectTo=/callback?next=/reimposta-password` → `/reimposta-password` →
   al termine `signOut()` + `/sign?reset=1` (il login mostra la conferma).
