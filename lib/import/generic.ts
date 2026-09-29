@@ -61,9 +61,11 @@ export function parseGeneric(rows: string[][], mapping: GenericMapping): ParseRe
 	 * collidono e vengono saltate, la terza è nuova e viene scritta.
 	 *
 	 * Limite residuo, dichiarato: due movimenti realmente distinti ma identici
-	 * in data, importo e descrizione, presenti in DUE file diversi, restano
-	 * indistinguibili. Non è chiudibile senza un identificativo nel file — che
-	 * è esattamente ciò che Trade Republic fornisce e una banca qualsiasi no.
+	 * in data, importo e descrizione, presenti in DUE file diversi DELLO STESSO
+	 * CONTO, restano indistinguibili. Non è chiudibile senza un identificativo
+	 * nel file — che è esattamente ciò che Trade Republic fornisce e una banca
+	 * qualsiasi no. Su due conti diversi invece sono distinti: la chiave porta
+	 * il conto del file (#118, `importKeyFor`).
 	 */
 	const seen = new Map<string, number>();
 
@@ -88,6 +90,8 @@ export function parseGeneric(rows: string[][], mapping: GenericMapping): ParseRe
 		const groupId = `movimenti|${direction}|`;
 
 		parsed.push({
+			// ⚠️ Non è ancora la chiave scritta nel database: `importKeyFor()` ci
+			// aggiunge il conto del file (#118), che questo lettore non conosce.
 			key: `generico:${base}#${occurrence}`,
 			date,
 			amount: Math.abs(net),
