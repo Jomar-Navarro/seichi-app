@@ -44,7 +44,8 @@ export async function login(_prevState: { error: string }, formData: FormData) {
 			redirect("/");
 		}
 
-		// `language` viaggia con la query che c'era già per il gate dell'onboarding:
+		// `language` viaggia con la query che c'era già per il gate dell'onboarding
+		// (valuta NULL → /start; il layout di `(onboarding)` ne ha un altro, vedi lì):
 		// è il momento in cui la preferenza salvata sul profilo diventa la lingua di
 		// questa sessione, ed è ciò che la rende valida su un dispositivo nuovo.
 		await syncLocaleFromProfile(profile?.language);
