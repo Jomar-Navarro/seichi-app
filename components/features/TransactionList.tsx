@@ -116,7 +116,7 @@ function TransactionsEmpty({ filtered }: { filtered: boolean }) {
 				title={t.transactions.emptyTitle}
 				description={t.transactions.emptyDescription}
 				actionLabel={t.transactions.addAction}
-				onAction={openTransactionModal}
+				onAction={() => openTransactionModal()}
 			/>
 		</div>
 	);

@@ -108,6 +108,33 @@ export async function deleteCategory(id: string) {
 		};
 	}
 
+	/*
+	 * ⚠️ E se ci sono regole ricorrenti (#117). Una regola non è un movimento,
+	 * quindi il conteggio sopra non la vede — tipicamente un abbonamento appena
+	 * creato con la prima occorrenza nel futuro. `recurring_rules_category_id_fkey`
+	 * è `on delete set null`: la regola restava ATTIVA senza categoria, e il job
+	 * scriveva ogni mese un movimento senza categoria che abbassa il saldo del
+	 * conto. Tutte le regole, non solo le attive: una in pausa, ripresa dopo,
+	 * farebbe lo stesso. La via d'uscita c'è — `RecurringSheet` cambia la
+	 * categoria di una regola — quindi rifiutare non è un vicolo cieco.
+	 */
+	const { count: rules, error: rulesError } = await supabase
+		.from("recurring_rules")
+		.select("id", { count: "exact", head: true })
+		.eq("user_id", user.id)
+		.eq("category_id", id);
+
+	if (rulesError) {
+		console.error("[categorie] eliminazione, conteggio regole:", rulesError.message);
+		return { error: t.common.genericError };
+	}
+	if ((rules ?? 0) > 0) {
+		return {
+			error: plural(t.errors.categoryHasRecurring, rules ?? 0, locale),
+			blocked: true as const,
+		};
+	}
+
 	const { error } = await supabase
 		.from("categories")
 		.delete()

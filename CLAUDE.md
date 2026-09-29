@@ -5265,6 +5265,52 @@ durata della misura; un quarto la rimuove non appena raccolti i dati —
 stesso principio dello script ad-hoc della sezione precedente, applicato
 stavolta a un vero deploy invece che alla LAN.
 
+### Ricorrenti e obiettivi — regole che scrivevano dove non dovevano (issue #117)
+
+Dalla review completa del 2026-09-28 (#128). Nessuna migration. Quattro difetti,
+tutti invisibili a `tsc`, e tre su quattro con lo stesso effetto: il job
+notturno che scrive movimenti che nessuno ha chiesto.
+
+- ⚠️ **"Aggiungi movimento" dalla lista vuota creava una regola mensile.**
+  `onAction={openTransactionModal}` passava il MouseEvent come `recurring`: un
+  oggetto, cioè vero, e "Ripeti" partiva acceso. `tsc` non lo vede perché
+  `() => void` accetta una funzione con un parametro opzionale. Chiuso in due
+  punti: la freccia nel chiamante, e `recurring === true` nello store, che
+  vale anche per il prossimo che passerà l'handler nudo.
+- ⚠️ **Pausa → archivia il conto → riprendi aggirava la 20b.** Il rifiuto sta
+  in `setAccountArchived`, che conta solo le regole ATTIVE; `setRecurringActive`
+  non guardava il conto. **Un'invariante fra due tabelle va difesa da entrambi
+  i lati da cui si può rompere.** Ora "riprendi" rifiuta e dice il rimedio
+  (cambiare il conto da "modifica"). E una lettura fallita della regola non
+  riattiva più con il `next_run` vecchio, che al giro dopo generava tutti gli
+  arretrati della pausa. `RecurringManager` mostra gli errori, prima ingoiati.
+- ⚠️ **Eliminare un obiettivo lasciava viva la sua regola.** La FK
+  `recurring_rules_category_id_fkey` è `on delete set null`: la regola restava
+  attiva senza categoria e ogni mese scriveva un `risparmio` che non va a
+  nessun obiettivo. `deleteGoal` ora elimina le regole (dopo i versamenti,
+  prima della categoria: un guasto a metà lascia uno stato coerente);
+  `deleteCategory` rifiuta finché esistono regole, attive o in pausa, come già
+  rifiutava con i movimenti. La conferma dell'obiettivo dice quanti versamenti,
+  per quale importo e quante regole spariscono, letto al primo tocco
+  (`getGoalDeletionImpact`, schema di `canDeleteAccount` della #62); il secondo
+  tocco resta spento finché la frase non c'è.
+- ⚠️ **Una ricorrente con partenza passata spostava la cadenza.** `firstRunFrom`
+  portava `next_run` a oggi: l'affitto del 31 agosto registrato il 2 settembre
+  finiva nel flusso di settembre e poi usciva ogni 2 del mese.
+  `rollForwardPastToday` da sola, suggerita dalla review, avrebbe **saltato** il
+  31 agosto, cioè proprio il movimento che l'utente stava registrando.
+  `firstRunForNewRule` riparte dall'occorrenza più recente già dovuta, alla sua
+  data vera: al più un movimento retroattivo, mai la raffica. Residuo
+  dichiarato: con una partenza lontana si genera solo l'ultima occorrenza.
+
+Collaudo: la logica delle date con 10 casi (l'esempio della issue, oggi,
+futuro, partenza lontana, settimanale, annuale, fine mese), confrontata col
+passo di `+ interval` del job SQL. `tsc` e lint puliti, code-review senza
+rilievi. ⚠️ **Non provato nell'app**: tutti i percorsi scrivono sul database
+(riprendi, archivia, elimina, crea regola), e un account di prova va
+autorizzato a ogni giro; l'unico passo di sola lettura — il primo tocco su
+"Elimina obiettivo" — richiede cookie freschi.
+
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 
 Il guasto è emerso guardando a occhio una data in `/impostazioni/ricorrenti`: una

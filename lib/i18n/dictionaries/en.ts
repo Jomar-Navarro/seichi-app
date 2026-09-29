@@ -182,6 +182,10 @@ export const en: Dictionary = {
 			one: "This category has {n} linked transaction. Move or delete it before removing the category.",
 			other: "This category has {n} linked transactions. Move or delete them before removing the category.",
 		},
+		categoryHasRecurring: {
+			one: "This category has {n} recurring rule. Change its category or delete it in \"Recurring transactions\", then try again.",
+			other: "This category has {n} recurring rules. Change their category or delete them in \"Recurring transactions\", then try again.",
+		},
 	},
 
 	auth: {
@@ -545,6 +549,17 @@ export const en: Dictionary = {
 		saveChanges: "Save changes",
 		deleteConfirm: "Confirm deletion",
 		delete: "Delete goal",
+		deleteImpact: {
+			zero: "There are no deposits to delete.",
+			one: "{n} deposit of {amount} will be deleted too: account balances go back as if it had never been made.",
+			other: "{n} deposits totalling {amount} will be deleted too: account balances go back as if they had never been made.",
+		},
+		deleteImpactUnknown:
+			"All deposits to this goal and the recurring rules that fund it will be deleted too: account balances go back as if the deposits had never been made.",
+		deleteImpactRules: {
+			one: "The recurring rule that funds it will be deleted too.",
+			other: "The {n} recurring rules that fund it will be deleted too.",
+		},
 	},
 
 	investments: {
@@ -873,6 +888,10 @@ export const en: Dictionary = {
 		delete: "delete",
 		deleteTitle: "Delete recurring rule",
 		deleteBody: "This stops future generations. Transactions already created stay. Continue?",
+		resumeArchivedAccount:
+			"This rule's account is archived. Change the account from \"edit\", then resume it.",
+		toggleFailed: "The rule could not be updated. Please try again.",
+		deleteFailed: "The rule could not be deleted. Please try again.",
 
 		editTitle: "Edit recurring rule",
 		amount: "Amount",

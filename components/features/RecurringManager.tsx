@@ -29,6 +29,11 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 	const [editing, setEditing] = useState<RecurringRule | null>(null);
 	const [deleting, setDeleting] = useState(false);
 	const [busyId, setBusyId] = useState<string | null>(null);
+	// ⚠️ Gli errori ora si DICONO (#117). Prima un "riprendi" rifiutato — o
+	// fallito — lasciava la regola in pausa senza una parola: un gesto che non
+	// fa niente e non dice niente. Legato alla regola, perché la lista ne ha molte.
+	const [toggleError, setToggleError] = useState<{ id: string; message: string } | null>(null);
+	const [deleteError, setDeleteError] = useState<string | null>(null);
 
 	// Aggiorna la lista quando una ricorrenza viene creata dal modale transazione
 	useEffect(() => {
@@ -37,23 +42,37 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 
 	async function togglePause(r: RecurringRule) {
 		setBusyId(r.id);
+		setToggleError(null);
 		try {
 			const result = await setRecurringActive(r.id, !r.active);
-			if (!result.error) router.refresh();
+			if (result.error) setToggleError({ id: r.id, message: result.error });
+			else router.refresh();
+		} catch {
+			setToggleError({ id: r.id, message: t.recurring.toggleFailed });
 		} finally {
 			setBusyId(null);
 		}
 	}
 
+	function askDelete(r: RecurringRule) {
+		setDeleteError(null);
+		setPending(r);
+	}
+
 	async function confirmDelete() {
 		if (!pending) return;
 		setDeleting(true);
+		setDeleteError(null);
 		try {
 			const result = await deleteRecurringRule(pending.id);
-			if (!result.error) {
+			if (result.error) {
+				setDeleteError(result.error);
+			} else {
 				router.refresh();
 				setPending(null);
 			}
+		} catch {
+			setDeleteError(t.recurring.deleteFailed);
 		} finally {
 			setDeleting(false);
 		}
@@ -148,13 +167,18 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 								</button>
 								<span className="flex-1" />
 								<button
-									onClick={() => setPending(r)}
+									onClick={() => askDelete(r)}
 									className="-my-3.5 py-3.5 text-[11.5px] active:opacity-70"
 									style={{ color: "var(--ink-aka)" }}
 								>
 									{t.recurring.delete}
 								</button>
 							</div>
+							{toggleError?.id === r.id && (
+								<p role="alert" className="mt-2.5 text-[11.5px] leading-snug text-aka-ink">
+									{toggleError.message}
+								</p>
+							)}
 						</div>
 					);
 				})}
@@ -188,6 +212,11 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 						<p className="text-[13px] text-muted leading-relaxed mb-5">
 							{t.recurring.deleteBody}
 						</p>
+						{deleteError && (
+							<p role="alert" className="-mt-2 mb-4 text-[12.5px] leading-snug text-aka-ink">
+								{deleteError}
+							</p>
+						)}
 						<div className="flex gap-2.5">
 							<button
 								onClick={() => setPending(null)}

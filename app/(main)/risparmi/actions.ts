@@ -313,6 +313,45 @@ export async function updateGoal(
 	return {};
 }
 
+/**
+ * Che cosa porta via `deleteGoal`, da dire nella conferma (#117).
+ *
+ * Si chiede al gesto — quando l'utente arma l'eliminazione — non a ogni
+ * apertura di `/risparmi`: due conteggi per una domanda che si pone di rado,
+ * lo stesso schema di `canDeleteAccount()` (#62). L'importo NON si rilegge qui:
+ * è `saved_amount`, che la card mostra già e che somma le stesse righe.
+ */
+export async function getGoalDeletionImpact(
+	id: string,
+): Promise<{ data: { deposits: number; rules: number } } | { error: string }> {
+	const { supabase, user, t } = await requireUser();
+	if (!user) return { error: t.errors.notAuthenticated };
+
+	const [deposits, rules] = await Promise.all([
+		supabase
+			.from("transactions")
+			.select("id", { count: "exact", head: true })
+			.eq("user_id", user.id)
+			.eq("category_id", id)
+			.eq("type", "risparmio"),
+		supabase
+			.from("recurring_rules")
+			.select("id", { count: "exact", head: true })
+			.eq("user_id", user.id)
+			.eq("category_id", id),
+	]);
+
+	if (deposits.error || rules.error) {
+		console.error(
+			"[obiettivi] impatto eliminazione:",
+			deposits.error?.message ?? rules.error?.message,
+		);
+		return { error: t.common.genericError };
+	}
+
+	return { data: { deposits: deposits.count ?? 0, rules: rules.count ?? 0 } };
+}
+
 export async function deleteGoal(id: string): Promise<{ error?: string }> {
 	const { supabase, user, t } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
@@ -327,6 +366,33 @@ export async function deleteGoal(id: string): Promise<{ error?: string }> {
 		.eq("type", "risparmio");
 
 	if (txnError) return { error: txnError.message };
+
+	/*
+	 * ⚠️ E le regole ricorrenti che lo alimentano (#117). La FK
+	 * `recurring_rules_category_id_fkey` è `on delete set null`: cancellata la
+	 * categoria, la regola restava ATTIVA con `category_id` NULL, e dal mese dopo
+	 * il job inseriva ogni mese un `risparmio` senza obiettivo — abbassa il saldo
+	 * del conto e non va da nessuna parte. È lo stesso "orphaned outflow" che le
+	 * righe qui sopra esistono per evitare, rigenerato ogni mese.
+	 *
+	 * Eliminate e non messe in pausa: una regola di risparmio senza obiettivo non
+	 * ha più niente da finanziare, e ripresa per sbaglio rifarebbe il difetto.
+	 * La conferma lo dice (`getGoalDeletionImpact`).
+	 *
+	 * Dopo i versamenti e prima della categoria: se questo passo fallisce,
+	 * l'obiettivo resta con la sua regola, che continua a finanziarlo — uno stato
+	 * coerente, e il secondo tentativo finisce il lavoro.
+	 */
+	const { error: rulesError } = await supabase
+		.from("recurring_rules")
+		.delete()
+		.eq("category_id", id)
+		.eq("user_id", user.id);
+
+	if (rulesError) {
+		console.error("[obiettivi] eliminazione, regole ricorrenti:", rulesError.message);
+		return { error: t.common.genericError };
+	}
 
 	const { error } = await supabase
 		.from("categories")
