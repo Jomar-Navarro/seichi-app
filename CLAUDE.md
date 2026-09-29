@@ -186,6 +186,8 @@ transactions: id (UUID), user_id (UUID NOT NULL), amount (DECIMAL 10,2),
 --   per movimento, con FK composita `(transaction_id, user_id)`.
 -- import_key: chiave di deduplica, UNIQUE con user_id. NULL = riga inserita a
 --   mano, e i NULL restano DISTINTI (all'opposto di `budgets`).
+--   ⚠️ Quella del profilo generico porta il CONTO del file
+--   (`generico:<conto>:…`), quella di Trade Republic no — vedi #118.
 -- type: 'entrata' | 'spesa' | 'investimento' | 'risparmio' | 'abbonamento'
 --     | 'trasferimento'    (Fase 20b)
 --     | 'disinvestimento'  (Fase 21b, #52)
@@ -5327,6 +5329,50 @@ Due cose viste solo **guardando gli screenshot**:
   su un account che il conto ce l'ha: il falso allarme già registrato nella 20b
   (i conti arrivano da una query, e alla prima apertura si compila anche il
   modale). Con 6 secondi di attesa il form propone "Conto principale".
+
+### Import — le vendite con categoria, e la deduplica che ignorava il conto (issue #118)
+
+Dalla review completa del 2026-09-28 (#128). Migration
+`20260820_import_key_account.sql`, **da eseguire due volte: prima e dopo il
+deploy** (vedi sotto).
+
+- ⚠️ **Scegliere "ETF" per il gruppo vendite faceva fallire l'intero import.**
+  Il client mostrava correttamente le categorie `categoryTypeFor("disinvestimento")`,
+  cioè quelle degli investimenti (#52); `buildRow` sul server confrontava invece
+  col tipo nudo, `"investimento" !== "disinvestimento"`. L'unico modo di
+  importare le vendite era senza categoria — cioè senza compensare la posizione
+  su `/investimenti`, che è l'intero scopo della #52. **Era il chiamante
+  dimenticato della "migrazione a campione" già registrata per `categoryTypeFor()`
+  nella #9**, e il più costoso dei quattro: la validazione del server.
+- ⚠️ **La chiave del profilo generico non conteneva il conto.**
+  `generico:<data>|<importo>|<descrizione>#n` descrive una RIGA, non un evento:
+  due conti della stessa banca hanno righe identiche (il bollo, il canone), e il
+  secondo estratto veniva saltato e contato fra i "già presenti" mentre su quel
+  conto non c'era. Ora `importKeyFor()` (`lib/import/index.ts`) scrive
+  `generico:<conto del file>:…`. **Trade Republic resta senza conto, ed è
+  deliberato**: la sua chiave è l'id del movimento nel file, un evento che
+  appartiene a un conto solo — legarla al conto permetterebbe di importare lo
+  stesso estratto su due conti, cioè di contare due volte lo stesso denaro.
+- ⚠️ **Il conto della chiave è quello del FILE** (`imports.account_id`), non
+  `transactions.account_id`: su un trasferimento in entrata l'origine della riga
+  è l'altro conto (modello a una riga della 20b).
+- **La migration riscrive le chiavi generiche già scritte**, o reimportare uno
+  di quei file sullo stesso conto duplicherebbe tutto. ⚠️ **Due esecuzioni**,
+  trovato dal code-review: solo dopo il deploy, un reimport nel frattempo
+  duplica; solo prima, un import del codice vecchio nel frattempo scrive chiavi
+  che lo script non ha visto. Rieseguirla è un no-op, e `not exists` lascia al
+  loro posto i doppioni veri invece di far fallire lo script sul vincolo unico.
+
+Collaudo del 2026-09-29 nell'app vera, su un account di prova usa e getta
+(eliminato alla fine): 11 controlli su 11. Un estratto Trade Republic sintetico
+(un acquisto da 500 + 1 di commissione, una vendita da 200 − 1) si importa con
+ETF su entrambi i gruppi, e `/investimenti` mostra **€ 302,00** di capitale
+versato; lo stesso CSV del bollo entra su due conti con due chiavi diverse; il
+reimport sullo stesso conto non scrive niente. **Controprova** con `actions.ts`
+di `master`: "La categoria non corrisponde al tipo scelto", e il bollo sul
+secondo conto finisce fra i "già presenti". ⚠️ **La migration non è stata
+eseguita da qui** (niente accesso al database): la controprova commentata in
+fondo al file dice quante chiavi ha allineato e se ne resta qualcuna.
 
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 

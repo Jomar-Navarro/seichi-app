@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { RECEIPT_BUCKET } from "@/lib/attachments";
 import { getAttachmentPaths } from "@/app/(main)/attachment-actions";
 import { requireUser } from "@/lib/auth";
-import { analyze, IMPORT_MAX_BYTES } from "@/lib/import";
+import { analyze, importKeyFor, IMPORT_MAX_BYTES } from "@/lib/import";
+import { categoryTypeFor } from "@/lib/transaction-utils";
 import type {
 	GenericMapping,
 	GroupDecision,
@@ -179,7 +180,10 @@ export async function runImport(form: FormData): Promise<ImportResult> {
 			continue;
 		}
 
-		const built = buildRow(row, d, accountId, t, liveAccounts, categoryType);
+		// La chiave del profilo generico si lega qui al conto del file (#118):
+		// il lettore non lo conosce, e all'anteprima il conto può non esserci ancora.
+		const key = importKeyFor(analysis.result.source, row.key, accountId);
+		const built = buildRow({ ...row, key }, d, accountId, t, liveAccounts, categoryType);
 		if ("error" in built) return built;
 		payload.push(built.row);
 	}
@@ -302,7 +306,15 @@ function buildRow(
 		// vincolo del database ma una regola dell'app (`TransactionForm` filtra
 		// le categorie per tipo). Rispettarla qui evita di scrivere per import
 		// combinazioni che il form non permetterebbe di creare a mano.
-		if (!type || type !== d.target) return { error: t.import.errors.badCategory };
+		//
+		// ⚠️ `categoryTypeFor`, non `d.target` nudo (#118). Una vendita prende in
+		// prestito la categoria degli INVESTIMENTI (#52), e il selettore del client
+		// infatti mostra quelle: col confronto nudo "investimento" !== "disinvestimento"
+		// l'intero import falliva proprio col gesto giusto, e l'unico modo di
+		// importare le vendite era senza categoria — cioè senza compensare la
+		// posizione su /investimenti. Era il chiamante dimenticato della
+		// "migrazione a campione" che CLAUDE.md registra per questa funzione.
+		if (!type || type !== categoryTypeFor(d.target)) return { error: t.import.errors.badCategory };
 	}
 
 	return {

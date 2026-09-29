@@ -1,7 +1,7 @@
 import { parseCsv } from "./csv";
 import { parseGeneric, type GenericMapping } from "./generic";
 import { isTradeRepublic, parseTradeRepublic } from "./trade-republic";
-import type { ParseResult } from "./types";
+import type { ImportSource, ParseResult } from "./types";
 
 export * from "./types";
 export type { GenericMapping } from "./generic";
@@ -69,4 +69,31 @@ export function analyze(text: string, mapping?: GenericMapping): ImportAnalysis 
 	}
 
 	return { kind: "mappatura", header, sample: rows.slice(1, 4) };
+}
+
+/**
+ * La chiave di deduplica come arriva al database, per il conto del file (#118).
+ *
+ * ⚠️ **Il profilo generico la lega al CONTO; Trade Republic no**, e la
+ * differenza sta in cosa identifica la chiave.
+ *
+ * Quella generica è `data | importo | descrizione #occorrenza`: descrive una
+ * riga, non un evento. Due conti della stessa banca hanno righe identiche — il
+ * bollo trimestrale, il canone del mese — e senza il conto il secondo estratto
+ * produceva le stesse chiavi del primo: `on conflict do nothing` le saltava e il
+ * resoconto le contava fra i "già presenti", mentre su QUEL conto non c'erano.
+ * Il saldo restava sbagliato per sempre, e reimportare non serviva.
+ *
+ * Quella di Trade Republic è l'id del movimento nel file: un evento reale, che
+ * appartiene a un conto solo. Legarla al conto permetterebbe di importare lo
+ * stesso estratto su due conti, cioè di contare due volte lo stesso denaro —
+ * l'errore che l'annullamento dell'import esiste per rimediare, non per
+ * favorire.
+ *
+ * Le righe generiche importate prima della #118 hanno la chiave senza conto:
+ * le allinea `20260820_import_key_account.sql`, o un reimport dello stesso
+ * file le duplicherebbe.
+ */
+export function importKeyFor(source: ImportSource, key: string, accountId: string): string {
+	return source === "generico" ? key.replace(/^generico:/, `generico:${accountId}:`) : key;
 }
