@@ -5370,9 +5370,13 @@ ETF su entrambi i gruppi, e `/investimenti` mostra **€ 302,00** di capitale
 versato; lo stesso CSV del bollo entra su due conti con due chiavi diverse; il
 reimport sullo stesso conto non scrive niente. **Controprova** con `actions.ts`
 di `master`: "La categoria non corrisponde al tipo scelto", e il bollo sul
-secondo conto finisce fra i "già presenti". ⚠️ **La migration non è stata
-eseguita da qui** (niente accesso al database): la controprova commentata in
-fondo al file dice quante chiavi ha allineato e se ne resta qualcuna.
+secondo conto finisce fra i "già presenti".
+
+**Verificato sul database il 2026-09-29: zero chiavi generiche nel formato
+vecchio** — nessun import generico è mai stato fatto, solo estratti Trade
+Republic. La migration è quindi un no-op sui dati di oggi, e delle due finestre
+ne resta una sola: un import generico fatto dal codice vecchio prima del deploy.
+Basta eseguirla una volta DOPO il deploy; prima non serve, ma non fa danni.
 
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 
