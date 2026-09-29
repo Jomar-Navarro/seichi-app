@@ -5303,13 +5303,30 @@ notturno che scrive movimenti che nessuno ha chiesto.
   data vera: al più un movimento retroattivo, mai la raffica. Residuo
   dichiarato: con una partenza lontana si genera solo l'ultima occorrenza.
 
-Collaudo: la logica delle date con 10 casi (l'esempio della issue, oggi,
-futuro, partenza lontana, settimanale, annuale, fine mese), confrontata col
-passo di `+ interval` del job SQL. `tsc` e lint puliti, code-review senza
-rilievi. ⚠️ **Non provato nell'app**: tutti i percorsi scrivono sul database
-(riprendi, archivia, elimina, crea regola), e un account di prova va
-autorizzato a ogni giro; l'unico passo di sola lettura — il primo tocco su
-"Elimina obiettivo" — richiede cookie freschi.
+Collaudo del 2026-09-29, **nell'app vera su un account di prova usa e getta**
+(autorizzato da Jomar, registrato dall'app ed eliminato alla fine con
+`delete_current_user()`): i cinque criteri della issue, ciascuno letto a schermo
+**e** nel database con il token dell'account di prova — 19 controlli su 19. Lo
+stato di partenza (secondo conto, obiettivo con versamento, regole) si prepara
+via REST; i gesti sotto prova passano dall'interfaccia. Più la logica delle date
+con 10 casi, confrontata col passo `+ interval` del job SQL.
+
+**Controprova** col codice di `master` rimesso a mano su `action.ts`, store e
+lista, stessi gesti: il form si apre su "Crea ricorrenza", "riprendi" riattiva
+la regola sul conto archiviato, e l'affitto del 31/08 esce datato 29/09 con
+prossima esecuzione al 29/10. Il criterio 3 non è stato controprovato: là il
+controllo legge direttamente il database (regola presente o assente).
+
+Due cose viste solo **guardando gli screenshot**:
+
+- ⚠️ **L'avviso di "riprendi" usciva sbiadito.** Stava dentro la card, e una
+  regola in pausa è al 60% di opacità — cioè proprio la regola su cui l'avviso
+  compare. Ora sta sotto la card; il driver ne misura l'opacità EFFETTIVA (il
+  prodotto lungo gli antenati), che è 1.
+- **"Serve un conto per registrare un movimento"** nel primo scatto del form,
+  su un account che il conto ce l'ha: il falso allarme già registrato nella 20b
+  (i conti arrivano da una query, e alla prima apertura si compila anche il
+  modale). Con 6 secondi di attesa il form propone "Conto principale".
 
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 

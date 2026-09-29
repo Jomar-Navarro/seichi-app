@@ -107,8 +107,8 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 						? (ICON_MAP[r.categories.icon] ?? GOAL_ICON_MAP[r.categories.icon] ?? RepeatIcon)
 						: RepeatIcon;
 					return (
+						<div key={r.id}>
 						<div
-							key={r.id}
 							className="rounded-[22px] px-4 py-3.5 bg-card card-shadow-ring"
 							style={{ opacity: r.active ? 1 : 0.6 }}
 						>
@@ -174,11 +174,15 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 									{t.recurring.delete}
 								</button>
 							</div>
-							{toggleError?.id === r.id && (
-								<p role="alert" className="mt-2.5 text-[11.5px] leading-snug text-aka-ink">
-									{toggleError.message}
-								</p>
-							)}
+						</div>
+						{/* FUORI dalla card: una regola in pausa è al 60% di opacità, e
+						    l'avviso — che compare proprio su "riprendi", cioè su una
+						    regola in pausa — ne usciva sbiadito come un testo disattivato. */}
+						{toggleError?.id === r.id && (
+							<p role="alert" className="mt-2 mx-4 text-[11.5px] leading-snug text-aka-ink">
+								{toggleError.message}
+							</p>
+						)}
 						</div>
 					);
 				})}
