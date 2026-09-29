@@ -4,7 +4,7 @@ import { getI18n } from "@/lib/i18n/server";
 import { formatDate, shortMonth } from "@/lib/i18n/format";
 import { requireUser } from "@/lib/auth";
 import { isAccountId, isUuid } from "@/lib/accounts";
-import { firstRunFrom, rollForwardPastToday } from "@/lib/recurring";
+import { firstRunForNewRule, firstRunFrom, rollForwardPastToday } from "@/lib/recurring";
 import { flussoDaTotali } from "@/lib/totals";
 import type { Frequency } from "@/types";
 
@@ -324,9 +324,10 @@ export async function createRecurringRule(
 		// per-utente, grazie all'isolamento della #47, ma comunque senza
 		// che nessuno se ne accorga finché non guarda `job_runs`.
 		account_id: conto_id,
-		// La generazione parte al più da oggi: evita il burst di movimenti
-		// retroattivi se start_date è nel passato.
-		next_run: firstRunFrom(start_date),
+		// Con una partenza passata: l'occorrenza più recente già dovuta, alla sua
+		// data vera — mai "oggi", che spostava la cadenza (#117), e mai la
+		// raffica di arretrati. Vedi `firstRunForNewRule`.
+		next_run: firstRunForNewRule(start_date, frequency as Frequency),
 	});
 
 	if (error) return { error: contoError(error, t) };
@@ -365,7 +366,11 @@ export async function deleteRecurringRule(id: string) {
 		.eq("id", id)
 		.eq("user_id", user.id);
 
-	if (error) return { error: error.message };
+	// Ora l'errore arriva allo schermo (#117): il testo grezzo di Postgres no.
+	if (error) {
+		console.error("[recurring] eliminazione:", error.message);
+		return { error: t.recurring.deleteFailed };
+	}
 	revalidatePath("/", "layout");
 	return { success: true };
 }
@@ -426,18 +431,47 @@ export async function setRecurringActive(id: string, active: boolean) {
 	// una raffica di movimenti retroattivi per i periodi trascorsi in pausa.
 	let patch: { active: boolean; next_run?: string } = { active };
 	if (active) {
-		const { data: rule } = await supabase
+		/*
+		 * ⚠️ Una lettura fallita NON riattiva (#117). Prima l'errore si ignorava
+		 * e la regola ripartiva con il `next_run` vecchio: alla notte successiva
+		 * il job generava in un colpo tutte le occorrenze dei mesi passati in
+		 * pausa — proprio la raffica che questo ramo esiste per evitare.
+		 */
+		const { data: rule, error: ruleError } = await supabase
 			.from("recurring_rules")
-			.select("frequency, next_run")
+			.select("frequency, next_run, account_id")
 			.eq("id", id)
 			.eq("user_id", user.id)
-			.single();
-		if (rule) {
-			patch = {
-				active,
-				next_run: rollForwardPastToday(rule.next_run, rule.frequency as Frequency),
-			};
+			.maybeSingle();
+		if (ruleError || !rule) {
+			if (ruleError) console.error("[recurring] riprendi, lettura regola:", ruleError.message);
+			return { error: t.recurring.toggleFailed };
 		}
+
+		/*
+		 * ⚠️ Il gemello del rifiuto in `setAccountArchived` (#117). Là si impedisce
+		 * di archiviare un conto con regole ATTIVE; ma una regola in pausa non
+		 * conta, quindi pausa → archivia → riprendi lo aggirava, e pg_cron tornava
+		 * a scrivere su un conto escluso da ogni totale che l'app mostra.
+		 * L'invariante "regola attiva ⇒ conto non archiviato" va difesa da
+		 * ENTRAMBI i lati da cui si può rompere.
+		 */
+		const { data: account, error: accountError } = await supabase
+			.from("accounts")
+			.select("archived")
+			.eq("id", rule.account_id)
+			.eq("user_id", user.id)
+			.maybeSingle();
+		if (accountError || !account) {
+			if (accountError) console.error("[recurring] riprendi, lettura conto:", accountError.message);
+			return { error: t.recurring.toggleFailed };
+		}
+		if (account.archived) return { error: t.recurring.resumeArchivedAccount };
+
+		patch = {
+			active,
+			next_run: rollForwardPastToday(rule.next_run, rule.frequency as Frequency),
+		};
 	}
 
 	const { error } = await supabase
@@ -446,7 +480,10 @@ export async function setRecurringActive(id: string, active: boolean) {
 		.eq("id", id)
 		.eq("user_id", user.id);
 
-	if (error) return { error: error.message };
+	if (error) {
+		console.error("[recurring] pausa/riprendi:", error.message);
+		return { error: t.recurring.toggleFailed };
+	}
 	revalidatePath("/", "layout");
 	return { success: true };
 }

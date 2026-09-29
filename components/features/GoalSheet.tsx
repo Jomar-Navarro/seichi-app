@@ -5,9 +5,9 @@ import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import BottomSheetShell from "@/components/UI/BottomSheetShell";
 import { GOAL_ICONS } from "@/lib/goal-icons";
-import { createGoal, updateGoal, deleteGoal } from "@/app/(main)/risparmi/actions";
+import { createGoal, updateGoal, deleteGoal, getGoalDeletionImpact } from "@/app/(main)/risparmi/actions";
 import { useI18n } from "./I18nProvider";
-import { DISPLAY_CURRENCY, currencySymbol } from "@/lib/i18n/format";
+import { DISPLAY_CURRENCY, currencySymbol, fill, formatMoney, plural } from "@/lib/i18n/format";
 import DatePicker from "@/components/UI/DatePicker";
 import type { GoalWithProgress } from "@/types";
 
@@ -63,6 +63,10 @@ export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 	const [loading, setLoading] = useState(false);
 	const [serverError, setServerError] = useState<string | null>(null);
 	const [confirmDelete, setConfirmDelete] = useState(false);
+	// Che cosa sparisce con l'obiettivo, letto quando l'eliminazione si arma
+	// (#117). `null` finché non si sa; "unknown" se la lettura è fallita, e allora
+	// la frase resta quella senza numeri, che è vera comunque.
+	const [impact, setImpact] = useState<{ deposits: number; rules: number } | "unknown" | null>(null);
 
 	const nameError = submitted && !form.name.trim();
 	const amountError =
@@ -107,6 +111,15 @@ export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 		if (!goal) return;
 		if (!confirmDelete) {
 			setConfirmDelete(true);
+			// Il secondo tocco resta spento finché la frase non dice cosa
+			// cancella: confermare prima di leggerla è proprio ciò che la
+			// conferma esiste per impedire.
+			try {
+				const result = await getGoalDeletionImpact(goal.id);
+				setImpact("data" in result ? result.data : "unknown");
+			} catch {
+				setImpact("unknown");
+			}
 			return;
 		}
 		setLoading(true);
@@ -249,10 +262,35 @@ export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 					{loading ? t.common.saving : goal ? t.goals.saveChanges : t.goals.create}
 				</button>
 
+				{/* Sopra il bottone e non sotto: arrivando sposta il bottone lontano
+				    dal dito, quindi il secondo tocco non può confermare per inerzia. */}
+				{goal && confirmDelete && impact !== null && (
+					<div aria-live="polite" className="mt-4 text-[12.5px] leading-relaxed text-center text-aka-ink">
+						{impact === "unknown" ? (
+							<p>{t.goals.deleteImpactUnknown}</p>
+						) : (
+							<>
+								<p>
+									{fill(plural(t.goals.deleteImpact, impact.deposits, locale), {
+										amount: formatMoney(goal.saved_amount, {
+											locale,
+											currency: DISPLAY_CURRENCY,
+											decimals: 2,
+										}),
+									})}
+								</p>
+								{impact.rules > 0 && (
+									<p className="mt-1">{plural(t.goals.deleteImpactRules, impact.rules, locale)}</p>
+								)}
+							</>
+						)}
+					</div>
+				)}
+
 				{goal && (
 					<button
 						onClick={handleDelete}
-						disabled={loading}
+						disabled={loading || (confirmDelete && impact === null)}
 						// issue #81 — a riposo il colore è un `--color-aka` diluito al 35%,
 						// cioè traslucido: un `border` vero lì romperebbe l'angolo su
 						// Firefox. Solo `confirmDelete` (colore opaco) usa un bordo vero.

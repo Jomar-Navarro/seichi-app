@@ -51,6 +51,43 @@ export function firstRunFrom(startDate: string): string {
 }
 
 /**
+ * Prima esecuzione di una regola NUOVA: l'occorrenza più recente già dovuta,
+ * alla sua data vera — oppure la data di partenza, se è ancora da venire (#117).
+ *
+ * ⚠️ Non `firstRunFrom`, che qui spostava la cadenza. L'affitto del 31 agosto
+ * registrato il 2 settembre con "Ripeti" usciva col 2 settembre: il movimento
+ * finiva nel flusso del mese sbagliato, e da lì la regola usciva ogni 2 del mese
+ * invece che l'ultimo giorno. Nemmeno `rollForwardPastToday` basta da sola: il
+ * 31 agosto lo salterebbe del tutto, e quello è proprio il movimento che
+ * l'utente stava registrando.
+ *
+ * Quindi: si avanza dalla data scelta finché il passo successivo è ancora nel
+ * passato o oggi, e la regola riparte da lì. La chiamata a
+ * `generate_recurring_transactions()` subito dopo l'insert genera quell'unica
+ * occorrenza alla sua data, poi `next_run` passa al futuro. **Al più un
+ * movimento retroattivo, mai una raffica** — che era la ragione di
+ * `firstRunFrom`.
+ *
+ * Residuo dichiarato: con una partenza lontana (15 gennaio, registrata a
+ * settembre) il movimento generato è quello del 15 agosto, non del 15 gennaio.
+ * Da gennaio a luglio non si genera niente, per la stessa ragione di sempre: chi
+ * li ha già inseriti a mano se li ritroverebbe doppi.
+ *
+ * Si avanza un passo alla volta, come fa il job in SQL (`next_run + interval`),
+ * così le date coincidono con quelle che il job produrrebbe da sé.
+ */
+export function firstRunForNewRule(startDate: string, frequency: Frequency): string {
+	const today = new Date();
+	today.setHours(0, 0, 0, 0);
+	let d = parseISODate(startDate);
+	if (d >= today) return startDate;
+	for (let next = advanceDate(d, frequency); next <= today; next = advanceDate(next, frequency)) {
+		d = next;
+	}
+	return toISODate(d);
+}
+
+/**
  * Avanza next_run finché non è strettamente futuro, mantenendo l'allineamento della cadenza.
  * Usato al "riprendi" di una regola in pausa per non back-fillare i periodi saltati.
  */

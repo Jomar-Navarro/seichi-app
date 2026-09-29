@@ -66,8 +66,14 @@ export const useUIStore = create<UIStore>((set) => {
 		transactionSavedAt: 0,
 		fullScreenActive: false,
 		viewedAccountId: null,
+		// ⚠️ `=== true`, non il valore così com'è (#117). Passata come handler
+		// nudo (`onClick={openTransactionModal}`) la funzione riceve il MouseEvent
+		// come `recurring`: un oggetto, cioè vero, e "Ripeti" partiva acceso — il
+		// salvataggio creava una regola mensile al posto di un movimento singolo.
+		// `tsc` non lo vede, perché `() => void` accetta una funzione con un
+		// parametro opzionale.
 		openTransactionModal: (recurring = false) =>
-			set({ isTransactionModalOpen: true, editingTransaction: null, recurringDefault: recurring }),
+			set({ isTransactionModalOpen: true, editingTransaction: null, recurringDefault: recurring === true }),
 		closeTransactionModal: () =>
 			set({
 				isTransactionModalOpen: false,

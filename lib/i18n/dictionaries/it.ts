@@ -318,6 +318,16 @@ export const it = {
 			one: "Questa categoria ha {n} movimento collegato. Spostalo o eliminalo prima di rimuoverla.",
 			other: "Questa categoria ha {n} movimenti collegati. Spostali o eliminali prima di rimuoverla.",
 		},
+		/**
+		 * ⚠️ La gemella della frase sopra (#117). Una regola sulla categoria non
+		 * è un movimento, quindi il controllo sopra non la vedeva: la FK è
+		 * `on delete set null`, e la regola restava attiva senza categoria,
+		 * scrivendo ogni mese un movimento che non va da nessuna parte.
+		 */
+		categoryHasRecurring: {
+			one: "Questa categoria ha {n} regola ricorrente. Cambiale categoria o eliminala in \"Transazioni ricorrenti\", poi riprova.",
+			other: "Questa categoria ha {n} regole ricorrenti. Cambia loro categoria o eliminale in \"Transazioni ricorrenti\", poi riprova.",
+		},
 	},
 
 	/**
@@ -903,6 +913,24 @@ export const it = {
 		saveChanges: "Salva modifiche",
 		deleteConfirm: "Conferma eliminazione",
 		delete: "Elimina obiettivo",
+		/**
+		 * ⚠️ Cosa sparisce, detto PRIMA della conferma (#117). La conferma diceva
+		 * solo "Conferma eliminazione", mentre si cancellano tutti i versamenti —
+		 * e con loro cambiano i saldi dei conti da cui e verso cui erano andati.
+		 * `{amount}` è `saved_amount`, lo stesso numero che la card mostra.
+		 */
+		deleteImpact: {
+			zero: "Non ci sono versamenti da cancellare.",
+			one: "Verrà cancellato anche {n} versamento, per {amount}: i saldi dei conti tornano come se non fosse mai stato fatto.",
+			other: "Verranno cancellati anche {n} versamenti, per {amount} in tutto: i saldi dei conti tornano come se non fossero mai stati fatti.",
+		},
+		/** Se il conteggio non si legge: vera comunque, perché non ha numeri. */
+		deleteImpactUnknown:
+			"Verranno cancellati anche tutti i versamenti verso questo obiettivo e le regole ricorrenti che lo alimentano: i saldi dei conti tornano come se i versamenti non fossero mai stati fatti.",
+		deleteImpactRules: {
+			one: "Verrà eliminata anche la regola ricorrente che lo alimenta.",
+			other: "Verranno eliminate anche le {n} regole ricorrenti che lo alimentano.",
+		},
 	},
 
 	investments: {
@@ -1503,6 +1531,16 @@ export const it = {
 		delete: "elimina",
 		deleteTitle: "Elimina ricorrenza",
 		deleteBody: "Interrompe le generazioni future. I movimenti già creati restano. Continuare?",
+		/**
+		 * ⚠️ Dice il RIMEDIO, non solo il divieto (#117). Pausa → archivia il conto
+		 * → riprendi aggirava il rifiuto di `setAccountArchived`, e il job tornava
+		 * a scrivere su un conto escluso da ogni totale. La via d'uscita è quella
+		 * che la 20b ha aperto apposta: cambiare il conto della regola.
+		 */
+		resumeArchivedAccount:
+			"Il conto di questa regola è archiviato. Cambia il conto da \"modifica\", poi riprendila.",
+		toggleFailed: "Non è stato possibile aggiornare la regola. Riprova.",
+		deleteFailed: "Non è stato possibile eliminare la regola. Riprova.",
 
 		editTitle: "Modifica ricorrenza",
 		amount: "Importo",
