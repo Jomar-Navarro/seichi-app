@@ -147,11 +147,26 @@ const categoryKey = (type: string, name: string) => `${type}\u0000${name.trim().
  * un'altra lingua, non combacia col nome di adesso e verrebbe aggiunta di nuovo
  * se riselezionata. È una categoria in più che l'utente ha appena scelto, non un
  * dato perso.
+ *
+ * ⚠️ Secondo residuo: "un secondo invio non duplica" vale per invii in
+ * SEQUENZA. Due richieste concorrenti leggono entrambe prima che l'una o l'altra
+ * scriva, e inseriscono entrambe. Il bottone si spegne al primo tocco, quindi
+ * servono due schede aperte su `/category` o un nuovo tentativo di una richiesta
+ * già arrivata; il risultato sono categorie doppie, che si cancellano, non dati
+ * persi. La chiusura vera sarebbe un indice unico su `(user_id, type, nome)`, ma
+ * è una regola di prodotto nuova — oggi due categorie con lo stesso nome sono
+ * ammesse ovunque — e le righe esistenti potrebbero già violarla: si decide in
+ * chiaro, non come effetto collaterale di questa action.
  */
 export async function saveCategories(selected: string[]) {
 	const { supabase, user, t } = await requireUser();
 
 	if (!user) return { error: t.errors.notAuthenticated };
+
+	// Il tipo dice `string[]`, ma con una POST diretta l'argomento può essere
+	// qualunque valore serializzabile: `new Set({})` solleverebbe, e una stringa
+	// verrebbe letta carattere per carattere. Il resto lo scarta già `Object.hasOwn`.
+	if (!Array.isArray(selected)) return { error: t.common.genericError };
 
 	// Il nome si fissa QUI, nella lingua scelta all'onboarding — che il passo
 	// precedente ha appena scritto nel cookie, quindi `getDictionary()` la vede
@@ -169,10 +184,13 @@ export async function saveCategories(selected: string[]) {
 		}));
 
 	if (rows.length > 0) {
+		// Solo i tipi delle scelte: una categoria di un altro tipo non può
+		// combaciare, e chi torna qui dopo mesi d'uso non deve scaricarle tutte.
 		const { data: existing, error: readError } = await supabase
 			.from("categories")
 			.select("type, name")
-			.eq("user_id", user.id);
+			.eq("user_id", user.id)
+			.in("type", [...new Set(rows.map((r) => r.type))]);
 
 		// ⚠️ Una lettura fallita non si tratta come "nessuna categoria": si
 		// inserirebbero doppioni di tutto ciò che l'utente ha già.

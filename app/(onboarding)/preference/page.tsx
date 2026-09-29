@@ -56,13 +56,19 @@ export default function PreferencePage() {
 	const handleContinue = async () => {
 		setIsLoading(true);
 		setError(null);
-		const result = await savePreferences(currency, language);
-		if ("error" in result) {
-			setError(result.error ?? t.common.unknownError);
+		// `catch` e non `finally`: vedi `handleComplete` in /category.
+		try {
+			const result = await savePreferences(currency, language);
+			if ("error" in result) {
+				setError(result.error ?? t.common.unknownError);
+				setIsLoading(false);
+				return;
+			}
+			router.push("/category");
+		} catch {
+			setError(t.common.genericError);
 			setIsLoading(false);
-			return;
 		}
-		router.push("/category");
 	};
 
 	return (

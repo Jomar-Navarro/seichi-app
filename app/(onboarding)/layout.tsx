@@ -15,6 +15,13 @@ import { getSessionUser } from "@/lib/auth";
  * Residuo voluto: chi ha finito scegliendo zero categorie può rientrare. Non ha
  * niente da perdere, e `saveCategories` può solo aggiungere.
  *
+ * ⚠️ **Non è la stessa regola di login e `/callback`, e non deve esserlo.** Loro
+ * rispondono a "l'onboarding va FATTO?" — valuta NULL → `/start`; questo layout
+ * a "si può ANCORA fare?". Chi ha la valuta e zero categorie non viene spedito
+ * nell'onboarding ma può entrarci: le due risposte non si contraddicono.
+ * Allinearle a una sola definizione vorrebbe dire o rimandare in home a metà
+ * strada (sopra), o costringere nell'onboarding chi l'ha finito senza categorie.
+ *
  * ⚠️ **Questa NON è la protezione dei dati**, ed è scritto qui perché la
  * tentazione di trattarla così c'è. Un layout non si riesegue sulle navigazioni
  * interne né su indietro/avanti restaurati dalla cache del router (guida

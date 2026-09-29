@@ -50,8 +50,11 @@ export async function GET(request: Request) {
 						.select("currency, language")
 						.eq("id", user.id)
 						.maybeSingle();
-					// Stessa query del gate onboarding: nessun viaggio in più al
-					// database. È il ramo di ogni accesso vero — conferma email e
+					// La lingua viaggia con la query che decide se l'onboarding va
+					// FATTO — la stessa di `login` in sign/action.ts, e NON quella
+					// del layout di `(onboarding)`, che decide se si può ancora fare
+					// (vedi lì perché le due regole differiscono). Nessun viaggio in
+					// più al database. È il ramo di ogni accesso vero — conferma email e
 					// OAuth arrivano entrambi con next="/" — mentre il recupero
 					// password, che non passa di qui, è un flusso di transito in cui
 					// la lingua non va toccata.

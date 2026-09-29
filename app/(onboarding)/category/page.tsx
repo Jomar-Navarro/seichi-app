@@ -150,13 +150,21 @@ export default function CategoryPage() {
 	const handleComplete = async () => {
 		setIsLoading(true);
 		setError(null);
-		const result = await saveCategories(selected);
-		if ("error" in result) {
-			setError(result.error ?? t.common.unknownError);
+		// `catch` e non `finally`: su un salvataggio riuscito il bottone deve
+		// restare spento fino alla navigazione. Una promise rifiutata (rete,
+		// sessione) invece lo lasciava spento per sempre, senza un messaggio.
+		try {
+			const result = await saveCategories(selected);
+			if ("error" in result) {
+				setError(result.error ?? t.common.unknownError);
+				setIsLoading(false);
+				return;
+			}
+			router.push("/");
+		} catch {
+			setError(t.common.genericError);
 			setIsLoading(false);
-			return;
 		}
-		router.push("/");
 	};
 
 	return (
