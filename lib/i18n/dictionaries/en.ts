@@ -42,6 +42,12 @@ export const en: Dictionary = {
 		toggleVisibility: "Show or hide amounts",
 	},
 
+	amountInput: {
+		invalid: "This amount can't be read: use digits only, for example {example}",
+		decimals: "At most two decimal places",
+		tooLarge: "The maximum amount is {max}",
+	},
+
 	nav: {
 		home: "Home",
 		transactions: "Transactions",
@@ -168,6 +174,7 @@ export const en: Dictionary = {
 		unsupportedFormat: "Unsupported format — use JPG, PNG or WebP",
 		enterPassword: "Enter your password",
 		amountMustBePositive: "The amount must be greater than zero",
+		amountInvalid: "Invalid amount",
 		invalidEmail: "Invalid email address",
 		sameEmail: "That's already your current email",
 		samePassword: "The new password must be different from the current one",

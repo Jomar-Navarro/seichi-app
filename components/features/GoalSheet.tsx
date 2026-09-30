@@ -9,6 +9,7 @@ import { createGoal, updateGoal, deleteGoal, getGoalDeletionImpact } from "@/app
 import { useI18n } from "./I18nProvider";
 import { DISPLAY_CURRENCY, currencySymbol, fill, formatMoney, plural } from "@/lib/i18n/format";
 import DatePicker from "@/components/UI/DatePicker";
+import { amountErrorMessage, formatAmountInput, parseAmountInput } from "@/lib/amount";
 import type { GoalWithProgress } from "@/types";
 
 /**
@@ -53,7 +54,8 @@ export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 		goal
 			? {
 					name: goal.name,
-					targetAmount: goal.target_amount != null ? String(goal.target_amount) : "",
+					targetAmount:
+						goal.target_amount != null ? formatAmountInput(goal.target_amount, locale) : "",
 					targetDate: goal.target_date ?? "",
 					icon: GOAL_ICONS.some((i) => i.id === goal.icon) ? goal.icon : "plane",
 			  }
@@ -69,25 +71,30 @@ export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 	const [impact, setImpact] = useState<{ deposits: number; rules: number } | "unknown" | null>(null);
 
 	const nameError = submitted && !form.name.trim();
-	const amountError =
-		submitted &&
-		form.targetAmount !== "" &&
-		(isNaN(parseFloat(form.targetAmount)) || parseFloat(form.targetAmount) <= 0);
+	/*
+	 * ⚠️ Vuoto e illeggibile sono due cose, e prima erano la stessa. Con
+	 * `type="number"` il browser consegnava "" per un testo che non sapeva
+	 * leggere ("2.400,50", "1 200"), e il traguardo veniva RIMOSSO in silenzio
+	 * (issue #119). Ora il vuoto resta "nessun traguardo" — il campo è
+	 * facoltativo — e un testo illeggibile è un errore che ferma il salvataggio.
+	 */
+	const parsedTarget = parseAmountInput(form.targetAmount, locale);
+	const targetInvalid =
+		parsedTarget.status !== "empty" &&
+		(parsedTarget.status !== "ok" || parsedTarget.value <= 0);
+	const amountError = submitted && targetInvalid;
+	const amountErrorText = amountErrorMessage(parsedTarget, t, locale) ?? t.goals.amountInvalid;
 
 	async function handleSubmit() {
 		setSubmitted(true);
 		if (!form.name.trim()) return;
-		if (
-			form.targetAmount !== "" &&
-			(isNaN(parseFloat(form.targetAmount)) || parseFloat(form.targetAmount) <= 0)
-		)
-			return;
+		if (targetInvalid) return;
 
 		setLoading(true);
 		setServerError(null);
 		const payload = {
 			name: form.name.trim(),
-			target_amount: form.targetAmount !== "" ? parseFloat(form.targetAmount) : null,
+			target_amount: parsedTarget.status === "ok" ? parsedTarget.value : null,
 			target_date: form.targetDate || null,
 			icon: form.icon,
 		};
@@ -184,17 +191,18 @@ export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 						>
 							<span className="text-[14.5px] text-muted">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
 							<input
-								type="number"
+								type="text"
 								inputMode="decimal"
 								placeholder="0"
 								value={form.targetAmount}
+								aria-invalid={amountError || undefined}
 								onChange={(e) => setForm((f) => ({ ...f, targetAmount: e.target.value }))}
 								className="flex-1 bg-transparent outline-none text-base placeholder:text-muted/60"
 							/>
 						</div>
 						{amountError && (
 							<p className="text-xs mt-1.5 ml-1" style={{ color: "var(--ink-aka)" }}>
-								{t.goals.amountInvalid}
+								{amountErrorText}
 							</p>
 						)}
 					</div>

@@ -16,6 +16,7 @@ import {
 import { getBudgetForCategory, setBudget } from "@/app/(main)/budget-actions";
 import { BUDGET_PERIODS } from "@/lib/budget";
 import { clientClock } from "@/lib/dates";
+import { amountErrorMessage, formatAmountInput, parseAmountInput } from "@/lib/amount";
 import { useI18n } from "./I18nProvider";
 import { DISPLAY_CURRENCY, currencySymbol, fill } from "@/lib/i18n/format";
 import type { BudgetPeriod, Category } from "@/types";
@@ -97,12 +98,12 @@ export default function CategorySheet({
 			if (cancelled || !("data" in res) || !res.data) return;
 			setInitialBudget(res.data);
 			setBudgetPeriod(res.data.period);
-			setBudgetAmount(String(res.data.amount));
+			setBudgetAmount(formatAmountInput(res.data.amount, locale));
 		});
 		return () => {
 			cancelled = true;
 		};
-	}, [category]);
+	}, [category, locale]);
 
 	const nameError = submitted && !name.trim();
 	const color = TIPO_COLOR[type] ?? "var(--color-kiri)";
@@ -114,6 +115,24 @@ export default function CategorySheet({
 	 */
 	const showBudget = type === "spesa";
 
+	/*
+	 * ⚠️ Il budget si legge PRIMA di salvare la categoria, non dopo.
+	 *
+	 * Il parser di prima leggeva il punto come decimale — "1.200" diventava un
+	 * limite di 1,2 € — e il controllo stava dentro `saveBudget`, cioè dopo che
+	 * la categoria era già stata scritta: un importo sbagliato salvava comunque
+	 * metà del form (issue #119). Ora un testo illeggibile ferma tutto, e il
+	 * messaggio sta sotto il campo invece che in fondo al foglio.
+	 */
+	const parsedBudget = parseAmountInput(budgetAmount, locale);
+	const budgetInvalid =
+		showBudget &&
+		parsedBudget.status !== "empty" &&
+		(parsedBudget.status !== "ok" || parsedBudget.value <= 0);
+	const budgetError = submitted && budgetInvalid;
+	const budgetErrorText =
+		amountErrorMessage(parsedBudget, t, locale) ?? t.categories.budgetMustBePositive;
+
 	function selectType(nextType: string) {
 		setType(nextType);
 		const lib = CATEGORY_LIBRARY[nextType] ?? [];
@@ -122,7 +141,7 @@ export default function CategorySheet({
 
 	async function handleSubmit() {
 		setSubmitted(true);
-		if (!name.trim()) return;
+		if (!name.trim() || budgetInvalid) return;
 
 		setLoading(true);
 		setServerError(null);
@@ -182,13 +201,9 @@ export default function CategorySheet({
 			return "error" in res ? res.error : null;
 		}
 
-		const parsed =
-			budgetAmount.trim() === ""
-				? null
-				: Number(budgetAmount.replace(",", "."));
-		if (parsed !== null && (!Number.isFinite(parsed) || parsed <= 0)) {
-			return t.categories.budgetMustBePositive;
-		}
+		// `handleSubmit` ha già fermato un testo illeggibile: qui resta solo
+		// "un importo" o "nessun budget".
+		const parsed = parsedBudget.status === "ok" ? parsedBudget.value : null;
 
 		const unchanged =
 			(parsed === null && initialBudget === null) ||
@@ -327,7 +342,10 @@ export default function CategorySheet({
 								})}
 							</div>
 
-							<div className="flex items-center rounded-2xl px-4 py-3.5 bg-input ring-border">
+							<div
+								className={`flex items-center rounded-2xl px-4 py-3.5 bg-input ${budgetError ? "" : "ring-border"}`}
+								style={budgetError ? { boxShadow: "var(--color-aka) 0px 0px 0px 1px inset" } : undefined}
+							>
 								<span className="text-[14.5px] text-muted mr-1.5">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
 								<input
 									type="text"
@@ -335,12 +353,18 @@ export default function CategorySheet({
 									placeholder={t.categories.budgetPlaceholder}
 									value={budgetAmount}
 									onChange={(e) => setBudgetAmount(e.target.value)}
+									aria-invalid={budgetError || undefined}
 									className="flex-1 min-w-0 bg-transparent text-base outline-none placeholder:text-muted/60"
 								/>
 								<span className="text-[11px] text-muted ml-2 shrink-0">
 									{t.budgetPeriods[budgetPeriod].suffix}
 								</span>
 							</div>
+							{budgetError && (
+								<p className="text-xs mt-1.5 ml-1" style={{ color: "var(--ink-aka)" }}>
+									{budgetErrorText}
+								</p>
+							)}
 
 							<p className="text-[11px] text-muted/80 mt-2 ml-1 leading-relaxed">
 								{initialBudget

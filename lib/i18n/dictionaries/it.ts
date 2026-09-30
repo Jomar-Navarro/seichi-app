@@ -61,6 +61,17 @@ export const it = {
 		toggleVisibility: "Mostra o nascondi gli importi",
 	},
 
+	/**
+	 * Un importo scritto a mano che non si riesce a leggere — issue #119.
+	 * `{example}` è 12,50 scritto nella lingua dell'app, `{max}` il massimo di
+	 * una colonna `DECIMAL(10,2)`. Vedi `lib/amount.ts`.
+	 */
+	amountInput: {
+		invalid: "Importo non leggibile: scrivi solo cifre, per esempio {example}",
+		decimals: "Al massimo due cifre decimali",
+		tooLarge: "L'importo massimo è {max}",
+	},
+
 	/** Barra di navigazione in fondo. */
 	nav: {
 		home: "Home",
@@ -286,6 +297,9 @@ export const it = {
 		unsupportedFormat: "Formato non supportato — usa JPG, PNG o WebP",
 		enterPassword: "Inserisci la password",
 		amountMustBePositive: "L'importo deve essere maggiore di zero",
+		/** Un importo che la colonna non può scrivere: arriva solo da una POST
+		 *  diretta, i campi lo fermano prima (issue #119). */
+		amountInvalid: "Importo non valido",
 		invalidEmail: "Indirizzo email non valido",
 		sameEmail: "È già la tua email attuale",
 		samePassword: "La nuova password deve essere diversa da quella attuale",

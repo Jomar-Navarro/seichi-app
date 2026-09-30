@@ -7,6 +7,7 @@ import { localMidnightInstant, monthBoundsOf, parseLocalDate } from "@/lib/dates
 import { advanceDate } from "@/lib/recurring";
 import { budgetStatus } from "@/lib/budget";
 import { disponibileDaTotali } from "@/lib/totals";
+import { isStorableAmount } from "@/lib/amount";
 import type { ClientClock } from "@/lib/dates";
 import type {
 	BudgetAt,
@@ -48,6 +49,9 @@ export async function setBudget(input: {
 
 	if (input.amount !== null && !(input.amount > 0)) {
 		return { error: t.errors.amountMustBePositive };
+	}
+	if (input.amount !== null && !isStorableAmount(input.amount)) {
+		return { error: t.errors.amountInvalid };
 	}
 
 	const { error } = await supabase.rpc("set_budget", {

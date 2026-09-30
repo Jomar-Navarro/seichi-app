@@ -21,6 +21,7 @@ import {
 	accountTypeLabel,
 } from "@/lib/accounts";
 import { ACCOUNT_TYPES, type AccountTypeId, type AccountWithBalance } from "@/types";
+import { amountErrorMessage, formatAmountInput, parseAmountInput } from "@/lib/amount";
 
 /**
  * ⚠️ Nessuna prop `isOpen`: il pannello si MONTA, non si nasconde. È il
@@ -69,7 +70,7 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 	);
 	const [color, setColor] = useState<string | null>(() => account?.color ?? null);
 	const [initialBalance, setInitialBalance] = useState(() =>
-		account ? String(account.initial_balance) : "",
+		account ? formatAmountInput(account.initial_balance, locale) : "",
 	);
 	const [submitted, setSubmitted] = useState(false);
 	const [loading, setLoading] = useState(false);
@@ -101,8 +102,16 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 	const nameError = submitted && !name.trim();
 	// Il saldo iniziale può essere NEGATIVO — una carta di credito ha giacenza
 	// negativa — quindi si controlla solo che sia un numero, non il segno.
-	const parsedBalance = initialBalance.trim() === "" ? 0 : Number(initialBalance);
-	const balanceError = submitted && Number.isNaN(parsedBalance);
+	//
+	// ⚠️ Vuoto vale 0 (il segnaposto lo dice), ILLEGGIBILE no. Con
+	// `type="number"` erano la stessa cosa: il browser consegnava "" per
+	// "2.400,50", e in modifica il saldo iniziale vero veniva sovrascritto con
+	// zero, spostando il saldo del conto di 2400 € senza un errore (issue #119).
+	const balanceInput = parseAmountInput(initialBalance, locale, { allowNegative: true });
+	const parsedBalance =
+		balanceInput.status === "ok" ? balanceInput.value : balanceInput.status === "empty" ? 0 : null;
+	const balanceError = submitted && parsedBalance === null;
+	const balanceErrorText = amountErrorMessage(balanceInput, t, locale);
 
 	// Lookup su mappa e non `accountIcon(type)`: vedi ACCOUNT_ICON_FALLBACK.
 	const Icon = (type && ACCOUNT_TYPE_ICON[type]) || ACCOUNT_ICON_FALLBACK;
@@ -110,7 +119,7 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 
 	async function handleSubmit() {
 		setSubmitted(true);
-		if (!name.trim() || Number.isNaN(parsedBalance)) return;
+		if (!name.trim() || parsedBalance === null) return;
 
 		setLoading(true);
 		setServerError(null);
@@ -345,15 +354,20 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 								{currencySymbol(DISPLAY_CURRENCY, locale)}
 							</span>
 							<input
-								type="number"
+								type="text"
 								inputMode="decimal"
-								step="0.01"
 								placeholder="0"
 								value={initialBalance}
 								onChange={(e) => setInitialBalance(e.target.value)}
+								aria-invalid={balanceError || undefined}
 								className="flex-1 bg-transparent outline-none text-base placeholder:text-muted/60"
 							/>
 						</div>
+						{balanceError && balanceErrorText && (
+							<p className="text-xs mt-1.5 ml-1" style={{ color: "var(--ink-aka)" }}>
+								{balanceErrorText}
+							</p>
+						)}
 						{/*
 							⚠️ In modifica il campo RESTA, e il testo cambia per dire cosa
 							fa. Il mockup lo nascondeva dopo la creazione, ma così un

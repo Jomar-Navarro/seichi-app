@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/auth";
 import { isAccountId, isUuid } from "@/lib/accounts";
 import { firstRunForNewRule, firstRunFrom, rollForwardPastToday } from "@/lib/recurring";
 import { flussoDaTotali } from "@/lib/totals";
+import { isStorableAmount } from "@/lib/amount";
 import type { Frequency } from "@/types";
 
 /**
@@ -83,6 +84,9 @@ export async function saveTransaction(
 	const { supabase, user, t } = await requireUser();
 
 	if (!user) return { error: t.errors.notAuthenticated };
+	// Un importo che `DECIMAL(10,2)` non scrive così com'è: i campi lo fermano
+	// prima (issue #119), questa è la stessa regola per una POST diretta.
+	if (!isStorableAmount(importo)) return { error: t.errors.amountInvalid };
 
 	/*
 	 * ⚠️ L'`id` torna al chiamante, e serve alla Fase 22: la ricevuta scelta
@@ -254,6 +258,7 @@ export async function updateTransaction(
 	const { supabase, user, t } = await requireUser();
 
 	if (!user) return { error: t.errors.notAuthenticated };
+	if (!isStorableAmount(importo)) return { error: t.errors.amountInvalid };
 
 	const { error } = await supabase
 		.from("transactions")
@@ -309,6 +314,7 @@ export async function createRecurringRule(
 	const { supabase, user, t } = await requireUser();
 
 	if (!user) return { error: t.errors.notAuthenticated };
+	if (!isStorableAmount(importo)) return { error: t.errors.amountInvalid };
 
 	const { error } = await supabase.from("recurring_rules").insert({
 		user_id: user.id,
@@ -387,6 +393,7 @@ export async function updateRecurringRule(
 	const { supabase, user, t } = await requireUser();
 
 	if (!user) return { error: t.errors.notAuthenticated };
+	if (!isStorableAmount(importo)) return { error: t.errors.amountInvalid };
 
 	const { error } = await supabase
 		.from("recurring_rules")
