@@ -11,6 +11,12 @@ import TransactionForm, {
 import { useI18n } from "@/components/features/I18nProvider";
 import { useCloseOnBack } from "./useCloseOnBack";
 import { DISPLAY_CURRENCY, currencySymbol, formatMoney } from "@/lib/i18n/format";
+import {
+	applyAmountKey,
+	decimalSeparator,
+	formatAmountInput,
+	parseAmountInput,
+} from "@/lib/amount";
 
 /*
  * issue #86 — pillole di importo rapido, sul modello di Revolut ma con
@@ -78,29 +84,48 @@ function TransactionModalContent() {
 	// leggerlo e scriverlo PRIMA che TransactionForm esista (monta solo al
 	// passo "form"). Stessa inizializzazione che aveva TransactionForm.
 	const [amount, setAmount] = useState(() =>
-		editingTransaction
-			? editingTransaction.amount.toFixed(2).replace(".", ",")
-			: "",
+		editingTransaction ? formatAmountInput(editingTransaction.amount, locale) : "",
 	);
-	const AMOUNT_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ",", "0", "⌫"];
-	// `useCallback` con dipendenze vuote (usa solo l'updater funzionale di
-	// `setAmount`, mai `amount` per chiusura): serve un riferimento STABILE
+	/*
+	 * ⚠️ `"sep"` e non `","`: il tasto mostra il separatore decimale della
+	 * lingua dell'app — la virgola in italiano, il punto in inglese — e il testo
+	 * lo porta scritto così. Prima era una virgola per tutti.
+	 */
+	const AMOUNT_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "sep", "0", "⌫"];
+	// `useCallback` con la sola lingua fra le dipendenze (usa l'updater
+	// funzionale di `setAmount`, mai `amount` per chiusura, e la lingua non
+	// cambia a modale aperto): serve un riferimento STABILE
 	// perché anche la tastiera fisica, qui sotto, lo richiama da un
 	// `useEffect` — con una funzione ricreata a ogni render quell'effetto
 	// dovrebbe riattaccarsi ogni volta, o il lint (`exhaustive-deps`) lo
 	// segnalerebbe come dipendenza mancante.
-	const handleAmountKey = useCallback((key: string) => {
-		if (key === "⌫") {
-			setAmount((prev) => prev.slice(0, -1));
-			return;
-		}
-		if (key === ",") {
-			setAmount((prev) => (prev.includes(",") ? prev : prev + ","));
-			return;
-		}
-		setAmount((prev) => prev + key);
-	}, []);
-	const amountValid = amount !== "" && parseFloat(amount.replace(",", ".")) > 0;
+	//
+	// ⚠️ Le regole stanno in `applyAmountKey` (issue #119): il tastierino è un
+	// campo VINCOLATO. Prima accettava cifre senza fine e decimali senza fine —
+	// "12,999" veniva salvato 13,00 dalla colonna `DECIMAL(10,2)`, e
+	// "100000000" ne superava la precisione e il salvataggio falliva senza dirlo.
+	// Ora la terza cifra decimale e la nona intera semplicemente non entrano.
+	const handleAmountKey = useCallback(
+		(key: string) => setAmount((prev) => applyAmountKey(prev, key, locale)),
+		[locale],
+	);
+	const parsedAmount = parseAmountInput(amount, locale);
+	const amountValid = parsedAmount.status === "ok" && parsedAmount.value > 0;
+	/*
+	 * La cifra si rimpicciolisce con la lunghezza. Con il tetto di
+	 * `DECIMAL(10,2)` "99999999,99" è un importo valido e raggiungibile, e a
+	 * `text-8xl` usciva da entrambi i bordi del foglio su un telefono: si vedeva
+	 * "9999999,9" e nessuno dei due capi. Classi intere, non composte: Tailwind
+	 * genera solo quelle che trova scritte.
+	 */
+	const amountSize =
+		amount.length <= 5
+			? "text-8xl"
+			: amount.length <= 7
+				? "text-7xl"
+				: amount.length <= 9
+					? "text-6xl"
+					: "text-5xl";
 
 	/*
 	 * La tastiera FISICA scrive l'importo tanto quanto il tastierino a
@@ -127,8 +152,14 @@ function TransactionModalContent() {
 				e.preventDefault();
 				handleAmountKey(e.key);
 			} else if (e.key === "," || e.key === ".") {
+				// Entrambi, in entrambe le lingue: il tasto decimale del tastierino
+				// numerico scrive l'uno o l'altro a seconda del layout. Le
+				// migliaia qui non esistono, e la terza cifra dopo il separatore
+				// viene rifiutata: "1.250" si ferma a "1,25", e quello che si vede
+				// in cifre grandi è quello che si salva. Prima lo schermo diceva
+				// "1,250" e la colonna scriveva 1,25.
 				e.preventDefault();
-				handleAmountKey(",");
+				handleAmountKey("sep");
 			} else if (e.key === "Backspace") {
 				// `preventDefault`: senza, Backspace con nessun campo a fuoco
 				// naviga "indietro" in alcuni browser (Firefox) invece di
@@ -428,7 +459,7 @@ function TransactionModalContent() {
 					<div className="flex-1 min-h-0 flex flex-col pb-19">
 						<div className="flex flex-col items-center justify-center min-h-0" style={{ flex: 4 }}>
 							<p className="text-muted text-base mb-2">{t.transactions.form.amount}</p>
-							<div className="text-8xl font-bold tracking-tight">
+							<div className={`${amountSize} font-bold tracking-tight whitespace-nowrap`}>
 								<span className="text-4xl mr-1">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
 								{amount || "0"}
 							</div>
@@ -484,7 +515,7 @@ function TransactionModalContent() {
 									}}
 									className="flex items-center justify-center rounded-2xl bg-card ring-border text-2xl font-medium"
 								>
-									{key === "⌫" ? <Delete size={20} /> : key}
+									{key === "⌫" ? <Delete size={20} /> : key === "sep" ? decimalSeparator(locale) : key}
 								</button>
 							))}
 						</div>

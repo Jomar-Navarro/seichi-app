@@ -14,6 +14,7 @@ import { updateRecurringRule } from "@/app/(main)/action";
 import { useI18n } from "./I18nProvider";
 import { DISPLAY_CURRENCY, currencySymbol } from "@/lib/i18n/format";
 import DatePicker from "@/components/UI/DatePicker";
+import { amountErrorMessage, formatAmountInput, parseAmountInput } from "@/lib/amount";
 import type { RecurringRule, Account, Category, Frequency } from "@/types";
 
 /**
@@ -35,7 +36,7 @@ interface RecurringSheetProps {
 export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 	const router = useRouter();
 	const { locale, t } = useI18n();
-	const [amount, setAmount] = useState(() => rule.amount.toFixed(2).replace(".", ","));
+	const [amount, setAmount] = useState(() => formatAmountInput(rule.amount, locale));
 	const [categoryId, setCategoryId] = useState<string | null>(rule.category_id);
 	const [notes, setNotes] = useState(rule.notes ?? "");
 	const [frequency, setFrequency] = useState<Frequency>(rule.frequency);
@@ -69,7 +70,18 @@ export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 
 	const color = TIPO_COLOR[rule.type] ?? "var(--color-kiri)";
 	const todayISO = new Date().toLocaleDateString("sv-SE");
-	const importoValido = amount !== "" && parseFloat(amount.replace(",", ".")) > 0;
+	/*
+	 * ⚠️ Il testo si legge com'è scritto, non si ripulisce mentre si scrive.
+	 * Prima `onChange` toglieva tutto ciò che non era cifra o virgola: "12.50"
+	 * diventava "1250" sotto gli occhi di chi scriveva, e "Salva" registrava una
+	 * regola da € 1250 che il cron avrebbe replicato ogni mese (issue #119).
+	 */
+	const parsedAmount = parseAmountInput(amount, locale);
+	const importoValido = parsedAmount.status === "ok" && parsedAmount.value > 0;
+	// Un testo illeggibile lo si dice subito: il bottone è spento, e un bottone
+	// spento senza una ragione scritta è un gesto che non fa niente e non dice
+	// niente.
+	const amountError = amountErrorMessage(parsedAmount, t, locale);
 
 	const categoryOptions = buildCategoryOptions(categoryList, t.recurring.noCategory);
 
@@ -94,13 +106,13 @@ export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 
 	async function handleSubmit() {
 		// `!rule` non serve più: la prop non è nullable, il montaggio lo garantisce.
-		if (!importoValido || loading) return;
+		if (parsedAmount.status !== "ok" || !importoValido || loading) return;
 		setLoading(true);
 		setServerError(null);
 		try {
 			const result = await updateRecurringRule(
 				rule.id,
-				parseFloat(amount.replace(",", ".")),
+				parsedAmount.value,
 				categoryId,
 				notes.trim() || null,
 				frequency,
@@ -136,16 +148,25 @@ export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 					{/* Importo */}
 					<div>
 						<label className="text-xs text-muted mb-1.5 block">{t.recurring.amount}</label>
-						<div className="flex items-center gap-2 rounded-2xl px-4 py-3 bg-card ring-border">
+						<div
+							className={`flex items-center gap-2 rounded-2xl px-4 py-3 bg-card ${amountError ? "" : "ring-border"}`}
+							style={amountError ? { boxShadow: "var(--color-aka) 0px 0px 0px 1px inset" } : undefined}
+						>
 							<span className="text-sm text-muted">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
 							<input
 								type="text"
 								inputMode="decimal"
 								value={amount}
-								onChange={(e) => setAmount(e.target.value.replace(/[^0-9,]/g, ""))}
+								onChange={(e) => setAmount(e.target.value)}
+								aria-invalid={amountError ? true : undefined}
 								className="flex-1 bg-transparent outline-none text-base"
 							/>
 						</div>
+						{amountError && (
+							<p className="text-xs mt-1.5 ml-1" style={{ color: "var(--ink-aka)" }}>
+								{amountError}
+							</p>
+						)}
 					</div>
 
 					{/* Categoria */}

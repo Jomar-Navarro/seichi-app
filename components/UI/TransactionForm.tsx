@@ -22,6 +22,7 @@ import { useUIStore } from "@/store/useUIStore";
 import DatePicker from "@/components/UI/DatePicker";
 import { useI18n } from "@/components/features/I18nProvider";
 import { useScrollFocusedIntoView } from "@/components/UI/useScrollFocusedIntoView";
+import { parseAmountInput } from "@/lib/amount";
 
 /**
  * ⚠️ Il calendario NON sta più qui.
@@ -69,7 +70,7 @@ export default function TransactionForm({
 	transaction,
 	amount,
 }: TransactionFormProps) {
-	const { t } = useI18n();
+	const { t, locale } = useI18n();
 	const isEditing = !!transaction;
 	const [categoryId, setCategoryId] = useState<string | null>(
 		transaction?.category_id ?? null,
@@ -251,17 +252,20 @@ export default function TransactionForm({
 	// Per un trasferimento serve anche la destinazione, e diversa dall'origine:
 	// sono i due CHECK `transactions_transfer_dest_check` e
 	// `transactions_dest_distinct_check`.
+	// L'importo arriva dal tastierino, già vincolato a due decimali e a
+	// `DECIMAL(10,2)`: lo si legge con lo stesso parser dei fogli (issue #119).
+	const parsedAmount = parseAmountInput(amount, locale);
 	const isValid =
-		amount !== "" &&
-		parseFloat(amount.replace(",", ".")) > 0 &&
+		parsedAmount.status === "ok" &&
+		parsedAmount.value > 0 &&
 		accountId !== null &&
 		(!isTransfer || (toAccountId !== null && toAccountId !== accountId));
 
 	async function handleSave() {
-		if (!isValid || isSaving || !accountId) return;
+		if (!isValid || isSaving || !accountId || parsedAmount.status !== "ok") return;
 		setIsSaving(true);
 		try {
-			const importo = parseFloat(amount.replace(",", "."));
+			const importo = parsedAmount.value;
 			/*
 			 * ⚠️ `effectiveId` e non `isEditing`: dopo una creazione riuscita il
 			 * movimento ESISTE anche se il modale è ancora aperto (una ricevuta non

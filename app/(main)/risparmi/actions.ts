@@ -6,6 +6,7 @@ import type { GoalWithProgress, InvestmentData } from "@/types";
 import { INVESTMENT_TYPE_COLOR, INVESTMENT_TYPE_FALLBACK } from "@/lib/investment-types";
 import { isAccountId } from "@/lib/accounts";
 import { lookup } from "@/lib/i18n/format";
+import { isStorableAmount } from "@/lib/amount";
 
 export async function getGoals(): Promise<{ data: GoalWithProgress[] } | { error: string }> {
 	const { supabase, user, t } = await requireUser();
@@ -269,6 +270,9 @@ export async function createGoal(payload: {
 }): Promise<{ error?: string }> {
 	const { supabase, user, t } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
+	if (payload.target_amount !== null && !isStorableAmount(payload.target_amount)) {
+		return { error: t.errors.amountInvalid };
+	}
 
 	const { error } = await supabase.from("categories").insert({
 		user_id: user.id,
@@ -296,6 +300,9 @@ export async function updateGoal(
 ): Promise<{ error?: string }> {
 	const { supabase, user, t } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
+	if (payload.target_amount !== null && !isStorableAmount(payload.target_amount)) {
+		return { error: t.errors.amountInvalid };
+	}
 
 	const { error } = await supabase
 		.from("categories")

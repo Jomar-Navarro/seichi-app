@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { plural } from "@/lib/i18n/format";
 import { isAccountId } from "@/lib/accounts";
 import { countActiveAccounts } from "@/lib/account";
+import { isStorableAmount } from "@/lib/amount";
 import { ACCOUNT_TYPES, type Account, type AccountWithBalance } from "@/types";
 import type { SupabaseServerClient } from "@/lib/supabase/server";
 
@@ -62,6 +63,12 @@ function validate(input: AccountInput, t: Awaited<ReturnType<typeof requireUser>
 	 */
 	if (input.color != null && !COLOR_CHOICES.includes(input.color)) {
 		return { error: t.accounts.errors.invalidColor };
+	}
+	// Il saldo iniziale può essere zero o negativo (una carta di credito), ma
+	// deve stare in `DECIMAL(10,2)`: prima l'overflow arrivava da Postgres come
+	// `saveFailed`, che non dice cosa correggere (issue #119).
+	if (!isStorableAmount(input.initialBalance, { allowNegative: true, allowZero: true })) {
+		return { error: t.errors.amountInvalid };
 	}
 	return { name };
 }

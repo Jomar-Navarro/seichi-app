@@ -6,6 +6,7 @@ import { getAvailableThisMonth, getGlobalBudget, setBudget } from "@/app/(main)/
 import { useI18n } from "@/components/features/I18nProvider";
 import { DISPLAY_CURRENCY, currencySymbol, fill, formatMoney } from "@/lib/i18n/format";
 import { clientClock } from "@/lib/dates";
+import { amountErrorMessage, formatAmountInput, parseAmountInput } from "@/lib/amount";
 
 /**
  * Stesso involucro di PreferencesSection e SettingsGroup: card `bg-card`,
@@ -75,7 +76,7 @@ export default function GlobalBudgetSection() {
 					setError(budgetRes.error);
 				} else {
 					setCurrent(budgetRes.data);
-					setAmount(budgetRes.data === null ? "" : String(budgetRes.data));
+					setAmount(budgetRes.data === null ? "" : formatAmountInput(budgetRes.data, locale));
 				}
 
 				if ("error" in availRes) {
@@ -105,7 +106,7 @@ export default function GlobalBudgetSection() {
 		});
 
 		return () => { cancelled = true; };
-	}, []);
+	}, [locale]);
 
 	/** La scrittura vera, condivisa fra il campo e il suggerimento: due strade
 	 *  per lo stesso effetto non possono avere due gestioni dell'errore. */
@@ -150,10 +151,21 @@ export default function GlobalBudgetSection() {
 		// Il suggerimento ha la precedenza: vedi la nota su `suggerimentoPremuto`.
 		if (suggerimentoPremuto.current) return;
 
-		const parsed = amount.trim() === "" ? null : Number(amount.replace(",", "."));
+		/*
+		 * ⚠️ Lo stesso parser dei fogli (issue #119): prima era
+		 * `Number(amount.replace(",", "."))`, che leggeva "1.200" — le migliaia
+		 * italiane — come 1,2, e salvava un limite mille volte più basso.
+		 */
+		const input = parseAmountInput(amount, locale);
+		const unreadable = amountErrorMessage(input, t, locale);
+		if (unreadable) {
+			setError(unreadable);
+			return;
+		}
+		const parsed = input.status === "ok" ? input.value : null;
 
 		if (parsed === current) return;
-		if (parsed !== null && (!Number.isFinite(parsed) || parsed <= 0)) {
+		if (parsed !== null && parsed <= 0) {
 			setError(t.budget.amountMustBePositive);
 			return;
 		}
@@ -332,7 +344,7 @@ export default function GlobalBudgetSection() {
 					onClick={() => {
 						void (async () => {
 							try {
-								if (await save(suggestion)) setAmount(String(suggestion));
+								if (await save(suggestion)) setAmount(formatAmountInput(suggestion, locale));
 							} finally {
 								suggerimentoPremuto.current = false;
 							}
