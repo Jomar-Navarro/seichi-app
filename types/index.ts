@@ -121,6 +121,11 @@ export interface Category {
 
 export interface GoalWithProgress extends Category {
 	saved_amount: number;
+	/**
+	 * `YYYY-MM-DD` del versamento con cui la somma ha superato il target, o
+	 * `null` se l'obiettivo non è raggiunto adesso (#121). Non la scadenza.
+	 */
+	reached_at: string | null;
 }
 
 export interface Transaction {
@@ -332,7 +337,8 @@ export interface InvestmentByType {
 }
 
 export interface InvestmentPosition {
-	category_id: string;
+	/** `null` = la posizione "Senza categoria", che raccoglie i movimenti senza categoria (#121). */
+	category_id: string | null;
 	name: string;
 	icon: string;
 	color: string;

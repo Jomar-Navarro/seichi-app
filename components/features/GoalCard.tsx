@@ -156,8 +156,12 @@ export default function GoalCard({ goal, onEdit }: GoalCardProps) {
 						{goal.name}
 					</p>
 					<p className="text-xs text-muted mt-0.5 lg:mt-1">
+						{/* ⚠️ La data del RAGGIUNGIMENTO, non la scadenza (#121): «Raggiunto ·
+						    <scadenza>» diceva raggiunto a dicembre un obiettivo chiuso a marzo. */}
 						{completed
-							? fill(t.goals.reached, { date: formatTargetDate(goal.target_date, locale) })
+							? goal.reached_at
+								? fill(t.goals.reached, { date: formatTargetDate(goal.reached_at, locale) })
+								: t.goals.reachedNoDate
 							: goal.target_date
 								? fill(t.goals.deadline, { date: formatTargetDate(goal.target_date, locale) })
 								: t.goals.noDeadline}

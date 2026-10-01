@@ -13,7 +13,7 @@ import ViewedAccount from "@/components/features/ViewedAccount";
 import { getSelectedAccount } from "@/lib/accounts-server";
 import { getI18n } from "@/lib/i18n/server";
 import { periodoLabel } from "@/lib/analytics";
-import { DISPLAY_CURRENCY, currencySymbol, splitAmount } from "@/lib/i18n/format";
+import { DISPLAY_CURRENCY, currencySymbol, lookup, splitAmount } from "@/lib/i18n/format";
 
 export default async function AnalyticsPage({
 	searchParams,
@@ -180,7 +180,10 @@ export default async function AnalyticsPage({
 					{/* KPI Flusso */}
 					<div className="mt-5 mb-4 lg:m-0 lg:col-start-1 lg:row-start-1 lg:min-w-0">
 						<p className="text-[13px] text-muted mb-1.5 lg:text-[12.5px] lg:mb-2.5">{t.analytics.netFlow}</p>
-						<div className="flex items-center gap-2.5 lg:flex-wrap">
+						{/* `flex-wrap` anche sul telefono: accanto alla variazione ora c'è la
+						    frase che dice con cosa si confronta (#121), e sotto i 414px va
+						    a capo invece di stringere la cifra. */}
+						<div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
 							<p className="text-[34px] font-semibold tracking-[-0.5px] text-foreground lg:text-[40px] lg:tracking-[-1px] lg:leading-none">
 								{isPositive ? "+" : "−"} {currencySymbol(DISPLAY_CURRENCY, locale)} {flow.integer}
 								<span className="lg:text-2xl lg:font-medium lg:tracking-[-0.4px] lg:text-muted">{flow.decimal}</span>
@@ -190,12 +193,22 @@ export default async function AnalyticsPage({
 								 * Da `lg:` la variazione diventa una pastiglia tinta del proprio
 								 * segno. La tinta è un riempimento (accento al 12%), il testo resta
 								 * l'inchiostro — la regola accento/inchiostro della Fase 18.
+								 *
+								 * ⚠️ Ma solo sulla SETTIMANA (#121), dove si confrontano due
+								 * finestre intere. Mese e anno sono in corso: il confronto è a
+								 * parità di giorni ed è un'indicazione, non un giudizio — i primi
+								 * giorni basta un pagamento spostato di qualche giorno per
+								 * ribaltarlo. Verde e rosso dicevano "bene" e "male" su un periodo
+								 * non ancora finito, quindi lì la pastiglia è neutra.
 								 */
+								<>
 								<span
 									className={`inline-flex items-center gap-1 text-[12px] font-medium lg:px-2.5 lg:py-1 lg:rounded-full ${
-										analytics.variazionePct >= 0
-											? "text-midori-ink lg:bg-[color-mix(in_srgb,var(--color-midori)_12%,transparent)]"
-											: "text-aka-ink lg:bg-[color-mix(in_srgb,var(--color-aka)_12%,transparent)]"
+										periodo !== "settimana"
+											? "text-muted lg:bg-control"
+											: analytics.variazionePct >= 0
+												? "text-midori-ink lg:bg-[color-mix(in_srgb,var(--color-midori)_12%,transparent)]"
+												: "text-aka-ink lg:bg-[color-mix(in_srgb,var(--color-aka)_12%,transparent)]"
 									}`}
 								>
 									<svg
@@ -215,15 +228,20 @@ export default async function AnalyticsPage({
 									</svg>
 									{Math.abs(analytics.variazionePct)}%
 								</span>
-							) : periodo === "tutto" ? null : (
+								{/* Che cosa si confronta: senza, "↓ 39%" non dice rispetto a cosa. */}
+								<span className="text-[12px] text-muted">
+									{lookup(t.analytics.compareTo, periodo, (s) => s, t.analytics.compareTo.mese)}
+								</span>
+								</>
+							) : analytics.primoMese ? (
 								/*
-								 * ⚠️ Su «tutto» questa riga NON si mostra: `variazionePct` è null per
-								 * costruzione — prima di tutta la storia non c'è niente con cui
-								 * confrontarsi — e la frase di ripiego dice "— primo mese", che su un
-								 * arco di quattro anni è semplicemente falsa.
+								 * ⚠️ Solo se è VERO (#121): lo decide `getAnalyticsData`, che lo
+								 * chiede al database e lo calcola soltanto sul tab Mese. Prima
+								 * compariva con qualunque variazione nulla — su «tutto», sulla
+								 * settimana, sull'anno — dove "primo mese" è semplicemente falso.
 								 */
 								<span className="text-[12px] font-medium text-muted">{t.analytics.firstMonth}</span>
-							)}
+							) : null}
 						</div>
 					</div>
 
@@ -249,7 +267,7 @@ export default async function AnalyticsPage({
 						l'assenza si spiega da sola — "le tue spese variabili sono queste,
 						le tue uscite fisse sono di là".
 					*/}
-					<FixedOutflowsLink />
+					<FixedOutflowsLink accountFiltered={!!accountId} />
 				</div>
 			</div>
 		</div>

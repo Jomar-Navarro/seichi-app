@@ -40,6 +40,7 @@ export const en: Dictionary = {
 		required: "This field is required",
 		selectPlaceholder: "Select {field}",
 		toggleVisibility: "Show or hide amounts",
+		uncategorized: "Uncategorized",
 	},
 
 	amountInput: {
@@ -539,6 +540,7 @@ export const en: Dictionary = {
 		noDeadline: "No deadline",
 		completedSection: "Completed",
 		reached: "Reached · {date}",
+		reachedNoDate: "Reached",
 		deadline: "Due · {date}",
 		of: "of",
 		/** Due forme uguali: in inglese l'importo non si accorda con niente. */
@@ -581,7 +583,7 @@ export const en: Dictionary = {
 		portfolioValue: "Capital contributed",
 		/** Mostrata quando una posizione è stata liquidata oltre il versato. */
 		negativeNote: "you took out more than you put in: the difference is gain",
-		vsLastMonth: "vs last month",
+		vsLastMonth: "vs the same days last month",
 		composition: "Composition",
 		byTypeTitle: "By asset class",
 		total: "Total",
@@ -603,6 +605,11 @@ export const en: Dictionary = {
 		// "Flow", same word as the home card: it is the same number. See it.ts.
 		netFlow: "Flow",
 		firstMonth: "— first month",
+		compareTo: {
+			settimana: "vs the 7 days before",
+			mese: "vs the same days last month",
+			anno: "vs the same days last year",
+		},
 		tabs: {
 			settimana: "Week",
 			mese: "Month",
@@ -621,7 +628,8 @@ export const en: Dictionary = {
 			tutto: "ever",
 		},
 
-		fixedOutflowsTitle: "Fixed outflows",
+		fixedOutflowsTitle: "Fixed outflows this month",
+		fixedOutflowsAllAccounts: "Across all accounts",
 		fixedOutflowsHint: "Subscriptions and scheduled payments",
 
 		report: {
@@ -697,6 +705,8 @@ export const en: Dictionary = {
 			alreadySpent: "You have already spent {spent} on variable expenses.",
 			availableNoIncome:
 				"No income recorded this month yet, while {fixed} of fixed outflows are expected. The picture clears up once the first one lands.",
+			availableShort:
+				"This month you took in {income}, but expected fixed outflows are {fixed}: they exceed it by {gap}.",
 			/** ⚠️ Percentuale fra parentesi per simmetria con it.ts, dove l'articolo
 			 *  davanti a una cifra variabile si rompe da solo. Qui non servirebbe —
 			 *  ed è precisamente il motivo per cui il difetto si vede solo in
@@ -720,6 +730,8 @@ export const en: Dictionary = {
 				"Income {income} minus expected fixed outflows {fixed}: {available} left. You have already spent {spent} on variable expenses.",
 			availableNoIncome:
 				"With no income recorded there is nothing to work out yet: so far there are only {fixed} of expected fixed outflows.",
+			availableShort:
+				"Income {income} minus expected fixed outflows {fixed}: {gap} short. You have already spent {spent} on variable expenses.",
 			budgetNone:
 				"You have not set any limit. The global one lives in settings, the per-category ones in the category form.",
 			budgetGlobal: "On the global limit you have spent {spent} of {amount}.",

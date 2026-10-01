@@ -38,16 +38,25 @@ import { clientClock } from "@/lib/dates";
  * non si sa, e non una card vuota per chi non ha ricorrenti: stesso
  * trattamento già riservato a `getAccounts()` su questa pagina.
  */
-export default function FixedOutflowsLink() {
+/**
+ * @param accountFiltered la pagina guarda un conto solo: la card invece somma le
+ *   ricorrenti di TUTTI i conti (`getAvailableThisMonth` non filtra), e senza
+ *   dirlo si leggerebbe come la cifra di quel conto (#121).
+ */
+export default function FixedOutflowsLink({ accountFiltered = false }: { accountFiltered?: boolean }) {
 	const { locale, t } = useI18n();
 	const [amount, setAmount] = useState<number | null>(null);
 
 	useEffect(() => {
 		let cancelled = false;
-		getAvailableThisMonth(clientClock()).then((res) => {
-			if (cancelled) return;
-			if (!("error" in res)) setAmount(res.data.fixedOutflows);
-		});
+		getAvailableThisMonth(clientClock())
+			.then((res) => {
+				if (cancelled) return;
+				if (!("error" in res)) setAmount(res.data.fixedOutflows);
+			})
+			// Degrada anche su una promise RIFIUTATA, come sull'errore restituito:
+			// senza, il rifiuto restava non gestito (stessa classe della #124).
+			.catch((e) => console.error("[analisi] uscite fisse:", e));
 		return () => {
 			cancelled = true;
 		};
@@ -91,7 +100,10 @@ export default function FixedOutflowsLink() {
 						    l'app. Seconda riga più muta, stessa frase usata dallo stato
 						    vuoto di RecurringManager: è la stessa lista, altra porta. */}
 						<p className="text-xs mt-0.5 lg:text-[13.5px] lg:font-medium lg:mt-1">{t.analytics.fixedOutflowsTitle}</p>
-						<p className="text-[11px] text-muted mt-0.5 lg:text-xs">{t.analytics.fixedOutflowsHint}</p>
+						<p className="text-[11px] text-muted mt-0.5 lg:text-xs">
+							{t.analytics.fixedOutflowsHint}
+							{accountFiltered && ` · ${t.analytics.fixedOutflowsAllAccounts}`}
+						</p>
 					</div>
 				</div>
 			</div>

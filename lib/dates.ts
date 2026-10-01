@@ -66,6 +66,26 @@ export function localMidnightInstant(isoDate: string, tzOffsetMinutes: number): 
 	return new Date(Date.UTC(y, m - 1, d) + tzOffsetMinutes * 60_000).toISOString();
 }
 
+/**
+ * L'istante, in millisecondi, di un `transactions.date` come lo restituisce
+ * PostgREST — da confrontare con quelli di `localMidnightInstant()`.
+ *
+ * ⚠️ Mai confrontare le due STRINGHE (#121). La colonna è `timestamp without
+ * time zone` e arriva senza fuso (`2026-10-01T00:00:00`), mentre
+ * `localMidnightInstant()` scrive `2026-10-01T00:00:00.000Z`: come stringhe la
+ * prima è un prefisso della seconda, quindi "minore" anche quando sono lo
+ * stesso istante. Una spesa registrata esattamente al confine finiva fuori dal
+ * proprio periodo e dentro il precedente — con fuso UTC+0, ogni spesa del primo
+ * giorno di un budget.
+ *
+ * Senza fuso si legge come UTC, cioè come la legge il database: le query
+ * confrontano la colonna con confini `timestamptz` nella sessione di Supabase,
+ * che è in UTC (debito dichiarato in CLAUDE.md, schema di `transactions`).
+ */
+export function dbInstant(value: string): number {
+	return Date.parse(/(?:Z|[+-]\d\d:?\d\d)$/i.test(value) ? value : `${value}Z`);
+}
+
 /** Primo giorno del mese di `isoDate` e primo del mese successivo (fine esclusiva). */
 export function monthBoundsOf(isoDate: string): { start: string; end: string } {
 	const [y, m] = isoDate.split("-").map(Number);

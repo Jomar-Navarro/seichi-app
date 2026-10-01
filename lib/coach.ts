@@ -84,11 +84,18 @@ export function coachOpening(s: CoachSnapshot, locale: Locale, t: Dictionary): s
 	righe.push(
 		s.month.income === 0
 			? fill(t.coach.opening.availableNoIncome, { fixed: money(ctx, s.fixedOutflows) })
-			: fill(t.coach.opening.available, {
-					income: money(ctx, s.month.income),
-					fixed: money(ctx, s.fixedOutflows),
-					available: money(ctx, s.available),
-				}),
+			: s.available < 0
+				? // ⚠️ Il terzo ramo (#121): «ti restano − € 1.180,00» non è un margine.
+					fill(t.coach.opening.availableShort, {
+						income: money(ctx, s.month.income),
+						fixed: money(ctx, s.fixedOutflows),
+						gap: money(ctx, -s.available),
+					})
+				: fill(t.coach.opening.available, {
+						income: money(ctx, s.month.income),
+						fixed: money(ctx, s.fixedOutflows),
+						available: money(ctx, s.available),
+					}),
 	);
 
 	/*
@@ -175,12 +182,19 @@ export function coachReplies(s: CoachSnapshot, locale: Locale, t: Dictionary): C
 	const disponibile =
 		s.month.income === 0
 			? fill(a.availableNoIncome, { fixed: money(ctx, s.fixedOutflows) })
-			: fill(a.available, {
-					income: money(ctx, s.month.income),
-					fixed: money(ctx, s.fixedOutflows),
-					available: money(ctx, s.available),
-					spent: money(ctx, s.month.variableExpenses),
-				});
+			: s.available < 0
+				? fill(a.availableShort, {
+						income: money(ctx, s.month.income),
+						fixed: money(ctx, s.fixedOutflows),
+						gap: money(ctx, -s.available),
+						spent: money(ctx, s.month.variableExpenses),
+					})
+				: fill(a.available, {
+						income: money(ctx, s.month.income),
+						fixed: money(ctx, s.fixedOutflows),
+						available: money(ctx, s.available),
+						spent: money(ctx, s.month.variableExpenses),
+					});
 
 	/* ------------------------------------------------------------ budget */
 	let budget: string;

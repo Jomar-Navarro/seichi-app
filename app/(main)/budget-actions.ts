@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import type { SupabaseServerClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth";
-import { localMidnightInstant, monthBoundsOf, parseLocalDate } from "@/lib/dates";
+import { dbInstant, localMidnightInstant, monthBoundsOf, parseLocalDate } from "@/lib/dates";
+import { readAll } from "@/lib/read-all";
 import { advanceDate } from "@/lib/recurring";
 import { budgetStatus } from "@/lib/budget";
 import { disponibileDaTotali } from "@/lib/totals";
@@ -151,22 +152,35 @@ export async function getBudgetOverview(
 	const from = budgets.reduce((min, b) => (b.period_start < min ? b.period_start : min), budgets[0].period_start);
 	const to   = budgets.reduce((max, b) => (b.period_end   > max ? b.period_end   : max), budgets[0].period_end);
 
-	const [{ data: txns, error: txnsError }, { data: cats, error: catsError }] =
+	/*
+	 * ⚠️ A blocchi, ordinati per id (#121). Con un budget ANNUALE l'intervallo è
+	 * l'anno intero, e oltre le 1000 righe PostgREST tronca in silenzio: il
+	 * globale e i settimanali perdevano spese a caso, una barra rossa restava
+	 * verde e il coach diceva che andava tutto bene. È la classe che la 23b aveva
+	 * chiuso solo per `/analisi`.
+	 */
+	const [{ rows: txns, error: txnsError }, { data: cats, error: catsError }] =
 		await Promise.all([
-			supabase
-				.from("transactions")
-				.select("category_id, amount, date")
-				.eq("user_id", user.id)
-				.eq("type", "spesa")
-				.gte("date", localMidnightInstant(from, clock.tzOffsetMinutes))
-				.lt("date", localMidnightInstant(to, clock.tzOffsetMinutes)),
+			readAll<{ category_id: string | null; amount: number; date: string }>(
+				(from_, to_) =>
+					supabase
+						.from("transactions")
+						.select("category_id, amount, date")
+						.eq("user_id", user.id)
+						.eq("type", "spesa")
+						.gte("date", localMidnightInstant(from, clock.tzOffsetMinutes))
+						.lt("date", localMidnightInstant(to, clock.tzOffsetMinutes))
+						.order("id", { ascending: true })
+						.range(from_, to_),
+				"budget",
+			),
 			supabase
 				.from("categories")
 				.select("id, name, icon, color")
 				.eq("user_id", user.id),
 		]);
 
-	if (txnsError) return { error: txnsError.message };
+	if (txnsError) return { error: txnsError };
 	if (catsError) return { error: catsError.message };
 
 	const catById = new Map(
@@ -174,17 +188,20 @@ export async function getBudgetOverview(
 	);
 
 	const withSpending = budgets.map((b) => {
-		const start = localMidnightInstant(b.period_start, clock.tzOffsetMinutes);
-		const end = localMidnightInstant(b.period_end, clock.tzOffsetMinutes);
+		// ⚠️ Istanti, non stringhe: vedi `dbInstant` (#121).
+		const start = dbInstant(localMidnightInstant(b.period_start, clock.tzOffsetMinutes));
+		const end = dbInstant(localMidnightInstant(b.period_end, clock.tzOffsetMinutes));
 
 		// Il globale somma TUTTE le spese del periodo, non una categoria sola.
-		const spent = (txns ?? [])
-			.filter(
-				(t) =>
-					t.date >= start &&
-					t.date < end &&
-					(b.category_id === null || t.category_id === b.category_id),
-			)
+		const spent = txns
+			.filter((t) => {
+				const at = dbInstant(t.date);
+				return (
+					at >= start &&
+					at < end &&
+					(b.category_id === null || t.category_id === b.category_id)
+				);
+			})
 			.reduce((acc, t) => acc + t.amount, 0);
 
 		const amount = b.amount as number;
