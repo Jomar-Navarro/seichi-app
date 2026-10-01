@@ -7,12 +7,13 @@
  * uno script. Una classe che il codice non genera più (incollata a `${`, per
  * esempio) restava così nel CSS perché la DOCUMENTAZIONE la nominava: il
  * difetto spariva dallo schermo e da `audit:tokens` (controllo B) insieme.
- * I commenti nel codice dell'app restano scansionati, e non si possono
- * escludere: lì le classi vanno nominate a pezzi, non per intero.
+ * Ogni `.md` con un glob, non un elenco: il prossimo file di prosa sarebbe
+ * stato scansionato di nuovo senza che nessuno se ne accorgesse.
+ * ⚠️ I commenti nel codice dell'app restano scansionati e non si possono
+ * escludere: un commento che racconta una classe che NON deve esistere (un
+ * difetto, una classe tolta) la nomina a pezzi, o la rigenera.
  */
-@source not "../CLAUDE.md";
-@source not "../AGENTS.md";
-@source not "../README.md";
+@source not "../**/*.md";
 @source not "../.claude";
 @source not "../scripts";
 @source not "../supabase";

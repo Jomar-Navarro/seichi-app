@@ -59,11 +59,20 @@ function walk(dir, out = []) {
 const sources = SCAN_DIRS.flatMap((d) => walk(join(ROOT, d)));
 const css = readFileSync(CSS_SOURCE, "utf8");
 
-/** Riga (da 1) di un indice nel testo. */
-function rigaDi(src, idx) {
-	let n = 1;
-	for (let k = src.indexOf("\n"); k !== -1 && k < idx; k = src.indexOf("\n", k + 1)) n++;
-	return n;
+/** Da indice a riga (da 1): gli a-capo si cercano una volta per file. */
+function righe(src) {
+	const nl = [];
+	for (let k = src.indexOf("\n"); k !== -1; k = src.indexOf("\n", k + 1)) nl.push(k);
+	return (idx) => {
+		let lo = 0;
+		let hi = nl.length;
+		while (lo < hi) {
+			const mid = (lo + hi) >> 1;
+			if (nl[mid] < idx) lo = mid + 1;
+			else hi = mid;
+		}
+		return lo + 1;
+	};
 }
 
 /**
@@ -72,14 +81,24 @@ function rigaDi(src, idx) {
  * posizione. Una parte di template seguita da `${` porta anche `interp`, la
  * posizione dell'interpolazione.
  *
+ * Anche le VARIABILI che un className nomina (`${card}`, `{titleClass}`):
+ * le classi costruite in una costante e poi usate lì sono lo stesso difetto
+ * un passo più in là. Si risolve un livello solo, le dichiarazioni dello stesso
+ * file: andando oltre si raccolgono stringhe che classi non sono (URL, chiavi),
+ * e le costanti importate da `lib/` restano fuori.
+ *
  * ⚠️ Un piccolo parser e non una regex per riga: un className costruito a
  * pezzi va a capo, annida template e stringhe, e dentro `${…}` può contenere
  * commenti con apostrofi ("l'enfasi") che una regex leggerebbe come stringhe.
  * La regex di prima prendeva un attributo per riga e lo saltava se conteneva
  * `${` — cioè non guardava NESSUN className dinamico (issue #114).
+ * `rotti` sono i punti dove il parser è arrivato in fondo al file senza
+ * chiudere: da lì in poi non ha letto niente, e va DETTO.
  */
 function classNameLiterals(src) {
 	const pezzi = [];
+	const rotti = [];
+	let nomi = null; // identificatori nominati dal className che si sta leggendo
 	let i = 0;
 
 	function stringa(q) {
@@ -96,7 +115,7 @@ function classNameLiterals(src) {
 			} else if (src[i] === "$" && src[i + 1] === "{") {
 				pezzi.push({ text: src.slice(start, i), at: start, interp: i });
 				i += 2;
-				espressione();
+				espressione("}");
 				start = i;
 			} else {
 				i++;
@@ -105,48 +124,100 @@ function classNameLiterals(src) {
 		pezzi.push({ text: src.slice(start, i), at: start });
 		i++;
 	}
-	// Legge fino alla graffa che chiude quella già aperta, e si ferma DOPO.
-	function espressione() {
-		let depth = 1;
+	// Una regex letterale va saltata intera: altrimenti l'apostrofo di
+	// `/'/g` aprirebbe una stringa e il resto del file verrebbe letto storto.
+	function regex() {
+		let classe = false;
+		for (i++; i < src.length && src[i] !== "\n"; i++) {
+			const c = src[i];
+			if (c === "\\") i++;
+			else if (c === "[") classe = true;
+			else if (c === "]") classe = false;
+			else if (c === "/" && !classe) {
+				for (i++; /[a-z]/.test(src[i] ?? ""); ) i++;
+				return;
+			}
+		}
+	}
+	// Legge un'espressione fino al suo terminatore — la graffa che chiude
+	// quella già aperta, o il `;` di una dichiarazione — e si ferma DOPO.
+	// `false` se arriva in fondo al file senza trovarlo.
+	function espressione(fine) {
+		let depth = 0;
+		let prec = "("; // l'ultimo carattere significativo: dice se `/` apre una regex
+		const IDENT = /[A-Za-z_$][\w$]*/y;
 		while (i < src.length) {
 			const c = src[i];
 			if (c === "/" && src[i + 1] === "/") {
 				const nl = src.indexOf("\n", i);
 				i = nl === -1 ? src.length : nl;
 			} else if (c === "/" && src[i + 1] === "*") {
-				const fine = src.indexOf("*/", i + 2);
-				i = fine === -1 ? src.length : fine + 2;
+				const chiusura = src.indexOf("*/", i + 2);
+				i = chiusura === -1 ? src.length : chiusura + 2;
 			} else if (c === '"' || c === "'") {
 				stringa(c);
+				prec = "x";
 			} else if (c === "`") {
 				template();
+				prec = "x";
+			} else if (c === "/" && "(,=:[!&|?{};+-*%<>~^".includes(prec)) {
+				regex();
+				prec = "x";
+			} else if (/[A-Za-z_$]/.test(c)) {
+				IDENT.lastIndex = i;
+				const nome = IDENT.exec(src)[0];
+				if (nomi && prec !== ".") nomi.add(nome);
+				i += nome.length;
+				prec = "x";
+			} else if (/\s/.test(c)) {
+				i++;
 			} else {
-				if (c === "{") depth++;
-				else if (c === "}" && --depth === 0) {
+				if ("([{".includes(c)) depth++;
+				else if (")]}".includes(c)) {
+					if (depth === 0) {
+						if (c === fine) i++;
+						return true;
+					}
+					depth--;
+				} else if (c === ";" && depth === 0 && fine === ";") {
 					i++;
-					return;
+					return true;
 				}
+				prec = c;
 				i++;
 			}
 		}
+		return false;
 	}
 
+	const usati = new Set();
+	let letto = 0;
 	for (const m of src.matchAll(/\b(?:className|[a-z]\w*ClassName)\s*=\s*/g)) {
-		if (m.index < i) continue; // dentro un className già letto
+		if (m.index < letto) continue; // dentro un className già letto
 		i = m.index + m[0].length;
+		nomi = usati;
 		if (src[i] === '"' || src[i] === "'") stringa(src[i]);
 		else if (src[i] === "{") {
 			i++;
-			espressione();
+			if (!espressione("}")) rotti.push(m.index);
+		}
+		letto = i;
+	}
+	nomi = null;
+	for (const nome of usati) {
+		const decl = new RegExp(`\\b(?:const|let|var)\\s+${nome.replace(/\$/g, "\\$")}\\s*=(?!=)\\s*`, "g");
+		for (const m of src.matchAll(decl)) {
+			i = m.index + m[0].length;
+			if (!espressione(";")) rotti.push(m.index);
 		}
 	}
-	return pezzi;
+	return { pezzi, rotti };
 }
 
 const classNames = new Map(
 	sources.filter((f) => !f.endsWith(".css")).map((f) => {
 		const src = readFileSync(f, "utf8");
-		return [f, { src, pezzi: classNameLiterals(src) }];
+		return [f, { riga: righe(src), ...classNameLiterals(src) }];
 	}),
 );
 
@@ -259,9 +330,11 @@ if (cssBuilt.length === 0) {
 	// Tailwind scansiona ogni file non ignorato, script e commenti compresi, e
 	// la genererebbe da qui — la prima stesura di questa nota lo faceva, e
 	// rimetteva nel CSS proprio la classe di cui la build doveva accorgersi.
-	const VARIANTE = String.raw`(?:[a-z0-9][a-z0-9-]*(?:\[[^\]\s]+\])?|\[[^\]\s]+\]):`;
+	// E i gruppi con NOME (`group-hover/riga:`): senza, il match ripartiva
+	// dopo la barra e cercava nel CSS una `riga:bg-…` che non esiste.
+	const VARIANTE = String.raw`(?:[a-z0-9][a-z0-9-]*(?:\[[^\]\s]+\])?(?:/[A-Za-z0-9_-]+)?|\[[^\]\s]+\]):`;
 	const CLASS_RE = new RegExp(
-		`(?<![A-Za-z0-9_-])(?:${VARIANTE})*(?:${PREFIX})-[a-zA-Z0-9-]+(?:/[a-z0-9.]+)?`,
+		`(?<![A-Za-z0-9_/-])(?:${VARIANTE})*(?:${PREFIX})-[a-zA-Z0-9-]+(?:/[a-z0-9.]+)?`,
 		"g",
 	);
 
@@ -270,7 +343,7 @@ if (cssBuilt.length === 0) {
 	// continuo. I className costruiti a pezzi si guardano anch'essi, nelle loro
 	// parti letterali: una classe incollata a `${` la segnala D.
 	const candidate = new Map();
-	for (const [file, { src, pezzi }] of classNames) {
+	for (const [file, { riga, pezzi }] of classNames) {
 		for (const pezzo of pezzi) {
 			for (const m of pezzo.text.matchAll(CLASS_RE)) {
 				const cls = m[0];
@@ -280,7 +353,7 @@ if (cssBuilt.length === 0) {
 				const utility = cls.slice(cls.lastIndexOf(":") + 1).split("/")[0];
 				if (BUILTIN.test(utility.slice(utility.indexOf("-") + 1))) continue;
 				if (!candidate.has(cls)) candidate.set(cls, []);
-				candidate.get(cls).push(`${relative(ROOT, file)}:${rigaDi(src, pezzo.at + m.index)}`);
+				candidate.get(cls).push(`${relative(ROOT, file)}:${riga(pezzo.at + m.index)}`);
 			}
 		}
 	}
@@ -350,11 +423,13 @@ titolo("D · classi incollate a `${` in un className costruito a pezzi");
 // ⚠️ Solo PRIMA di `${`: dopo la graffa che chiude (`}text-xs`) lo scanner
 // la classe la estrae, e qui non c'è niente da segnalare.
 const incollate = [];
-for (const [file, { src, pezzi }] of classNames) {
+const nonLetti = [];
+for (const [file, { riga, pezzi, rotti }] of classNames) {
 	for (const { text, interp } of pezzi) {
 		if (interp === undefined || text === "" || /\s$/.test(text)) continue;
-		incollate.push(`${relative(ROOT, file)}:${rigaDi(src, interp)}  ${text.match(/\S+$/)[0]}\${`);
+		incollate.push(`${relative(ROOT, file)}:${riga(interp)}  ${text.match(/\S+$/)[0]}\${`);
 	}
+	for (const at of rotti) nonLetti.push(`${relative(ROOT, file)}:${riga(at)}`);
 }
 
 if (incollate.length === 0) {
@@ -363,6 +438,14 @@ if (incollate.length === 0) {
 	problemi += incollate.length;
 	console.log("❌ classi che Tailwind non vede — serve uno spazio prima di `${`:");
 	incollate.forEach((l) => console.log(`     ${l}`));
+}
+// ⚠️ Un className che il parser non ha saputo chiudere: da lì in fondo al
+// file né B né D hanno guardato niente. Va detto, non taciuto — un elenco di
+// soli OK non distingue "passato" da "non eseguito".
+if (nonLetti.length) {
+	problemi += nonLetti.length;
+	console.log("❌ className che il parser non ha saputo leggere fino in fondo:");
+	nonLetti.forEach((l) => console.log(`     ${l}`));
 }
 
 /* ------------------------------------------------------------------ esito --- */

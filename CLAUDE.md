@@ -7439,12 +7439,13 @@ regressione della 28e, su ogni larghezza.
   scritto nell'audit. Una classe che il codice smette di generare resta nel
   CSS se la prosa la nomina, e sparisce dallo schermo e dal controllo B
   insieme. Ora `globals.css` esclude dalla scansione i file che non sono
-  interfaccia (`@source not` su `CLAUDE.md`, `AGENTS.md`, `README.md`,
-  `.claude`, `scripts`, `supabase`): il CSS perde sei classi che nessun
-  componente usa (`bg-white`, `isolate`, `overflow-x-clip` nuda,
-  `static`, `text-kiri-ink`, `text-tsuki`). ⚠️ I commenti nel codice
-  dell'app restano scansionati e non si possono escludere: lì una classe
-  si nomina a pezzi, non per intero.
+  interfaccia (`@source not` su `../**/*.md` — un glob, non un elenco che il
+  prossimo file di prosa avrebbe aggirato — più `.claude`, `scripts`,
+  `supabase`): il CSS perde sei classi che nessun componente usa
+  (`bg-white`, `isolate`, `overflow-x-clip` nuda, `static`,
+  `text-kiri-ink`, `text-tsuki`). ⚠️ I commenti nel codice dell'app restano
+  scansionati e non si possono escludere: un commento che racconta una
+  classe che NON deve esistere la nomina a pezzi, o la rigenera.
 - **Impostazioni a due colonne da `lg:`**, l'eccezione alla regola delle
   convenzioni: a 1024 ogni colonna misura 332px, quasi il contenuto di un
   iPhone SE. ⚠️ **La card del budget non reggeva**: i sottotitoli sono
@@ -7463,6 +7464,20 @@ regressione della 28e, su ogni larghezza.
   variante `header`: sotto `lg:` la bottom nav non ce l'ha, e le due varianti
   non si vedono mai insieme.
 
+Emerso dalla code review prima del merge (7 rilievi, 5 applicati), tutto
+sull'audit: le classi costruite in una **variabile** e poi usate in un
+className (`${card}`, `{titleClass}`) sfuggivano a B e D — ora si risolvono
+le dichiarazioni dello stesso file, un livello solo (oltre si raccolgono URL
+e chiavi), e B passa da 81 a 83 classi; un apostrofo dentro una **regex
+letterale** apriva una stringa e faceva leggere storto il resto del file, in
+silenzio — ora le regex si saltano, e un className che il parser non sa
+chiudere viene **segnalato** invece di tacere; i gruppi **con nome**
+(`group-hover/riga:`) davano un falso "mai generata", verificato con una
+build che li contiene. Scartati: un helper `cx()` al posto dei template
+(cambierebbe l'idioma di tutto il progetto, e D ora fa rispettare quello
+esistente) e un `lg:max-w-2xl` nominato in un commento, che il codice usa
+davvero in dodici file.
+
 Collaudo del 2026-10-01 su un account di prova usa e getta (autorizzato da
 Jomar, eliminato alla fine): 92 controlli a 414/1024/1440, chiaro e scuro, su
 Impostazioni, Blocco con PIN (PIN messo solo nel browser di prova) e Profilo
@@ -7471,8 +7486,8 @@ Impostazioni, Blocco con PIN (PIN messo solo nel browser di prova) e Profilo
 controprova sul dev server è inutile**: Tailwind in sviluppo accumula le
 classi già generate, e il `SettingsRow` di master risultava verde. Va fatta
 su una build di produzione con `next start` su un'altra porta — lì master dà
-2 KO su 2 con lo stesso colore della issue, il fix 2 OK. Resta da fare la
-prova sull'iPad vero.
+2 KO su 2 con lo stesso colore della issue, il fix 2 OK. ✅ **Provato
+sull'iPad vero** da Jomar il 2026-10-01.
 
 #### Aperti, preesistenti e fuori scope
 
