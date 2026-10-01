@@ -1144,6 +1144,14 @@ export const it = {
 		errors: {
 			tooLarge: "L'immagine supera {max} MB. Scegline una più leggera.",
 			notSaved: "Non è stato possibile allegare la ricevuta a questo movimento.",
+			/**
+			 * ⚠️ Lettura e rimozione hanno frasi PROPRIE (#120). Prima una lettura
+			 * fallita per rete lasciava il picker su "Caricamento…" per sempre, e
+			 * una rimozione fallita non diceva niente: la ricevuta restava a
+			 * schermo come se il tocco non fosse arrivato.
+			 */
+			loadFailed: "Non è stato possibile caricare le ricevute. Riprova.",
+			removeFailed: "Non è stato possibile rimuovere la ricevuta. Riprova.",
 		},
 	},
 

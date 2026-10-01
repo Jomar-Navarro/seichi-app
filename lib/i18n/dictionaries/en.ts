@@ -646,6 +646,8 @@ export const en: Dictionary = {
 		errors: {
 			tooLarge: "That image is over {max} MB. Pick a lighter one.",
 			notSaved: "Could not attach the receipt to this transaction.",
+			loadFailed: "Could not load the receipts. Please try again.",
+			removeFailed: "Could not remove the receipt. Please try again.",
 		},
 	},
 

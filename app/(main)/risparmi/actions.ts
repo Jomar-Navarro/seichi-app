@@ -7,6 +7,10 @@ import { INVESTMENT_TYPE_COLOR, INVESTMENT_TYPE_FALLBACK } from "@/lib/investmen
 import { isAccountId } from "@/lib/accounts";
 import { lookup } from "@/lib/i18n/format";
 import { isStorableAmount } from "@/lib/amount";
+import { RECEIPT_BUCKET } from "@/lib/attachments";
+import { removeStorageFiles } from "@/lib/storage-files";
+import type { SupabaseServerClient } from "@/lib/supabase/server";
+import { getAttachmentPaths } from "@/app/(main)/attachment-actions";
 
 export async function getGoals(): Promise<{ data: GoalWithProgress[] } | { error: string }> {
 	const { supabase, user, t } = await requireUser();
@@ -359,9 +363,67 @@ export async function getGoalDeletionImpact(
 	return { data: { deposits: deposits.count ?? 0, rules: rules.count ?? 0 } };
 }
 
+/**
+ * Quanti versamenti si leggono per richiesta in `goalReceiptPaths`: sotto il
+ * tetto di 1000 righe di PostgREST, come `ANALYTICS_CHUNK`.
+ */
+const GOAL_DEPOSITS_CHUNK = 500;
+
+/**
+ * I file delle ricevute di tutti i versamenti di un obiettivo (#120).
+ *
+ * ⚠️ Gli id si leggono a pagine, ORDINATI per id. Senza paginazione PostgREST
+ * tronca a 1000 righe in silenzio, e i file dei versamenti oltre il tetto
+ * resterebbero orfani senza traccia; senza un ordinamento totale le pagine sono
+ * query distinte che il database può ordinare diversamente a ogni giro, e una
+ * riga finisce in due blocchi mentre un'altra in nessuno — il difetto già pagato
+ * due volte nella 23a e nella 23b.
+ *
+ * Come `getAttachmentPaths`, una lettura parziale non è un errore da mostrare:
+ * `incomplete` serve a scriverlo nei log con l'id dell'obiettivo.
+ */
+async function goalReceiptPaths(
+	supabase: SupabaseServerClient,
+	userId: string,
+	goalId: string,
+): Promise<{ paths: string[]; incomplete: boolean }> {
+	const ids: string[] = [];
+	for (let from = 0; ; from += GOAL_DEPOSITS_CHUNK) {
+		const { data, error } = await supabase
+			.from("transactions")
+			.select("id")
+			.eq("user_id", userId)
+			.eq("category_id", goalId)
+			.eq("type", "risparmio")
+			.order("id")
+			.range(from, from + GOAL_DEPOSITS_CHUNK - 1);
+
+		if (error) {
+			console.error("[obiettivi] lettura versamenti per le ricevute:", error.message);
+			const parziale = await getAttachmentPaths(ids);
+			return { paths: parziale.paths, incomplete: true };
+		}
+		for (const row of data ?? []) ids.push(row.id);
+		if ((data ?? []).length < GOAL_DEPOSITS_CHUNK) break;
+	}
+
+	return getAttachmentPaths(ids);
+}
+
 export async function deleteGoal(id: string): Promise<{ error?: string }> {
 	const { supabase, user, t } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
+
+	/*
+	 * ⚠️ Le ricevute dei versamenti si raccolgono PRIMA (#120): il delete qui
+	 * sotto fa cascata su `attachments` e lascia i file nel bucket, e dopo quali
+	 * fossero non è più scritto da nessuna parte. Stessa politica di
+	 * `deleteTransaction`: una lettura incompleta si registra e non ferma niente.
+	 */
+	const receipts = await goalReceiptPaths(supabase, user.id, id);
+	if (receipts.incomplete) {
+		console.error("[obiettivi] elenco ricevute incompleto prima dell'eliminazione:", id);
+	}
 
 	// Delete associated transactions first — otherwise they remain as
 	// orphaned outflows that permanently reduce the balance with no visible goal.
@@ -373,6 +435,21 @@ export async function deleteGoal(id: string): Promise<{ error?: string }> {
 		.eq("type", "risparmio");
 
 	if (txnError) return { error: txnError.message };
+
+	/*
+	 * I file si rimuovono SUBITO DOPO i versamenti, non in fondo alla funzione.
+	 * Da qui in poi le righe che li indicavano non esistono più: se il passo
+	 * delle regole o quello della categoria fallisse e la funzione uscisse prima,
+	 * il secondo tentativo non li troverebbe più — orfani per sempre.
+	 *
+	 * Un fallimento si registra e non annulla niente, come in `undoImport()`.
+	 */
+	if (receipts.paths.length > 0) {
+		const removed = await removeStorageFiles(supabase, RECEIPT_BUCKET, receipts.paths);
+		if (removed.error) {
+			console.error("[obiettivi] ricevute orfane dopo l'eliminazione:", removed.error, receipts.paths);
+		}
+	}
 
 	/*
 	 * ⚠️ E le regole ricorrenti che lo alimentano (#117). La FK

@@ -32,9 +32,12 @@ export async function getAttachments(
 		.eq("transaction_id", transactionId)
 		.order("created_at", { ascending: true });
 
+	// ⚠️ Una frase che dice COSA non è riuscito (#120): "si è verificato un
+	// errore" sotto l'elenco delle ricevute non dice se a mancare sono le
+	// ricevute o il movimento, e il rimedio è diverso.
 	if (error) {
 		console.error("[attachments] getAttachments:", error.message);
-		return { error: t.common.genericError };
+		return { error: t.attachments.errors.loadFailed };
 	}
 
 	const rows = data ?? [];
@@ -46,7 +49,7 @@ export async function getAttachments(
 
 	if (signError) {
 		console.error("[attachments] createSignedUrls:", signError.message);
-		return { error: t.common.genericError };
+		return { error: t.attachments.errors.loadFailed };
 	}
 
 	/*
@@ -169,10 +172,11 @@ export async function getAttachmentCountsChecked(
 /**
  * I path dei file allegati a una lista di movimenti.
  *
- * ⚠️ Esiste per `undoImport()`, che deve raccoglierli **prima** della cascade:
- * dopo il delete, quali file fossero non è più scritto da nessuna parte. Sta
- * qui e non là perché è lo stesso spezzettamento di `getAttachmentCounts()`, e
- * due copie della stessa cautela sono due occasioni di correggerne una sola.
+ * ⚠️ Esiste per chi cancella movimenti — `undoImport()`, `deleteTransaction()`
+ * e `deleteGoal()` (#120) — e deve raccoglierli **prima** della cascade: dopo il
+ * delete, quali file fossero non è più scritto da nessuna parte. Sta qui perché
+ * è lo stesso spezzettamento di `getAttachmentCounts()`, e due copie della
+ * stessa cautela sono due occasioni di correggerne una sola.
  *
  * ⚠️ `incomplete` NON è un errore da mostrare: dice che l'elenco potrebbe essere
  * parziale, e serve al chiamante per scriverlo nei log con abbastanza contesto
@@ -300,7 +304,7 @@ export async function deleteAttachment(id: string): Promise<{ error?: string }> 
 		.eq("user_id", user.id)
 		.single();
 
-	if (readError || !row) return { error: t.common.genericError };
+	if (readError || !row) return { error: t.attachments.errors.removeFailed };
 
 	/*
 	 * ⚠️ Prima il FILE, poi la riga — e l'ordine è ciò che rende ogni fallimento
@@ -321,7 +325,7 @@ export async function deleteAttachment(id: string): Promise<{ error?: string }> 
 
 	if (removeError) {
 		console.error("[attachments] remove:", removeError.message);
-		return { error: t.common.genericError };
+		return { error: t.attachments.errors.removeFailed };
 	}
 
 	const { error } = await supabase
@@ -332,7 +336,7 @@ export async function deleteAttachment(id: string): Promise<{ error?: string }> 
 
 	if (error) {
 		console.error("[attachments] delete row:", error.message);
-		return { error: t.common.genericError };
+		return { error: t.attachments.errors.removeFailed };
 	}
 
 	revalidatePath("/", "layout");

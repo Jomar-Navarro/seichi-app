@@ -7,6 +7,9 @@ import { isAccountId, isUuid } from "@/lib/accounts";
 import { firstRunForNewRule, firstRunFrom, rollForwardPastToday } from "@/lib/recurring";
 import { flussoDaTotali } from "@/lib/totals";
 import { isStorableAmount } from "@/lib/amount";
+import { RECEIPT_BUCKET } from "@/lib/attachments";
+import { removeStorageFiles } from "@/lib/storage-files";
+import { getAttachmentPaths } from "@/app/(main)/attachment-actions";
 import type { Frequency } from "@/types";
 
 /**
@@ -289,6 +292,22 @@ export async function deleteTransaction(id: string) {
 
 	if (!user) return { error: t.errors.notAuthenticated };
 
+	/*
+	 * ⚠️ I file delle ricevute si raccolgono PRIMA (#120). La FK di `attachments`
+	 * è in cascata e toglie le righe, ma i file restano nel bucket — e dopo il
+	 * delete quali fossero non è più scritto da nessuna parte. Fino alla #120
+	 * nessuno li toglieva: documenti con IBAN, nomi e importi restavano nello
+	 * Storage, invisibili all'app e non più cancellabili da nessuno.
+	 *
+	 * Stessa politica di `undoImport()`: una lettura incompleta si registra e non
+	 * ferma niente, perché l'utente ha chiesto di cancellare il movimento, non le
+	 * sue ricevute.
+	 */
+	const { paths, incomplete } = await getAttachmentPaths([id]);
+	if (incomplete) {
+		console.error("[transazioni] elenco ricevute incompleto prima dell'eliminazione:", id);
+	}
+
 	const { error } = await supabase
 		.from("transactions")
 		.delete()
@@ -296,6 +315,20 @@ export async function deleteTransaction(id: string) {
 		.eq("user_id", user.id);
 
 	if (error) return { error: error.message };
+
+	/*
+	 * I file si rimuovono DOPO, e un fallimento qui non annulla niente: il
+	 * movimento è già sparito e non torna, quindi "errore" sarebbe un messaggio
+	 * falso su un gesto riuscito. Restano al più dei file orfani — un costo di
+	 * spazio, non una bugia — e i loro path finiscono nei log, dove si cercano.
+	 */
+	if (paths.length > 0) {
+		const removed = await removeStorageFiles(supabase, RECEIPT_BUCKET, paths);
+		if (removed.error) {
+			console.error("[transazioni] ricevute orfane dopo l'eliminazione:", removed.error, paths);
+		}
+	}
+
 	revalidatePath("/", "layout");
 	return { success: true };
 }

@@ -160,23 +160,51 @@ export default function AttachmentPicker({
 	 */
 	const pendentiRef = useRef<Pendente[]>([]);
 
+	/*
+	 * La frase, non `t`, fra le dipendenze dell'effetto: il dizionario arriva
+	 * come prop dal layout, che ogni server action rende di nuovo con
+	 * `revalidatePath`, e la sua identità non è una garanzia su cui appoggiare
+	 * una lettura di rete. Una stringa si confronta per valore e cambia solo con
+	 * la lingua.
+	 */
+	const loadFailed = t.attachments.errors.loadFailed;
+
 	useEffect(() => {
 		if (!transactionId) return;
 		let cancelled = false;
-		getAttachments(transactionId).then((res) => {
-			if (cancelled) return;
-			if ("data" in res) setItems(res.data);
-			// ⚠️ L'errore si DICE. Ingoiandolo restava un elenco vuoto, che si legge
-			// come "questo movimento non ha ricevute" — una lettura fallita che si
-			// traveste da fatto. È la stessa classe della graffetta mancante nella
-			// lista, e la differenza fra le due è che qui un rimedio c'è: ricaricare.
-			else setError(res.error);
-			setLoading(false);
-		});
+		getAttachments(transactionId)
+			.then((res) => {
+				if (cancelled) return;
+				if ("data" in res) setItems(res.data);
+				// ⚠️ L'errore si DICE. Ingoiandolo restava un elenco vuoto, che si legge
+				// come "questo movimento non ha ricevute" — una lettura fallita che si
+				// traveste da fatto. È la stessa classe della graffetta mancante nella
+				// lista, e la differenza fra le due è che qui un rimedio c'è: ricaricare.
+				else setError(res.error);
+			})
+			/*
+			 * ⚠️ E anche quando la server action RIFIUTA (#120): un'eccezione o un 500
+			 * sul server, un deploy che ha cambiato l'id dell'azione. Senza il
+			 * `catch` la promise rifiutata non arrivava a `setLoading(false)`: il
+			 * picker restava su "Caricamento…" per sempre, senza un messaggio e
+			 * senza il comando per aggiungere una ricevuta.
+			 *
+			 * Una RETE caduta invece non rifiuta: con `experimental.useOffline`
+			 * (Fase 25) l'azione resta in sospeso e riparte alla riconnessione, e lì
+			 * "Caricamento…" è la verità — accanto all'avviso offline di `PwaStatus`.
+			 */
+			.catch((e) => {
+				if (cancelled) return;
+				console.error("[attachments] lettura:", e);
+				setError(loadFailed);
+			})
+			.finally(() => {
+				if (!cancelled) setLoading(false);
+			});
 		return () => {
 			cancelled = true;
 		};
-	}, [transactionId]);
+	}, [transactionId, loadFailed]);
 
 	/*
 	 * ⚠️ Le anteprime locali sono `blob:` e vanno REVOCATE allo smontaggio: senza,
@@ -320,6 +348,13 @@ export default function AttachmentPicker({
 				return;
 			}
 			setItems((prev) => prev.filter((a) => a.id !== id));
+		} catch (e) {
+			// ⚠️ Il `catch` mancava (#120): con il solo `finally` una server action
+			// rifiutata — un errore sul server, non una rete caduta (vedi la lettura
+			// qui sopra) — spariva in silenzio, e la ricevuta restava a schermo come
+			// se il secondo tocco non fosse mai arrivato. Stessa classe di `pick()`.
+			console.error("[attachments] rimozione:", e);
+			setError(t.attachments.errors.removeFailed);
 		} finally {
 			setPending(false);
 			setConfirming(null);

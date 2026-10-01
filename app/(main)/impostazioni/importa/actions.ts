@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { RECEIPT_BUCKET } from "@/lib/attachments";
+import { removeStorageFiles } from "@/lib/storage-files";
 import { getAttachmentPaths } from "@/app/(main)/attachment-actions";
 import { requireUser } from "@/lib/auth";
 import { analyze, importKeyFor, IMPORT_MAX_BYTES } from "@/lib/import";
@@ -473,12 +474,12 @@ export async function undoImport(importId: string): Promise<{ ok: true } | { err
 	 * della rimozione FERMA tutto — là i file sono dati personali di chi ha
 	 * chiesto di sparire, e abbandonarli è peggio che non cancellare l'account.
 	 */
+	// A blocchi (`removeStorageFiles`): l'API Storage rifiuta più di 1000 path
+	// per richiesta, e un lotto di Trade Republic ha già superato i 200 movimenti.
 	if (paths.length > 0) {
-		const { error: removeError } = await supabase.storage
-			.from(RECEIPT_BUCKET)
-			.remove(paths);
-		if (removeError) {
-			console.error("[import] ricevute orfane dopo undoImport:", removeError.message, paths);
+		const removed = await removeStorageFiles(supabase, RECEIPT_BUCKET, paths);
+		if (removed.error) {
+			console.error("[import] ricevute orfane dopo undoImport:", removed.error, paths);
 		}
 	}
 
