@@ -10,6 +10,7 @@ import { isStorableAmount } from "@/lib/amount";
 import { RECEIPT_BUCKET } from "@/lib/attachments";
 import { removeStorageFiles } from "@/lib/storage-files";
 import { readAll } from "@/lib/read-all";
+import { endOfDayInMonth } from "@/lib/dates";
 import { receiptPathsOf } from "@/lib/attachment-paths";
 import type { Frequency } from "@/types";
 
@@ -730,6 +731,12 @@ export async function getAnalyticsData(periodo: string = "mese", accountId?: str
 	let prevEnd: Date;
 	let trendPoints: { label: string; start: Date; end: Date }[];
 	let fetchStart: Date;
+	/*
+	 * ⚠️ Mese e anno sono IN CORSO, e si confrontano a parità di giorni (#121):
+	 * vedi `previousCompareEnd` più sotto. Settimana e «tutto» no — la prima
+	 * sono due finestre intere, il secondo non ha un periodo precedente.
+	 */
+	let sameSpan: "mese" | "anno" | null = null;
 
 	if (periodo === "settimana") {
 		rangeStart = new Date(oggi.getFullYear(), oggi.getMonth(), oggi.getDate() - 6);
@@ -751,6 +758,7 @@ export async function getAnalyticsData(periodo: string = "mese", accountId?: str
 		prevStart = new Date(now.getFullYear() - 1, 0, 1);
 		prevEnd = rangeStart;
 		fetchStart = prevStart;
+		sameSpan = "anno";
 		trendPoints = Array.from({ length: 12 }, (_, i) => ({
 			label: month(new Date(now.getFullYear(), i, 1)),
 			start: new Date(now.getFullYear(), i, 1),
@@ -827,6 +835,7 @@ export async function getAnalyticsData(periodo: string = "mese", accountId?: str
 		prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 		prevEnd = rangeStart;
 		fetchStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+		sameSpan = "mese";
 		trendPoints = Array.from({ length: 6 }, (_, i) => {
 			const m = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
 			return {
@@ -884,7 +893,7 @@ export async function getAnalyticsData(periodo: string = "mese", accountId?: str
 			byAccount(
 				supabase
 					.from("transactions")
-					.select("amount, categories(name, color)")
+					.select("amount, category_id, categories(name, color)")
 					.eq("user_id", user.id)
 					.eq("type", "spesa")
 					// ⚠️ Stesso motivo della query qui sopra: senza ordinamento totale la
@@ -915,42 +924,124 @@ export async function getAnalyticsData(periodo: string = "mese", accountId?: str
 		};
 	});
 
-	// KPI periodo corrente
-	const currentData = trendData?.filter((t) => {
-		const d = new Date(t.date);
-		return d >= rangeStart && d < rangeEnd;
-	}) ?? [];
-	const entrateCorrente = currentData.filter((t) => t.type === "entrata").reduce((acc, t) => acc + t.amount, 0);
-	const usciteCorrente = sommaUscite(currentData);
-	const saldoMese = entrateCorrente - usciteCorrente;
+	/*
+	 * Entrate, uscite e righe di una finestra. UNA definizione, usata sia per il
+	 * KPI sia per il periodo con cui lo si confronta (review della #121): scritte
+	 * due volte, una modifica a cosa conta come entrata avrebbe toccato l'una e
+	 * non l'altra — la divergenza per cui esiste `sommaUscite()`.
+	 */
+	const finestra = (da: Date, a: Date) => {
+		const rows = trendData.filter((t) => {
+			const d = new Date(t.date);
+			return d >= da && d < a;
+		});
+		const entrate = rows.filter((t) => t.type === "entrata").reduce((acc, t) => acc + t.amount, 0);
+		const uscite = sommaUscite(rows);
+		return { rows, entrate, uscite, flusso: entrate - uscite };
+	};
 
-	// Variazione vs periodo precedente
-	const prevData = trendData?.filter((t) => {
-		const d = new Date(t.date);
-		return d >= prevStart && d < prevEnd;
-	}) ?? [];
-	const entratePrev = prevData.filter((t) => t.type === "entrata").reduce((acc, t) => acc + t.amount, 0);
-	const uscitePrev = sommaUscite(prevData);
-	const saldoPrecedente = entratePrev - uscitePrev;
+	// KPI periodo corrente
+	const corrente = finestra(rangeStart, rangeEnd);
+	const entrateCorrente = corrente.entrate;
+	const usciteCorrente = corrente.uscite;
+	const saldoMese = corrente.flusso;
+
+	/*
+	 * ⚠️ Il periodo precedente si taglia allo stesso tratto che il KPI copre
+	 * (#121, deciso con Jomar il 2026-10-01). Il 2 del mese, con l'affitto già
+	 * uscito e lo stipendio non ancora arrivato, `/analisi` mostrava "↓ 139%" in
+	 * rosso: un mese appena iniziato accanto a uno intero.
+	 *
+	 * ⚠️ "Fin dove arriva il KPI" è l'ULTIMO giorno con un movimento, se è oltre
+	 * oggi, e non oggi e basta (review della #121). Il form accetta date future:
+	 * con lo stipendio già registrato al 27, il Flusso lo comprende, e un
+	 * confronto fermato a oggi metteva accanto a quel numero una percentuale
+	 * calcolata senza di lui — una cifra che descrive un altro numero. Così il
+	 * confronto è sempre fatto sul numero che gli sta accanto.
+	 *
+	 * Attenua anche l'orologio del SERVER (UTC su Vercel, indietro di 1-2 ore
+	 * sull'Italia): un movimento registrato "oggi" porta con sé il proprio
+	 * giorno. Resta il caso di zero movimenti oggi fra mezzanotte e le 2, dove il
+	 * periodo precedente si ferma un giorno prima — lo stesso debito già
+	 * dichiarato per i confini dei mesi di questa funzione.
+	 */
+	let previousCompareEnd = prevEnd;
+	if (sameSpan) {
+		const ultimo = corrente.rows.reduce((max, t) => {
+			const d = new Date(t.date);
+			return d > max ? d : max;
+		}, oggi);
+		previousCompareEnd =
+			sameSpan === "mese"
+				? endOfDayInMonth(prevStart.getFullYear(), prevStart.getMonth(), ultimo.getDate())
+				: endOfDayInMonth(prevStart.getFullYear(), ultimo.getMonth(), ultimo.getDate());
+	}
+	const saldoPrecedente = finestra(prevStart, previousCompareEnd).flusso;
 	const variazionePct = saldoPrecedente !== 0
 		? Math.round(((saldoMese - saldoPrecedente) / Math.abs(saldoPrecedente)) * 100)
 		: null;
 
+	/*
+	 * ⚠️ «— primo mese» solo se è VERO (#121). Prima compariva ogni volta che la
+	 * variazione era nulla — cioè con un flusso precedente pari a zero — anche
+	 * sui tab Anno e Settimana: nel 2026 ogni utente leggeva "primo mese" sul
+	 * tab Anno. Ora è un fatto chiesto al database: nessun movimento prima di
+	 * questo mese, con lo stesso filtro conto del resto della pagina.
+	 */
+	let primoMese = false;
+	if (
+		variazionePct === null &&
+		sameSpan === "mese" &&
+		// I dati letti coprono già i cinque mesi prima: se lì c'è una riga, la
+		// risposta è no senza chiedere niente (review della #121).
+		!trendData.some((t) => new Date(t.date) < rangeStart)
+	) {
+		let primaQuery = supabase
+			.from("transactions")
+			.select("id")
+			.eq("user_id", user.id)
+			.in("type", ["entrata", "spesa", "risparmio", "investimento", "abbonamento"])
+			.lt("date", rangeStart.toISOString())
+			.limit(1);
+		if (accountId) primaQuery = primaQuery.eq("account_id", accountId);
+		const { data: prima, error: primaError } = await primaQuery;
+		/*
+		 * ⚠️ Su un errore si DEGRADA a `false`, non si fa cadere la pagina: è una
+		 * didascalia, e "non dirla" resta vero. Restituire l'errore spegneva
+		 * l'intera `/analisi` — e il report, che la didascalia non la mostra
+		 * nemmeno — per una query di contorno (review della #121).
+		 */
+		if (primaError) console.error("[analisi] primo mese:", primaError.message);
+		else primoMese = (prima ?? []).length === 0;
+	}
+
 	// Spese per categoria (donut)
+	// Fuori dal `reduce`, dove `t` è la riga e non il dizionario.
+	const senzaCategoria = t.common.uncategorized;
 	const spesePerCategoria = speseData?.reduce(
 		(acc, t) => {
 			const cat = t.categories as unknown as { name: string; color: string } | null;
-			const nome = cat?.name;
+			/*
+			 * ⚠️ Una spesa SENZA categoria non si scarta (#121): la categoria è
+			 * facoltativa, e la card Uscite e il Flusso qui accanto la contano.
+			 * Scartata, la torta sommava meno della cifra sopra di lei.
+			 */
+			const nome = cat?.name ?? senzaCategoria;
 			const color = cat?.color ?? "";
-			if (!nome) return acc;
-			if (!acc[nome]) {
-				acc[nome] = { name: nome, color, total: t.amount };
+			/*
+			 * Per CATEGORIA, non per nome (review della #121): con una categoria
+			 * chiamata davvero "Senza categoria" le due fette si fondevano, e una
+			 * categoria non si distingueva più dai movimenti che non ne hanno.
+			 */
+			const id = t.category_id ?? "senza-categoria";
+			if (!acc[id]) {
+				acc[id] = { id, name: nome, color, total: t.amount };
 			} else {
-				acc[nome].total += t.amount;
+				acc[id].total += t.amount;
 			}
 			return acc;
 		},
-		{} as Record<string, { name: string; color: string; total: number }>,
+		{} as Record<string, { id: string; name: string; color: string; total: number }>,
 	);
 
 	return {
@@ -967,6 +1058,7 @@ export async function getAnalyticsData(periodo: string = "mese", accountId?: str
 		uscite: usciteCorrente,
 		saldoMese,
 		variazionePct,
+		primoMese,
 		trend,
 	};
 }

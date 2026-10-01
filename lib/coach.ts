@@ -65,6 +65,18 @@ function pct(parte: number, totale: number): number | null {
 }
 
 /**
+ * Le uscite fisse superano le entrate del mese: il terzo ramo del disponibile
+ * (#121). Senza, la frase diceva «ti restano € -45,00 per le spese variabili» —
+ * un margine negativo enunciato come un margine.
+ *
+ * Al CENTESIMO: un residuo di virgola mobile come −3,6e-15 sceglierebbe questo
+ * ramo con entrate e uscite fisse uguali, e direbbe "le superano di € 0,00".
+ */
+function scoperto(s: CoachSnapshot): boolean {
+	return Math.round(s.available * 100) < 0;
+}
+
+/**
  * Il messaggio con cui si apre il pannello.
  *
  * Tre frasi al massimo: il disponibile, quanto si sta mettendo da parte, e il
@@ -84,11 +96,17 @@ export function coachOpening(s: CoachSnapshot, locale: Locale, t: Dictionary): s
 	righe.push(
 		s.month.income === 0
 			? fill(t.coach.opening.availableNoIncome, { fixed: money(ctx, s.fixedOutflows) })
-			: fill(t.coach.opening.available, {
-					income: money(ctx, s.month.income),
-					fixed: money(ctx, s.fixedOutflows),
-					available: money(ctx, s.available),
-				}),
+			: scoperto(s)
+				? fill(t.coach.opening.availableShort, {
+						income: money(ctx, s.month.income),
+						fixed: money(ctx, s.fixedOutflows),
+						gap: money(ctx, -s.available),
+					})
+				: fill(t.coach.opening.available, {
+						income: money(ctx, s.month.income),
+						fixed: money(ctx, s.fixedOutflows),
+						available: money(ctx, s.available),
+					}),
 	);
 
 	/*
@@ -175,12 +193,19 @@ export function coachReplies(s: CoachSnapshot, locale: Locale, t: Dictionary): C
 	const disponibile =
 		s.month.income === 0
 			? fill(a.availableNoIncome, { fixed: money(ctx, s.fixedOutflows) })
-			: fill(a.available, {
-					income: money(ctx, s.month.income),
-					fixed: money(ctx, s.fixedOutflows),
-					available: money(ctx, s.available),
-					spent: money(ctx, s.month.variableExpenses),
-				});
+			: scoperto(s)
+				? fill(a.availableShort, {
+						income: money(ctx, s.month.income),
+						fixed: money(ctx, s.fixedOutflows),
+						gap: money(ctx, -s.available),
+						spent: money(ctx, s.month.variableExpenses),
+					})
+				: fill(a.available, {
+						income: money(ctx, s.month.income),
+						fixed: money(ctx, s.fixedOutflows),
+						available: money(ctx, s.available),
+						spent: money(ctx, s.month.variableExpenses),
+					});
 
 	/* ------------------------------------------------------------ budget */
 	let budget: string;

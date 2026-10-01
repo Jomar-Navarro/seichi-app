@@ -66,6 +66,42 @@ export function localMidnightInstant(isoDate: string, tzOffsetMinutes: number): 
 	return new Date(Date.UTC(y, m - 1, d) + tzOffsetMinutes * 60_000).toISOString();
 }
 
+/**
+ * L'istante, in millisecondi, di un `transactions.date` come lo restituisce
+ * PostgREST — da confrontare con quelli di `localMidnightInstant()`.
+ *
+ * ⚠️ Mai confrontare le due STRINGHE (#121). La colonna è `timestamp without
+ * time zone` e arriva senza fuso (`2026-10-01T00:00:00`), mentre
+ * `localMidnightInstant()` scrive `2026-10-01T00:00:00.000Z`: come stringhe la
+ * prima è un prefisso della seconda, quindi "minore" anche quando sono lo
+ * stesso istante. Una spesa registrata esattamente al confine finiva fuori dal
+ * proprio periodo e dentro il precedente — con fuso UTC+0, ogni spesa del primo
+ * giorno di un budget.
+ *
+ * Senza fuso si legge come UTC, cioè come la legge il database: le query
+ * confrontano la colonna con confini `timestamptz` nella sessione di Supabase,
+ * che è in UTC (debito dichiarato in CLAUDE.md, schema di `transactions`).
+ */
+export function dbInstant(value: string): number {
+	return Date.parse(/(?:Z|[+-]\d\d:?\d\d)$/i.test(value) ? value : `${value}Z`);
+}
+
+/**
+ * La fine (esclusiva) del giorno `day` nel mese `month` di `year`, fermata alla
+ * fine di quel mese — il confine dei confronti "a parità di giorni" (#121).
+ *
+ * ⚠️ Il fermo non è un dettaglio: il 31 marzo confrontato col mese prima deve
+ * dare tutto febbraio, non sconfinare in marzo; il 29 febbraio di un anno
+ * bisestile confrontato con l'anno prima deve dare fino al 28 febbraio, non al
+ * 2 marzo. Scritto a mano in ogni chiamante, la versione dell'anno era già
+ * diversa da quella del mese (review della #121): una definizione sola.
+ */
+export function endOfDayInMonth(year: number, month: number, day: number): Date {
+	return new Date(
+		Math.min(new Date(year, month, day + 1).getTime(), new Date(year, month + 1, 1).getTime()),
+	);
+}
+
 /** Primo giorno del mese di `isoDate` e primo del mese successivo (fine esclusiva). */
 export function monthBoundsOf(isoDate: string): { start: string; end: string } {
 	const [y, m] = isoDate.split("-").map(Number);

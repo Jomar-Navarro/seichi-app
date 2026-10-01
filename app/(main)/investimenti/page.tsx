@@ -114,8 +114,17 @@ export default async function InvestimentiPage({
 
 				{data && data.positions.length > 0 && (
 					<p className="text-[12.5px] text-muted mt-1 lg:col-start-1 lg:row-start-2 lg:text-[13px] lg:mt-1.5">
-						{plural(t.investments.positionCount, data.positions.length, locale)} ·{" "}
-						{plural(t.investments.typeCount, data.byType.length, locale)}
+						{/* ⚠️ "attive" = con capitale ancora versato (#121): una posizione
+						    liquidata a netto zero o negativo resta nell'elenco, con la sua
+						    nota, ma non è attiva. Contarla smentiva la parola accanto. */}
+						{plural(
+							t.investments.positionCount,
+							data.positions.filter((p) => p.total > 0).length,
+							locale,
+						)} ·{" "}
+						{/* Stessa regola delle posizioni: una tipologia tutta liquidata
+						    non si conta accanto alle posizioni "attive" (review della #121). */}
+						{plural(t.investments.typeCount, data.byType.filter((b) => b.total > 0).length, locale)}
 					</p>
 				)}
 			</div>

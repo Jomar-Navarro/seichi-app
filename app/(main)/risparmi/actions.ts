@@ -9,6 +9,8 @@ import { lookup } from "@/lib/i18n/format";
 import { isStorableAmount } from "@/lib/amount";
 import { RECEIPT_BUCKET } from "@/lib/attachments";
 import { removeStorageFiles } from "@/lib/storage-files";
+import { readAll } from "@/lib/read-all";
+import { endOfDayInMonth } from "@/lib/dates";
 import { receiptPathsOf } from "@/lib/attachment-paths";
 import type { SupabaseServerClient } from "@/lib/supabase/server";
 
@@ -16,39 +18,90 @@ export async function getGoals(): Promise<{ data: GoalWithProgress[] } | { error
 	const { supabase, user, t } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
-	const [{ data: cats, error: catsError }, { data: txns, error: txnsError }] = await Promise.all([
+	const [{ data: cats, error: catsError }, { rows: txns, error: txnsError }] = await Promise.all([
 		supabase
 			.from("categories")
 			.select("*")
 			.eq("user_id", user.id)
 			.eq("type", "risparmio")
 			.order("created_at", { ascending: false }),
-		supabase
-			.from("transactions")
-			.select("category_id, amount")
-			.eq("user_id", user.id)
-			.eq("type", "risparmio"),
+		// ⚠️ A blocchi, ordinati per id (#121): senza, oltre le 1000 righe
+		// PostgREST tronca in silenzio e un obiettivo risulta meno avanti del vero.
+		readAll<{ category_id: string | null; amount: number; date: string }>(
+			(from, to) =>
+				supabase
+					.from("transactions")
+					.select("category_id, amount, date")
+					.eq("user_id", user.id)
+					.eq("type", "risparmio")
+					.order("id", { ascending: true })
+					.range(from, to),
+			"obiettivi",
+		),
 	]);
 
 	if (catsError) return { error: catsError.message };
-	if (txnsError) return { error: txnsError.message };
+	if (txnsError) return { error: txnsError };
 
-	// Aggrega i risparmi per categoria
-	const sums = (txns ?? []).reduce(
-		(acc, t) => {
-			if (t.category_id) acc[t.category_id] = (acc[t.category_id] ?? 0) + t.amount;
-			return acc;
-		},
-		{} as Record<string, number>,
-	);
+	// I versamenti di ciascun obiettivo, in ordine di data.
+	const byGoal = new Map<string, { amount: number; date: string }[]>();
+	for (const t of txns) {
+		if (!t.category_id) continue;
+		const list = byGoal.get(t.category_id) ?? [];
+		list.push({ amount: t.amount, date: t.date });
+		byGoal.set(t.category_id, list);
+	}
 
-	const goals: GoalWithProgress[] = (cats ?? []).map((c) => ({
-		...c,
-		saved_amount: sums[c.id] ?? 0,
-	}));
+	// Al centesimo: senza, un residuo in virgola mobile poteva dire "completato"
+	// alla card e "non ancora" al calcolo della data (review della #121).
+	// `|| 0`: l'arrotondamento di un residuo negativo dà -0, che `Intl` scrive "-0,00".
+	const cents = (x: number) => Math.round(x * 100) / 100 || 0;
+
+	const goals: GoalWithProgress[] = (cats ?? []).map((c) => {
+		const deposits = byGoal.get(c.id) ?? [];
+		const saved = cents(deposits.reduce((acc, d) => acc + d.amount, 0));
+
+		/*
+		 * ⚠️ Il giorno in cui il traguardo è stato SUPERATO (#121): il versamento
+		 * con cui la somma progressiva arriva al target. La card diceva
+		 * «Raggiunto · <scadenza>», cioè una data che con il raggiungimento non
+		 * ha niente a che fare — un obiettivo per dicembre chiuso a marzo
+		 * risultava "raggiunto a dicembre".
+		 *
+		 * Solo se l'obiettivo è raggiunto ADESSO: se un versamento è stato poi
+		 * cancellato (è così che si "preleva", vedi Key Decisions) la data di un
+		 * superamento non più vero non va mostrata.
+		 */
+		/*
+		 * L'ordinamento per data si fa SOLO per un obiettivo completato: home e
+		 * coach chiamano questa funzione per `saved_amount` e basta (review della
+		 * #121).
+		 *
+		 * ⚠️ `slice(0, 10)` legge il giorno come lo legge la lista dei movimenti
+		 * (`new Date()` su un timestamp senza fuso): la data mostrata qui è quella
+		 * che l'utente vede accanto allo stesso versamento. Il caso al confine
+		 * della mezzanotte è il debito dichiarato di `transactions.date`.
+		 */
+		let reached_at: string | null = null;
+		if (c.target_amount && saved >= c.target_amount) {
+			let progressivo = 0;
+			for (const d of [...deposits].sort((a, b) => a.date.localeCompare(b.date))) {
+				progressivo += d.amount;
+				if (cents(progressivo) >= c.target_amount) {
+					reached_at = d.date.slice(0, 10);
+					break;
+				}
+			}
+		}
+
+		return { ...c, saved_amount: saved, reached_at };
+	});
 
 	return { data: goals };
 }
+
+/** La chiave della posizione che raccoglie i movimenti senza categoria (#121). */
+const UNCATEGORIZED = "__senza_categoria__";
 
 /**
  * Il portafoglio: capitale VERSATO, al netto di ciò che è stato liquidato.
@@ -86,30 +139,56 @@ export async function getInvestments(
 	const { supabase, user, t } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
-	let query = supabase
-		.from("transactions")
-		.select("category_id, amount, type, investment_type, date, categories(name, icon, color)")
-		.eq("user_id", user.id)
-		// ⚠️ `.in` e non `.eq`: senza le vendite il totale cresce e non cala mai,
-		// che è letteralmente il difetto della #52.
-		.in("type", ["investimento", "disinvestimento"])
-		.order("date", { ascending: false });
+	type Riga = {
+		category_id: string | null;
+		amount: number;
+		type: string;
+		investment_type: string | null;
+		date: string;
+		categories: unknown;
+	};
+	// ⚠️ A blocchi, ordinati per id (#121). Prima una query sola ordinata per
+	// data: oltre le 1000 righe PostgREST tagliava in silenzio le PIÙ VECCHIE, e
+	// un solo estratto Trade Republic ne aggiunge centinaia per volta. L'ordine
+	// non conta per i conti qui sotto — le tipologie sono un insieme (#56).
+	const { rows: txns, error } = await readAll<Riga>((from, to) => {
+		let query = supabase
+			.from("transactions")
+			.select("category_id, amount, type, investment_type, date, categories(name, icon, color)")
+			.eq("user_id", user.id)
+			// ⚠️ `.in` e non `.eq`: senza le vendite il totale cresce e non cala mai,
+			// che è letteralmente il difetto della #52.
+			.in("type", ["investimento", "disinvestimento"]);
 
-	// ⚠️ `isAccountId()` prima di usarlo: qui non finisce in una stringa di
-	// sintassi come nel `.or()` di getTransactions, ma un id malformato
-	// produrrebbe comunque un 22P02 che si presenta all'utente come "Errore".
-	if (isAccountId(accountId)) query = query.eq("account_id", accountId);
+		// ⚠️ `isAccountId()` prima di usarlo: qui non finisce in una stringa di
+		// sintassi come nel `.or()` di getTransactions, ma un id malformato
+		// produrrebbe comunque un 22P02 che si presenta all'utente come "Errore".
+		if (isAccountId(accountId)) query = query.eq("account_id", accountId);
+		return query.order("id", { ascending: true }).range(from, to);
+	}, "investimenti");
 
-	const { data: txns, error } = await query;
+	if (error) return { error };
 
-	if (error) return { error: error.message };
-
+	/*
+	 * ⚠️ La variazione confronta lo STESSO tratto dei due mesi (#121): dal 1°
+	 * all'ultimo giorno coperto contro lo stesso tratto del mese scorso. Prima
+	 * metteva il mese in corso accanto all'intero mese precedente, e i primi
+	 * giorni ogni versamento non ancora fatto si leggeva come un crollo. Deciso
+	 * con Jomar il 2026-10-01, insieme a `/analisi` — e con la stessa regola:
+	 * il tratto arriva fino all'ultimo versamento del mese se è oltre oggi (il
+	 * form accetta date future), vedi `getAnalyticsData`.
+	 */
 	const now = new Date();
+	const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 	const firstOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+	const firstOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 	const firstOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
 	let thisMonthContrib = 0;
-	let lastMonthContrib = 0;
+	let ultimo = today;
+	// Del mese scorso si tengono le righe e si sommano DOPO: il confine dipende
+	// dall'ultimo giorno di questo mese, che si conosce solo alla fine del ciclo.
+	const lastMonthRows: { d: Date; signed: number }[] = [];
 
 	/**
 	 * ⚠️ `types` è un INSIEME, non una stringa, ed è la correzione della #56.
@@ -129,16 +208,30 @@ export async function getInvestments(
 		types: Set<string>; total: number;
 	}>();
 
-	for (const tx of txns ?? []) {
-		if (!tx.category_id || !tx.categories) continue;
-
-		const cat = tx.categories as unknown as { name: string; icon: string; color: string };
+	for (const tx of txns) {
+		/*
+		 * ⚠️ Un movimento SENZA categoria non si scarta più (#121): la categoria è
+		 * facoltativa sia nel form sia nell'import, e home, budget e saldi quei
+		 * movimenti li contano. Scartandoli qui, un import Trade Republic senza
+		 * categorie lasciava "Investimenti € 300" in home e "Nessun investimento
+		 * ancora" su questa pagina. Finiscono in una posizione "Senza categoria".
+		 */
+		const key = tx.category_id ?? UNCATEGORIZED;
+		const cat = (tx.categories as { name: string; icon: string; color: string } | null) ?? {
+			name: t.common.uncategorized,
+			icon: "",
+			color: "",
+		};
 		// Il verso: un acquisto aggiunge capitale versato, una vendita lo toglie.
 		const signed = tx.type === "disinvestimento" ? -tx.amount : tx.amount;
 
 		const d = new Date(tx.date);
-		if (d >= firstOfThisMonth) thisMonthContrib += signed;
-		else if (d >= firstOfLastMonth) lastMonthContrib += signed;
+		if (d >= firstOfThisMonth && d < firstOfNextMonth) {
+			thisMonthContrib += signed;
+			if (d > ultimo) ultimo = d;
+		} else if (d >= firstOfLastMonth && d < firstOfThisMonth) {
+			lastMonthRows.push({ d, signed });
+		}
 
 		/*
 		 * ⚠️ Si contano le righe di ENTRAMBI i versi: una vendita descrive un asset
@@ -156,12 +249,12 @@ export async function getInvestments(
 		 * descrive un asset ma un dato mancante. È l'istinto giusto della vecchia
 		 * guardia, conservato senza il difetto che aveva.
 		 */
-		const existing = catMap.get(tx.category_id);
+		const existing = catMap.get(key);
 		if (existing) {
 			existing.total += signed;
 			if (tx.investment_type) existing.types.add(tx.investment_type);
 		} else {
-			catMap.set(tx.category_id, {
+			catMap.set(key, {
 				name: cat.name,
 				icon: cat.icon,
 				color: cat.color,
@@ -171,7 +264,30 @@ export async function getInvestments(
 		}
 	}
 
-	const total = Array.from(catMap.values()).reduce((acc, c) => acc + c.total, 0);
+	/*
+	 * ⚠️ Al CENTESIMO (review della #121). Le somme in virgola mobile lasciano
+	 * residui: una posizione comprata per 100,10 + 200,20 e venduta per 300,30
+	 * resta a −5,7e-14 — con la nota "hai liquidato più di quanto versato" e
+	 * "€ -0,00". Arrotondando, `total > 0` significa davvero "ancora versato".
+	 * Vale anche per i due contributi del mese: lo stesso residuo come
+	 * DENOMINATORE della variazione passava il `> 0` e dava percentuali assurde.
+	 */
+	// `|| 0`: l'arrotondamento di un residuo negativo dà -0, che `Intl` scrive "-0,00".
+	const cents = (x: number) => Math.round(x * 100) / 100 || 0;
+
+	const lastMonthEnd = endOfDayInMonth(
+		firstOfLastMonth.getFullYear(),
+		firstOfLastMonth.getMonth(),
+		ultimo.getDate(),
+	);
+	const lastMonthContrib = cents(
+		lastMonthRows.filter((r) => r.d < lastMonthEnd).reduce((acc, r) => acc + r.signed, 0),
+	);
+	thisMonthContrib = cents(thisMonthContrib);
+
+	for (const c of catMap.values()) c.total = cents(c.total);
+
+	const total = cents(Array.from(catMap.values()).reduce((acc, c) => acc + c.total, 0));
 
 	/*
 	 * ⚠️ Le percentuali si calcolano sul solo capitale POSITIVO.
@@ -211,8 +327,7 @@ export async function getInvestments(
 	 * insieme, e si compensano fra loro senza sporcare le altre tipologie.
 	 */
 	const typeMap = new Map<string, number>();
-	for (const tx of txns ?? []) {
-		if (!tx.category_id || !tx.categories) continue;
+	for (const tx of txns) {
 		const key = tx.investment_type ?? INVESTMENT_TYPE_FALLBACK;
 		const signed = tx.type === "disinvestimento" ? -tx.amount : tx.amount;
 		typeMap.set(key, (typeMap.get(key) ?? 0) + signed);
@@ -231,6 +346,7 @@ export async function getInvestments(
 			? Math.round(((thisMonthContrib - lastMonthContrib) / lastMonthContrib) * 1000) / 10
 			: null;
 
+	for (const [k, v] of typeMap) typeMap.set(k, cents(v));
 	const baseType = somma(Array.from(typeMap.values()));
 
 	const byType = Array.from(typeMap.entries())
@@ -244,8 +360,8 @@ export async function getInvestments(
 		.sort((a, b) => b.total - a.total);
 
 	const positions = Array.from(catMap.entries())
-		.map(([category_id, cat]) => ({
-			category_id,
+		.map(([key, cat]) => ({
+			category_id: key === UNCATEGORIZED ? null : key,
 			name: cat.name,
 			icon: cat.icon,
 			color: cat.color,

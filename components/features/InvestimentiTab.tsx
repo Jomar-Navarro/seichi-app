@@ -9,6 +9,7 @@ import {
 	currencySymbol,
 	fill,
 	formatMoney,
+	formatNumber,
 	splitAmount,
 } from "@/lib/i18n/format";
 import { useDonutTooltipPosition } from "@/components/UI/useDonutTooltipPosition";
@@ -174,16 +175,20 @@ export default function InvestimentiTab({
 						<span className="text-[46px]">{sign}{integer}</span>
 						<span className="text-[28px] font-medium text-muted">{decimal}</span>
 					</p>
+					{/*
+						⚠️ Colore NEUTRO (#121): il mese è in corso, e un confronto a parità di
+						giorni resta un'indicazione, non un giudizio — i primi giorni basta un
+						versamento spostato di una settimana per ribaltarla. Il verde e il
+						rosso dicevano "bene" e "male" su un mese non ancora finito.
+					*/}
 					{variazionePct !== null && (
-						<p
-							className={`text-[12px] mt-1.5 flex items-center gap-1 lg:text-[12.5px] lg:mt-2.5 ${
-								variazionePct >= 0 ? "text-midori-ink" : "text-aka-ink"
-							}`}
-						>
+						<p className="text-[12px] mt-1.5 flex items-center gap-1 text-muted lg:text-[12.5px] lg:mt-2.5">
 							<span>{variazionePct >= 0 ? "↑" : "↓"}</span>
+							{/* Il verso lo dice la freccia, non anche un segno ("↓ -33.3%"), e la
+							    cifra nel formato della lingua: era il numero grezzo, col punto
+							    decimale anche in italiano. */}
 							<span>
-								{variazionePct >= 0 ? "+" : ""}
-								{variazionePct}% {t.investments.vsLastMonth}
+								{formatNumber(Math.abs(variazionePct), locale, { maximumFractionDigits: 1 })}% {t.investments.vsLastMonth}
 							</span>
 						</p>
 					)}
@@ -279,7 +284,7 @@ export default function InvestimentiTab({
 							<div className="flex-1 flex flex-col gap-2.5 lg:gap-3.5">
 								{chartItems.map((pos) => (
 									<div
-										key={pos.category_id}
+										key={pos.category_id ?? "senza-categoria"}
 										className="flex items-center justify-between lg:gap-3"
 									>
 										<div className="flex items-center gap-2.25 min-w-0">
@@ -354,7 +359,7 @@ export default function InvestimentiTab({
 						return (
 							/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */
 							<div
-								key={pos.category_id}
+								key={pos.category_id ?? "senza-categoria"}
 								className="relative rounded-[20px] overflow-hidden shadow-[inset_0_1px_0_var(--shadow-inset),inset_0_0_0_1px_var(--border)] lg:rounded-[22px]"
 							>
 							<div className="absolute inset-0 bg-surface backdrop-blur-[18px]" />

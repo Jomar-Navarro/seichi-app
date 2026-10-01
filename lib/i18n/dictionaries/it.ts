@@ -59,6 +59,12 @@ export const it = {
 		selectPlaceholder: "Seleziona {field}",
 		/** L'occhio che nasconde gli importi: è un bottone con la sola icona. */
 		toggleVisibility: "Mostra o nascondi gli importi",
+		/**
+		 * I movimenti senza categoria, dove un totale li raggruppa per categoria
+		 * (#121): il donut delle spese e le posizioni di `/investimenti`. Prima
+		 * sparivano da lì mentre home e saldi li contavano.
+		 */
+		uncategorized: "Senza categoria",
 	},
 
 	/**
@@ -905,6 +911,7 @@ export const it = {
 		/** Intestazione del gruppo di obiettivi già raggiunti. */
 		completedSection: "Completati",
 		/** Riga sotto il nome sulla card: "Scadenza · ago 2026". */
+		/** `{date}` è il giorno del versamento che ha superato il target, non la scadenza (#121). */
 		reached: "Raggiunto · {date}",
 		deadline: "Scadenza · {date}",
 		/** "€ 400 di € 1.000" — il connettivo fra risparmiato e traguardo. */
@@ -977,7 +984,8 @@ export const it = {
 		portfolioValue: "Capitale versato",
 		/** Mostrata quando una posizione è stata liquidata oltre il versato. */
 		negativeNote: "hai liquidato più di quanto versato: la differenza è guadagno",
-		vsLastMonth: "rispetto al mese scorso",
+		/** A parità di giorni: dal 1° a oggi contro lo stesso tratto del mese scorso (#121). */
+		vsLastMonth: "rispetto allo stesso periodo del mese scorso",
 		composition: "Composizione",
 		/**
 		 * ⚠️ La ripartizione per ASSET, che è un'altra partizione da
@@ -1032,8 +1040,22 @@ export const it = {
 		 * scopre solo mettendo le due schermate una accanto all'altra.
 		 */
 		netFlow: "Flusso",
-		/** Nessun periodo precedente con cui confrontarsi. */
+		/**
+		 * Solo sul tab Mese e solo se prima non c'è alcun movimento (#121): prima
+		 * compariva con qualunque variazione nulla, anche sul tab Anno.
+		 */
 		firstMonth: "— primo mese",
+		/**
+		 * Con che cosa si confronta la variazione accanto al Flusso (#121). Mese e
+		 * anno sono IN CORSO, quindi il confronto è a parità di giorni: dal 1° a
+		 * oggi contro lo stesso tratto del periodo prima. La settimana sono due
+		 * finestre intere di sette giorni.
+		 */
+		compareTo: {
+			settimana: "rispetto ai 7 giorni prima",
+			mese: "rispetto allo stesso periodo del mese scorso",
+			anno: "rispetto allo stesso periodo dell'anno scorso",
+		},
 		tabs: {
 			settimana: "Settimana",
 			mese: "Mese",
@@ -1096,7 +1118,13 @@ export const it = {
 		 * costano" è sapere che la gestione vive nelle impostazioni. Non
 		 * ripete l'elenco (già in `RecurringManager`): solo il totale e un link.
 		 */
-		fixedOutflowsTitle: "Uscite fisse",
+		/**
+		 * ⚠️ «di questo mese» sta nel titolo (#121): la card vive sotto i tab
+		 * Settimana, Anno e Tutto, ma la cifra è SEMPRE il mese corrente.
+		 */
+		fixedOutflowsTitle: "Uscite fisse di questo mese",
+		/** Con un conto selezionato la pagina è filtrata, la card no: lo dice. */
+		fixedOutflowsAllAccounts: "Su tutti i conti",
 		/** ⚠️ "Uscite fisse" da solo non dice DI COSA — chiesto usando l'app.
 		 *  Stessa frase di `t.recurring.emptyDescription`, per riconoscibilità:
 		 *  è la stessa lista, vista da due porte diverse. */
@@ -1284,6 +1312,14 @@ export const it = {
 			availableNoIncome:
 				"Questo mese non hai ancora registrato entrate, mentre di uscite fisse ne sono previste {fixed}. Il quadro si chiarisce quando arriva il primo incasso.",
 			/**
+			 * ⚠️ Il terzo ramo (#121): entrate registrate ma più basse delle uscite
+			 * fisse. Senza, la frase diceva «ti restano − € 1.180,00 per le spese
+			 * variabili» — un margine negativo enunciato come un margine. `{gap}` è
+			 * la differenza in positivo.
+			 */
+			availableShort:
+				"Questo mese hai incassato {income}, ma le uscite fisse previste sono {fixed}: le superano di {gap}.",
+			/**
 			 * ⚠️ La percentuale sta fra parentesi, e NON dopo un articolo.
 			 *
 			 * «cioè il {pct}%» si rompe da sola in italiano: l'articolo cambia col
@@ -1322,6 +1358,9 @@ export const it = {
 				"Entrate {income} meno uscite fisse previste {fixed}: restano {available}. Di spese variabili ne hai già fatte {spent}.",
 			availableNoIncome:
 				"Senza entrate registrate non c'è ancora un disponibile da calcolare: per ora ci sono solo {fixed} di uscite fisse previste.",
+			/** ⚠️ Vedi `opening.availableShort`. */
+			availableShort:
+				"Entrate {income} meno uscite fisse previste {fixed}: mancano {gap}. Di spese variabili ne hai già fatte {spent}.",
 			budgetNone:
 				"Non hai impostato nessun limite. Quello globale si mette nelle impostazioni, quelli per categoria nel form della categoria.",
 			budgetGlobal: "Sul limite globale hai speso {spent} di {amount}.",
