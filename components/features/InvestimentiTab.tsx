@@ -9,6 +9,7 @@ import {
 	currencySymbol,
 	fill,
 	formatMoney,
+	formatNumber,
 	splitAmount,
 } from "@/lib/i18n/format";
 import { useDonutTooltipPosition } from "@/components/UI/useDonutTooltipPosition";
@@ -183,9 +184,11 @@ export default function InvestimentiTab({
 					{variazionePct !== null && (
 						<p className="text-[12px] mt-1.5 flex items-center gap-1 text-muted lg:text-[12.5px] lg:mt-2.5">
 							<span>{variazionePct >= 0 ? "↑" : "↓"}</span>
+							{/* Il verso lo dice la freccia, non anche un segno ("↓ -33.3%"), e la
+							    cifra nel formato della lingua: era il numero grezzo, col punto
+							    decimale anche in italiano. */}
 							<span>
-								{variazionePct >= 0 ? "+" : ""}
-								{variazionePct}% {t.investments.vsLastMonth}
+								{formatNumber(Math.abs(variazionePct), locale, { maximumFractionDigits: 1 })}% {t.investments.vsLastMonth}
 							</span>
 						</p>
 					)}
