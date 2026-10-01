@@ -1020,6 +1020,7 @@ che non si applica perché il nome non esiste* — fallisce in tre modi:
 | **A** | `var(--nome)` mai definita | il grep della Fase 18 |
 | **B** | una **classe** Tailwind mai generata | ⚠️ **niente lo cercava** |
 | **C** | un `--ink-*` non mappato in `@theme inline` | a mano, dopo `text-kiri-ink` |
+| **D** | una classe **incollata a `${`** in un className costruito a pezzi | ⚠️ niente — vedi la #114 nella Fase 28e |
 
 ⚠️ **Il controllo B è quello che mancava, e costava.** La Fase 18 confrontava
 solo le `var(--…)`, quindi `bg-glass-border` — un token che **non esiste da
@@ -7202,14 +7203,16 @@ issue.
 - Titolo `lg:text-[30px] lg:tracking-[-0.6px]`.
 - **Gli split di PAGINA a due colonne partono da `xl:`**: a 1024 la colonna di
   contenuto è ~688px (1024 − 256 sidebar − 80 di padding), e un importo a 46px
-  come "€ 12.345,67" è largo ~280px.
+  come "€ 12.345,67" è largo ~280px. ⚠️ **Eccezione: Impostazioni, da `lg:`**
+  (#114, sotto) — lì non ci sono importi grandi, solo le righe del telefono.
 
 #### Le decisioni
 
 - **Footer della sidebar: SÌ** — era la decisione che la issue lasciava
   aperta. Avatar, nome, "N conti attivi", chevron, e apre lo STESSO
   `ProfileMenu` della home (variante `sidebar`, verso l'alto), non un secondo
-  menu. I dati partono nel layout come **promise** letta con `use()` in un
+  menu — ma senza la voce "Impostazioni", che nella rail c'è già (#114, sotto).
+  I dati partono nel layout come **promise** letta con `use()` in un
   Suspense attorno al solo footer, quindi non ritardano la pagina, e la promise
   non rifiuta mai: un error boundary che avvolga il layout non c'è.
   Costo: una HEAD count (`countActiveAccounts`, ora una sola in
@@ -7251,6 +7254,8 @@ issue.
 - ⚠️ **Impostazioni: revisione ESPLICITA della 28c.** Due colonne da `xl:`,
   come il mockup nuovo; fra `lg:` e `xl:` una colonna da 672px allineata a
   sinistra, sotto il proprio titolo. Tutte le righe esistenti mantenute.
+  ~~Due colonne da `xl:`~~ — **da `lg:` dalla #114** (sotto): la colonna
+  sola lasciava mezzo iPad vuoto.
 - **Obiettivi**: tessera "Nuovo obiettivo" in coda; "completato" deciso sul
   valore esatto come la pagina, e un obiettivo mancato si ferma al 99%.
 - **`DashedAddButton`**: il tratteggio è un SVG, non un `border-dashed` — un
@@ -7398,6 +7403,91 @@ Le quattro imperfezioni rimaste dopo la 28e, in una PR sola.
   sui testi italiani non trovavano niente e davano un timeout che sembrava una
   pagina rotta. Il contesto va aperto con `locale: "it-IT"`. È la stessa
   trappola già pagata nella 23a con `context.request`, dall'altra parte.
+
+#### Chiuso dalla #114 (2026-10-01)
+
+Rifiniture viste su un iPad Air 2 in orizzontale (1024×768). La prima era una
+regressione della 28e, su ogni larghezza.
+
+- ⚠️⚠️ **I separatori fra le righe delle impostazioni erano quasi bianchi.**
+  In `SettingsGroup` la classe del colore stava attaccata al `${` del template
+  aggiunto dalla 28e (`…border-subtle${tone ? … }`). Lo scanner di Tailwind
+  legge il sorgente come testo e non estrae ciò che è incollato a `${`
+  (verificato con `@tailwindcss/oxide`): la classe con la variante
+  `[&>*+*]:` non veniva generata, il bordo aveva lo spessore ma non il
+  colore, e ripiegava su `currentColor` — in scuro `rgb(230,233,239)`, cioè
+  il colore del testo. Lo spazio prima di `${` lo chiude; le altre sette
+  classi nella stessa posizione (`scrollbar-none`, `modal-shadow-ring`,
+  `mb-4`, `py-6`, `gap-5`, `active:opacity-80` due volte, l'anello di
+  `MonthlyLineChart`) funzionavano solo perché un altro file le scriveva per
+  intero, e sono staccate anche loro.
+- **`audit:tokens` non poteva vederlo, per due motivi**: saltava ogni
+  className con `${` e la sua regex non riconosceva le varianti arbitrarie,
+  quindi verificava `border-subtle` nuda, che esiste. Ora legge i className
+  con un piccolo parser (multi-riga, template annidati, commenti con
+  apostrofi) e ne verifica tutte le parti letterali — 81 classi contro 72 —
+  e il controllo **D** segnala ogni parte statica che non finisce con uno
+  spazio prima di `${`, anche un nome costruito a runtime (`bg-${accent}`).
+  Non richiede una build. Controprova: con i sei file di master D elenca i
+  nove punti della issue, e un file sonda con template annidato, commento
+  con apostrofo e `areaClassName` dà 7 segnalazioni su 7 attese, nessuna su
+  `${a}text-xs` (dopo la graffa lo scanner la classe la vede).
+- ⚠️⚠️ **E la documentazione mascherava il difetto.** Tailwind scansiona ogni
+  file non ignorato da git, `CLAUDE.md` compreso (`lg:max-w-3xl` compariva
+  solo qui ed era nel CSS). La prima controprova sulla build di master è
+  uscita VERDE: la classe mancante la generava il commento che avevo appena
+  scritto nell'audit. Una classe che il codice smette di generare resta nel
+  CSS se la prosa la nomina, e sparisce dallo schermo e dal controllo B
+  insieme. Ora `globals.css` esclude dalla scansione i file che non sono
+  interfaccia (`@source not` su `../**/*.md` — un glob, non un elenco che il
+  prossimo file di prosa avrebbe aggirato — più `.claude`, `scripts`,
+  `supabase`): il CSS perde sei classi che nessun componente usa
+  (`bg-white`, `isolate`, `overflow-x-clip` nuda, `static`,
+  `text-kiri-ink`, `text-tsuki`). ⚠️ I commenti nel codice dell'app restano
+  scansionati e non si possono escludere: un commento che racconta una
+  classe che NON deve esistere la nomina a pezzi, o la rigenera.
+- **Impostazioni a due colonne da `lg:`**, l'eccezione alla regola delle
+  convenzioni: a 1024 ogni colonna misura 332px, quasi il contenuto di un
+  iPhone SE. ⚠️ **La card del budget non reggeva**: i sottotitoli sono
+  spiegazioni, non dati, e troncati mentivano per omissione — "Abbonamenti
+  di questo mese, fuori …" perdeva proprio "dal limite". Ora le righe di
+  `GlobalBudgetSection` sono `min-h-15.5` e i sottotitoli vanno a capo; sul
+  telefono, dove ci stanno, restano alte 62px. Stesso cambio per il bottone
+  del suggerimento, che aveva già un sottotitolo senza `truncate` dentro
+  un'altezza FISSA: andando a capo sarebbe uscito dal bottone. Il padding
+  stretto fra `lg:` e `xl:` proposto dalla issue (`lg:px-6`) non è servito,
+  e avrebbe fatto saltare il titolo di 16px passando da una pagina all'altra.
+  Nella card profilo nome ed email si troncano coi puntini come sul
+  telefono, e l'email intera sta nella riga sotto.
+- **"Impostazioni" tolta dal menu del footer della rail**, dove era il
+  secondo ingresso a pochi centimetri dalla voce della nav. Resta nella
+  variante `header`: sotto `lg:` la bottom nav non ce l'ha, e le due varianti
+  non si vedono mai insieme.
+
+Emerso dalla code review prima del merge (7 rilievi, 5 applicati), tutto
+sull'audit: le classi costruite in una **variabile** e poi usate in un
+className (`${card}`, `{titleClass}`) sfuggivano a B e D — ora si risolvono
+le dichiarazioni dello stesso file, un livello solo (oltre si raccolgono URL
+e chiavi), e B passa da 81 a 83 classi; un apostrofo dentro una **regex
+letterale** apriva una stringa e faceva leggere storto il resto del file, in
+silenzio — ora le regex si saltano, e un className che il parser non sa
+chiudere viene **segnalato** invece di tacere; i gruppi **con nome**
+(`group-hover/riga:`) davano un falso "mai generata", verificato con una
+build che li contiene. Scartati: un helper `cx()` al posto dei template
+(cambierebbe l'idioma di tutto il progetto, e D ora fa rispettare quello
+esistente) e un `lg:max-w-2xl` nominato in un commento, che il codice usa
+davvero in dodici file.
+
+Collaudo del 2026-10-01 su un account di prova usa e getta (autorizzato da
+Jomar, eliminato alla fine): 92 controlli a 414/1024/1440, chiaro e scuro, su
+Impostazioni, Blocco con PIN (PIN messo solo nel browser di prova) e Profilo
+(foto caricata e poi tolta dall'app). Ogni separatore ha il colore di
+`var(--border)` risolto nella propria card, mai quello del testo. ⚠️ **La
+controprova sul dev server è inutile**: Tailwind in sviluppo accumula le
+classi già generate, e il `SettingsRow` di master risultava verde. Va fatta
+su una build di produzione con `next start` su un'altra porta — lì master dà
+2 KO su 2 con lo stesso colore della issue, il fix 2 OK. ✅ **Provato
+sull'iPad vero** da Jomar il 2026-10-01.
 
 #### Aperti, preesistenti e fuori scope
 

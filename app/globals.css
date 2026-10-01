@@ -1,5 +1,23 @@
 @import "tailwindcss";
 
+/*
+ * ⚠️ Fuori dalla scansione delle classi i file che non sono interfaccia (issue
+ * #114). Tailwind legge ogni file non ignorato da git come testo, e genera
+ * qualunque classe ci trovi — anche nella prosa di CLAUDE.md o nel commento di
+ * uno script. Una classe che il codice non genera più (incollata a `${`, per
+ * esempio) restava così nel CSS perché la DOCUMENTAZIONE la nominava: il
+ * difetto spariva dallo schermo e da `audit:tokens` (controllo B) insieme.
+ * Ogni `.md` con un glob, non un elenco: il prossimo file di prosa sarebbe
+ * stato scansionato di nuovo senza che nessuno se ne accorgesse.
+ * ⚠️ I commenti nel codice dell'app restano scansionati e non si possono
+ * escludere: un commento che racconta una classe che NON deve esistere (un
+ * difetto, una classe tolta) la nomina a pezzi, o la rigenera.
+ */
+@source not "../**/*.md";
+@source not "../.claude";
+@source not "../scripts";
+@source not "../supabase";
+
 /* ============================================================
    SEICHI — ZEN GLASS DESIGN TOKENS
    ============================================================ */

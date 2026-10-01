@@ -68,8 +68,9 @@ export default async function ImpostazioniPage() {
 	 * La 28c aveva tenuto questa pagina a colonna singola stretta
 	 * (`lg:max-w-2xl`, 672px), ricalcando il mockup di allora, che la disegnava
 	 * identica a 1024 e a 1440. Il mockup desktop nuovo la divide in DUE colonne
-	 * da `xl:` — chi sei e come vedi l'app a sinistra, gestione e sicurezza a
-	 * destra — e prevale lui. Il wrapper è quello di tutte le pagine di #108; le
+	 * — chi sei e come vedi l'app a sinistra, gestione e sicurezza a destra — e
+	 * prevale lui; dalla #114 le colonne partono da `lg:` (vedi sotto). Il
+	 * wrapper è quello di tutte le pagine di #108; le
 	 * sottopagine di /impostazioni invece restano strette, perché sono davvero
 	 * liste o form a colonna singola.
 	 */
@@ -78,25 +79,24 @@ export default async function ImpostazioniPage() {
 			<PageHeader title={t.settings.title} backHref="/" className="mb-5.5 lg:mb-7" />
 
 			{/*
-				Fra `lg:` e `xl:` la colonna è ancora UNA, e resta a 672px: è la
-				ragione della 28c — una lista lunga si legge meglio stretta, e a
-				1279px la colonna piena sarebbe larga il doppio di una delle due di
-				`xl:`, che misurano ~460–524px. Stessa misura di lettura a ogni
-				larghezza.
+				⚠️ Due colonne da `lg:`, non da `xl:` — l'ECCEZIONE alla regola di
+				#108 ("gli split di pagina a due colonne partono da `xl:`"), ed è la
+				terza versione di questa pagina (issue #114). La 28e le faceva partire
+				da `xl:` e fra `lg:` e `xl:` lasciava una colonna sola da 672px: su un
+				iPad in orizzontale una lista lunga con mezzo schermo vuoto accanto.
 
-				⚠️ Allineata a SINISTRA, non centrata come nella 28c, ed è voluto: da
-				`lg:` il titolo di ogni pagina sta sul bordo sinistro del contenuto
-				(convenzione di #108). Una colonna centrata da sola si staccherebbe
-				dal proprio titolo — fino a ~135px a 1279px — e centrare anche il
-				titolo lo farebbe saltare di posto passando da una pagina all'altra.
-				Così la colonna pende dal titolo come un documento; a 1024px lo spazio
-				a destra è 16px.
+				La regola vale per le altre pagine perché i loro split mettono un
+				importo grande accanto a una lista, e a 1024px un "€ 12.345,67" a 46px
+				non ci sta. Qui non ci sono importi grandi: sono righe, le stesse del
+				telefono. A 1024px il contenuto è 1024 − 256 (rail) − 80 (padding) =
+				688px, e con `gap-6` ogni colonna misura ~332px — la larghezza del
+				contenuto di un iPhone SE (335px), dove queste righe reggono già.
 
-				Sotto `xl:` le due colonne sono due blocchi in fila: l'ordine è
+				Sotto `lg:` le due colonne sono due blocchi in fila: l'ordine è
 				quello di sempre, e le spaziature pure — ogni sezione porta il
 				proprio `mb-6`, e fra un blocco e l'altro quel margine resta 24px.
 			*/}
-			<div className="lg:max-w-2xl xl:max-w-none xl:grid xl:grid-cols-2 xl:gap-6 xl:items-start">
+			<div className="lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
 				{/* Sinistra: il profilo e come vedi l'app — account, aspetto, preferenze, budget. */}
 				<div>
 					{/* Profilo */}
@@ -157,9 +157,9 @@ export default async function ImpostazioniPage() {
 						<PreferencesSection currency={account.currency} language={account.language} />
 					</div>
 
-					{/* Budget — da `xl:` chiude la colonna, quindi il suo margine lì
+					{/* Budget — da `lg:` chiude la colonna, quindi il suo margine lì
 					    sarebbe solo spazio in più sotto la pagina. */}
-					<div className="mb-6 xl:mb-0">
+					<div className="mb-6 lg:mb-0">
 						<p className="text-[11.5px] font-semibold tracking-[1.6px] uppercase text-disabled mb-2.5 ml-0.5">
 							{t.settings.groups.budget}
 						</p>

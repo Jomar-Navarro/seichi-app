@@ -75,7 +75,7 @@ export default function SpendingPieChart({
 	const titleClass = inCard
 		? "text-[14.5px] font-semibold mt-5 mb-3.5 text-foreground lg:mt-0 lg:text-[15px]"
 		: "text-[14.5px] font-semibold mt-5 mb-3.5 text-foreground";
-	const card = inCard ? " lg:rounded-[26px] lg:p-6 lg:bg-surface lg:ring-border" : "";
+	const card = inCard ? "lg:rounded-[26px] lg:p-6 lg:bg-surface lg:ring-border" : "";
 
 	const totale = spese.reduce((acc, s) => acc + s.total, 0);
 	const data = spese.map((s, i) => ({
@@ -90,7 +90,7 @@ export default function SpendingPieChart({
 				<p className={titleClass}>
 					{t.analytics.spendingByCategory}
 				</p>
-				<p className={`text-[13px] text-muted text-center py-6${card}`}>
+				<p className={`text-[13px] text-muted text-center py-6 ${card}`}>
 					{fill(t.analytics.noSpending, { window: periodoLabel })}
 				</p>
 			</>
@@ -109,7 +109,7 @@ export default function SpendingPieChart({
 				con nomi lunghi. Il tetto a 288px le evita, nella colonna larga di
 				`lg:`, un nome e la sua percentuale ai due capi della card.
 			*/}
-			<div className={`flex items-center gap-5${inCard ? " lg:flex-wrap" : ""}${card}`}>
+			<div className={`flex items-center gap-5 ${inCard ? "lg:flex-wrap" : ""} ${card}`}>
 				{/* Donut — lg: più grande (Fase 28b), stesso trattamento di InvestimentiTab. */}
 				<div
 					className={

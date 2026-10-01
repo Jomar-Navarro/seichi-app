@@ -233,9 +233,16 @@ export default function GlobalBudgetSection() {
 				{/*
 					<label> e non <div>: così un tocco ovunque sulla riga porta il fuoco
 					sul campo. L'input da solo sarebbe alto quanto una riga di testo,
-					molto sotto i 44px di area toccabile — la riga è alta 62px.
+					molto sotto i 44px di area toccabile — la riga è alta almeno 62px.
+
+					⚠️ ALMENO (`min-h-15.5`), e i sottotitoli vanno a capo invece di
+					troncarsi (issue #114). Non sono dati, sono la spiegazione del
+					numero accanto, e troncati mentivano per omissione: nella colonna
+					da ~332px di un iPad in orizzontale si leggeva "Abbonamenti di questo
+					mese, fuori …" — sparito proprio "dal limite", cioè il fatto. Dove
+					la riga ci sta (il telefono) l'altezza resta 62px.
 				*/}
-				<label className="flex items-center gap-3 h-15.5 px-4 border-b border-subtle cursor-text">
+				<label className="flex items-center gap-3 min-h-15.5 py-2.5 px-4 border-b border-subtle cursor-text">
 					<span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-control">
 						<span className="text-[15px] font-semibold text-secondary">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
 					</span>
@@ -246,7 +253,7 @@ export default function GlobalBudgetSection() {
 							categorie di tipo abbonamento e restano fuori da questo limite.
 							Un numero che sembra il totale ma non lo è smette di essere creduto.
 						*/}
-						<span className="block text-xs text-muted truncate mt-0.5">
+						<span className="block text-xs text-muted text-pretty mt-0.5">
 							{t.budget.variableOnly}
 						</span>
 					</span>
@@ -284,13 +291,13 @@ export default function GlobalBudgetSection() {
 				</label>
 
 				{/* Uscite fisse — sola lettura */}
-				<div className="flex items-center gap-3 h-15.5 px-4 border-b border-subtle">
+				<div className="flex items-center gap-3 min-h-15.5 py-2.5 px-4 border-b border-subtle">
 					<span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-control">
 						<Repeat size={17} className="text-secondary" />
 					</span>
 					<span className="flex-1 min-w-0">
 						<span className="block text-sm font-medium">{t.budget.fixedOutflows}</span>
-						<span className="block text-xs text-muted truncate mt-0.5">
+						<span className="block text-xs text-muted text-pretty mt-0.5">
 							{t.budget.fixedOutflowsHint}
 						</span>
 					</span>
@@ -306,7 +313,7 @@ export default function GlobalBudgetSection() {
 					sia, quindi somma tutte le entrate del mese. Vedi la nota su
 					`getAvailableThisMonth()`.
 				*/}
-				<div className="flex items-center gap-3 h-15.5 px-4">
+				<div className="flex items-center gap-3 min-h-15.5 py-2.5 px-4">
 					<span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-control">
 						<Wallet size={17} className="text-secondary" />
 					</span>
@@ -318,7 +325,7 @@ export default function GlobalBudgetSection() {
 							giorni del mese è invece il caso normale — lo stipendio non è
 							ancora arrivato — e la frase lo dice al posto della formula.
 						*/}
-						<span className="block text-xs text-muted truncate mt-0.5">
+						<span className="block text-xs text-muted text-pretty mt-0.5">
 							{income === 0 ? t.budget.availableNoIncome : t.budget.availableHint}
 						</span>
 					</span>
@@ -351,7 +358,7 @@ export default function GlobalBudgetSection() {
 						})();
 					}}
 					disabled={saving}
-					className="w-full mt-2 flex items-center gap-3 h-15.5 px-4 rounded-[22px] bg-card card-shadow-ring text-left disabled:opacity-50"
+					className="w-full mt-2 flex items-center gap-3 min-h-15.5 py-2.5 px-4 rounded-[22px] bg-card card-shadow-ring text-left disabled:opacity-50"
 				>
 					<span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-control">
 						{/*
@@ -368,7 +375,7 @@ export default function GlobalBudgetSection() {
 								amount: formatMoney(suggestion, { locale, currency: DISPLAY_CURRENCY }),
 							})}
 						</span>
-						<span className="block text-xs text-muted mt-0.5">
+						<span className="block text-xs text-muted text-pretty mt-0.5">
 							{t.budget.useAvailableHint}
 						</span>
 					</span>
