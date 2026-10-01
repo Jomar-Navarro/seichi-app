@@ -95,6 +95,11 @@ function righe(src) {
  * `rotti` sono i punti dove il parser è arrivato in fondo al file senza
  * chiudere: da lì in poi non ha letto niente, e va DETTO.
  */
+const PRIMA_DI_REGEX = new Set([
+	"return", "typeof", "case", "do", "else", "in", "of", "new", "delete", "void",
+	"throw", "instanceof", "yield", "await",
+]);
+
 function classNameLiterals(src) {
 	const pezzi = [];
 	const rotti = [];
@@ -160,7 +165,9 @@ function classNameLiterals(src) {
 			} else if (c === "`") {
 				template();
 				prec = "x";
-			} else if (c === "/" && "(,=:[!&|?{};+-*%<>~^".includes(prec)) {
+			} else if (c === "/" && "(,=:[!&|?{};+-*%~^".includes(prec)) {
+				// Niente `<` e `>` fra i precedenti: `</b>` è un tag JSX che
+				// chiude, non una regex.
 				regex();
 				prec = "x";
 			} else if (/[A-Za-z_$]/.test(c)) {
@@ -168,7 +175,9 @@ function classNameLiterals(src) {
 				const nome = IDENT.exec(src)[0];
 				if (nomi && prec !== ".") nomi.add(nome);
 				i += nome.length;
-				prec = "x";
+				// Dopo `return`, `typeof`, `case`… uno `/` apre una regex, non
+				// una divisione (`return /'/.test(v)`).
+				prec = PRIMA_DI_REGEX.has(nome) && prec !== "." ? "(" : "x";
 			} else if (/\s/.test(c)) {
 				i++;
 			} else {
