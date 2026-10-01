@@ -9,8 +9,8 @@ import { lookup } from "@/lib/i18n/format";
 import { isStorableAmount } from "@/lib/amount";
 import { RECEIPT_BUCKET } from "@/lib/attachments";
 import { removeStorageFiles } from "@/lib/storage-files";
+import { receiptPathsOf } from "@/lib/attachment-paths";
 import type { SupabaseServerClient } from "@/lib/supabase/server";
-import { getAttachmentPaths } from "@/app/(main)/attachment-actions";
 
 export async function getGoals(): Promise<{ data: GoalWithProgress[] } | { error: string }> {
 	const { supabase, user, t } = await requireUser();
@@ -363,67 +363,32 @@ export async function getGoalDeletionImpact(
 	return { data: { deposits: deposits.count ?? 0, rules: rules.count ?? 0 } };
 }
 
-/**
- * Quanti versamenti si leggono per richiesta in `goalReceiptPaths`: sotto il
- * tetto di 1000 righe di PostgREST, come `ANALYTICS_CHUNK`.
- */
-const GOAL_DEPOSITS_CHUNK = 500;
-
-/**
- * I file delle ricevute di tutti i versamenti di un obiettivo (#120).
- *
- * ⚠️ Gli id si leggono a pagine, ORDINATI per id. Senza paginazione PostgREST
- * tronca a 1000 righe in silenzio, e i file dei versamenti oltre il tetto
- * resterebbero orfani senza traccia; senza un ordinamento totale le pagine sono
- * query distinte che il database può ordinare diversamente a ogni giro, e una
- * riga finisce in due blocchi mentre un'altra in nessuno — il difetto già pagato
- * due volte nella 23a e nella 23b.
- *
- * Come `getAttachmentPaths`, una lettura parziale non è un errore da mostrare:
- * `incomplete` serve a scriverlo nei log con l'id dell'obiettivo.
- */
-async function goalReceiptPaths(
-	supabase: SupabaseServerClient,
-	userId: string,
-	goalId: string,
-): Promise<{ paths: string[]; incomplete: boolean }> {
-	const ids: string[] = [];
-	for (let from = 0; ; from += GOAL_DEPOSITS_CHUNK) {
-		const { data, error } = await supabase
-			.from("transactions")
-			.select("id")
-			.eq("user_id", userId)
-			.eq("category_id", goalId)
-			.eq("type", "risparmio")
-			.order("id")
-			.range(from, from + GOAL_DEPOSITS_CHUNK - 1);
-
-		if (error) {
-			console.error("[obiettivi] lettura versamenti per le ricevute:", error.message);
-			const parziale = await getAttachmentPaths(ids);
-			return { paths: parziale.paths, incomplete: true };
-		}
-		for (const row of data ?? []) ids.push(row.id);
-		if ((data ?? []).length < GOAL_DEPOSITS_CHUNK) break;
-	}
-
-	return getAttachmentPaths(ids);
-}
-
 export async function deleteGoal(id: string): Promise<{ error?: string }> {
 	const { supabase, user, t } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	/*
-	 * ⚠️ Le ricevute dei versamenti si raccolgono PRIMA (#120): il delete qui
-	 * sotto fa cascata su `attachments` e lascia i file nel bucket, e dopo quali
-	 * fossero non è più scritto da nessuna parte. Stessa politica di
-	 * `deleteTransaction`: una lettura incompleta si registra e non ferma niente.
+	 * ⚠️ Le ricevute si raccolgono PRIMA (#120): i delete qui sotto fanno cascata
+	 * su `attachments` e lasciano i file nel bucket, e dopo quali fossero non è
+	 * più scritto da nessuna parte.
+	 *
+	 * ⚠️ Di TUTTI i movimenti della categoria, non dei soli versamenti: il delete
+	 * della categoria in fondo fa cascata su ogni movimento che la usa, e il tipo
+	 * di una categoria si può cambiare quando ha già dei movimenti — una "spesa"
+	 * diventata obiettivo porta con sé spese con ricevute (review della #120).
+	 *
+	 * Due insiemi, perché diventano orfani in due momenti diversi: i file dei
+	 * versamenti appena il loro delete riesce, gli altri solo quando cade la
+	 * categoria. Se la lettura fallisce ci si ferma: niente è ancora stato
+	 * toccato.
 	 */
-	const receipts = await goalReceiptPaths(supabase, user.id, id);
-	if (receipts.incomplete) {
-		console.error("[obiettivi] elenco ricevute incompleto prima dell'eliminazione:", id);
-	}
+	const [deposits, all] = await Promise.all([
+		receiptPathsOf(supabase, user.id, { category: id, type: "risparmio" }),
+		receiptPathsOf(supabase, user.id, { category: id }),
+	]);
+	if ("error" in deposits || "error" in all) return { error: t.errors.receiptsReadFailed };
+	const depositPaths = new Set(deposits.paths);
+	const otherPaths = all.paths.filter((p) => !depositPaths.has(p));
 
 	// Delete associated transactions first — otherwise they remain as
 	// orphaned outflows that permanently reduce the balance with no visible goal.
@@ -437,19 +402,15 @@ export async function deleteGoal(id: string): Promise<{ error?: string }> {
 	if (txnError) return { error: txnError.message };
 
 	/*
-	 * I file si rimuovono SUBITO DOPO i versamenti, non in fondo alla funzione.
-	 * Da qui in poi le righe che li indicavano non esistono più: se il passo
-	 * delle regole o quello della categoria fallisse e la funzione uscisse prima,
-	 * il secondo tentativo non li troverebbe più — orfani per sempre.
+	 * I file dei versamenti si rimuovono SUBITO, non in fondo alla funzione: da
+	 * qui in poi le righe che li indicavano non esistono più, e se il passo delle
+	 * regole o quello della categoria fallisse e la funzione uscisse prima, il
+	 * secondo tentativo non li troverebbe più — orfani per sempre.
 	 *
-	 * Un fallimento si registra e non annulla niente, come in `undoImport()`.
+	 * Un fallimento della rimozione si registra e non annulla niente, come in
+	 * `undoImport()`.
 	 */
-	if (receipts.paths.length > 0) {
-		const removed = await removeStorageFiles(supabase, RECEIPT_BUCKET, receipts.paths);
-		if (removed.error) {
-			console.error("[obiettivi] ricevute orfane dopo l'eliminazione:", removed.error, receipts.paths);
-		}
-	}
+	await removeOrphanedReceipts(supabase, [...depositPaths]);
 
 	/*
 	 * ⚠️ E le regole ricorrenti che lo alimentano (#117). La FK
@@ -485,6 +446,19 @@ export async function deleteGoal(id: string): Promise<{ error?: string }> {
 		.eq("user_id", user.id);
 
 	if (error) return { error: error.message };
+
+	// Gli altri movimenti della categoria sono caduti con lei, in cascata.
+	await removeOrphanedReceipts(supabase, otherPaths);
+
 	revalidatePath("/", "layout");
 	return {};
+}
+
+/** Rimuove i file di ricevute le cui righe sono già sparite; un guasto va nei log. */
+async function removeOrphanedReceipts(supabase: SupabaseServerClient, paths: string[]) {
+	if (paths.length === 0) return;
+	const removed = await removeStorageFiles(supabase, RECEIPT_BUCKET, paths);
+	if (removed.error) {
+		console.error("[obiettivi] ricevute orfane dopo l'eliminazione:", removed.error, paths);
+	}
 }

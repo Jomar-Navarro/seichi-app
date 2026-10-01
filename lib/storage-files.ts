@@ -12,8 +12,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * ⚠️ E i file in SQL non si toccano affatto: Supabase vieta il DELETE diretto su
  * `storage.objects` (Fase 16). Ogni cascade del database tiene pulite le righe e
  * lascia i file dove sono — per questo chi cancella righe con un allegato deve
- * passare di qui, e deve raccogliere i path PRIMA del delete: dopo, quali file
- * fossero non è più scritto da nessuna parte.
+ * passare di qui, e deve raccogliere i path PRIMA del delete
+ * (`receiptPathsOf()`): dopo, quali file fossero non è più scritto da nessuna
+ * parte.
  */
 
 /** Solo ciò che serve: un client di qualunque forma, purché abbia lo Storage. */
@@ -31,7 +32,7 @@ type StorageClient = Pick<SupabaseClient, "storage">;
 export const STORAGE_REMOVE_CHUNK = 1000;
 
 /**
- * Quante voci per pagina di `list()`.
+ * Quante voci legge ogni giro di `purgeStorageFolder`.
  *
  * ⚠️⚠️ È il difetto della #120. Senza opzioni `list()` usa il default di
  * storage-js, `{ limit: 100, offset: 0 }`: eliminando un account con 250
@@ -41,32 +42,35 @@ export const STORAGE_REMOVE_CHUNK = 1000;
  * Il troncamento non è un fallimento, quindi il "se fallisce ci fermiamo"
  * scritto accanto non scattava.
  *
- * Il server non pone un massimo a `limit`; si pagina comunque, e la verifica in
- * fondo a `purgeStorageFolder` copre anche un tetto che un giorno comparisse.
+ * Non può superare `STORAGE_REMOVE_CHUNK`: ogni giro rimuove ciò che ha letto
+ * in una richiesta sola.
  */
 export const STORAGE_LIST_PAGE = 1000;
 
 /**
- * Il fusibile: oltre questo numero di pagine ci si ferma con un errore.
+ * Il fusibile: oltre questo numero di giri ci si ferma con un errore.
  *
- * Un elenco che non finisce mai è un guasto, non una cartella grande — e un
- * ciclo senza tetto dentro l'eliminazione di un account resterebbe appeso
- * invece di dirlo. Stesso ruolo di `ANALYTICS_MAX_CHUNKS`.
+ * Un ciclo che non svuota mai la cartella è un guasto, non una cartella grande
+ * (200 × 1000 file) — e senza tetto, dentro l'eliminazione di un account,
+ * resterebbe appeso invece di dirlo. Stesso ruolo del fusibile di `readAll()`.
  */
-const STORAGE_LIST_MAX_PAGES = 100;
+const STORAGE_PURGE_MAX_ROUNDS = 200;
+
+/** Quanto in basso si scende nelle sottocartelle prima di dichiarare un guasto. */
+const STORAGE_PURGE_MAX_DEPTH = 5;
 
 /**
  * Rimuove una lista di file, a blocchi.
  *
  * Restituisce il PRIMO errore e non si ferma lì: ogni chiamante preferisce che
- * resti il minor numero possibile di file — chi registra e prosegue
- * (`deleteTransaction`, `deleteGoal`, `undoImport`) quanto chi si ferma
- * (`deleteAccount`), che comunque non distruggerà l'account.
+ * resti il minor numero possibile di file.
  *
- * ⚠️ Un errore nullo NON dimostra che i file siano spariti: con una policy che
- * nega la cancellazione `remove()` risponde senza errore e senza aver tolto
- * niente. Dove conta davvero — l'eliminazione dell'account — la prova è la
- * rilettura di `purgeStorageFolder`, non questo valore.
+ * ⚠️ Un errore nullo NON basta a dire che i file sono spariti: con una policy
+ * che nega la cancellazione `remove()` risponde senza errore e senza aver tolto
+ * niente. La risposta però elenca gli oggetti cancellati davvero, e se sono
+ * meno di quelli chiesti lo si dice — un path che arriva da una riga del
+ * database e non si trova nel bucket è un'anomalia da leggere nei log, non un
+ * successo.
  */
 export async function removeStorageFiles(
 	client: StorageClient,
@@ -74,71 +78,50 @@ export async function removeStorageFiles(
 	paths: string[],
 ): Promise<{ error: string | null }> {
 	let primo: string | null = null;
+	let rimossi = 0;
 	for (let i = 0; i < paths.length; i += STORAGE_REMOVE_CHUNK) {
-		const { error } = await client.storage
+		const { data, error } = await client.storage
 			.from(bucket)
 			.remove(paths.slice(i, i + STORAGE_REMOVE_CHUNK));
 		if (error) primo ??= error.message;
+		else rimossi += (data ?? []).length;
+	}
+	if (!primo && rimossi < paths.length) {
+		primo = `${paths.length - rimossi} file su ${paths.length} non rimossi da ${bucket} (assenti o negati)`;
 	}
 	return { error: primo };
-}
-
-/**
- * Tutti i file di una cartella, pagina per pagina.
- *
- * ⚠️ Le voci con `id` nullo sono SOTTOCARTELLE, non file: `list()` è piatta e le
- * restituisce come segnaposto. Avatar e ricevute vivono a un livello solo
- * (`{user_id}/{uuid}.{ext}`, vedi la `20260818`) proprio perché `list()` non
- * scende, quindi oggi non ne esistono. Se un giorno comparissero lo si scrive
- * nei log invece di tacere: i file là dentro non verrebbero né visti né rimossi.
- */
-async function listFolder(
-	client: StorageClient,
-	bucket: string,
-	folder: string,
-	pageSize: number,
-): Promise<{ paths: string[] } | { error: string }> {
-	const paths: string[] = [];
-
-	for (let page = 0; page < STORAGE_LIST_MAX_PAGES; page++) {
-		const { data, error } = await client.storage
-			.from(bucket)
-			.list(folder, { limit: pageSize, offset: page * pageSize });
-		if (error) return { error: error.message };
-
-		const rows = data ?? [];
-		for (const f of rows) {
-			if (f.id === null) {
-				console.error("[storage] sottocartella non rimossa:", `${bucket}/${folder}/${f.name}`);
-				continue;
-			}
-			paths.push(`${folder}/${f.name}`);
-		}
-		// Una pagina non piena è l'ultima. Con una cartella che è un multiplo
-		// esatto di `pageSize` costa una richiesta in più, che torna vuota.
-		if (rows.length < pageSize) return { paths };
-	}
-
-	return {
-		error: `più di ${STORAGE_LIST_MAX_PAGES * pageSize} voci in ${bucket}/${folder}`,
-	};
 }
 
 /**
  * Svuota la cartella `folder` di un bucket, saltando `keep` (l'avatar appena
  * caricato, nel caso di `uploadAvatar`).
  *
- * Tre passi: elenca tutto, rimuove a blocchi, **rilegge**. L'ultimo non è
- * pignoleria: è l'unico modo di sapere che la cartella è davvero vuota. Un
- * `remove()` negato da una policy risponde senza errore, e un elenco troncato
- * da un tetto che non conosciamo sembrerebbe completo — in entrambi i casi senza
- * la rilettura il risultato sarebbe "fatto" su un bucket ancora pieno.
+ * ⚠️ Legge SEMPRE la prima pagina, rimuove ciò che trova e ricomincia, finché
+ * la pagina non contiene più niente da togliere. Non pagina con un offset, e
+ * la scelta è ciò che la rende indipendente da tetti che non conosciamo: con un
+ * offset, una pagina più corta del richiesto andava presa per l'ultima, e se il
+ * server un giorno tagliasse sotto `STORAGE_LIST_PAGE` l'elenco si fermerebbe
+ * al primo giro (review della #120). Così una pagina tagliata costa solo un
+ * giro in più.
+ *
+ * L'ultimo giro, quello che trova la cartella vuota, È la verifica: il
+ * risultato non può dire "fatto" su un bucket ancora pieno. Per lo stesso
+ * motivo un giro che non rimuove niente è un errore — un `remove()` negato da
+ * una policy farebbe girare il ciclo a vuoto. Costa una lettura in più anche
+ * quando la cartella si svuota al primo giro (un cambio di avatar fa
+ * lettura, rimozione, lettura): è la prova, ed è il punto.
+ *
+ * ⚠️ Le voci con `id` nullo sono SOTTOCARTELLE: `list()` è piatta e le
+ * restituisce come segnaposto. Avatar e ricevute vivono a un livello solo
+ * (`{user_id}/{uuid}.{ext}`, vedi la `20260818`), quindi oggi non ne esistono;
+ * se un giorno comparissero si svuotano anche loro invece di saltarle, o
+ * l'eliminazione dell'account le abbandonerebbe dichiarando successo.
  *
  * Restituisce l'errore invece di ingoiarlo: è il chiamante a decidere se
  * fermarsi (`deleteAccount`) o proseguire (`uploadAvatar`, dove un file di
  * troppo è innocuo).
  *
- * `pageSize` esiste per il collaudo: la paginazione si prova abbassandolo, non
+ * `pageSize` esiste per il collaudo: il ciclo si prova abbassandolo, non
  * sperando che i dati di prova bastino a riempire una pagina da 1000.
  */
 export async function purgeStorageFolder(
@@ -147,21 +130,57 @@ export async function purgeStorageFolder(
 	folder: string,
 	{ keep, pageSize = STORAGE_LIST_PAGE }: { keep?: string; pageSize?: number } = {},
 ): Promise<{ error: string | null }> {
-	const listed = await listFolder(client, bucket, folder, pageSize);
-	if ("error" in listed) return { error: listed.error };
+	const r = await purgeRounds(client, bucket, folder, keep, pageSize, 0);
+	return { error: "error" in r ? r.error : null };
+}
 
-	const stale = listed.paths.filter((p) => p !== keep);
-	if (stale.length === 0) return { error: null };
+async function purgeRounds(
+	client: StorageClient,
+	bucket: string,
+	folder: string,
+	keep: string | undefined,
+	pageSize: number,
+	depth: number,
+): Promise<{ removed: number } | { error: string }> {
+	// Almeno 2: con `keep` in cima, una pagina da 1 conterrebbe solo lui e il
+	// ciclo dichiarerebbe vuota una cartella piena.
+	const limit = Math.min(Math.max(pageSize, 2), STORAGE_REMOVE_CHUNK);
+	let total = 0;
 
-	const removed = await removeStorageFiles(client, bucket, stale);
-	if (removed.error) return removed;
+	for (let giro = 0; giro < STORAGE_PURGE_MAX_ROUNDS; giro++) {
+		const { data, error } = await client.storage.from(bucket).list(folder, { limit, offset: 0 });
+		if (error) return { error: error.message };
 
-	const after = await listFolder(client, bucket, folder, pageSize);
-	if ("error" in after) return { error: after.error };
+		const rows = data ?? [];
+		const files = rows
+			.filter((f) => f.id !== null)
+			.map((f) => `${folder}/${f.name}`)
+			.filter((p) => p !== keep);
+		const subfolders = rows.filter((f) => f.id === null).map((f) => `${folder}/${f.name}`);
 
-	const left = after.paths.filter((p) => p !== keep);
-	if (left.length > 0) {
-		return { error: `${left.length} file ancora presenti in ${bucket}/${folder} dopo la rimozione` };
+		if (files.length === 0 && subfolders.length === 0) return { removed: total };
+
+		let progress = 0;
+		for (const sub of subfolders) {
+			if (depth >= STORAGE_PURGE_MAX_DEPTH) {
+				return { error: `sottocartelle oltre ${STORAGE_PURGE_MAX_DEPTH} livelli in ${bucket}/${sub}` };
+			}
+			const r = await purgeRounds(client, bucket, sub, undefined, pageSize, depth + 1);
+			if ("error" in r) return r;
+			progress += r.removed;
+		}
+
+		if (files.length > 0) {
+			const { data: gone, error: removeError } = await client.storage.from(bucket).remove(files);
+			if (removeError) return { error: removeError.message };
+			progress += (gone ?? []).length;
+		}
+
+		if (progress === 0) {
+			return { error: `${files.length} file in ${bucket}/${folder} non rimossi (cancellazione negata?)` };
+		}
+		total += progress;
 	}
-	return { error: null };
+
+	return { error: `${bucket}/${folder} non si svuota dopo ${STORAGE_PURGE_MAX_ROUNDS} giri` };
 }

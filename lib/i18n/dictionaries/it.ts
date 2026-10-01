@@ -317,6 +317,14 @@ export const it = {
 		receiptsRemoveFailed:
 			"Non è stato possibile rimuovere le ricevute allegate. L'account non è stato eliminato: riprova.",
 		/**
+		 * Prima di cancellare un movimento, un obiettivo o un import si leggono i
+		 * file delle sue ricevute (#120): dopo la cascata non li ritrova più
+		 * nessuno. Se la lettura fallisce ci si ferma, e la frase dice che non è
+		 * successo niente — è ciò che rende il "riprova" sicuro.
+		 */
+		receiptsReadFailed:
+			"Non è stato possibile verificare le ricevute allegate, quindi non è stato eliminato niente. Riprova.",
+		/**
 		 * Cancellazione di una categoria che ha ancora movimenti.
 		 *
 		 * ⚠️ Era l'ULTIMA frase cablata dell'app, sopravvissuta alla Fase 19 —
@@ -1146,9 +1154,10 @@ export const it = {
 			notSaved: "Non è stato possibile allegare la ricevuta a questo movimento.",
 			/**
 			 * ⚠️ Lettura e rimozione hanno frasi PROPRIE (#120). Prima una lettura
-			 * fallita per rete lasciava il picker su "Caricamento…" per sempre, e
-			 * una rimozione fallita non diceva niente: la ricevuta restava a
-			 * schermo come se il tocco non fosse arrivato.
+			 * rifiutata dal server lasciava il picker su "Caricamento…" per sempre,
+			 * e una rimozione rifiutata non diceva niente: la ricevuta restava a
+			 * schermo come se il tocco non fosse arrivato. Una RETE caduta invece
+			 * non rifiuta (`useOffline`, Fase 25): lì "Caricamento…" è la verità.
 			 */
 			loadFailed: "Non è stato possibile caricare le ricevute. Riprova.",
 			removeFailed: "Non è stato possibile rimuovere la ricevuta. Riprova.",

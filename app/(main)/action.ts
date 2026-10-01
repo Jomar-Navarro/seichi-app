@@ -9,7 +9,8 @@ import { flussoDaTotali } from "@/lib/totals";
 import { isStorableAmount } from "@/lib/amount";
 import { RECEIPT_BUCKET } from "@/lib/attachments";
 import { removeStorageFiles } from "@/lib/storage-files";
-import { getAttachmentPaths } from "@/app/(main)/attachment-actions";
+import { readAll } from "@/lib/read-all";
+import { receiptPathsOf } from "@/lib/attachment-paths";
 import type { Frequency } from "@/types";
 
 /**
@@ -299,14 +300,13 @@ export async function deleteTransaction(id: string) {
 	 * nessuno li toglieva: documenti con IBAN, nomi e importi restavano nello
 	 * Storage, invisibili all'app e non più cancellabili da nessuno.
 	 *
-	 * Stessa politica di `undoImport()`: una lettura incompleta si registra e non
-	 * ferma niente, perché l'utente ha chiesto di cancellare il movimento, non le
-	 * sue ricevute.
+	 * ⚠️ Se la lettura fallisce ci si FERMA: niente è ancora stato toccato, e un
+	 * guasto passeggero si riprova gratis. Cancellando lo stesso, quella lettura
+	 * fallita diventava un orfano per sempre (review della #120).
 	 */
-	const { paths, incomplete } = await getAttachmentPaths([id]);
-	if (incomplete) {
-		console.error("[transazioni] elenco ricevute incompleto prima dell'eliminazione:", id);
-	}
+	const receipts = await receiptPathsOf(supabase, user.id, { transaction: id });
+	if ("error" in receipts) return { error: t.errors.receiptsReadFailed };
+	const { paths } = receipts;
 
 	const { error } = await supabase
 		.from("transactions")
@@ -555,66 +555,11 @@ function sommaUscite(rows: { type: string; amount: number }[]) {
 		.reduce((acc, t) => acc + t.amount, 0);
 }
 
-/** Quante righe per blocco quando si legge una serie storica. */
-/**
- * Quante righe per blocco quando si legge una serie storica.
- *
- * ⚠️ DEVE restare sotto il *Max rows* di PostgREST (1000 su questo progetto).
- * Il ciclo si ferma quando un blocco torna incompleto: se il tetto del server
- * scendesse sotto questo valore, il PRIMO blocco tornerebbe già corto e la
- * lettura si fermerebbe lì — reintroducendo il troncamento silenzioso che
- * questo lettore esiste per impedire. È la stessa regola di `IN_CHUNK` e di
- * `SEARCH_SCAN_LIMIT`, e come quelle va riletta se si tocca la Data API.
+/*
+ * Il lettore a blocchi delle serie storiche è `readAll()` in `lib/read-all.ts`:
+ * nato qui come `leggiTutte` (23b), spostato dalla review della #120 perché le
+ * cancellazioni con ricevute ne avevano bisogno uguale.
  */
-const ANALYTICS_CHUNK = 500;
-
-/**
- * Un fermo contro un ciclo infinito, non un limite di prodotto.
- *
- * Stesso ruolo di `MAX_CHUNKS` nel Route Handler dell'export (23a): se un
- * blocco tornasse sempre pieno per un difetto nostro, il server resterebbe
- * appeso. Meglio un errore che una pagina che non arriva mai.
- */
-const ANALYTICS_MAX_CHUNKS = 200;
-
-/**
- * Legge TUTTE le righe di una query, a blocchi.
- *
- * ⚠️⚠️ Senza, `getAnalyticsData` tronca in SILENZIO. PostgREST ha un tetto
- * proprio — *Max rows = 1000* su questo progetto — e lo applica senza dire
- * niente: i grafici mostrerebbero le prime mille righe e basta, con un totale
- * più basso del vero e nessun errore da nessuna parte. È la stessa trappola
- * già documentata per `SEARCH_SCAN_LIMIT` nella lista movimenti.
- *
- * Il rischio è ARRIVATO col periodo "tutto", che non ha un limite inferiore di
- * data — ma non era nato lì: anche un anno molto movimentato poteva superare
- * le mille righe, e nessuno se ne sarebbe accorto. Paginando qui si chiude per
- * tutti i periodi, non solo per quello nuovo.
- *
- * 500 e non 1000 per la ragione di sempre: un margine che coincide col limite
- * esterno non è un margine.
- */
-async function leggiTutte<T>(
-	crea: (
-		from: number,
-		to: number,
-	) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
-): Promise<{ rows: T[]; error: string | null }> {
-	const rows: T[] = [];
-	for (let giro = 0; giro < ANALYTICS_MAX_CHUNKS; giro++) {
-		const from = giro * ANALYTICS_CHUNK;
-		const { data, error } = await crea(from, from + ANALYTICS_CHUNK - 1);
-		if (error) return { rows, error: error.message };
-		const blocco = data ?? [];
-		rows.push(...blocco);
-		if (blocco.length < ANALYTICS_CHUNK) return { rows, error: null };
-	}
-
-	// Centomila righe senza mai un blocco corto: è un difetto nostro, non un
-	// archivio grande. Si dichiara invece di restituire dati a metà.
-	console.error("[analytics] troppi blocchi: la lettura non si è mai chiusa");
-	return { rows, error: "analytics: lettura non conclusa" };
-}
 
 export async function getDashboardTotals(accountId?: string | null) {
 	const { supabase, user, t } = await requireUser();
@@ -908,7 +853,7 @@ export async function getAnalyticsData(periodo: string = "mese", accountId?: str
 		accountId ? ((q as { eq: (c: string, v: string) => T }).eq("account_id", accountId)) : q;
 
 	const [trendRes, speseRes] = await Promise.all([
-		leggiTutte((from, to) =>
+		readAll((from, to) =>
 			byAccount(
 				supabase
 					.from("transactions")
@@ -922,7 +867,7 @@ export async function getAnalyticsData(periodo: string = "mese", accountId?: str
 					 * restituire le righe in un ordine diverso a ogni giro: con gli offset
 					 * una riga finisce in due blocchi e un'altra in nessuno.
 					 *
-					 * Non è teoria: misurato abbassando `ANALYTICS_CHUNK` a 5, il Flusso di
+					 * Non è teoria: misurato abbassando il blocco (`ANALYTICS_CHUNK`, oggi `READ_ALL_CHUNK`) a 5, il Flusso di
 					 * «tutto» usciva **€ 2.766,12** invece di € 6.068,95. È la stessa
 					 * correzione che il code-review della 23a aveva imposto a
 					 * `getTransactions` — riapplicata qui perché il difetto sta nella
@@ -933,8 +878,9 @@ export async function getAnalyticsData(periodo: string = "mese", accountId?: str
 					.gte("date", fetchStart.toISOString())
 					.lt("date", rangeEnd.toISOString()),
 			).range(from, to),
+			"analytics",
 		),
-		leggiTutte((from, to) =>
+		readAll((from, to) =>
 			byAccount(
 				supabase
 					.from("transactions")
@@ -948,6 +894,7 @@ export async function getAnalyticsData(periodo: string = "mese", accountId?: str
 					.gte("date", rangeStart.toISOString())
 					.lt("date", rangeEnd.toISOString()),
 			).range(from, to),
+			"analytics",
 		),
 	]);
 

@@ -352,6 +352,12 @@ export async function deleteAccount(confirmEmail: string, password: string) {
 	const purgeReceipts = await purgeUserFiles(supabase, RECEIPT_BUCKET, user.id);
 	if (purgeReceipts.error) {
 		console.error("[account] ricevute non rimosse:", purgeReceipts.error);
+		// Compensazione, come per la RPC fallita qui sotto: la foto è già stata
+		// rimossa, e l'account che sopravvive non deve puntare a un file che non
+		// c'è più (review della #120 — la rilettura rende questo ramo più facile
+		// da raggiungere di prima).
+		await supabase.from("profiles").upsert({ id: user.id, avatar_url: null });
+		revalidatePath("/", "layout");
 		return { error: t.errors.receiptsRemoveFailed };
 	}
 

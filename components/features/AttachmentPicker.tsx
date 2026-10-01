@@ -146,6 +146,15 @@ export default function AttachmentPicker({
 	const [loading, setLoading] = useState(!!transactionId);
 	const [pending, setPending] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	/**
+	 * La lettura dell'elenco fallita, TENUTA A PARTE da `error` (review della
+	 * #120). Nello stesso stato, il primo gesto riuscito dopo — una ricevuta
+	 * aggiunta — azzerava il messaggio, e il picker mostrava "1 ricevuta" come
+	 * se fosse l'elenco intero mentre sul server ce n'erano altre: la lettura
+	 * fallita travestita da fatto, di nuovo. Si azzera solo con una lettura
+	 * riuscita.
+	 */
+	const [loadError, setLoadError] = useState<string | null>(null);
 	/** L'id in attesa di conferma: il primo tocco arma, il secondo rimuove. */
 	const [confirming, setConfirming] = useState<string | null>(null);
 	const [zoomed, setZoomed] = useState<{ url: string } | null>(null);
@@ -175,12 +184,15 @@ export default function AttachmentPicker({
 		getAttachments(transactionId)
 			.then((res) => {
 				if (cancelled) return;
-				if ("data" in res) setItems(res.data);
+				if ("data" in res) {
+					setItems(res.data);
+					setLoadError(null);
+				}
 				// ⚠️ L'errore si DICE. Ingoiandolo restava un elenco vuoto, che si legge
 				// come "questo movimento non ha ricevute" — una lettura fallita che si
 				// traveste da fatto. È la stessa classe della graffetta mancante nella
 				// lista, e la differenza fra le due è che qui un rimedio c'è: ricaricare.
-				else setError(res.error);
+				else setLoadError(res.error);
 			})
 			/*
 			 * ⚠️ E anche quando la server action RIFIUTA (#120): un'eccezione o un 500
@@ -196,7 +208,7 @@ export default function AttachmentPicker({
 			.catch((e) => {
 				if (cancelled) return;
 				console.error("[attachments] lettura:", e);
-				setError(loadFailed);
+				setLoadError(loadFailed);
 			})
 			.finally(() => {
 				if (!cancelled) setLoading(false);
@@ -383,7 +395,9 @@ export default function AttachmentPicker({
 				<span className="text-[13px] font-medium text-secondary">
 					{t.attachments.title}
 				</span>
-				{totale > 0 && (
+				{/* Senza l'elenco letto il totale non si conosce: meglio niente che un
+				    numero che si legge come completo. */}
+				{totale > 0 && !loadError && (
 					<span className="text-[11.5px] text-disabled">
 						{plural(t.attachments.count, totale, locale)}
 					</span>
@@ -526,6 +540,7 @@ export default function AttachmentPicker({
 				{fill(t.attachments.hint, { max: ATTACHMENT_MAX_BYTES / 1024 / 1024 })}
 			</p>
 
+			{loadError && <p className="mt-1.5 text-[11.5px] text-aka-ink">{loadError}</p>}
 			{error && <p className="mt-1.5 text-[11.5px] text-aka-ink">{error}</p>}
 
 			{/* Schermo intero: uno scontrino a 80px non si legge. */}
