@@ -32,9 +32,12 @@ export async function getAttachments(
 		.eq("transaction_id", transactionId)
 		.order("created_at", { ascending: true });
 
+	// ⚠️ Una frase che dice COSA non è riuscito (#120): "si è verificato un
+	// errore" sotto l'elenco delle ricevute non dice se a mancare sono le
+	// ricevute o il movimento, e il rimedio è diverso.
 	if (error) {
 		console.error("[attachments] getAttachments:", error.message);
-		return { error: t.common.genericError };
+		return { error: t.attachments.errors.loadFailed };
 	}
 
 	const rows = data ?? [];
@@ -46,7 +49,7 @@ export async function getAttachments(
 
 	if (signError) {
 		console.error("[attachments] createSignedUrls:", signError.message);
-		return { error: t.common.genericError };
+		return { error: t.attachments.errors.loadFailed };
 	}
 
 	/*
@@ -166,45 +169,6 @@ export async function getAttachmentCountsChecked(
 	return countAttachments(transactionIds);
 }
 
-/**
- * I path dei file allegati a una lista di movimenti.
- *
- * ⚠️ Esiste per `undoImport()`, che deve raccoglierli **prima** della cascade:
- * dopo il delete, quali file fossero non è più scritto da nessuna parte. Sta
- * qui e non là perché è lo stesso spezzettamento di `getAttachmentCounts()`, e
- * due copie della stessa cautela sono due occasioni di correggerne una sola.
- *
- * ⚠️ `incomplete` NON è un errore da mostrare: dice che l'elenco potrebbe essere
- * parziale, e serve al chiamante per scriverlo nei log con abbastanza contesto
- * da poter ritrovare i file a mano. Restituire `[]` e basta avrebbe reso
- * indistinguibile "nessun allegato" da "non sono riuscito a guardare".
- */
-export async function getAttachmentPaths(
-	transactionIds: string[],
-): Promise<{ paths: string[]; incomplete: boolean }> {
-	if (transactionIds.length === 0) return { paths: [], incomplete: false };
-	const { supabase, user } = await requireUser();
-	if (!user) return { paths: [], incomplete: true };
-
-	const paths: string[] = [];
-
-	for (let i = 0; i < transactionIds.length; i += IN_CHUNK) {
-		const { data, error } = await supabase
-			.from("attachments")
-			.select("storage_path")
-			.eq("user_id", user.id)
-			.in("transaction_id", transactionIds.slice(i, i + IN_CHUNK));
-
-		if (error) {
-			console.error("[attachments] getAttachmentPaths:", error.message);
-			return { paths, incomplete: true };
-		}
-		for (const row of data ?? []) paths.push(row.storage_path);
-	}
-
-	return { paths, incomplete: false };
-}
-
 export async function uploadAttachment(
 	formData: FormData,
 ): Promise<{ data: Attachment } | { error: string }> {
@@ -298,9 +262,17 @@ export async function deleteAttachment(id: string): Promise<{ error?: string }> 
 		.select("storage_path")
 		.eq("id", id)
 		.eq("user_id", user.id)
-		.single();
+		.maybeSingle();
 
-	if (readError || !row) return { error: t.common.genericError };
+	if (readError) return { error: t.attachments.errors.removeFailed };
+	/*
+	 * ⚠️ Una riga che non c'è più è già lo stato che l'utente chiede, non un
+	 * guasto (review della #120): tolta da un'altra scheda, o caduta con il suo
+	 * movimento mentre il modale era aperto. Rispondere "Riprova" la lasciava a
+	 * schermo per sempre, perché nessun tentativo poteva riuscire — due cause
+	 * diverse con lo stesso messaggio. Così il picker la toglie dall'elenco.
+	 */
+	if (!row) return {};
 
 	/*
 	 * ⚠️ Prima il FILE, poi la riga — e l'ordine è ciò che rende ogni fallimento
@@ -321,7 +293,7 @@ export async function deleteAttachment(id: string): Promise<{ error?: string }> 
 
 	if (removeError) {
 		console.error("[attachments] remove:", removeError.message);
-		return { error: t.common.genericError };
+		return { error: t.attachments.errors.removeFailed };
 	}
 
 	const { error } = await supabase
@@ -332,7 +304,7 @@ export async function deleteAttachment(id: string): Promise<{ error?: string }> 
 
 	if (error) {
 		console.error("[attachments] delete row:", error.message);
-		return { error: t.common.genericError };
+		return { error: t.attachments.errors.removeFailed };
 	}
 
 	revalidatePath("/", "layout");

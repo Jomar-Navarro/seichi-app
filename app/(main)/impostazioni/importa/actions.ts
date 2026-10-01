@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { RECEIPT_BUCKET } from "@/lib/attachments";
-import { getAttachmentPaths } from "@/app/(main)/attachment-actions";
+import { removeStorageFiles } from "@/lib/storage-files";
+import { receiptPathsOf } from "@/lib/attachment-paths";
 import { requireUser } from "@/lib/auth";
 import { analyze, importKeyFor, IMPORT_MAX_BYTES } from "@/lib/import";
 import { categoryTypeFor } from "@/lib/transaction-utils";
@@ -416,38 +417,21 @@ export async function undoImport(importId: string): Promise<{ ok: true } | { err
 	 * ⚠️ È lo stesso motivo per cui `deleteAccount()` rimuove l'avatar prima
 	 * della RPC: una cascade tiene in ordine le righe e non sa niente dello
 	 * Storage, che in SQL non è nemmeno raggiungibile.
-	 */
-	const { data: txns, error: txnsError } = await supabase
-		.from("transactions")
-		.select("id")
-		.eq("user_id", user.id)
-		.eq("import_id", importId);
-
-	const ids = (txns ?? []).map((r) => r.id);
-
-	/*
-	 * ⚠️ Gli errori di lettura NON si scartano, nemmeno qui dove non fermano
-	 * niente. Un import può contenere centinaia di righe: senza controllarli,
-	 * una select fallita darebbe zero path e ogni ricevuta resterebbe nel bucket
-	 * **senza una riga di log** — irraggiungibile e non più cancellabile da
-	 * nessuno. Non potendo rimediare, si lascia almeno una traccia con l'id del
-	 * lotto, che è ciò che permette di ritrovare i file a mano.
 	 *
-	 * ⚠️ `getAttachmentPaths` spezza la richiesta in blocchi: `.in()` viaggia
-	 * nella query string, e 216 uuid — un solo estratto Trade Republic — fanno
-	 * una URL che il proxy rifiuta. Vedi `IN_CHUNK` in attachment-actions.ts.
+	 * ⚠️ Una lettura sola su `attachments`, a blocchi (`receiptPathsOf`). Prima si
+	 * leggevano gli id dei movimenti del lotto con una select senza limite —
+	 * tagliata in silenzio a 1000 righe da PostgREST — e poi i path con una
+	 * `.in()`: un import generico da 1500 righe lasciava orfane le ricevute oltre
+	 * la millesima senza una riga di log (review della #120).
+	 *
+	 * ⚠️ E se la lettura fallisce ci si FERMA, invece di annullare lo stesso e
+	 * lasciare una traccia nei log come faceva prima: niente è ancora stato
+	 * toccato, quindi un guasto passeggero si riprova gratis — mentre dopo il
+	 * delete quei file non li ritrova più nessuno.
 	 */
-	const { paths, incomplete } = ids.length > 0
-		? await getAttachmentPaths(ids)
-		: { paths: [] as string[], incomplete: false };
-
-	if (txnsError || incomplete) {
-		console.error(
-			"[import] elenco ricevute incompleto prima di undoImport:",
-			importId,
-			txnsError?.message ?? "lettura allegati parziale",
-		);
-	}
+	const receipts = await receiptPathsOf(supabase, user.id, { import: importId });
+	if ("error" in receipts) return { error: t.errors.receiptsReadFailed };
+	const { paths } = receipts;
 
 	const { error } = await supabase
 		.from("imports")
@@ -473,12 +457,12 @@ export async function undoImport(importId: string): Promise<{ ok: true } | { err
 	 * della rimozione FERMA tutto — là i file sono dati personali di chi ha
 	 * chiesto di sparire, e abbandonarli è peggio che non cancellare l'account.
 	 */
+	// A blocchi (`removeStorageFiles`): l'API Storage rifiuta più di 1000 path
+	// per richiesta, e un lotto di Trade Republic ha già superato i 200 movimenti.
 	if (paths.length > 0) {
-		const { error: removeError } = await supabase.storage
-			.from(RECEIPT_BUCKET)
-			.remove(paths);
-		if (removeError) {
-			console.error("[import] ricevute orfane dopo undoImport:", removeError.message, paths);
+		const removed = await removeStorageFiles(supabase, RECEIPT_BUCKET, paths);
+		if (removed.error) {
+			console.error("[import] ricevute orfane dopo undoImport:", removed.error, paths);
 		}
 	}
 

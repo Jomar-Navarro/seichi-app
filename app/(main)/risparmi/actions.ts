@@ -7,6 +7,10 @@ import { INVESTMENT_TYPE_COLOR, INVESTMENT_TYPE_FALLBACK } from "@/lib/investmen
 import { isAccountId } from "@/lib/accounts";
 import { lookup } from "@/lib/i18n/format";
 import { isStorableAmount } from "@/lib/amount";
+import { RECEIPT_BUCKET } from "@/lib/attachments";
+import { removeStorageFiles } from "@/lib/storage-files";
+import { receiptPathsOf } from "@/lib/attachment-paths";
+import type { SupabaseServerClient } from "@/lib/supabase/server";
 
 export async function getGoals(): Promise<{ data: GoalWithProgress[] } | { error: string }> {
 	const { supabase, user, t } = await requireUser();
@@ -363,6 +367,29 @@ export async function deleteGoal(id: string): Promise<{ error?: string }> {
 	const { supabase, user, t } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
+	/*
+	 * ⚠️ Le ricevute si raccolgono PRIMA (#120): i delete qui sotto fanno cascata
+	 * su `attachments` e lasciano i file nel bucket, e dopo quali fossero non è
+	 * più scritto da nessuna parte.
+	 *
+	 * ⚠️ Di TUTTI i movimenti della categoria, non dei soli versamenti: il delete
+	 * della categoria in fondo fa cascata su ogni movimento che la usa, e il tipo
+	 * di una categoria si può cambiare quando ha già dei movimenti — una "spesa"
+	 * diventata obiettivo porta con sé spese con ricevute (review della #120).
+	 *
+	 * Due insiemi, perché diventano orfani in due momenti diversi: i file dei
+	 * versamenti appena il loro delete riesce, gli altri solo quando cade la
+	 * categoria. Se la lettura fallisce ci si ferma: niente è ancora stato
+	 * toccato.
+	 */
+	const [deposits, all] = await Promise.all([
+		receiptPathsOf(supabase, user.id, { category: id, type: "risparmio" }),
+		receiptPathsOf(supabase, user.id, { category: id }),
+	]);
+	if ("error" in deposits || "error" in all) return { error: t.errors.receiptsReadFailed };
+	const depositPaths = new Set(deposits.paths);
+	const otherPaths = all.paths.filter((p) => !depositPaths.has(p));
+
 	// Delete associated transactions first — otherwise they remain as
 	// orphaned outflows that permanently reduce the balance with no visible goal.
 	const { error: txnError } = await supabase
@@ -373,6 +400,17 @@ export async function deleteGoal(id: string): Promise<{ error?: string }> {
 		.eq("type", "risparmio");
 
 	if (txnError) return { error: txnError.message };
+
+	/*
+	 * I file dei versamenti si rimuovono SUBITO, non in fondo alla funzione: da
+	 * qui in poi le righe che li indicavano non esistono più, e se il passo delle
+	 * regole o quello della categoria fallisse e la funzione uscisse prima, il
+	 * secondo tentativo non li troverebbe più — orfani per sempre.
+	 *
+	 * Un fallimento della rimozione si registra e non annulla niente, come in
+	 * `undoImport()`.
+	 */
+	await removeOrphanedReceipts(supabase, [...depositPaths]);
 
 	/*
 	 * ⚠️ E le regole ricorrenti che lo alimentano (#117). La FK
@@ -408,6 +446,19 @@ export async function deleteGoal(id: string): Promise<{ error?: string }> {
 		.eq("user_id", user.id);
 
 	if (error) return { error: error.message };
+
+	// Gli altri movimenti della categoria sono caduti con lei, in cascata.
+	await removeOrphanedReceipts(supabase, otherPaths);
+
 	revalidatePath("/", "layout");
 	return {};
+}
+
+/** Rimuove i file di ricevute le cui righe sono già sparite; un guasto va nei log. */
+async function removeOrphanedReceipts(supabase: SupabaseServerClient, paths: string[]) {
+	if (paths.length === 0) return;
+	const removed = await removeStorageFiles(supabase, RECEIPT_BUCKET, paths);
+	if (removed.error) {
+		console.error("[obiettivi] ricevute orfane dopo l'eliminazione:", removed.error, paths);
+	}
 }

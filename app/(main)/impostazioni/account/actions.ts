@@ -8,6 +8,7 @@ import { getDictionary } from "@/lib/i18n/server";
 import { fill } from "@/lib/i18n/format";
 import { SITE_URL } from "@/lib/site-url";
 import { RECEIPT_BUCKET } from "@/lib/attachments";
+import { purgeStorageFolder } from "@/lib/storage-files";
 
 const AVATAR_BUCKET = "avatars";
 
@@ -111,31 +112,23 @@ export async function updateFullName(fullName: string): Promise<ActionResult> {
  * motivo per cui sia gli avatar sia le ricevute usano un percorso a un solo
  * livello (`{user_id}/{uuid}.{ext}`) — vedi la nota nella `20260818`.
  *
+ * ⚠️ E fino alla #120 si fermava a 100 file — il default di `list()` — senza
+ * dirlo: chi eliminava l'account con 250 ricevute ne lasciava 150 nel bucket.
+ * Paginazione, rimozione a blocchi e rilettura finale stanno ora in
+ * `purgeStorageFolder()` (`lib/storage-files.ts`).
+ *
  * Generalizzata nella Fase 22: la logica era identica per i due bucket, e
  * ricopiarla avrebbe significato due punti da correggere il giorno in cui la
  * cancellazione cambia. `purgeAvatarFiles` resta come nome parlante per il
  * chiamante, come `isAccountId` accanto a `isUuid`.
  */
-async function purgeUserFiles(
+function purgeUserFiles(
 	supabase: SupabaseServerClient,
 	bucket: string,
 	userId: string,
 	keep?: string,
 ): Promise<{ error: string | null }> {
-	const { data: files, error: listError } = await supabase.storage
-		.from(bucket)
-		.list(userId);
-
-	if (listError) return { error: listError.message };
-
-	const stale = (files ?? [])
-		.map((f) => `${userId}/${f.name}`)
-		.filter((path) => path !== keep);
-
-	if (!stale.length) return { error: null };
-
-	const { error } = await supabase.storage.from(bucket).remove(stale);
-	return { error: error?.message ?? null };
+	return purgeStorageFolder(supabase, bucket, userId, { keep });
 }
 
 function purgeAvatarFiles(
@@ -351,10 +344,20 @@ export async function deleteAccount(confirmEmail: string, password: string) {
 	 * un documento personale — dice cosa hai comprato, dove e quando — e
 	 * distruggere l'account lasciandola nel bucket, irraggiungibile e non più
 	 * cancellabile da nessuno, è il contrario di ciò che l'utente ha chiesto.
+	 *
+	 * ⚠️ E "fallimento" comprende un file rimasto: `purgeStorageFolder` rilegge la
+	 * cartella dopo aver rimosso, quindi un elenco troncato o un `remove()` che
+	 * non ha tolto niente fermano l'eliminazione come un errore vero (#120).
 	 */
 	const purgeReceipts = await purgeUserFiles(supabase, RECEIPT_BUCKET, user.id);
 	if (purgeReceipts.error) {
 		console.error("[account] ricevute non rimosse:", purgeReceipts.error);
+		// Compensazione, come per la RPC fallita qui sotto: la foto è già stata
+		// rimossa, e l'account che sopravvive non deve puntare a un file che non
+		// c'è più (review della #120 — la rilettura rende questo ramo più facile
+		// da raggiungere di prima).
+		await supabase.from("profiles").upsert({ id: user.id, avatar_url: null });
+		revalidatePath("/", "layout");
 		return { error: t.errors.receiptsRemoveFailed };
 	}
 
