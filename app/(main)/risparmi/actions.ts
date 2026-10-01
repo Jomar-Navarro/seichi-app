@@ -10,6 +10,7 @@ import { isStorableAmount } from "@/lib/amount";
 import { RECEIPT_BUCKET } from "@/lib/attachments";
 import { removeStorageFiles } from "@/lib/storage-files";
 import { readAll } from "@/lib/read-all";
+import { endOfDayInMonth } from "@/lib/dates";
 import { receiptPathsOf } from "@/lib/attachment-paths";
 import type { SupabaseServerClient } from "@/lib/supabase/server";
 
@@ -51,9 +52,14 @@ export async function getGoals(): Promise<{ data: GoalWithProgress[] } | { error
 		byGoal.set(t.category_id, list);
 	}
 
+	// Al centesimo: senza, un residuo in virgola mobile poteva dire "completato"
+	// alla card e "non ancora" al calcolo della data (review della #121).
+	// `|| 0`: l'arrotondamento di un residuo negativo dà -0, che `Intl` scrive "-0,00".
+	const cents = (x: number) => Math.round(x * 100) / 100 || 0;
+
 	const goals: GoalWithProgress[] = (cats ?? []).map((c) => {
-		const deposits = (byGoal.get(c.id) ?? []).sort((a, b) => a.date.localeCompare(b.date));
-		const saved = deposits.reduce((acc, d) => acc + d.amount, 0);
+		const deposits = byGoal.get(c.id) ?? [];
+		const saved = cents(deposits.reduce((acc, d) => acc + d.amount, 0));
 
 		/*
 		 * ⚠️ Il giorno in cui il traguardo è stato SUPERATO (#121): il versamento
@@ -66,12 +72,22 @@ export async function getGoals(): Promise<{ data: GoalWithProgress[] } | { error
 		 * cancellato (è così che si "preleva", vedi Key Decisions) la data di un
 		 * superamento non più vero non va mostrata.
 		 */
+		/*
+		 * L'ordinamento per data si fa SOLO per un obiettivo completato: home e
+		 * coach chiamano questa funzione per `saved_amount` e basta (review della
+		 * #121).
+		 *
+		 * ⚠️ `slice(0, 10)` legge il giorno come lo legge la lista dei movimenti
+		 * (`new Date()` su un timestamp senza fuso): la data mostrata qui è quella
+		 * che l'utente vede accanto allo stesso versamento. Il caso al confine
+		 * della mezzanotte è il debito dichiarato di `transactions.date`.
+		 */
 		let reached_at: string | null = null;
 		if (c.target_amount && saved >= c.target_amount) {
 			let progressivo = 0;
-			for (const d of deposits) {
+			for (const d of [...deposits].sort((a, b) => a.date.localeCompare(b.date))) {
 				progressivo += d.amount;
-				if (progressivo >= c.target_amount) {
+				if (cents(progressivo) >= c.target_amount) {
 					reached_at = d.date.slice(0, 10);
 					break;
 				}
@@ -154,27 +170,25 @@ export async function getInvestments(
 	if (error) return { error };
 
 	/*
-	 * ⚠️ La variazione confronta lo STESSO tratto dei due mesi (#121): dal 1° a
-	 * oggi contro dal 1° allo stesso giorno del mese scorso. Prima metteva il
-	 * mese in corso accanto all'intero mese precedente, e i primi giorni del
-	 * mese ogni versamento non ancora fatto si leggeva come un crollo. Deciso
-	 * con Jomar il 2026-10-01, insieme a `/analisi`.
+	 * ⚠️ La variazione confronta lo STESSO tratto dei due mesi (#121): dal 1°
+	 * all'ultimo giorno coperto contro lo stesso tratto del mese scorso. Prima
+	 * metteva il mese in corso accanto all'intero mese precedente, e i primi
+	 * giorni ogni versamento non ancora fatto si leggeva come un crollo. Deciso
+	 * con Jomar il 2026-10-01, insieme a `/analisi` — e con la stessa regola:
+	 * il tratto arriva fino all'ultimo versamento del mese se è oltre oggi (il
+	 * form accetta date future), vedi `getAnalyticsData`.
 	 */
 	const now = new Date();
+	const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 	const firstOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+	const firstOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 	const firstOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-	const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-	// Lo stesso giorno del mese scorso, fermato alla fine di quel mese (il 31
-	// marzo confronta con tutto febbraio, non sconfina in marzo).
-	const sameDayLastMonth = new Date(
-		Math.min(
-			new Date(now.getFullYear(), now.getMonth() - 1, now.getDate() + 1).getTime(),
-			firstOfThisMonth.getTime(),
-		),
-	);
 
 	let thisMonthContrib = 0;
-	let lastMonthContrib = 0;
+	let ultimo = today;
+	// Del mese scorso si tengono le righe e si sommano DOPO: il confine dipende
+	// dall'ultimo giorno di questo mese, che si conosce solo alla fine del ciclo.
+	const lastMonthRows: { d: Date; signed: number }[] = [];
 
 	/**
 	 * ⚠️ `types` è un INSIEME, non una stringa, ed è la correzione della #56.
@@ -212,8 +226,12 @@ export async function getInvestments(
 		const signed = tx.type === "disinvestimento" ? -tx.amount : tx.amount;
 
 		const d = new Date(tx.date);
-		if (d >= firstOfThisMonth && d < tomorrow) thisMonthContrib += signed;
-		else if (d >= firstOfLastMonth && d < sameDayLastMonth) lastMonthContrib += signed;
+		if (d >= firstOfThisMonth && d < firstOfNextMonth) {
+			thisMonthContrib += signed;
+			if (d > ultimo) ultimo = d;
+		} else if (d >= firstOfLastMonth && d < firstOfThisMonth) {
+			lastMonthRows.push({ d, signed });
+		}
 
 		/*
 		 * ⚠️ Si contano le righe di ENTRAMBI i versi: una vendita descrive un asset
@@ -246,7 +264,30 @@ export async function getInvestments(
 		}
 	}
 
-	const total = Array.from(catMap.values()).reduce((acc, c) => acc + c.total, 0);
+	/*
+	 * ⚠️ Al CENTESIMO (review della #121). Le somme in virgola mobile lasciano
+	 * residui: una posizione comprata per 100,10 + 200,20 e venduta per 300,30
+	 * resta a −5,7e-14 — con la nota "hai liquidato più di quanto versato" e
+	 * "€ -0,00". Arrotondando, `total > 0` significa davvero "ancora versato".
+	 * Vale anche per i due contributi del mese: lo stesso residuo come
+	 * DENOMINATORE della variazione passava il `> 0` e dava percentuali assurde.
+	 */
+	// `|| 0`: l'arrotondamento di un residuo negativo dà -0, che `Intl` scrive "-0,00".
+	const cents = (x: number) => Math.round(x * 100) / 100 || 0;
+
+	const lastMonthEnd = endOfDayInMonth(
+		firstOfLastMonth.getFullYear(),
+		firstOfLastMonth.getMonth(),
+		ultimo.getDate(),
+	);
+	const lastMonthContrib = cents(
+		lastMonthRows.filter((r) => r.d < lastMonthEnd).reduce((acc, r) => acc + r.signed, 0),
+	);
+	thisMonthContrib = cents(thisMonthContrib);
+
+	for (const c of catMap.values()) c.total = cents(c.total);
+
+	const total = cents(Array.from(catMap.values()).reduce((acc, c) => acc + c.total, 0));
 
 	/*
 	 * ⚠️ Le percentuali si calcolano sul solo capitale POSITIVO.
@@ -305,6 +346,7 @@ export async function getInvestments(
 			? Math.round(((thisMonthContrib - lastMonthContrib) / lastMonthContrib) * 1000) / 10
 			: null;
 
+	for (const [k, v] of typeMap) typeMap.set(k, cents(v));
 	const baseType = somma(Array.from(typeMap.values()));
 
 	const byType = Array.from(typeMap.entries())

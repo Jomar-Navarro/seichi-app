@@ -5657,6 +5657,47 @@ intero invece di −333% a parità di giorni, nessuna fetta "Senza categoria",
 investimenti −100%, "3 posizioni attive", "Raggiunto · dic 2026", e il coach
 "ti restano € -45,00".
 
+#### Emerso dal code-review della PR #136 (14 rilievi, 11 applicati)
+
+- ⚠️⚠️ **"Fino a oggi" non è il tratto che il Flusso copre.** Il form accetta
+  date future: con lo stipendio già registrato al 27, il KPI lo comprende, e il
+  primo confronto — fermato a oggi — metteva accanto a "+ € 20" un "↓ 333%"
+  calcolato senza di lui. Una percentuale che descrive un altro numero. Ora il
+  tratto arriva all'**ultimo giorno con un movimento** se è oltre oggi, e il
+  confronto è sempre fatto sul numero che gli sta accanto. Attenua anche
+  l'orologio del server in UTC: un movimento registrato oggi porta il proprio
+  giorno. **La regola: un numero di confronto si calcola sullo stesso insieme
+  del numero che affianca, non su un insieme vicino.**
+- **Il confine "stesso giorno, fermato alla fine del mese"** era scritto a mano
+  tre volte, e la versione dell'anno non era fermata: il 29 febbraio di un
+  bisestile confrontava fino al 2 marzo dell'anno prima. Ora è
+  `endOfDayInMonth()` in `lib/dates.ts`.
+- **"— primo mese" faceva cadere `/analisi`** — e il report — se la sua query
+  falliva: ora degrada a "non dirlo", e non interroga il database se le righe
+  già lette mostrano un movimento prima del mese.
+- ⚠️ **I residui in virgola mobile.** 100,10 + 200,20 − 300,30 fa −5,7e-14: la
+  posizione mostrava "€ -0,00" e la nota "hai liquidato più di quanto versato";
+  e lo stesso residuo come denominatore della variazione passava il `> 0`. Ora
+  totali e contributi sono al centesimo — con `|| 0`, perché arrotondare un
+  residuo negativo dà `-0` e `Intl` lo scrive "-0,00". Il coach confronta il
+  disponibile al centesimo. Lo stesso per le tipologie nell'intestazione, che
+  ora contano solo quelle con capitale.
+- Il donut aggrega per **id** di categoria, non per nome: una categoria
+  chiamata davvero "Senza categoria" si fondeva con i movimenti che non ne
+  hanno. `getGoals` ordina per data solo gli obiettivi completati, e un ramo
+  irraggiungibile (`reachedNoDate`) è stato tolto.
+
+Non applicati: la lettura fallita di `/investimenti` mostrata come "nessun
+investimento" è già nella #124; e la data di "Raggiunto" ricavata con
+`slice(0, 10)` resta così, perché è il giorno che la lista mostra per lo
+stesso versamento — il caso al confine della mezzanotte è il debito dichiarato
+di `transactions.date`, non di questa sezione.
+
+Secondo collaudo, su un altro account usa e getta: 15 controlli su 15, con
+un'entrata datata al 12 (Flusso +20, variazione ↑167% sul tratto 1-12 — la
+prima versione della PR metteva ↓333%) e la posizione 100,10 + 200,20 − 300,30
+a zero, senza nota. Le 22 letture identiche a blocchi da 5 e da 500.
+
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 
 Il guasto è emerso guardando a occhio una data in `/impostazioni/ricorrenti`: una

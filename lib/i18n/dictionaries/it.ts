@@ -913,7 +913,6 @@ export const it = {
 		/** Riga sotto il nome sulla card: "Scadenza · ago 2026". */
 		/** `{date}` è il giorno del versamento che ha superato il target, non la scadenza (#121). */
 		reached: "Raggiunto · {date}",
-		reachedNoDate: "Raggiunto",
 		deadline: "Scadenza · {date}",
 		/** "€ 400 di € 1.000" — il connettivo fra risparmiato e traguardo. */
 		of: "di",

@@ -86,6 +86,22 @@ export function dbInstant(value: string): number {
 	return Date.parse(/(?:Z|[+-]\d\d:?\d\d)$/i.test(value) ? value : `${value}Z`);
 }
 
+/**
+ * La fine (esclusiva) del giorno `day` nel mese `month` di `year`, fermata alla
+ * fine di quel mese — il confine dei confronti "a parità di giorni" (#121).
+ *
+ * ⚠️ Il fermo non è un dettaglio: il 31 marzo confrontato col mese prima deve
+ * dare tutto febbraio, non sconfinare in marzo; il 29 febbraio di un anno
+ * bisestile confrontato con l'anno prima deve dare fino al 28 febbraio, non al
+ * 2 marzo. Scritto a mano in ogni chiamante, la versione dell'anno era già
+ * diversa da quella del mese (review della #121): una definizione sola.
+ */
+export function endOfDayInMonth(year: number, month: number, day: number): Date {
+	return new Date(
+		Math.min(new Date(year, month, day + 1).getTime(), new Date(year, month + 1, 1).getTime()),
+	);
+}
+
 /** Primo giorno del mese di `isoDate` e primo del mese successivo (fine esclusiva). */
 export function monthBoundsOf(isoDate: string): { start: string; end: string } {
 	const [y, m] = isoDate.split("-").map(Number);

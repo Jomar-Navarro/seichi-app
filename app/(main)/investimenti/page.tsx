@@ -122,7 +122,9 @@ export default async function InvestimentiPage({
 							data.positions.filter((p) => p.total > 0).length,
 							locale,
 						)} ·{" "}
-						{plural(t.investments.typeCount, data.byType.length, locale)}
+						{/* Stessa regola delle posizioni: una tipologia tutta liquidata
+						    non si conta accanto alle posizioni "attive" (review della #121). */}
+						{plural(t.investments.typeCount, data.byType.filter((b) => b.total > 0).length, locale)}
 					</p>
 				)}
 			</div>

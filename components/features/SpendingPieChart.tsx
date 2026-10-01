@@ -5,7 +5,8 @@ import { DISPLAY_CURRENCY, fill, formatMoney } from "@/lib/i18n/format";
 import { useDonutTooltipPosition } from "@/components/UI/useDonutTooltipPosition";
 
 interface SpendingPieChartProps {
-	spese: { name: string; color: string; total: number }[];
+	/** `id` = la categoria, o "senza-categoria": due fette possono avere lo stesso NOME (#121). */
+	spese: { id: string; name: string; color: string; total: number }[];
 	periodo?: string;
 	/**
 	 * ⚠️ `animated` esiste per la STAMPA (Fase 23b), e il default resta `true`.
@@ -183,7 +184,7 @@ export default function SpendingPieChart({
 					{data.map((s) => {
 						const pct = totale > 0 ? Math.round((s.total / totale) * 100) : 0;
 						return (
-							<div key={s.name} className="flex items-center justify-between">
+							<div key={s.id} className="flex items-center justify-between">
 								<div className="flex items-center gap-2.25">
 									<span
 										className="inline-block w-2 h-2 rounded-full shrink-0"

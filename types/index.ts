@@ -124,6 +124,8 @@ export interface GoalWithProgress extends Category {
 	/**
 	 * `YYYY-MM-DD` del versamento con cui la somma ha superato il target, o
 	 * `null` se l'obiettivo non è raggiunto adesso (#121). Non la scadenza.
+	 * Mai `null` per un obiettivo completato: `saved_amount` e la somma
+	 * progressiva sono entrambi al centesimo, sulle stesse righe.
 	 */
 	reached_at: string | null;
 }

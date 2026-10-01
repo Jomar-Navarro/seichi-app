@@ -540,7 +540,6 @@ export const en: Dictionary = {
 		noDeadline: "No deadline",
 		completedSection: "Completed",
 		reached: "Reached · {date}",
-		reachedNoDate: "Reached",
 		deadline: "Due · {date}",
 		of: "of",
 		/** Due forme uguali: in inglese l'importo non si accorda con niente. */
