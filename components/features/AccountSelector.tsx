@@ -131,8 +131,8 @@ export default function AccountSelector({
 					/>
 					{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
 					<div
-						className={`absolute left-0 top-full mt-2 z-50 w-[min(20rem,calc(100vw-2.5rem))] rounded-3xl overflow-hidden modal-shadow-ring${
-							alignEndFromLg ? " lg:left-auto lg:right-0" : ""
+						className={`absolute left-0 top-full mt-2 z-50 w-[min(20rem,calc(100vw-2.5rem))] rounded-3xl overflow-hidden modal-shadow-ring ${
+							alignEndFromLg ? "lg:left-auto lg:right-0" : ""
 						}`}
 					>
 						<div

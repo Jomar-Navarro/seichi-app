@@ -55,14 +55,14 @@ export default function MonthlyLineChart({ trend, animated = true, inCard = fals
 			un residuo aperto, come per la barra di navigazione.
 		*/
 		<div
-			className={`rounded-[26px] pt-4.5 px-4 pb-3 bg-surface backdrop-blur-[18px] shadow-[inset_0_1px_0_var(--shadow-inset),inset_0_0_0_1px_var(--border)]${
-				inCard ? " lg:contents" : ""
+			className={`rounded-[26px] pt-4.5 px-4 pb-3 bg-surface backdrop-blur-[18px] shadow-[inset_0_1px_0_var(--shadow-inset),inset_0_0_0_1px_var(--border)] ${
+				inCard ? "lg:contents" : ""
 			}`}
 		>
 			{/* Con `inCard`, da `lg:` la legenda sale in alto a destra, accanto al KPI. */}
 			<div
-				className={`flex items-center gap-4 mb-4${
-					inCard ? " lg:col-start-2 lg:row-start-1 lg:self-start lg:mt-0.5 lg:mb-0" : ""
+				className={`flex items-center gap-4 mb-4 ${
+					inCard ? "lg:col-start-2 lg:row-start-1 lg:self-start lg:mt-0.5 lg:mb-0" : ""
 				}`}
 			>
 				<div className="flex items-center gap-1.75">

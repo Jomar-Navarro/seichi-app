@@ -25,6 +25,15 @@
  *      caso di `--ink-kiri` / `text-kiri-ink`, e nessuno degli altri due
  *      controlli lo vede — la variabile esiste E la classe è scritta bene.
  *
+ *   D. una classe INCOLLATA a `${` in un className costruito a pezzi.
+ *      Lo scanner di Tailwind legge il sorgente come testo e non la estrae:
+ *      `…border-subtle${x}` non genera `border-subtle`. Se la stessa classe
+ *      compare altrove funziona per caso; se no, non esiste — è il caso dei
+ *      separatori bianchi di `SettingsGroup` (issue #114), invisibili a B per
+ *      due motivi: saltava ogni className con `${`, e non riconosceva le
+ *      varianti arbitrarie come `[&>*+*]:`. Ora non fa più né l'una né
+ *      l'altra cosa, e D non ha bisogno di una build.
+ *
  * Uscita diversa da zero = almeno un controllo ha trovato qualcosa.
  */
 
@@ -49,6 +58,97 @@ function walk(dir, out = []) {
 
 const sources = SCAN_DIRS.flatMap((d) => walk(join(ROOT, d)));
 const css = readFileSync(CSS_SOURCE, "utf8");
+
+/** Riga (da 1) di un indice nel testo. */
+function rigaDi(src, idx) {
+	let n = 1;
+	for (let k = src.indexOf("\n"); k !== -1 && k < idx; k = src.indexOf("\n", k + 1)) n++;
+	return n;
+}
+
+/**
+ * I pezzi di testo LETTERALE di ogni `className` (e `areaClassName` & co.) di
+ * un file: le stringhe e le parti statiche dei template, ciascuno con la sua
+ * posizione. Una parte di template seguita da `${` porta anche `interp`, la
+ * posizione dell'interpolazione.
+ *
+ * ⚠️ Un piccolo parser e non una regex per riga: un className costruito a
+ * pezzi va a capo, annida template e stringhe, e dentro `${…}` può contenere
+ * commenti con apostrofi ("l'enfasi") che una regex leggerebbe come stringhe.
+ * La regex di prima prendeva un attributo per riga e lo saltava se conteneva
+ * `${` — cioè non guardava NESSUN className dinamico (issue #114).
+ */
+function classNameLiterals(src) {
+	const pezzi = [];
+	let i = 0;
+
+	function stringa(q) {
+		const start = ++i;
+		while (i < src.length && src[i] !== q && src[i] !== "\n") i += src[i] === "\\" ? 2 : 1;
+		pezzi.push({ text: src.slice(start, i), at: start });
+		i++;
+	}
+	function template() {
+		let start = ++i;
+		while (i < src.length && src[i] !== "`") {
+			if (src[i] === "\\") {
+				i += 2;
+			} else if (src[i] === "$" && src[i + 1] === "{") {
+				pezzi.push({ text: src.slice(start, i), at: start, interp: i });
+				i += 2;
+				espressione();
+				start = i;
+			} else {
+				i++;
+			}
+		}
+		pezzi.push({ text: src.slice(start, i), at: start });
+		i++;
+	}
+	// Legge fino alla graffa che chiude quella già aperta, e si ferma DOPO.
+	function espressione() {
+		let depth = 1;
+		while (i < src.length) {
+			const c = src[i];
+			if (c === "/" && src[i + 1] === "/") {
+				const nl = src.indexOf("\n", i);
+				i = nl === -1 ? src.length : nl;
+			} else if (c === "/" && src[i + 1] === "*") {
+				const fine = src.indexOf("*/", i + 2);
+				i = fine === -1 ? src.length : fine + 2;
+			} else if (c === '"' || c === "'") {
+				stringa(c);
+			} else if (c === "`") {
+				template();
+			} else {
+				if (c === "{") depth++;
+				else if (c === "}" && --depth === 0) {
+					i++;
+					return;
+				}
+				i++;
+			}
+		}
+	}
+
+	for (const m of src.matchAll(/\b(?:className|[a-z]\w*ClassName)\s*=\s*/g)) {
+		if (m.index < i) continue; // dentro un className già letto
+		i = m.index + m[0].length;
+		if (src[i] === '"' || src[i] === "'") stringa(src[i]);
+		else if (src[i] === "{") {
+			i++;
+			espressione();
+		}
+	}
+	return pezzi;
+}
+
+const classNames = new Map(
+	sources.filter((f) => !f.endsWith(".css")).map((f) => {
+		const src = readFileSync(f, "utf8");
+		return [f, { src, pezzi: classNameLiterals(src) }];
+	}),
+);
 
 let problemi = 0;
 const titolo = (s) => console.log(`\n${"─".repeat(72)}\n${s}\n${"─".repeat(72)}`);
@@ -151,46 +251,49 @@ if (cssBuilt.length === 0) {
 	// partiva a metà parola dentro un valore arbitrario, e
 	// `grid-cols-[repeat(auto-fit,minmax(300px,1fr))]` produceva `to-fit` — una
 	// "classe di gradiente" mai generata, cioè un falso positivo (issue #108).
+	// ⚠️ Anche le varianti ARBITRARIE (`[&>*+*]:`, `data-[state=open]:`): prima
+	// il match ripartiva dopo i loro due punti e verificava `border-subtle`
+	// nuda — che esiste altrove — invece della classe CON la variante, che non
+	// esisteva (issue #114).
+	// ⚠️⚠️ E la classe con la variante NON va scritta per intero in un commento:
+	// Tailwind scansiona ogni file non ignorato, script e commenti compresi, e
+	// la genererebbe da qui — la prima stesura di questa nota lo faceva, e
+	// rimetteva nel CSS proprio la classe di cui la build doveva accorgersi.
+	const VARIANTE = String.raw`(?:[a-z0-9][a-z0-9-]*(?:\[[^\]\s]+\])?|\[[^\]\s]+\]):`;
 	const CLASS_RE = new RegExp(
-		`(?<![A-Za-z0-9_-])(?:[a-z0-9][a-z0-9-]*:)*(?:${PREFIX})-[a-zA-Z0-9-]+(?:/[a-z0-9.]+)?`,
+		`(?<![A-Za-z0-9_-])(?:${VARIANTE})*(?:${PREFIX})-[a-zA-Z0-9-]+(?:/[a-z0-9.]+)?`,
 		"g",
 	);
-	// Solo ciò che sta dentro un className: i commenti di questo progetto sono
-	// prosa italiana e nominano le classi di continuo.
-	const ATTR_RE = /className\s*=\s*(?:"([^"]*)"|\{`([^`]*)`\}|\{([^}]*)\})/g;
 
+	// Solo ciò che sta dentro un className (vedi `classNameLiterals`): i
+	// commenti di questo progetto sono prosa italiana e nominano le classi di
+	// continuo. I className costruiti a pezzi si guardano anch'essi, nelle loro
+	// parti letterali: una classe incollata a `${` la segnala D.
 	const candidate = new Map();
-	for (const file of sources) {
-		if (file.endsWith(".css")) continue;
-		readFileSync(file, "utf8")
-			.split("\n")
-			.forEach((line, i) => {
-				for (const attr of line.matchAll(ATTR_RE)) {
-					const blob = attr[1] ?? attr[2] ?? attr[3] ?? "";
-					if (blob.includes("${")) continue; // costruita a pezzi
-					for (const m of blob.matchAll(CLASS_RE)) {
-						const cls = m[0];
-						// Il filtro dei nomi nativi guarda la sola utility, senza
-						// varianti né modificatore: `dark:bg-white/20` è nativa quanto
-						// `bg-white`.
-						const utility = cls.slice(cls.lastIndexOf(":") + 1).split("/")[0];
-						if (BUILTIN.test(utility.slice(utility.indexOf("-") + 1))) continue;
-						if (!candidate.has(cls)) candidate.set(cls, []);
-						candidate.get(cls).push(`${relative(ROOT, file)}:${i + 1}`);
-					}
-				}
-			});
+	for (const [file, { src, pezzi }] of classNames) {
+		for (const pezzo of pezzi) {
+			for (const m of pezzo.text.matchAll(CLASS_RE)) {
+				const cls = m[0];
+				// Il filtro dei nomi nativi guarda la sola utility, senza
+				// varianti né modificatore: `dark:bg-white/20` è nativa quanto
+				// `bg-white`.
+				const utility = cls.slice(cls.lastIndexOf(":") + 1).split("/")[0];
+				if (BUILTIN.test(utility.slice(utility.indexOf("-") + 1))) continue;
+				if (!candidate.has(cls)) candidate.set(cls, []);
+				candidate.get(cls).push(`${relative(ROOT, file)}:${rigaDi(src, pezzo.at + m.index)}`);
+			}
+		}
 	}
 
-	// Nel CSS Tailwind scrive i due punti e la barra come caratteri di ESCAPE —
-	// `focus:border-muted` diventa il selettore `.focus\:border-muted`, e
-	// `bg-muted/50` diventa `.bg-muted\/50`. Il resto del token è per costruzione
-	// solo lettere, cifre e trattini, quindi non porta altri metacaratteri.
+	// Nel CSS Tailwind scrive come caratteri di ESCAPE tutto ciò che non può
+	// stare in un identificatore — `focus:border-muted` diventa il selettore
+	// `.focus\:border-muted`, `bg-muted/50` diventa `.bg-muted\/50`, e
+	// `[&>*+*]:border-t` diventa `.\[\&\>\*\+\*\]\:border-t`.
 	// ⚠️ E un identificatore CSS non può COMINCIARE con una cifra: Tailwind la
 	// scrive come escape esadecimale seguito da uno spazio, quindi il breakpoint
 	// `2xl:text-2xl` diventa il selettore `.\32 xl\:text-2xl`.
 	const selettore = (cls) => {
-		const s = cls.replace(/[:/]/g, (ch) => "\\" + ch);
+		const s = cls.replace(/[^A-Za-z0-9_-]/g, (ch) => "\\" + ch);
 		return "." + (/^[0-9]/.test(s) ? `\\3${s[0]} ${s.slice(1)}` : s);
 	};
 	// Si cerca il selettore seguito da un terminatore, o `.bg-card` combacerebbe
@@ -232,6 +335,34 @@ if (senzaClasse.length === 0) {
 			`❌ --ink-${n} definito in :root ma non mappato → la classe text-${n}-ink NON esiste`,
 		);
 	}
+}
+
+/* ------------------------------------- D. classi incollate a un `${…}` --- */
+
+titolo("D · classi incollate a `${` in un className costruito a pezzi");
+
+// Una parte statica seguita da `${` deve finire con uno spazio (o essere
+// vuota). Lo scanner di Tailwind non estrae ciò che sta attaccato a `${`
+// (verificato con `@tailwindcss/oxide`, issue #114), quindi la classe esiste
+// solo se un ALTRO file la scrive per intero: funziona per caso, e smette senza
+// avvisi quando quell'altro uso sparisce. Copre anche i nomi costruiti a
+// runtime (`bg-${accent}`), che Tailwind non genera comunque.
+// ⚠️ Solo PRIMA di `${`: dopo la graffa che chiude (`}text-xs`) lo scanner
+// la classe la estrae, e qui non c'è niente da segnalare.
+const incollate = [];
+for (const [file, { src, pezzi }] of classNames) {
+	for (const { text, interp } of pezzi) {
+		if (interp === undefined || text === "" || /\s$/.test(text)) continue;
+		incollate.push(`${relative(ROOT, file)}:${rigaDi(src, interp)}  ${text.match(/\S+$/)[0]}\${`);
+	}
+}
+
+if (incollate.length === 0) {
+	console.log("✅ nessuna classe incollata a `${`.");
+} else {
+	problemi += incollate.length;
+	console.log("❌ classi che Tailwind non vede — serve uno spazio prima di `${`:");
+	incollate.forEach((l) => console.log(`     ${l}`));
 }
 
 /* ------------------------------------------------------------------ esito --- */

@@ -57,11 +57,19 @@ export function SettingsGroup({ children, label, tone, className = "mb-6" }: Set
 					{label}
 				</p>
 			)}
+			{/*
+				⚠️ Lo SPAZIO prima di `${` è il bordo dei separatori (issue #114). Lo
+				scanner di Tailwind legge il sorgente come testo e non estrae una
+				classe incollata a `${`: scritta `…border-subtle${`, la classe non è
+				mai stata generata, il separatore aveva lo spessore ma non il colore e
+				ripiegava su `currentColor` — quasi bianco in scuro, inchiostro in
+				chiaro. `npm run audit:tokens` ora lo segnala (controllo D).
+			*/}
 			<div
-				className={`rounded-[22px] bg-card card-shadow-ring overflow-hidden [&>*+*]:border-t [&>*+*]:border-subtle${
+				className={`rounded-[22px] bg-card card-shadow-ring overflow-hidden [&>*+*]:border-t [&>*+*]:border-subtle ${
 					// Da `lg:` la card d'enfasi è anche TINTA, come nel mockup desktop.
 					// Sotto resta il vetro di sempre: il layout mobile non cambia.
-					tone ? " lg:bg-[color:var(--group-tint)]" : ""
+					tone ? "lg:bg-[color:var(--group-tint)]" : ""
 				}`}
 				style={toneStyle}
 			>

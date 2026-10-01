@@ -271,8 +271,8 @@ export default async function RootLayout({
 			// home) qui nasconde la scrollbar nativa dello scroll VERTICALE della
 			// pagina: in una PWA standalone, senza la chrome del browser intorno,
 			// l'indicatore di scroll di iOS risalta molto più che dentro Safari.
-			className={`${geistSans.variable} ${geistMono.variable} h-full antialiased scrollbar-none${
-				resolved === "dark" ? " dark" : ""
+			className={`${geistSans.variable} ${geistMono.variable} h-full antialiased scrollbar-none ${
+				resolved === "dark" ? "dark" : ""
 			}`}
 			// ⚠️⚠️ Trovato dal telefono: prima dello splash restava un lampo
 			// BIANCO che né questa classe né la regola `html { background-color:

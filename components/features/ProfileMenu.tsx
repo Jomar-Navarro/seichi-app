@@ -26,10 +26,15 @@ interface ProfileMenuProps {
 	 * - `sidebar` (issue #108): la card in fondo alla rail desktop, pannello
 	 *   che si apre SOPRA — sotto non c'è spazio, è il fondo dello schermo.
 	 *
-	 * ⚠️ Una variante e non un secondo menu: il contenuto (tema, impostazioni,
-	 * esci) è lo stesso, e con due copie la prossima voce aggiunta ne
-	 * raggiungerebbe una sola — la "migrazione a campione" che CLAUDE.md
-	 * registra dalla Fase 18.
+	 * ⚠️ Una variante e non un secondo menu: tema ed esci sono condivisi, e con
+	 * due copie la prossima voce aggiunta ne raggiungerebbe una sola — la
+	 * "migrazione a campione" che CLAUDE.md registra dalla Fase 18.
+	 *
+	 * L'unica differenza è voluta (issue #114): "Impostazioni" c'è solo in
+	 * `header`. Nella rail la voce sta già nella nav, a pochi centimetri, e due
+	 * ingressi alla stessa pagina sono uno di troppo. Sotto `lg:` invece la
+	 * bottom nav non ha Impostazioni e questo menu è l'unica strada: le due
+	 * varianti non si vedono mai insieme, quindi a ogni larghezza ne resta una.
 	 */
 	variant?: "header" | "sidebar";
 }
@@ -83,23 +88,25 @@ export default function ProfileMenu({
 	// al 7% e SCURISCE la voce sul pannello color carta — uno stato scavato, che
 	// si legge come disabilitato. `--surface` schiarisce in entrambi i temi,
 	// come l'hover delle voci della nav nella stessa rail (review post-merge #108).
-	const itemHover = sidebar ? " hover:bg-surface transition-colors" : "";
+	const itemHover = sidebar ? "hover:bg-surface transition-colors" : "";
 
 	const items = (
 		<>
 			<ThemeToggle />
-			<Link
-				href="/impostazioni"
-				onClick={() => setOpen(false)}
-				className={`flex items-center gap-3 px-4 h-12 border-b border-subtle active:opacity-80${itemHover}`}
-			>
-				<Settings size={16} className="text-secondary" />
-				<span className="text-sm font-medium">{t.profileMenu.settings}</span>
-			</Link>
+			{!sidebar && (
+				<Link
+					href="/impostazioni"
+					onClick={() => setOpen(false)}
+					className="flex items-center gap-3 px-4 h-12 border-b border-subtle active:opacity-80"
+				>
+					<Settings size={16} className="text-secondary" />
+					<span className="text-sm font-medium">{t.profileMenu.settings}</span>
+				</Link>
+			)}
 			<form action={signOut}>
 				<button
 					type="submit"
-					className={`flex items-center gap-3 px-4 h-12 w-full text-left active:opacity-80${itemHover}`}
+					className={`flex items-center gap-3 px-4 h-12 w-full text-left active:opacity-80 ${itemHover}`}
 				>
 					<LogOut size={16} style={{ color: "var(--color-aka)" }} />
 					<span className="text-sm font-medium" style={{ color: "var(--ink-aka)" }}>
