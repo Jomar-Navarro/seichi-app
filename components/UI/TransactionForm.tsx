@@ -23,6 +23,7 @@ import DatePicker from "@/components/UI/DatePicker";
 import { useI18n } from "@/components/features/I18nProvider";
 import { useScrollFocusedIntoView } from "@/components/UI/useScrollFocusedIntoView";
 import { parseAmountInput } from "@/lib/amount";
+import { canRepeat } from "@/lib/recurring";
 
 /**
  * ⚠️ Il calendario NON sta più qui.
@@ -63,25 +64,73 @@ interface TransactionFormProps {
 	 * nell'header di `TransactionModal`), non da questo form.
 	 */
 	amount: string;
+	/**
+	 * L'id del movimento che QUESTO modale ha già creato (vedi `onWrite`).
+	 *
+	 * ⚠️ Vive nel modale e non qui (#122). Stava in questo form, e il wizard lo
+	 * smontava a ogni "indietro": un salvataggio riuscito con una ricevuta
+	 * fallita, poi indietro → Continua → Salva, creava un secondo movimento.
+	 * Ora il form resta montato, ma l'id sta comunque dove si decide la
+	 * chiusura: è il modale a dover sapere che qualcosa è stato scritto.
+	 */
+	createdId: string | null;
+	/**
+	 * Qualcosa è stato scritto: il movimento (con l'id, se appena creato) o una
+	 * ricevuta. Da quel momento chiudere deve aggiornare le liste anche se il
+	 * gesto non è finito — vedi `handleClose` in `TransactionModal`.
+	 */
+	onWrite: (createdId?: string | null) => void;
 }
 
 export default function TransactionForm({
 	selectedType,
 	transaction,
 	amount,
+	createdId,
+	onWrite,
 }: TransactionFormProps) {
 	const { t, locale } = useI18n();
 	const isEditing = !!transaction;
-	const [categoryId, setCategoryId] = useState<string | null>(
-		transaction?.category_id ?? null,
+	/*
+	 * Il movimento ESISTE: aperto in modifica, oppure creato da questo modale e
+	 * rimasto aperto per una ricevuta non passata. Da qui in poi il form si
+	 * comporta come in modifica — niente "Ripeti", che trasformerebbe un
+	 * aggiornamento in una regola nuova.
+	 */
+	const exists = isEditing || createdId !== null;
+	/*
+	 * ⚠️ La categoria si ricorda PER TIPO di categoria (#122). Il form ora
+	 * sopravvive al ritorno alla griglia dei tipi, e una sola `categoryId`
+	 * avrebbe portato "Alimentari" dentro un'entrata: il selettore non l'avrebbe
+	 * mostrata, ma il salvataggio l'avrebbe spedita. Con una voce per tipo la
+	 * scelta di un tipo non può finire sull'altro, e tornando indietro ritrova
+	 * la propria. La chiave è `categoryTypeFor`: vendita e acquisto pescano
+	 * dalle stesse categorie (#52), quindi condividono la scelta.
+	 */
+	const categoryKey = categoryTypeFor(selectedType.id);
+	const [categoryByType, setCategoryByType] = useState<Record<string, string | null>>(() =>
+		transaction ? { [categoryTypeFor(transaction.type)]: transaction.category_id ?? null } : {},
 	);
+	const categoryId = categoryByType[categoryKey] ?? null;
+	const setCategoryId = (id: string | null) =>
+		setCategoryByType((prev) => ({ ...prev, [categoryKey]: id }));
 	const [description, setDescription] = useState<string | null>(
 		transaction?.notes ?? null,
 	);
 	const [date, setDate] = useState(() =>
 		transaction ? new Date(transaction.date) : new Date(),
 	);
-	const [categoryList, setCategoryList] = useState<Category[]>([]);
+	/*
+	 * Le categorie arrivate, con il tipo per cui sono state chieste: dopo un
+	 * cambio di tipo l'elenco vecchio resta in memoria finché arriva il nuovo, e
+	 * senza l'etichetta il selettore offrirebbe per un istante le categorie
+	 * dell'altro tipo.
+	 */
+	const [loadedCategories, setLoadedCategories] = useState<{
+		type: string;
+		list: Category[];
+	} | null>(null);
+	const categoryList = loadedCategories?.type === categoryKey ? loadedCategories.list : [];
 	/*
 	 * ⚠️ `accountId` parte da `null` anche in creazione, e viene riempito quando
 	 * i conti arrivano — non con un valore inventato. `account_id` è NOT NULL nel
@@ -93,11 +142,46 @@ export default function TransactionForm({
 	const [accountId, setAccountId] = useState<string | null>(
 		transaction?.account_id ?? null,
 	);
-	const [toAccountId, setToAccountId] = useState<string | null>(
-		transaction?.to_account_id ?? null,
+	/*
+	 * ⚠️ La destinazione si ricorda PER TIPO, come la categoria (#122). Il form
+	 * sopravvive al ritorno alla griglia dei tipi, e la destinazione OBBLIGATORIA
+	 * di un trasferimento sarebbe passata intatta a un risparmio, dove è
+	 * facoltativa: il denaro si sarebbe spostato su un conto che per quel
+	 * risparmio nessuno aveva scelto.
+	 */
+	const [destinationByType, setDestinationByType] = useState<Record<string, string | null>>(
+		() => (transaction ? { [transaction.type]: transaction.to_account_id ?? null } : {}),
 	);
+	/*
+	 * Una destinazione uguale all'origine non è una destinazione
+	 * (`transactions_dest_distinct_check`): si deriva qui invece di cancellarla
+	 * quando l'origine cambia, perché con una voce per tipo la collisione può
+	 * nascere anche su un tipo che non è quello a schermo.
+	 */
+	const storedDestination = destinationByType[selectedType.id] ?? null;
+	const toAccountId = storedDestination === accountId ? null : storedDestination;
+	const setToAccountId = (id: string | null) =>
+		setDestinationByType((prev) => ({ ...prev, [selectedType.id]: id }));
 	const [isDeleteConfirm, setIsDeleteConfirm] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
+	/*
+	 * Il salvataggio o l'eliminazione rifiutati. Prima `if (result?.error)
+	 * return` riaccendeva il bottone e basta: il testo di `contoError()` non
+	 * arrivava mai all'utente, e una server action che SOLLEVA (#122) usciva dal
+	 * `try/finally` senza dire niente.
+	 */
+	const [saveErrorState, setSaveErrorState] = useState<{ type: string; text: string } | null>(
+		null,
+	);
+	/*
+	 * L'errore vale per il TIPO con cui è nato: il form sopravvive al ritorno ai
+	 * tipi, e "Conto non trovato" sotto un movimento ormai diverso descriverebbe
+	 * un tentativo che non è quello a schermo.
+	 */
+	const saveError = saveErrorState?.type === selectedType.id ? saveErrorState.text : null;
+	const setSaveError = (text: string | null) =>
+		setSaveErrorState(text === null ? null : { type: selectedType.id, text });
+	const saveErrorRef = useRef<HTMLParagraphElement>(null);
 	/*
 	 * Le ricevute scelte prima che il movimento esista (Fase 22) vivono nel
 	 * BROWSER finché non c'è un id a cui appenderle — e vivono dentro il picker,
@@ -120,17 +204,14 @@ export default function TransactionForm({
 	 */
 	const scrollRef = useRef<HTMLDivElement>(null);
 	useScrollFocusedIntoView(scrollRef);
-	/**
-	 * L'id del movimento APPENA creato da questo form.
-	 *
-	 * ⚠️ Esiste per un caso solo, ed è quello che senza di lui produce dati
-	 * sbagliati: il movimento è stato scritto ma il caricamento di una ricevuta è
-	 * fallito, quindi il modale resta aperto. Da quel momento un secondo tocco su
-	 * "Salva" deve AGGIORNARE quella riga, non crearne un'altra — altrimenti ogni
-	 * tentativo lascerebbe un movimento duplicato, e il difetto si scoprirebbe
-	 * contando i soldi invece che leggendo un errore.
+	/*
+	 * La frase d'errore sta in fondo al contenuto che scorre, e il bottone che
+	 * l'ha provocata è fisso: su un form lungo resterebbe sotto la piega, e il
+	 * tocco sembrerebbe di nuovo non aver fatto niente.
 	 */
-	const [createdId, setCreatedId] = useState<string | null>(null);
+	useEffect(() => {
+		if (saveError) saveErrorRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+	}, [saveError]);
 	const { closeTransactionModal, notifyTransactionSaved, recurringDefault } =
 		useUIStore();
 	const [isRecurring, setIsRecurring] = useState(recurringDefault);
@@ -163,24 +244,27 @@ export default function TransactionForm({
 		 * `categories_type_check` non ammette `trasferimento`, quindi tornerebbe
 		 * comunque vuota.
 		 *
-		 * ⚠️ Si esce SENZA azzerare `categoryList`: un `setState` sincrono nel
-		 * corpo di un effetto è un render a cascata (`react-hooks/
-		 * set-state-in-effect`). La lista resta quella del tipo precedente e non
-		 * fa danno, perché il selettore categoria non viene renderizzato e
-		 * `handleSave` manda `null` — la scelta di cosa scrivere non si appoggia a
-		 * ciò che è rimasto in memoria.
+		 * Nessun azzeramento da fare: l'elenco porta il tipo per cui è stato
+		 * chiesto, e `categoryList` lo ignora quando non è quello di adesso.
 		 */
 		if (isTransfer) return;
+		// ⚠️ Due cambi di tipo ravvicinati (#122): la risposta del primo può
+		// arrivare dopo quella del secondo. L'etichetta la renderebbe innocua,
+		// ma non c'è motivo di scriverla.
+		let cancelled = false;
 		async function loadCategories() {
 			const supabase = createClient();
 			const { data } = await supabase
 				.from("categories")
 				.select("*")
-				.eq("type", categoryTypeFor(selectedType.id));
-			if (data) setCategoryList(data);
+				.eq("type", categoryKey);
+			if (data && !cancelled) setLoadedCategories({ type: categoryKey, list: data });
 		}
 		loadCategories();
-	}, [selectedType.id, isTransfer]);
+		return () => {
+			cancelled = true;
+		};
+	}, [categoryKey, isTransfer]);
 
 	/*
 	 * I conti non dipendono dal tipo di movimento, quindi si caricano una volta
@@ -227,12 +311,27 @@ export default function TransactionForm({
 	/*
 	 * ⚠️ Le regole ricorrenti NON possono essere trasferimenti, e non basta
 	 * ometterne il comando: `isRecurring` è uno stato che sopravvive al cambio di
-	 * tipo (il form non si rimonta), quindi chi accende "Ripeti" su una spesa e
-	 * poi passa a trasferimento salverebbe una regola che
+	 * tipo — il form resta montato mentre si torna alla griglia dei tipi (#122;
+	 * prima questo commento lo affermava e non era vero) — quindi chi accende
+	 * "Ripeti" su una spesa e poi passa a trasferimento salverebbe una regola che
 	 * `recurring_rules_type_check` rifiuta. La riga sotto rende quella
-	 * combinazione inesprimibile invece che vietata.
+	 * combinazione inesprimibile invece che vietata — per il trasferimento e per
+	 * il disinvestimento, i due tipi che il CHECK esclude (`canRepeat`). Lo
+	 * stesso vale per un movimento che esiste già: "Salva" lo aggiorna, non crea
+	 * una regola.
 	 */
-	const recurring = isRecurring && !isTransfer;
+	const repeatable = canRepeat(selectedType.id);
+	const recurring = isRecurring && repeatable && !exists;
+	/*
+	 * Le ricevute appartengono a un MOVIMENTO. Un trasferimento non ha scontrino;
+	 * una regola ricorrente non è un movimento, e `createRecurringRule` non
+	 * restituisce un id a cui appenderle: prima la foto scelta con "Ripeti"
+	 * acceso spariva al salvataggio senza dirlo (#122). In entrambi i casi il
+	 * picker resta montato ma nascosto (`hidden`), così tornando indietro le foto
+	 * scelte ci sono ancora; e su un trasferimento, se ce ne sono in coda, lo
+	 * dice (`hiddenNote`) — su una regola lo dice già la frase sotto.
+	 */
+	const receiptsOffered = !isTransfer && !recurring;
 
 	/*
 	 * Ciò che finisce davvero nel database, indipendentemente da cosa è rimasto
@@ -264,6 +363,26 @@ export default function TransactionForm({
 	async function handleSave() {
 		if (!isValid || isSaving || !accountId || parsedAmount.status !== "ok") return;
 		setIsSaving(true);
+		setSaveError(null);
+		setAttachmentError(null);
+		/*
+		 * ⚠️ Che cosa è stato scritto, registrato nel `finally` (#122).
+		 *
+		 * Prima `setCreatedId` stava DOPO l'await dei caricamenti: se uno di
+		 * questi sollevava un'eccezione invece di restituire `{ error }` — un corpo
+		 * oltre `bodySizeLimit`, un guasto di `getClaims()` sul server — si usciva
+		 * prima di registrare l'id, e il secondo "Salva" creava un altro
+		 * movimento, ricaricando la ricevuta già passata. Il `finally` gira su
+		 * ogni uscita: un movimento scritto non può più essere dimenticato.
+		 *
+		 * Perché non subito dopo il salvataggio: dare l'id al picker fa partire la
+		 * sua rilettura degli allegati, che correrebbe contro i caricamenti appena
+		 * cominciati e potrebbe sovrascriverli con un elenco vuoto. Finché i
+		 * caricamenti girano il bottone è spento (`isSaving`), quindi nel frattempo
+		 * un secondo "Salva" non può partire.
+		 */
+		let saved = false;
+		let newId: string | null = null;
 		try {
 			const importo = parsedAmount.value;
 			/*
@@ -305,40 +424,28 @@ export default function TransactionForm({
 							effectiveToAccountId,
 						);
 
-			if (result?.error) return;
+			if (result?.error) {
+				setSaveError(result.error);
+				return;
+			}
+			saved = true;
 
 			/*
 			 * Le ricevute scelte PRIMA del salvataggio si caricano adesso: solo ora
 			 * esiste l'id a cui appenderle (Fase 22).
 			 *
-			 * ⚠️ `createdId` si ricorda, e non è un dettaglio: da questo momento il
-			 * movimento ESISTE. Se un upload fallisce il modale resta aperto, e un
-			 * secondo tocco su "Salva" deve AGGIORNARE quella riga, non crearne una
-			 * seconda. Senza, un allegato che non passa produrrebbe un movimento
-			 * duplicato a ogni tentativo — un difetto silenzioso che si scopre
-			 * contando i soldi.
+			 * ⚠️ Da questo momento il movimento ESISTE. Se un upload fallisce il
+			 * modale resta aperto, e un secondo tocco su "Salva" deve AGGIORNARE
+			 * quella riga, non crearne una seconda: è ciò che `createdId` ricorda,
+			 * scritto nel `finally` qui sotto.
 			 */
-			const nuovoId =
-				result && "id" in result ? (result as { id: string }).id : null;
-			const targetId = transaction?.id ?? nuovoId ?? createdId;
+			newId = result && "id" in result ? (result as { id: string }).id : null;
+			const targetId = transaction?.id ?? newId ?? createdId;
 
-			/*
-			 * ⚠️ L'ordine conta, ed è tarato su due corse:
-			 *
-			 *  1. il caricamento PRIMA di `setCreatedId`. Impostare l'id fa passare
-			 *     `transactionId` del picker da `null` a un valore, il che scatena la
-			 *     sua rilettura degli allegati: partendo prima, quella rilettura
-			 *     tornerebbe una lista vuota e potrebbe sovrascrivere le ricevute
-			 *     appena caricate. Finito il caricamento, invece, rilegge la verità.
-			 *  2. `setCreatedId` PRIMA dell'uscita anticipata, altrimenti una
-			 *     ricevuta fallita lascerebbe il form convinto di dover ancora creare
-			 *     il movimento — e ogni riprova ne scriverebbe uno nuovo.
-			 */
-			const attachmentFailure = targetId
-				? await pickerRef.current?.uploadPending(targetId)
-				: null;
-
-			if (nuovoId) setCreatedId(nuovoId);
+			const attachmentFailure =
+				targetId && receiptsOffered
+					? await pickerRef.current?.uploadPending(targetId)
+					: null;
 
 			if (attachmentFailure) {
 				/*
@@ -354,7 +461,20 @@ export default function TransactionForm({
 
 			notifyTransactionSaved();
 			closeTransactionModal();
+		} catch (e) {
+			/*
+			 * Una server action che SOLLEVA invece di restituire `{ error }`: un 500,
+			 * un deploy che ha cambiato l'id dell'azione. Una rete caduta no — con
+			 * `useOffline` (Fase 25) resta in sospeso e riparte da sola.
+			 *
+			 * Se il movimento era già scritto, a fallire è stata una ricevuta: la
+			 * frase lo dice, e le ricevute non passate restano in coda nel picker.
+			 */
+			console.error("[movimento] salvataggio:", e);
+			if (saved) setAttachmentError(t.attachments.errors.notSaved);
+			else setSaveError(t.common.genericError);
 		} finally {
+			if (saved) onWrite(newId);
 			setIsSaving(false);
 		}
 	}
@@ -362,12 +482,18 @@ export default function TransactionForm({
 	async function handleDelete() {
 		if (!transaction || isSaving) return;
 		setIsSaving(true);
+		setSaveError(null);
 		try {
 			const result = await deleteTransaction(transaction.id);
-			if (!result?.error) {
-				notifyTransactionSaved();
-				closeTransactionModal();
+			if (result?.error) {
+				setSaveError(result.error);
+				return;
 			}
+			notifyTransactionSaved();
+			closeTransactionModal();
+		} catch (e) {
+			console.error("[movimento] eliminazione:", e);
+			setSaveError(t.common.genericError);
 		} finally {
 			setIsSaving(false);
 		}
@@ -509,13 +635,9 @@ export default function TransactionForm({
 					variant="compact"
 					options={accountOptions}
 					selected={accountId ?? ""}
-					onChange={(val) => {
-						setAccountId(val);
-						// ⚠️ Cambiando origine, una destinazione ora identica va tolta.
-						// Non in un effetto: sarebbe un render a cascata, e qui il punto
-						// esatto in cui la collisione nasce è questo handler.
-						if (val === toAccountId) setToAccountId(null);
-					}}
+					// Una destinazione ora identica all'origine sparisce da sé: vedi
+					// `toAccountId`, che la deriva.
+					onChange={(val) => setAccountId(val)}
 				/>
 
 				{/*
@@ -587,7 +709,12 @@ export default function TransactionForm({
 				esserci — offrirlo e poi far fallire il salvataggio sarebbe peggio che
 				non offrirlo.
 			*/}
-			{!isEditing && !isTransfer && (
+			{/*
+				E non sui tipi che una regola non può avere: `canRepeat()` è lo
+				specchio di `recurring_rules_type_check`, che esclude anche il
+				disinvestimento — prima "Ripeti" gli veniva offerto (#122).
+			*/}
+			{!exists && repeatable && (
 				<div className="mb-3">
 					<p className="text-xs text-muted mb-1.5">{t.transactions.form.recurringSection}</p>
 					<button
@@ -638,14 +765,29 @@ export default function TransactionForm({
 				l'utente non ha confermato).
 
 				⚠️ Niente ricevute su un TRASFERIMENTO: non c'è uno scontrino per
-				aver spostato denaro fra due conti propri.
+				aver spostato denaro fra due conti propri. Né su una regola
+				ricorrente: vedi `receiptsOffered`.
 			*/}
-			{!isTransfer && (
+			{/*
+				Montato anche su un trasferimento IN CREAZIONE, ma nascosto: chi
+				passa per sbaglio dal trasferimento e torna a una spesa ritrova le
+				foto scelte (#122). Su un trasferimento esistente non si monta
+				proprio — non avrebbe niente da leggere.
+			*/}
+			{(!isTransfer || !isEditing) && (
 				<>
 					<AttachmentPicker
 						transactionId={transaction?.id ?? createdId}
 						ref={pickerRef}
+						onWrite={() => onWrite()}
+						hidden={!receiptsOffered}
+						hiddenNote={isTransfer ? t.transactions.form.receiptsNotOnTransfer : null}
 					/>
+					{recurring && (
+						<p className="mt-5 mb-5 text-[11px] text-disabled leading-relaxed">
+							{t.transactions.form.receiptsNotOnRule}
+						</p>
+					)}
 					{attachmentError && (
 						<p className="mt-1.5 text-[11.5px] text-aka-ink">{attachmentError}</p>
 					)}
@@ -667,6 +809,12 @@ export default function TransactionForm({
 			{accountList.length === 0 && (
 				<p className="mt-2 text-[11.5px] text-center leading-relaxed" style={{ color: "var(--ink-aka)" }}>
 					{t.accounts.errors.none}
+				</p>
+			)}
+
+			{saveError && (
+				<p ref={saveErrorRef} className="mt-2 text-[11.5px] text-center leading-relaxed text-aka-ink">
+					{saveError}
 				</p>
 			)}
 
@@ -722,7 +870,8 @@ export default function TransactionForm({
 			style={WIZARD_FOOTER_BUTTON_STYLE}
 		>
 			<Check size={18} />
-			{isEditing
+			{/* `exists` e non `isEditing`: creato il movimento, "Salva" lo aggiorna. */}
+			{exists
 				? t.transactions.form.saveChanges
 				: recurring
 					? t.transactions.form.createRecurring

@@ -356,6 +356,19 @@ export const it = {
 			one: "Questa categoria ha {n} regola ricorrente. Cambiale categoria o eliminala in \"Transazioni ricorrenti\", poi riprova.",
 			other: "Questa categoria ha {n} regole ricorrenti. Cambia loro categoria o eliminale in \"Transazioni ricorrenti\", poi riprova.",
 		},
+		/**
+		 * Il TIPO di una categoria usata non si cambia (#122): il tipo di un
+		 * movimento è fissato, e cambiando quello della categoria i movimenti
+		 * resterebbero con una categoria di un altro tipo.
+		 */
+		categoryTypeLockedTransactions: {
+			one: "Questa categoria ha {n} movimento collegato, quindi il tipo non si può cambiare. Crea una categoria nuova del tipo che ti serve.",
+			other: "Questa categoria ha {n} movimenti collegati, quindi il tipo non si può cambiare. Crea una categoria nuova del tipo che ti serve.",
+		},
+		categoryTypeLockedRecurring: {
+			one: "Questa categoria ha {n} regola ricorrente, quindi il tipo non si può cambiare. Crea una categoria nuova del tipo che ti serve.",
+			other: "Questa categoria ha {n} regole ricorrenti, quindi il tipo non si può cambiare. Crea una categoria nuova del tipo che ti serve.",
+		},
 	},
 
 	/**
@@ -837,6 +850,15 @@ export const it = {
 			destinationHint: "il denaro si sposta davvero su quel conto, e l'obiettivo avanza lo stesso",
 			recurringSection: "Ricorrenti",
 			repeat: "Ripeti",
+			/**
+			 * Al posto delle ricevute con "Ripeti" acceso (#122): una regola non è un
+			 * movimento, e prima la foto scelta spariva al salvataggio senza dirlo.
+			 */
+			receiptsNotOnRule:
+				"Le ricevute si allegano ai singoli movimenti, non a una regola ricorrente: aprili dalla lista quando vengono generati.",
+			/** Solo con foto IN CODA: un trasferimento non ha scontrino (#122). */
+			receiptsNotOnTransfer:
+				"Un trasferimento non ha ricevute: le foto scelte non verranno allegate. Le ritrovi tornando a un altro tipo.",
 			saveChanges: "Salva modifiche",
 			createRecurring: "Crea ricorrenza",
 			save: "Salva movimento",
@@ -1577,6 +1599,13 @@ export const it = {
 		budgetHintExisting:
 			"Svuota il campo per togliere il limite: i periodi passati restano com'erano.",
 		budgetHintNew: "Lascia vuoto per non impostare nessun limite.",
+		/**
+		 * La lettura del budget fallita (#122). Prima il campo restava vuoto, cioè
+		 * "nessun limite": una lettura fallita travestita da fatto — e cambiando il
+		 * tipo la lapide non veniva scritta, perché il budget sembrava non esserci.
+		 */
+		budgetReadFailed:
+			"Non è stato possibile leggere il limite di budget di questa categoria. Chiudi e riapri per riprovare.",
 	},
 
 	/** Transazioni ricorrenti (Fase 14). */

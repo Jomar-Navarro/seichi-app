@@ -88,22 +88,56 @@ export default function CategorySheet({
 		amount: number;
 	} | null>(null);
 
+	/*
+	 * ⚠️ Lo stato della LETTURA del budget, distinto dal suo valore (#122).
+	 *
+	 * Prima una lettura fallita lasciava il campo vuoto, cioè "nessun limite":
+	 * una lettura fallita travestita da fatto. E costava: cambiando il tipo
+	 * della categoria la lapide non veniva scritta, perché il budget sembrava
+	 * non esserci, e la card restava a "€0 / €X" per sempre. In più una risposta
+	 * tardiva sovrascriveva ciò che si stava già digitando.
+	 *
+	 * Ora i campi del budget restano spenti finché la lettura non è finita, e se
+	 * fallisce lo dicono; il salvataggio aspetta, e rifiuta solo ciò che senza
+	 * il budget non saprebbe fare (vedi `handleSubmit`).
+	 */
+	const [budgetLoad, setBudgetLoad] = useState<"loading" | "ready" | "failed">(
+		category ? "loading" : "ready",
+	);
+
 	// Il budget vive in una tabella a parte (storico versionato), non è una
 	// colonna di `categories`: va caricato separatamente quando si apre il form
 	// su una categoria esistente.
 	useEffect(() => {
 		if (!category) return;
 		let cancelled = false;
-		getBudgetForCategory(category.id, clientClock()).then((res) => {
-			if (cancelled || !("data" in res) || !res.data) return;
-			setInitialBudget(res.data);
-			setBudgetPeriod(res.data.period);
-			setBudgetAmount(formatAmountInput(res.data.amount, locale));
-		});
+		getBudgetForCategory(category.id, clientClock())
+			.then((res) => {
+				if (cancelled) return;
+				if (!("data" in res)) {
+					console.error("[categorie] lettura budget:", res.error);
+					setBudgetLoad("failed");
+					return;
+				}
+				if (res.data) {
+					setInitialBudget(res.data);
+					setBudgetPeriod(res.data.period);
+					setBudgetAmount(formatAmountInput(res.data.amount, locale));
+				}
+				setBudgetLoad("ready");
+			})
+			// Anche quando l'azione RIFIUTA: senza, i campi resterebbero spenti
+			// per sempre, senza un messaggio.
+			.catch((e) => {
+				if (cancelled) return;
+				console.error("[categorie] lettura budget:", e);
+				setBudgetLoad("failed");
+			});
 		return () => {
 			cancelled = true;
 		};
 	}, [category, locale]);
+	const budgetReady = budgetLoad === "ready";
 
 	const nameError = submitted && !name.trim();
 	const color = TIPO_COLOR[type] ?? "var(--color-kiri)";
@@ -142,6 +176,17 @@ export default function CategorySheet({
 	async function handleSubmit() {
 		setSubmitted(true);
 		if (!name.trim() || budgetInvalid) return;
+		/*
+		 * Uscendo dalle spese, un budget esistente va chiuso con la lapide — e se
+		 * la lettura è fallita non si sa se c'è. Si rifiuta PRIMA di scrivere la
+		 * categoria, o il tipo cambierebbe e il budget resterebbe orfano. Gli
+		 * altri salvataggi passano: con i campi spenti il budget non è stato
+		 * toccato, e `saveBudget` non lo riscrive.
+		 */
+		if (budgetLoad === "failed" && category?.type === "spesa" && type !== "spesa") {
+			setServerError(t.categories.budgetReadFailed);
+			return;
+		}
 
 		setLoading(true);
 		setServerError(null);
@@ -323,10 +368,11 @@ export default function CategorySheet({
 										<button
 											key={period}
 											type="button"
+											disabled={!budgetReady}
 											onClick={() => setBudgetPeriod(period)}
 											// issue #69 — py-3.5 invece di py-2: griglia 3 colonne
 											// fisse, sempre 3 voci, una riga sola.
-											className="text-center py-3.5 rounded-xl text-xs font-medium transition-all border"
+											className="text-center py-3.5 rounded-xl text-xs font-medium transition-all border disabled:opacity-50"
 											style={{
 												background: selected
 													? `color-mix(in srgb, ${color} 14%, transparent)`
@@ -350,11 +396,14 @@ export default function CategorySheet({
 								<input
 									type="text"
 									inputMode="decimal"
-									placeholder={t.categories.budgetPlaceholder}
+									placeholder={
+										budgetLoad === "loading" ? t.common.loading : t.categories.budgetPlaceholder
+									}
 									value={budgetAmount}
+									disabled={!budgetReady}
 									onChange={(e) => setBudgetAmount(e.target.value)}
 									aria-invalid={budgetError || undefined}
-									className="flex-1 min-w-0 bg-transparent text-base outline-none placeholder:text-muted/60"
+									className="flex-1 min-w-0 bg-transparent text-base outline-none placeholder:text-muted/60 disabled:opacity-50"
 								/>
 								<span className="text-[11px] text-muted ml-2 shrink-0">
 									{t.budgetPeriods[budgetPeriod].suffix}
@@ -365,12 +414,21 @@ export default function CategorySheet({
 									{budgetErrorText}
 								</p>
 							)}
+							{budgetLoad === "failed" && (
+								<p className="text-xs mt-1.5 ml-1" style={{ color: "var(--ink-aka)" }}>
+									{t.categories.budgetReadFailed}
+								</p>
+							)}
 
-							<p className="text-[11px] text-muted/80 mt-2 ml-1 leading-relaxed">
-								{initialBudget
-									? t.categories.budgetHintExisting
-									: t.categories.budgetHintNew}
-							</p>
+							{/* Con la lettura fallita il suggerimento mentirebbe: "lascia vuoto
+							    per non impostare nessun limite" sopra un limite che forse c'è. */}
+							{budgetLoad !== "failed" && (
+								<p className="text-[11px] text-muted/80 mt-2 ml-1 leading-relaxed">
+									{initialBudget
+										? t.categories.budgetHintExisting
+										: t.categories.budgetHintNew}
+								</p>
+							)}
 						</div>
 					)}
 
@@ -445,7 +503,9 @@ export default function CategorySheet({
 
 				<button
 					onClick={handleSubmit}
-					disabled={loading}
+					// Finché il budget non è letto non si sa cosa riscrivere: un
+					// istante, di norma, e meglio di una scelta fatta alla cieca.
+					disabled={loading || budgetLoad === "loading"}
 					className="mt-6 w-full py-4 rounded-2xl text-[14.5px] font-semibold btn-primary disabled:opacity-50"
 				>
 					{loading

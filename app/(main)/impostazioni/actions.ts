@@ -65,12 +65,66 @@ export async function updateCategory(
 	id: string,
 	input: { name: string; icon: string; type: string },
 ) {
-	const { supabase, user, t } = await requireUser();
+	// `locale` serve al plurale del rifiuto sul cambio di tipo, qui sotto.
+	const { supabase, user, t, locale } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	const name = input.name.trim();
 	if (!name) return { error: t.errors.nameRequired };
 	if (!VALID_TYPES.includes(input.type)) return { error: t.errors.invalidType };
+
+	/*
+	 * ⚠️ Il TIPO di una categoria usata non si cambia (#122).
+	 *
+	 * Il tipo di un movimento è fissato alla creazione — il form in modifica non
+	 * lo cambia — e il form filtra le categorie per tipo. Cambiando quello della
+	 * categoria, i suoi movimenti restavano con una categoria di un altro tipo:
+	 * aprendoli comparivano "senza categoria", e un obiettivo convertito spariva
+	 * da `/risparmi` con tutti i suoi versamenti. Le regole ricorrenti hanno lo
+	 * stesso problema un mese per volta: il job scrive il tipo della REGOLA.
+	 *
+	 * Si rifiuta, come `deleteCategory` rifiuta l'eliminazione: avvisare e
+	 * lasciar fare scriverebbe proprio l'incoerenza che il rifiuto evita. Una
+	 * categoria nuova del tipo giusto è la via d'uscita, e la frase la dice.
+	 */
+	const { data: current, error: readError } = await supabase
+		.from("categories")
+		.select("type")
+		.eq("id", id)
+		.eq("user_id", user.id)
+		.maybeSingle();
+	if (readError || !current) {
+		if (readError) console.error("[categorie] modifica, lettura:", readError.message);
+		return { error: t.common.genericError };
+	}
+
+	if (current.type !== input.type) {
+		const [movements, rules] = await Promise.all([
+			supabase
+				.from("transactions")
+				.select("id", { count: "exact", head: true })
+				.eq("user_id", user.id)
+				.eq("category_id", id),
+			supabase
+				.from("recurring_rules")
+				.select("id", { count: "exact", head: true })
+				.eq("user_id", user.id)
+				.eq("category_id", id),
+		]);
+		if (movements.error || rules.error) {
+			console.error(
+				"[categorie] modifica, conteggi:",
+				movements.error?.message ?? rules.error?.message,
+			);
+			return { error: t.common.genericError };
+		}
+		if ((movements.count ?? 0) > 0) {
+			return { error: plural(t.errors.categoryTypeLockedTransactions, movements.count ?? 0, locale) };
+		}
+		if ((rules.count ?? 0) > 0) {
+			return { error: plural(t.errors.categoryTypeLockedRecurring, rules.count ?? 0, locale) };
+		}
+	}
 
 	const { error } = await supabase
 		.from("categories")

@@ -135,10 +135,34 @@ function chiaveLocale(): string {
 export default function AttachmentPicker({
 	transactionId,
 	ref,
+	onWrite,
+	hidden = false,
+	hiddenNote = null,
 }: {
 	transactionId: string | null;
 	/** Il form lo usa per caricare la coda appena l'id esiste. */
 	ref?: RefObject<AttachmentPickerHandle | null>;
+	/**
+	 * Una ricevuta è stata caricata o rimossa SUL SERVER (#122). Il modale lo
+	 * usa per aggiornare le liste anche quando lo si chiude con la X: la
+	 * graffetta di un movimento è un dato, e prima restava quella di prima.
+	 */
+	onWrite?: () => void;
+	/**
+	 * Il form non offre ricevute per il tipo a schermo, ma la coda va TENUTA
+	 * (#122): il picker resta montato e non disegna niente, così tornando a un
+	 * altro tipo le foto scelte ci sono ancora. Nasconderlo qui e non con un
+	 * contenitore `hidden` serve a `hiddenNote`, che solo il picker sa quando
+	 * dire.
+	 */
+	hidden?: boolean;
+	/**
+	 * La frase che dice che le foto IN CODA non verranno allegate. Compare solo
+	 * se ce ne sono: un trasferimento senza foto scelte non ha niente da
+	 * spiegare. Senza, la foto scelta su una spesa spariva salvando un
+	 * trasferimento, in silenzio.
+	 */
+	hiddenNote?: string | null;
 }) {
 	const { t, locale } = useI18n();
 	const [items, setItems] = useState<Attachment[]>([]);
@@ -221,8 +245,9 @@ export default function AttachmentPicker({
 	/*
 	 * ⚠️ Le anteprime locali sono `blob:` e vanno REVOCATE allo smontaggio: senza,
 	 * ogni foto scelta e poi scartata resta in memoria finché la scheda non viene
-	 * chiusa. Non è teorico: tornare indietro alla griglia dei tipi SMONTA il
-	 * form, quindi capita a ogni ripensamento.
+	 * chiusa. Non è teorico: chiudere il modale smonta il form, quindi capita a
+	 * ogni ripensamento. (Tornare indietro alla griglia dei tipi NON lo smonta
+	 * più, dalla #122: la coda deve sopravvivere al passo indietro.)
 	 *
 	 * ⚠️⚠️ E per un giro questa difesa NON è esistita, pur essendo scritta: il
 	 * ciclo leggeva `pendenti` dalle dipendenze `[]`, cioè la closure catturata
@@ -268,14 +293,29 @@ export default function AttachmentPicker({
 					const form = new FormData();
 					form.set("transactionId", id);
 					form.set("file", p.file);
-					const res = await uploadAttachment(form);
-					if ("error" in res) {
-						primoErrore ??= res.error;
+					/*
+					 * ⚠️ Il `try` è per OGNI ricevuta (#122). Senza, un'azione che
+					 * SOLLEVA invece di restituire `{ error }` — un corpo oltre
+					 * `bodySizeLimit` quando `downscale` ha restituito l'originale, un
+					 * guasto di `getClaims()` sul server — usciva da questa funzione a
+					 * metà ciclo: le ricevute già passate restavano in coda (e il
+					 * secondo "Salva" le ricaricava, doppie), e il form non arrivava a
+					 * ricordare che il movimento esisteva.
+					 */
+					try {
+						const res = await uploadAttachment(form);
+						if ("error" in res) {
+							primoErrore ??= res.error;
+							rimasti.push(p);
+						} else {
+							riusciti.push(res.data);
+							// Il blob non serve più: da adesso l'anteprima è quella firmata.
+							URL.revokeObjectURL(p.preview);
+						}
+					} catch (e) {
+						console.error("[attachments] caricamento in coda:", e);
+						primoErrore ??= t.attachments.errors.notSaved;
 						rimasti.push(p);
-					} else {
-						riusciti.push(res.data);
-						// Il blob non serve più: da adesso l'anteprima è quella firmata.
-						URL.revokeObjectURL(p.preview);
 					}
 				}
 
@@ -321,6 +361,7 @@ export default function AttachmentPicker({
 				return;
 			}
 			setItems((prev) => [...prev, res.data]);
+			onWrite?.();
 		} catch (e) {
 			/*
 			 * ⚠️ Il `catch` MANCAVA, ed è il difetto più profondo dei due.
@@ -360,6 +401,7 @@ export default function AttachmentPicker({
 				return;
 			}
 			setItems((prev) => prev.filter((a) => a.id !== id));
+			onWrite?.();
 		} catch (e) {
 			// ⚠️ Il `catch` mancava (#120): con il solo `finally` una server action
 			// rifiutata — un errore sul server, non una rete caduta (vedi la lettura
@@ -385,6 +427,13 @@ export default function AttachmentPicker({
 	// e distinguerle nel conteggio significherebbe spiegare una differenza che
 	// riguarda noi (esiste già una riga?) e non lui.
 	const totale = items.length + pendenti.length;
+
+	// Dopo tutti gli hook: lo stato — la coda — resta vivo anche da nascosto.
+	if (hidden) {
+		return pendenti.length > 0 && hiddenNote ? (
+			<p className="mt-5 mb-5 text-[11px] text-aka-ink leading-relaxed">{hiddenNote}</p>
+		) : null;
+	}
 
 	return (
 		// ⚠️ `mb-5` oltre a `mt-5`: senza, il limite ("JPG, PNG o WebP · massimo

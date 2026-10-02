@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, X, Check, Delete } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useUIStore } from "@/store/useUIStore";
 import { TRANSACTION_TYPES } from "@/types";
 import TransactionForm, {
@@ -54,6 +54,7 @@ function TransactionModalContent() {
 		editingTransaction,
 		closeTransactionModal,
 		setTransactionType,
+		notifyTransactionSaved,
 	} = useUIStore();
 	const { t, locale } = useI18n();
 
@@ -79,9 +80,37 @@ function TransactionModalContent() {
 	const [step, setStep] = useState<"type" | "amount" | "form">(
 		editingTransaction ? "amount" : "type",
 	);
+	/*
+	 * ⚠️ Il form, una volta raggiunto, RESTA MONTATO (#122) e si nasconde negli
+	 * altri passi. Prima ogni "indietro" lo smontava: categoria, conto,
+	 * descrizione, data, "Ripeti" e le foto in coda sparivano senza un avviso
+	 * — e con loro l'id del movimento appena creato, quindi indietro → Continua
+	 * → Salva dopo una ricevuta fallita scriveva un secondo movimento.
+	 *
+	 * Non è un'eccezione alla regola "i pannelli si montano, non si nascondono"
+	 * (CLAUDE.md): quella vale per l'apertura e la chiusura, e qui il modale
+	 * intero continua a montarsi e smontarsi. I passi sono pagine dello stesso
+	 * modulo, e un modulo non dimentica ciò che hai scritto se torni indietro.
+	 */
+	const [formReached, setFormReached] = useState(false);
+	/**
+	 * L'id del movimento creato da QUESTO modale, ancora aperto perché una
+	 * ricevuta non è passata. Un secondo "Salva" deve aggiornare quella riga,
+	 * non crearne un'altra — e il tipo, da qui, è fissato come in modifica.
+	 */
+	const [createdId, setCreatedId] = useState<string | null>(null);
+	/*
+	 * Qualcosa è stato scritto (movimento o ricevuta) senza che il gesto sia
+	 * finito. Un ref e non uno stato: lo legge solo la chiusura, non il render.
+	 */
+	const wroteRef = useRef(false);
+	function handleWrite(id?: string | null) {
+		wroteRef.current = true;
+		if (id) setCreatedId(id);
+	}
 
 	// Vive qui e non in TransactionForm: il passo "importo" ha bisogno di
-	// leggerlo e scriverlo PRIMA che TransactionForm esista (monta solo al
+	// leggerlo e scriverlo PRIMA che TransactionForm esista (monta al primo
 	// passo "form"). Stessa inizializzazione che aveva TransactionForm.
 	const [amount, setAmount] = useState(() =>
 		editingTransaction ? formatAmountInput(editingTransaction.amount, locale) : "",
@@ -196,7 +225,13 @@ function TransactionModalContent() {
 	// Nessun `setStep("type")` qui: chiudere smonta, e con lo smontaggio `step`
 	// se ne va da sé. Riportarlo a mano era la contropartita del componente che
 	// restava vivo per sempre.
+	//
+	// ⚠️ Se qualcosa è stato scritto, chiudere lo DICE alle liste (#122). Dopo
+	// un salvataggio riuscito con una ricevuta fallita il movimento esiste, e
+	// chiudere con la X lo lasciava fuori da home e /transazioni fino al
+	// ricaricamento successivo.
 	function handleClose() {
+		if (wroteRef.current) notifyTransactionSaved();
 		closeTransactionModal();
 	}
 
@@ -278,7 +313,13 @@ function TransactionModalContent() {
 							difficile da centrare col dito, swipe o no — il gesto è una
 							SECONDA via, non sostituisce un bottone comodo.
 						*/}
-						{((step === "amount" && !editingTransaction) || step === "form") && (
+						{/*
+							Dal passo "importo" si torna al tipo solo se il movimento non
+							esiste ancora: aperto in modifica, o già creato da questo modale
+							(`createdId`), il tipo è fissato — cambiarlo vorrebbe dire
+							riscrivere la natura di una riga già nel database.
+						*/}
+						{((step === "amount" && !editingTransaction && !createdId) || step === "form") && (
 							<button
 								onClick={() => setStep(step === "form" ? "amount" : "type")}
 								className="w-11 h-11 flex items-center justify-center rounded-xl shrink-0 bg-control ring-border"
@@ -543,7 +584,10 @@ function TransactionModalContent() {
 							`WIZARD_FOOTER_BUTTON_CLASS` in `TransactionForm.tsx`.
 						*/}
 						<button
-							onClick={() => setStep("form")}
+							onClick={() => {
+								setFormReached(true);
+								setStep("form");
+							}}
 							disabled={!amountValid}
 							className={WIZARD_FOOTER_BUTTON_CLASS}
 							style={WIZARD_FOOTER_BUTTON_STYLE}
@@ -553,13 +597,23 @@ function TransactionModalContent() {
 					</div>
 				)}
 
-				{/* Step: dettagli */}
-				{step === "form" && selectedType && (
-					<TransactionForm
-						selectedType={selectedType}
-						transaction={editingTransaction ?? undefined}
-						amount={amount}
-					/>
+				{/*
+					Step: dettagli — montato dal primo "Continua" in poi, nascosto negli
+					altri passi (vedi `formReached`). `contents` e non un div qualunque: il
+					form è un frammento il cui contenitore che scorre è figlio diretto del
+					flex-col qui sopra (`flex-1 min-h-0`), e un div in mezzo spezzerebbe
+					quell'altezza. `hidden` nasconde anche il bottone `fixed` del form.
+				*/}
+				{formReached && selectedType && (
+					<div className={step === "form" ? "contents" : "hidden"}>
+						<TransactionForm
+							selectedType={selectedType}
+							transaction={editingTransaction ?? undefined}
+							amount={amount}
+							createdId={createdId}
+							onWrite={handleWrite}
+						/>
+					</div>
 				)}
 				</div>
 			</div>
