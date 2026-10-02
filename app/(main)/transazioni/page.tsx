@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { getTransactions } from "@/app/(main)/action";
 import { SEARCH_SCAN_LIMIT, TRANSACTIONS_PAGE_SIZE } from "@/lib/transaction-utils";
 import { getAccountOptions } from "@/app/(main)/conti/actions";
@@ -69,8 +69,26 @@ export default function MovimentiPage() {
 	 */
 	const searching = search.trim().length > 0;
 
+	/*
+	 * ⚠️ `requestId`: solo l'ULTIMA richiesta numerata scrive lo stato (#122), la
+	 * stessa guardia di `AccountDetailClient` (#62) che qui mancava.
+	 *
+	 * Senza, la lista si fida dell'ORDINE delle risposte: con due cambi di filtro
+	 * ravvicinati, quella del primo scritta dopo quella del secondo mostrerebbe i
+	 * movimenti di un filtro diverso da quello sui chip. Oggi non succede, e va
+	 * detto perché: Next spedisce le server action UNA ALLA VOLTA
+	 * (`server-actions.md`), quindi le risposte arrivano in ordine — e mentre
+	 * arriva la vecchia la lista è ancora in caricamento. Collaudato il
+	 * 2026-10-02 con la prima richiesta rallentata di 3,5 secondi: nemmeno un
+	 * lampo, con o senza guardia. Ma la documentazione lo chiama "un dettaglio
+	 * d'implementazione che può cambiare", e una lista che mostra un altro filtro
+	 * è il difetto che non deve dipendere da lui.
+	 */
+	const requestId = useRef(0);
+
 	const loadPage = useCallback(
 		async (offset: number, append: boolean) => {
+			const myRequest = ++requestId.current;
 			setLoading(true);
 			try {
 				const result = await getTransactions({
@@ -84,6 +102,8 @@ export default function MovimentiPage() {
 					limit: searching ? SEARCH_SCAN_LIMIT : TRANSACTIONS_PAGE_SIZE,
 					offset,
 				});
+				if (myRequest !== requestId.current) return; // superata da una richiesta più recente
+
 				if ("error" in result) {
 					if (!append) setTransactions([]);
 					setHasMore(false);
@@ -107,12 +127,13 @@ export default function MovimentiPage() {
 				 */
 				if (rows.length > 0) {
 					const counts = await getAttachmentCounts(rows.map((r) => r.id));
+					if (myRequest !== requestId.current) return;
 					setAttachmentCounts((prev) => (append ? { ...prev, ...counts } : counts));
 				} else if (!append) {
 					setAttachmentCounts({});
 				}
 			} finally {
-				setLoading(false);
+				if (myRequest === requestId.current) setLoading(false);
 			}
 		},
 		[tipo, periodo, conto, categoria, searching],
@@ -221,8 +242,15 @@ export default function MovimentiPage() {
 		accountNames.get(tx.account_id)?.includes(needle) ||
 		(tx.to_account_id ? accountNames.get(tx.to_account_id)?.includes(needle) : false);
 
-	const filtered = search.trim()
-		? transactions.filter((tx) => matches(tx, search.toLowerCase()))
+	/*
+	 * ⚠️ L'ago è il testo SENZA spazi ai lati (#122). Il suggerimento della
+	 * tastiera di iOS aggiunge uno spazio dopo la parola: "Revolut " non trovava
+	 * niente e la pagina diceva "nessun movimento", mentre la condizione qui
+	 * sopra — che guardava già `trim()` — considerava la ricerca attiva.
+	 */
+	const needle = search.trim().toLowerCase();
+	const filtered = needle
+		? transactions.filter((tx) => matches(tx, needle))
 		: transactions;
 
 	/*

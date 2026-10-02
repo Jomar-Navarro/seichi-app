@@ -195,6 +195,14 @@ export const en: Dictionary = {
 			one: "This category has {n} recurring rule. Change its category or delete it in \"Recurring transactions\", then try again.",
 			other: "This category has {n} recurring rules. Change their category or delete them in \"Recurring transactions\", then try again.",
 		},
+		categoryTypeLockedTransactions: {
+			one: "This category has {n} linked transaction, so its type can't change. Create a new category of the type you need.",
+			other: "This category has {n} linked transactions, so its type can't change. Create a new category of the type you need.",
+		},
+		categoryTypeLockedRecurring: {
+			one: "This category has {n} recurring rule, so its type can't change. Create a new category of the type you need.",
+			other: "This category has {n} recurring rules, so its type can't change. Create a new category of the type you need.",
+		},
 	},
 
 	auth: {
@@ -498,6 +506,10 @@ export const en: Dictionary = {
 			destinationHint: "the money really moves to that account, and the goal still moves forward",
 			recurringSection: "Recurring",
 			repeat: "Repeat",
+			receiptsNotOnRule:
+				"Receipts attach to individual transactions, not to a recurring rule: open them from the list once they are generated.",
+			receiptsNotOnTransfer:
+				"A transfer has no receipts: the photos you picked won't be attached. Go back to another type to find them again.",
 			saveChanges: "Save changes",
 			createRecurring: "Create recurring rule",
 			save: "Save transaction",
@@ -891,6 +903,8 @@ export const en: Dictionary = {
 		budgetHintExisting:
 			"Clear the field to remove the limit: past periods stay as they were.",
 		budgetHintNew: "Leave empty to set no limit.",
+		budgetReadFailed:
+			"Could not read this category's budget limit. Close and reopen to try again.",
 	},
 
 	recurring: {

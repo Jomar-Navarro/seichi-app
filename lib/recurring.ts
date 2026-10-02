@@ -9,6 +9,20 @@ import type { Frequency } from "@/types";
  */
 export const FREQUENCIES: Frequency[] = ["settimanale", "mensile", "annuale"];
 
+/**
+ * I tipi che una REGOLA può avere: lo specchio di `recurring_rules_type_check`.
+ *
+ * ⚠️ Più stretto dei tipi di movimento, e di proposito: niente `trasferimento`
+ * (20b) e niente `disinvestimento` (21b, un piano di decumulo non è
+ * esprimibile). Prima il form escludeva solo il trasferimento a mano, e "Ripeti"
+ * restava offerto su una vendita: il salvataggio finiva sul CHECK (#122).
+ */
+const RECURRING_RULE_TYPES = ["entrata", "spesa", "investimento", "risparmio", "abbonamento"];
+
+export function canRepeat(type: string): boolean {
+	return RECURRING_RULE_TYPES.includes(type);
+}
+
 function parseISODate(s: string): Date {
 	const [y, m, d] = s.split("-").map(Number);
 	return new Date(y, m - 1, d);

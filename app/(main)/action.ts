@@ -4,7 +4,7 @@ import { getI18n } from "@/lib/i18n/server";
 import { formatDate, shortMonth } from "@/lib/i18n/format";
 import { requireUser } from "@/lib/auth";
 import { isAccountId, isUuid } from "@/lib/accounts";
-import { firstRunForNewRule, firstRunFrom, rollForwardPastToday } from "@/lib/recurring";
+import { canRepeat, firstRunForNewRule, firstRunFrom, rollForwardPastToday } from "@/lib/recurring";
 import { flussoDaTotali } from "@/lib/totals";
 import { isStorableAmount } from "@/lib/amount";
 import { RECEIPT_BUCKET } from "@/lib/attachments";
@@ -349,6 +349,8 @@ export async function createRecurringRule(
 
 	if (!user) return { error: t.errors.notAuthenticated };
 	if (!isStorableAmount(importo)) return { error: t.errors.amountInvalid };
+	// La stessa regola del CHECK, con una frase invece della violazione (#122).
+	if (!canRepeat(tipo)) return { error: t.errors.invalidType };
 
 	const { error } = await supabase.from("recurring_rules").insert({
 		user_id: user.id,

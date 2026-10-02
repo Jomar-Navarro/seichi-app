@@ -12,6 +12,7 @@ import {
 } from "@/app/(main)/conti/actions";
 import { useI18n } from "./I18nProvider";
 import BottomSheetShell from "@/components/UI/BottomSheetShell";
+import { whenModalEntryGone } from "@/components/UI/useCloseOnBack";
 import { DISPLAY_CURRENCY, currencySymbol } from "@/lib/i18n/format";
 import {
 	ACCOUNT_ICON_FALLBACK,
@@ -181,6 +182,15 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 	 * si è già lì) o da `/conti/[id]` (che interrogherebbe un conto appena
 	 * sparito): la destinazione giusta è la stessa in entrambi i casi, quindi
 	 * non serve che questo componente sappia da dove è stato aperto.
+	 *
+	 * ⚠️⚠️ E si naviga solo DOPO che la chiusura ha tolto la voce del foglio
+	 * dalla cronologia (#122) — vedi `whenModalEntryGone`. Con `push` subito
+	 * dopo `onClose()`, il ritorno alla pagina sotto annullava la navigazione:
+	 * il difetto è nato quando `useCloseOnBack` è entrato in `BottomSheetShell`,
+	 * dopo il collaudo della #62. `replace` e non `push`: la voce che si
+	 * sostituisce è l'estratto del conto eliminato, che dietro il tasto
+	 * indietro non deve restare. Niente `refresh()`: la navigazione rilegge
+	 * `/conti` da sé, anche dalla lista, dove l'URL non cambia.
 	 */
 	async function handleDelete() {
 		if (!account) return;
@@ -197,9 +207,9 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 				setConfirmDelete(false);
 				return;
 			}
-			router.refresh();
-			router.push("/conti");
 			onClose();
+			await whenModalEntryGone();
+			router.replace("/conti");
 		} finally {
 			setLoading(false);
 		}

@@ -109,3 +109,41 @@ export function useCloseOnBack(onClose: () => void) {
 		// per istanza di modale, non a ogni render.
 	}, []);
 }
+
+/**
+ * Si risolve quando la voce sintetica di un pannello appena chiuso è stata
+ * TOLTA dalla cronologia (#122). Va chiamata DOPO `onClose()` e prima di
+ * navigare.
+ *
+ * ⚠️ Esiste perché chiudere e poi navigare non funziona, e non lo dice. Il
+ * pannello smontato toglie la propria voce con `history.back()` (vedi il
+ * cleanup sopra), e il `popstate` che ne nasce arriva al router di Next come
+ * un "indietro" vero: un `ACTION_RESTORE` della pagina sotto, che scarta la
+ * navigazione ancora in volo. Eliminando un conto da `/conti/[id]` il
+ * `router.push("/conti")` veniva così annullato, e si restava sull'estratto
+ * di un conto che non esisteva più.
+ *
+ * Il nostro ascoltatore è registrato DOPO quello di Next (che lo aggancia al
+ * montaggio dell'app), quindi quando questa promessa si risolve il ritorno
+ * alla pagina sotto è già stato messo in coda: una navigazione chiesta adesso
+ * viene dopo, e vince.
+ *
+ * Se la voce non c'è — già consumata, o mai spinta — si risolve subito. Il
+ * tetto di tempo è solo una rete: senza, un `popstate` che non arriva mai
+ * terrebbe ferma la navigazione per sempre.
+ */
+export function whenModalEntryGone(timeoutMs = 1000): Promise<void> {
+	return new Promise((resolve) => {
+		if (!window.history.state?.seichiModal) {
+			resolve();
+			return;
+		}
+		const done = () => {
+			window.removeEventListener("popstate", done);
+			clearTimeout(timer);
+			resolve();
+		};
+		const timer = setTimeout(done, timeoutMs);
+		window.addEventListener("popstate", done);
+	});
+}
