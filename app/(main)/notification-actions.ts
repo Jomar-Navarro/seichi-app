@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { SupabaseServerClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth";
+import { isISODate } from "@/lib/dates";
 import { renderNotification } from "@/lib/notifications";
 import type { AppNotification, RenderedNotification } from "@/types";
 
@@ -20,9 +21,14 @@ const PANEL_LIMIT = 30;
  * numero più basso di quello vero, e le più vecchie sparirebbero dal badge
  * senza che nessuno se ne accorga.
  */
-export async function getNotifications(): Promise<
-	{ data: RenderedNotification[]; unread: number } | { error: string }
-> {
+export async function getNotifications(
+	/**
+	 * L'oggi dell'UTENTE (`todayLocalISO()` dal client): la distanza di un
+	 * rinnovo si conta da lì (#123). Il server è in UTC su Vercel, e fra
+	 * mezzanotte e le 2 a Roma "domani" diventerebbe "oggi".
+	 */
+	clientToday: string,
+): Promise<{ data: RenderedNotification[]; unread: number } | { error: string }> {
 	// `locale` oltre al dizionario: `renderNotification` formatta importi e date,
 	// non solo parole. Arriva da `requireUser()`, che lo risolve comunque.
 	const { supabase, user, t, locale } = await requireUser();
@@ -53,11 +59,15 @@ export async function getNotifications(): Promise<
 	// La valuta arriva dal profilo, non è cablata: è la stessa scelta
 	// nell'onboarding che governa ogni altro importo dell'app.
 	const currency = profile?.currency || "EUR";
+	// Una server action è raggiungibile con una POST qualunque: una data
+	// malformata ripiega sull'oggi del server invece di arrivare a `Date.UTC`.
+	const today = isISODate(clientToday) ? clientToday : new Date().toISOString().slice(0, 10);
 	// La lingua arriva dal cookie: le frasi si compongono ADESSO, quindi anche
-	// una notifica di due mesi fa esce nella lingua attuale dell'utente.
+	// una notifica di due mesi fa esce nella lingua attuale dell'utente — e un
+	// rinnovo di due mesi fa dice "2 mesi fa", non "fra 3 giorni".
 	const rendered = (data ?? []).map((row) => {
 		const n = row as AppNotification;
-		return { ...n, ...renderNotification(n, { currency, locale, t }) };
+		return { ...n, ...renderNotification(n, { currency, locale, t, today }) };
 	});
 
 	return { data: rendered, unread: count ?? 0 };

@@ -303,7 +303,13 @@ export type NotificationType =
 export type NotificationPayload =
 	| { category: string | null; spent: number; amount: number }
 	| { goal: string; saved: number; target: number; pct: number }
-	| { name: string | null; amount: number; days: number }
+	/*
+	 * `date` è la data del rinnovo (`YYYY-MM-DD`), e la distanza la calcola chi
+	 * legge (#123). Fino alla 20260821 c'era `days`, la distanza il giorno in cui
+	 * il job girava: un numero relativo salvato come se fosse un fatto. Opzionale
+	 * perché una riga scritta prima della migration non ce l'ha.
+	 */
+	| { name: string | null; amount: number; date?: string }
 	| { count: number };
 
 /**

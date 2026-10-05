@@ -8,6 +8,7 @@ import {
 	markAllNotificationsRead,
 	markNotificationRead,
 } from "@/app/(main)/notification-actions";
+import { todayLocalISO } from "@/lib/dates";
 import { BADGE_MAX, notificationMeta, relativeTime } from "@/lib/notifications";
 import type { RenderedNotification } from "@/types";
 import { useI18n } from "./I18nProvider";
@@ -101,8 +102,19 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 
 	async function load() {
 		setLoading(true);
-		const res = await getNotifications();
-		setLoading(false);
+		let res: Awaited<ReturnType<typeof getNotifications>>;
+		try {
+			// L'oggi dell'utente, non quello del server: "fra 3 giorni" si conta da qui.
+			res = await getNotifications(todayLocalISO());
+		} catch {
+			// Un'azione che SOLLEVA invece di restituire `{ error }` — un'eccezione
+			// del server, o un deploy che ha cambiato l'id dell'azione mentre la PWA
+			// era aperta — lasciava il pannello in caricamento per sempre, senza un
+			// messaggio (review della #123; la classe della Fase 21).
+			res = { error: t.common.genericError };
+		} finally {
+			setLoading(false);
+		}
 
 		if ("error" in res) {
 			// ⚠️ `items` NON viene azzerato: se c'era già una lista buona resta

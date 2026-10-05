@@ -72,7 +72,22 @@ export function parseGeneric(rows: string[][], mapping: GenericMapping): ParseRe
 	for (let r = 1; r < rows.length; r++) {
 		const row = rows[r];
 		const date = parseDate(row[mapping.date]);
-		const net = parseAmount(row[mapping.amount]);
+		const amount = parseAmount(row[mapping.amount]);
+		/*
+		 * Al centesimo PRIMA del controllo sullo zero, come fa già il profilo
+		 * Trade Republic (`round2`). La colonna è `DECIMAL(10,2)`: "0,0001"
+		 * passava il `!== 0`, diventava 0,00 nel database e — dalla 20260821,
+		 * che vieta `amount <= 0` — faceva fallire l'INTERO lotto per una riga
+		 * che non sposta un centesimo (#123).
+		 *
+		 * ⚠️ Sul valore ASSOLUTO, poi il segno: `Math.round(-12.5)` è -12, quindi
+		 * arrotondando il netto con segno un addebito di "-0,125" diventava 0,12
+		 * mentre un accredito di "+0,125" restava 0,13. La colonna arrotondava il
+		 * valore assoluto (0,13), e la chiave di deduplica prima scriveva `-0.13`:
+		 * reimportando un vecchio file, quella riga sarebbe entrata di nuovo,
+		 * con un centesimo di meno (review della #123).
+		 */
+		const net = amount === null ? null : (Math.sign(amount) * Math.round(Math.abs(amount) * 100)) / 100;
 
 		if (!date || net === null || net === 0) {
 			unreadable++;

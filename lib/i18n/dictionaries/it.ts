@@ -1769,10 +1769,19 @@ export const it = {
 			goalHalfway: 'Obiettivo "{goal}" a metà strada',
 			savedOf: "Hai messo da parte {saved} su {target}",
 
-			/** `{when}` è "oggi" / "domani" / "fra 3 giorni", prodotto da `Intl`. */
+			/**
+			 * `{when}` è "oggi" / "domani" / "fra 3 giorni", oppure — per un
+			 * rinnovo già passato — "ieri" / "2 settimane fa", prodotto da `Intl`.
+			 * La distanza si calcola alla LETTURA dalla data del rinnovo (#123):
+			 * salvata come numero, la riga diceva "fra 3 giorni" per sempre.
+			 */
 			renewal: 'Rinnovo "{name}" {when}',
+			/** Riga senza data nel payload: si dice il rinnovo, non un tempo inventato. */
+			renewalUndated: 'Rinnovo "{name}"',
 			renewalFallbackName: "abbonamento",
 			renewalAmount: "Sono previsti {amount}",
+			/** Rinnovo già passato: "sono previsti" lo direbbe ancora da venire. */
+			renewalAmountPast: "Erano previsti {amount}",
 
 			recurringGenerated: {
 				one: "Registrato {n} movimento ricorrente",

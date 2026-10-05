@@ -1,7 +1,13 @@
 -- ============================================================================
 -- Fase 17b — Notifiche
 -- ============================================================================
--- Esegui questo file nel SQL Editor di Supabase. È idempotente.
+-- Esegui questo file nel SQL Editor di Supabase — e oggi soltanto su un database
+-- ricostruito da zero: vedi la guardia qui sotto.
+--
+-- ⚠️ Fino alla #123 questa riga diceva "È idempotente", ed era falso: il file
+-- RICREA la tabella (sezione qui sotto), quindi rieseguirlo cancellava l'intero
+-- registro delle notifiche. Idempotente significa che rieseguire non cambia
+-- niente; qui rieseguire cambiava tutto.
 --
 -- ⚠️ RICREA LA TABELLA `notifications`. La prima versione, di poche ore prima,
 -- salvava il testo già composto (`title`/`body`) invece di un payload, e usava
@@ -20,6 +26,51 @@
 --
 -- Progetto e motivazioni: CLAUDE.md → "Fase 17 — budget e notifiche", issue #41.
 -- ============================================================================
+
+
+-- ----------------------------------------------------------------------------
+-- ⚠️ 0. Guardia: questo file NON va più rieseguito (issue #123)
+-- ----------------------------------------------------------------------------
+-- Il motivo per tornare qui sembra buono: in fondo c'è `cron.schedule`, quindi è
+-- uno dei file a cui si torna per "riagganciare il cron". Rieseguito su un
+-- database già migrato, però, fa tre danni e nessun errore:
+--
+--   · `drop table … cascade` qui sotto cancella TUTTE le notifiche, con lo stato
+--     letto/non letto e le `dedup_key`. Le chiavi sono la prova che un evento è
+--     già stato emesso (sezione 5): sparite quelle, il generatore riemette
+--     budget sforati, rinnovi e traguardi come se fossero nuovi;
+--   · la sezione 7 riporta `run_daily_jobs()` alla versione della 17b, che non
+--     scrive in `job_runs` e scarta il conteggio delle regole saltate: dopo 36
+--     ore l'app direbbe "job fermo" a un job sano, e i salti per regola
+--     tornerebbero invisibili — il difetto della #47;
+--   · la sezione 4 riporta `generate_notifications()` a una versione superata
+--     dalla `20260821` (rinnovo con la data, join sul proprietario).
+--
+-- ⚠️ Riconosce SE STESSO, non un successore: la colonna `notifications.payload`,
+-- che esiste solo se questo file è già girato almeno una volta. Le altre
+-- guardie del progetto riconoscono il file successivo, e qui sarebbe stata la
+-- tabella `job_runs` della `20260809` — la prima stesura faceva così. Ma il
+-- danno di questo file non dipende dai successori: il `drop table` cancella le
+-- notifiche anche su un database fermo fra la 20260804 e la 20260809, o
+-- ricostruito senza `job_runs`. Il pericolo è "le notifiche esistono già", ed è
+-- quello che va riconosciuto (review della #123).
+--
+-- Su un database ricostruito da zero la tabella non c'è, e il file gira. La
+-- regola resta quella delle altre guardie: **il file più recente dev'essere
+-- autosufficiente**. Per riagganciare il cron basta la `20260811`.
+
+do $$
+begin
+	if exists (
+		select 1 from information_schema.columns
+		where table_schema = 'public'
+		  and table_name   = 'notifications'
+		  and column_name  = 'payload'
+	) then
+		raise exception
+			'STOP: questo file è già stato eseguito (public.notifications.payload esiste). Rieseguirlo CANCELLA tutte le notifiche (drop table) e riporta run_daily_jobs() e generate_notifications() a versioni superate. Per riagganciare il cron esegui la 20260811, che è autosufficiente.';
+	end if;
+end $$;
 
 drop table if exists public.notifications cascade;
 
@@ -405,7 +456,8 @@ revoke all on function public.run_daily_jobs() from public, anon, authenticated;
 -- Il job della Fase 14 si chiamava 'generate-recurring' e invocava direttamente
 -- generate_recurring_transactions(). Ora il nome mentirebbe sul contenuto.
 -- Il blocco è condizionale perché cron.unschedule() solleva un errore se il job
--- non esiste, e questo file deve restare rieseguibile.
+-- non esiste. (Valeva quando il file era rieseguibile; dalla #123 la guardia in
+-- testa lo ferma su qualunque database successivo alla 20260809.)
 do $$
 begin
 	if exists (select 1 from cron.job where jobname = 'generate-recurring') then

@@ -8,7 +8,9 @@ import {
 	formatRelativeTime,
 	plural,
 	relativeDayLabel,
+	relativePastLabel,
 } from "@/lib/i18n/format";
+import { daysBetweenISO, isISODate } from "@/lib/dates";
 import type { Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/dictionaries/it";
 import type { AppNotification, NotificationType } from "@/types";
@@ -65,7 +67,21 @@ export function relativeTime(iso: string, locale: Locale, justNow: string): stri
  */
 export function renderNotification(
 	n: AppNotification,
-	{ currency, locale, t }: { currency: string; locale: Locale; t: Dictionary },
+	{
+		currency,
+		locale,
+		t,
+		today,
+	}: {
+		currency: string;
+		locale: Locale;
+		t: Dictionary;
+		/**
+		 * `YYYY-MM-DD` secondo l'orologio dell'UTENTE: "fra 3 giorni" si conta
+		 * dal suo oggi, non da quello del server in UTC (#123).
+		 */
+		today: string;
+	},
 ): { title: string; body: string | null } {
 	const m = t.notifications.messages;
 
@@ -119,16 +135,37 @@ export function renderNotification(
 		}
 
 		case "abbonamento_rinnovo": {
-			// "oggi" / "domani" / "fra 3 giorni" — le tre le produce
-			// `Intl.RelativeTimeFormat` con `numeric: "auto"`, che è il motivo per
-			// cui non stanno nel dizionario: erano tre rami scritti a mano.
-			const when = relativeDayLabel(Number(p.days), locale);
+			const name = (p.name as string | null) ?? m.renewalFallbackName;
+			const amount = money(Number(p.amount));
+
+			/*
+			 * ⚠️ La distanza si calcola QUI, dalla data del rinnovo e da quella
+			 * dell'utente (#123). Il payload portava `days`, cioè la distanza il
+			 * giorno in cui il job girava: siccome le notifiche non si cancellano
+			 * mai, settimane dopo la riga diceva ancora "fra 3 giorni".
+			 *
+			 * Senza una data leggibile — righe scritte prima della 20260821, per i
+			 * minuti fra il deploy e la migration — si dice il rinnovo e basta.
+			 * Ripiegare su `days` vorrebbe dire ripresentare il numero che mentiva,
+			 * e `Number(undefined)` dato a `Intl` SOLLEVA: senza questo ramo una
+			 * riga malformata porterebbe via l'intero pannello.
+			 */
+			if (!isISODate(p.date)) {
+				return { title: fill(m.renewalUndated, { name }), body: amount };
+			}
+
+			const days = daysBetweenISO(today, p.date);
+			// Avanti: "oggi" / "domani" / "fra 3 giorni" — le produce
+			// `Intl.RelativeTimeFormat` con `numeric: "auto"`, che è il motivo
+			// per cui non stanno nel dizionario. Indietro: "ieri", "2 settimane
+			// fa", e il corpo al passato.
+			const past = days < 0;
 			return {
 				title: fill(m.renewal, {
-					name: (p.name as string | null) ?? m.renewalFallbackName,
-					when,
+					name,
+					when: past ? relativePastLabel(-days, locale) : relativeDayLabel(days, locale),
 				}),
-				body: fill(m.renewalAmount, { amount: money(Number(p.amount)) }),
+				body: fill(past ? m.renewalAmountPast : m.renewalAmount, { amount }),
 			};
 		}
 

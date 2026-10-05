@@ -42,6 +42,36 @@ export function todayLocalISO(): string {
 }
 
 /**
+ * `YYYY-MM-DD` con un mese e un giorno che esistono.
+ *
+ * Serve dove una data arriva da fuori — un parametro di server action, un campo
+ * JSON — e finisce in un calcolo: `2026-02-31` passerebbe una regex e
+ * `Date.UTC` lo sposterebbe in silenzio al 3 marzo.
+ */
+export function isISODate(value: unknown): value is string {
+	if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+	const [y, m, d] = value.split("-").map(Number);
+	const date = new Date(Date.UTC(y, m - 1, d));
+	return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
+}
+
+/**
+ * Quanti giorni di calendario separano due `YYYY-MM-DD`: positivo se `to` viene
+ * dopo `from`.
+ *
+ * In UTC e non in ora locale apposta: fra due mezzanotti UTC passano sempre
+ * 86.400.000 ms, mentre fra due mezzanotti locali il cambio dell'ora legale ne
+ * toglie o aggiunge un'ora — e un `Math.floor` darebbe un giorno in meno.
+ */
+export function daysBetweenISO(from: string, to: string): number {
+	const utc = (iso: string) => {
+		const [y, m, d] = iso.split("-").map(Number);
+		return Date.UTC(y, m - 1, d);
+	};
+	return Math.round((utc(to) - utc(from)) / 86_400_000);
+}
+
+/**
  * Fotografia dell'orologio del CLIENT, da passare alle server action.
  *
  * Non basta la data: per sapere quale istante UTC corrisponde alla mezzanotte
