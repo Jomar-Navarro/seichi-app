@@ -259,6 +259,8 @@ export function relativeDayLabel(days: number, locale: Locale): string {
  * falso. "1 settimana fa" conta il tempo trascorso, che è ciò che si sa.
  *
  * Unità intere TRASCORSE (per difetto): 13 giorni sono "1 settimana fa", non 2.
+ * Il mese è quello medio (365,25 / 12): con 30 giorni tondi 360 giorni davano
+ * "12 mesi fa" invece di passare all'anno (review della #123).
  *
  * ⚠️ Niente data assoluta, al contrario di `formatRelativeTime`: questa frase sta
  * DOPO un sostantivo ('Rinnovo "Spotify" …'), e una data lì vorrebbe un
@@ -270,7 +272,7 @@ export function relativePastLabel(daysAgo: number, locale: Locale): string {
 	if (daysAgo < 7) return relativeDayLabel(-daysAgo, locale);
 	const rtf = relativeFormat(locale, "always");
 	if (daysAgo < 30) return rtf.format(-Math.floor(daysAgo / 7), "week");
-	if (daysAgo < 365) return rtf.format(-Math.floor(daysAgo / 30), "month");
+	if (daysAgo < 365) return rtf.format(-Math.floor(daysAgo / (365.25 / 12)), "month");
 	return rtf.format(-Math.floor(daysAgo / 365), "year");
 }
 

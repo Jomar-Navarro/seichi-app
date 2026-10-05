@@ -238,7 +238,7 @@ recurring_rules: id, user_id, amount (DECIMAL 10,2, CHECK > 0), type (TEXT),
 -- frequency: 'settimanale' | 'mensile' | 'annuale'
 -- pg_cron chiama generate_recurring_transactions() (giornaliero): per ogni regola
 --   attiva con next_run <= oggi inserisce transazioni e avanza next_run (idempotente).
---   Dalla 20260821 il cursore è `for update skip locked`: cron e RPC sovrapposti
+--   Dalla 20260821 il cursore è `for no key update`: cron e RPC sovrapposti
 --   non scrivono più due volte la stessa occorrenza (#123).
 ```
 
@@ -411,7 +411,7 @@ successivo da un fatto del catalogo:
 |---|---|---|
 | `20260727` | ricrea le colonne residue e le 20 policy duplicate | `profiles_theme_check` (la `20260813`) |
 | `20260728` | ridichiara `generate_recurring_transactions()` `returns void` | il tipo di ritorno `integer` (la `20260810`) |
-| `20260804` | ⚠️ `drop table notifications` — cancella TUTTE le notifiche — e riporta indietro `run_daily_jobs()` e `generate_notifications()` | la tabella `job_runs` (la `20260809`) — dalla #123 |
+| `20260804` | ⚠️ `drop table notifications` — cancella TUTTE le notifiche — e riporta indietro `run_daily_jobs()` e `generate_notifications()` | ⚠️ SE STESSA: la colonna `notifications.payload`, cioè "le notifiche esistono già" — dalla #123 |
 | `20260809` | sostituisce `run_daily_jobs()` con quella che scarta il conteggio | idem `20260728` |
 
 Hanno la loro guardia anche la `20260810`, `20260814`, `20260815` e `20260816`,
@@ -5870,7 +5870,9 @@ payload con la sola `date`: `RangeError`. Il codice nuovo regge entrambi i
 payload.
 
 - ⚠️ **La `20260804` non aveva guardia e si dichiarava "idempotente"**: rieseguita
-  faceva `drop table notifications`. Ora si ferma se `job_runs` esiste. Vedi la
+  faceva `drop table notifications`. Ora si ferma se `notifications.payload`
+  esiste, cioè se è già girata: riconosce SE STESSA e non un successore, perché
+  il danno (le notifiche esistono già) non dipende dai successori. Vedi la
   tabella delle guardie nella sezione #43; corretti anche i commenti della
   `20260809` e `20260811` che la davano per assente ("l'unico file con
   `cron.schedule`").
@@ -5888,8 +5890,14 @@ payload.
   l'INTERO lotto. Ora il netto si arrotonda al centesimo prima del controllo,
   come già faceva Trade Republic. **Un vincolo nuovo trasforma in errore ogni
   scrittore che oggi produce il valore vietato: vanno cercati tutti prima.**
-- **`for update skip locked` nel job delle ricorrenti.** Cron e
-  `createRecurringRule` sovrapposti scrivevano due volte la stessa occorrenza.
+- **`for no key update` sul cursore del job delle ricorrenti.** Cron e
+  `createRecurringRule` sovrapposti scrivevano due volte la stessa occorrenza:
+  misurato sul database vero, 501 occorrenze doppie in 2 corse su 3. Ora la
+  seconda esecuzione aspetta e poi trova la regola già avanzata.
+  ⚠️ **Non `skip locked`, come diceva la prima stesura**: salta qualunque riga
+  bloccata, anche una regola che l'utente sta salvando alle 03:00, senza
+  contarla né registrarlo — la classe della #47. E non `for update`, che
+  blocca anche i controlli di FK (review della #123).
   ⚠️ **Scartato l'indice unico su `(recurring_rule_id, date)`**: un movimento
   generato si modifica, data compresa, e tiene il suo `recurring_rule_id` —
   l'affitto di settembre spostato al 5 ottobre occuperebbe la chiave di ottobre,

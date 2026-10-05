@@ -25,7 +25,7 @@
 --   1. si rifiuta di partire se ci sono righe che i vincoli rifiuterebbero
 --   2. `transactions.amount/type/date` NOT NULL, `amount > 0` su `transactions`
 --      e su `recurring_rules`
---   3. `generate_recurring_transactions()` con `for update skip locked`
+--   3. `generate_recurring_transactions()` con `for no key update` sul cursore
 --   4. `generate_notifications()`: il rinnovo salva la DATA, e le join verso
 --      `categories` confrontano il proprietario
 --   5. le notifiche di rinnovo già scritte: `days` → `date`
@@ -38,7 +38,7 @@
 --     dopo la `20260815`; la `20260810` dopo la `20260814`; la `20260728` dopo
 --     la `20260810`.
 --   · `generate_notifications()` — definita SOLO nella `20260804`, che fino a
---     questa issue non aveva guardia. Ora ce l'ha (riconosce `job_runs`).
+--     questa issue non aveva guardia. Ora ce l'ha (si ferma se è già girata).
 -- È la regola scritta nella Fase 22: *una guardia protegge dai successori che
 -- esistevano quando è stata scritta* — chi allunga la catena guarda daccapo.
 -- ============================================================================
@@ -150,16 +150,27 @@ alter table public.recurring_rules add  constraint recurring_rules_amount_check
 -- `update … set next_run` aspettava il lock del primo e poi scriveva lo stesso
 -- valore, quindi nessun errore e nessuna traccia.
 --
--- `for update skip locked` sul cursore: una regola che un'altra esecuzione sta
--- già elaborando si salta. E se quell'altra ha già finito e fatto commit,
--- Postgres rilegge la riga aggiornata prima di bloccarla (in READ COMMITTED,
--- come sempre per `for update`): il `next_run` nuovo è nel futuro, la riga non
--- soddisfa più il `where` ed esce dal ciclo. In nessuno dei due casi la stessa
--- occorrenza si scrive due volte.
+-- `for no key update` sul cursore: ogni regola si blocca prima di essere letta
+-- dal ciclo. Una seconda esecuzione che arriva sulla stessa regola ASPETTA che
+-- la prima finisca; poi Postgres rilegge la riga aggiornata (in READ COMMITTED,
+-- come sempre per i lock di riga): il `next_run` nuovo è nel futuro, la riga
+-- non soddisfa più il `where` ed esce dal ciclo. La stessa occorrenza non si
+-- scrive due volte. L'attesa dura quanto l'altra esecuzione — millisecondi per
+-- una RPC, pochi secondi per il job notturno — e l'ordine `next_run, id` è lo
+-- stesso per tutti, quindi due esecuzioni non si bloccano a vicenda.
 --
--- `skip locked` e non un `for update` che aspetta: qui saltare è giusto per
--- costruzione — chi tiene il lock sta generando proprio quella regola — e non
--- fa attendere `createRecurringRule` dietro al job notturno.
+-- ⚠️ Due alternative scartate dalla review, e il motivo vale scritto:
+--   · `skip locked` (la prima stesura): salta QUALUNQUE riga bloccata, non solo
+--     quelle che un altro generatore sta elaborando. Un utente che alle 03:00
+--     salva una modifica alla regola la teneva bloccata, e il job la saltava
+--     senza contarla fra le saltate né scriverlo da nessuna parte: `job_runs`
+--     diceva `ok` e l'occorrenza arrivava la notte dopo. Un salto non
+--     registrato è la classe della #47.
+--   · `for update`: il lock più forte, e qui non serve — il ciclo non tocca la
+--     chiave della regola. `for update` entra in conflitto anche con il
+--     `for key share` dei controlli di FK verso `recurring_rules`;
+--     `for no key update` no, ed è lo stesso lock che l'`update … set next_run`
+--     qui sotto prenderebbe comunque.
 --
 -- ⚠️ SCARTATO l'indice unico parziale su `(recurring_rule_id, date)`, l'altra
 -- strada proposta dalla issue. Vincolerebbe anche i DATI dell'utente: un
@@ -193,7 +204,7 @@ begin
 			and next_run <= current_date
 			and (v_uid is null or user_id = v_uid)
 		order by next_run, id
-		for update skip locked
+		for no key update
 	loop
 		begin
 			v_next := r.next_run;
@@ -546,9 +557,9 @@ where type = 'abbonamento_rinnovo'
 -- 	end if;
 --
 -- 	-- c2 · le due funzioni sono quelle nuove
--- 	if pg_get_functiondef('public.generate_recurring_transactions()'::regprocedure) ~* 'skip\s+locked'
+-- 	if pg_get_functiondef('public.generate_recurring_transactions()'::regprocedure) ~* 'for\s+no\s+key\s+update'
 -- 	   and pg_get_functiondef('public.generate_notifications()'::regprocedure) ~* 'c\.user_id\s*=\s*r\.user_id'
--- 	then r := r || E'\n  c2 OK  — skip locked nel job, proprietario nelle join';
+-- 	then r := r || E'\n  c2 OK  — lock sulle regole nel job, proprietario nelle join';
 -- 	else raise exception 'COLLAUDO #123 — c2 FALLITA: le funzioni non sono quelle della 20260821.%', r;
 -- 	end if;
 --

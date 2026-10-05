@@ -134,10 +134,11 @@ create table if not exists public.attachments (
 -- sua transazione non significa niente — ma vedi la nota in testa: la cascade
 -- cancella la RIGA, il FILE lo deve togliere l'app.
 --
--- Fuori dal `create table`, e con il suo `drop … if exists` davanti: la sezione
--- 1 la toglie a ogni esecuzione per poter ricostruire il vincolo su cui poggia,
--- quindi qui va ricreata a ogni esecuzione (#123).
-alter table public.attachments drop constraint if exists attachments_transaction_owner_fkey;
+-- Fuori dal `create table`, che su una tabella già esistente non fa niente: la
+-- sezione 1 la toglie a ogni esecuzione per poter ricostruire il vincolo su cui
+-- poggia, quindi qui va ricreata a ogni esecuzione (#123). Nessun `drop`
+-- davanti: alla prima esecuzione la tabella è appena nata senza, alle
+-- successive l'ha già tolta la sezione 1.
 alter table public.attachments add  constraint attachments_transaction_owner_fkey
 	foreign key (transaction_id, user_id)
 	references public.transactions (id, user_id)

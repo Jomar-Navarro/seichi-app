@@ -46,17 +46,29 @@
 --   · la sezione 4 riporta `generate_notifications()` a una versione superata
 --     dalla `20260821` (rinnovo con la data, join sul proprietario).
 --
--- Riconosce i successori da un fatto del catalogo: la tabella `job_runs`, che
--- nasce nella `20260809`. È la stessa forma delle guardie in testa alla
--- `20260727`, `20260728`, `20260809`, `20260810`, `20260814`, `20260815` e
--- `20260816`, e la stessa regola che le genera: **il file più recente dev'essere
+-- ⚠️ Riconosce SE STESSO, non un successore: la colonna `notifications.payload`,
+-- che esiste solo se questo file è già girato almeno una volta. Le altre
+-- guardie del progetto riconoscono il file successivo, e qui sarebbe stata la
+-- tabella `job_runs` della `20260809` — la prima stesura faceva così. Ma il
+-- danno di questo file non dipende dai successori: il `drop table` cancella le
+-- notifiche anche su un database fermo fra la 20260804 e la 20260809, o
+-- ricostruito senza `job_runs`. Il pericolo è "le notifiche esistono già", ed è
+-- quello che va riconosciuto (review della #123).
+--
+-- Su un database ricostruito da zero la tabella non c'è, e il file gira. La
+-- regola resta quella delle altre guardie: **il file più recente dev'essere
 -- autosufficiente**. Per riagganciare il cron basta la `20260811`.
 
 do $$
 begin
-	if to_regclass('public.job_runs') is not null then
+	if exists (
+		select 1 from information_schema.columns
+		where table_schema = 'public'
+		  and table_name   = 'notifications'
+		  and column_name  = 'payload'
+	) then
 		raise exception
-			'STOP: la 20260809 è già stata eseguita (public.job_runs esiste). Questo file CANCELLA tutte le notifiche (drop table) e riporta run_daily_jobs() e generate_notifications() a versioni superate. Per riagganciare il cron esegui la 20260811, che è autosufficiente.';
+			'STOP: questo file è già stato eseguito (public.notifications.payload esiste). Rieseguirlo CANCELLA tutte le notifiche (drop table) e riporta run_daily_jobs() e generate_notifications() a versioni superate. Per riagganciare il cron esegui la 20260811, che è autosufficiente.';
 	end if;
 end $$;
 
