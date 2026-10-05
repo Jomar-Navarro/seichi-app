@@ -219,12 +219,17 @@ export function shortMonth(date: Date, locale: Locale): string {
 	return capitalize(formatDate(date, locale, { month: "short" }));
 }
 
-/** L'istanza `Intl.RelativeTimeFormat` per un locale, memorizzata. */
-function relativeFormat(locale: Locale) {
-	const key = INTL_LOCALE[locale];
+/**
+ * L'istanza `Intl.RelativeTimeFormat` per un locale, memorizzata.
+ *
+ * `numeric: "auto"` di default — è ciò che dà "ieri" e "domani". `"always"` dove
+ * le parole di calendario mentirebbero: vedi `relativePastLabel`.
+ */
+function relativeFormat(locale: Locale, numeric: "auto" | "always" = "auto") {
+	const key = `${INTL_LOCALE[locale]}|${numeric}`;
 	let rtf = relativeFormats.get(key);
 	if (!rtf) {
-		rtf = new Intl.RelativeTimeFormat(key, { numeric: "auto" });
+		rtf = new Intl.RelativeTimeFormat(INTL_LOCALE[locale], { numeric });
 		relativeFormats.set(key, rtf);
 	}
 	return rtf;
@@ -240,6 +245,33 @@ function relativeFormat(locale: Locale) {
  */
 export function relativeDayLabel(days: number, locale: Locale): string {
 	return relativeFormat(locale).format(days, "day");
+}
+
+/**
+ * "ieri", "3 giorni fa", "2 settimane fa", "4 mesi fa" — da quanti giorni fa.
+ *
+ * Nata per i rinnovi già passati (#123): una notifica non si cancella mai, quindi
+ * può parlare di un giorno di mesi fa, e "47 giorni fa" non si colloca.
+ *
+ * ⚠️ Sotto la settimana `numeric: "auto"` ("ieri", "l'altro ieri"); oltre,
+ * `"always"`. Con `"auto"` `-1 week` diventa **"la settimana scorsa"**, che è
+ * una settimana di CALENDARIO: detto di un giorno di dieci giorni fa può essere
+ * falso. "1 settimana fa" conta il tempo trascorso, che è ciò che si sa.
+ *
+ * Unità intere TRASCORSE (per difetto): 13 giorni sono "1 settimana fa", non 2.
+ *
+ * ⚠️ Niente data assoluta, al contrario di `formatRelativeTime`: questa frase sta
+ * DOPO un sostantivo ('Rinnovo "Spotify" …'), e una data lì vorrebbe un
+ * articolo che cambia col numero — "del 5", "dell'8", "del 1°". È la trappola di
+ * "il 0%" (24b): la costruzione che non ne ha bisogno è più sicura di una che
+ * prova a indovinarlo.
+ */
+export function relativePastLabel(daysAgo: number, locale: Locale): string {
+	if (daysAgo < 7) return relativeDayLabel(-daysAgo, locale);
+	const rtf = relativeFormat(locale, "always");
+	if (daysAgo < 30) return rtf.format(-Math.floor(daysAgo / 7), "week");
+	if (daysAgo < 365) return rtf.format(-Math.floor(daysAgo / 30), "month");
+	return rtf.format(-Math.floor(daysAgo / 365), "year");
 }
 
 /**

@@ -74,6 +74,21 @@
 -- il proprio `user_id` e il `transaction_id` di un ALTRO utente passerebbe: la
 -- riga sarebbe "mia" per la RLS e punterebbe alla transazione di un altro.
 -- È lo stesso buco che la 20b ha chiuso per i conti, nella stessa forma.
+--
+-- ⚠️ **IL DIPENDENTE SI TOGLIE PRIMA** (issue #123). Alla prima stesura il
+-- `drop constraint if exists transactions_id_user_key` stava da solo, e la
+-- seconda esecuzione del file moriva con `2BP01: cannot drop constraint …
+-- because other objects depend on it`: `attachments_transaction_owner_fkey`
+-- poggia su quel vincolo. È la lezione già scritta nella `20260815` per
+-- `accounts_id_user_key` — *`drop … if exists` NON è idempotenza* — e non era
+-- stata applicata qui. Pesava più che altrove: questo è l'ultimo file che
+-- definisce `delete_current_user()`, cioè quello da rieseguire.
+--
+-- Non con `drop … cascade`, per la stessa ragione della 20260815: se il file si
+-- fermasse subito dopo, la FK resterebbe tolta e nessuno lo saprebbe. La FK si
+-- ricrea per nome nella sezione 2, sempre — non dentro il `create table`, che
+-- su una tabella già esistente non fa niente.
+alter table if exists public.attachments drop constraint if exists attachments_transaction_owner_fkey;
 
 alter table public.transactions drop constraint if exists transactions_id_user_key;
 alter table public.transactions add  constraint transactions_id_user_key unique (id, user_id);
@@ -111,19 +126,22 @@ create table if not exists public.attachments (
 	storage_path   text not null unique,
 	mime_type      text not null,
 	size_bytes     integer not null check (size_bytes > 0),
-	created_at     timestamptz not null default now(),
-
-	/*
-	 * ⚠️ FK COMPOSITA, come nella 20b: garantisce che la transazione ESISTA **e**
-	 * che sia dell'utente che sta scrivendo. `cascade` perché un allegato senza
-	 * la sua transazione non significa niente — ma vedi la nota in testa: la
-	 * cascade cancella la RIGA, il FILE lo deve togliere l'app.
-	 */
-	constraint attachments_transaction_owner_fkey
-		foreign key (transaction_id, user_id)
-		references public.transactions (id, user_id)
-		on delete cascade
+	created_at     timestamptz not null default now()
 );
+
+-- ⚠️ FK COMPOSITA, come nella 20b: garantisce che la transazione ESISTA **e**
+-- che sia dell'utente che sta scrivendo. `cascade` perché un allegato senza la
+-- sua transazione non significa niente — ma vedi la nota in testa: la cascade
+-- cancella la RIGA, il FILE lo deve togliere l'app.
+--
+-- Fuori dal `create table`, e con il suo `drop … if exists` davanti: la sezione
+-- 1 la toglie a ogni esecuzione per poter ricostruire il vincolo su cui poggia,
+-- quindi qui va ricreata a ogni esecuzione (#123).
+alter table public.attachments drop constraint if exists attachments_transaction_owner_fkey;
+alter table public.attachments add  constraint attachments_transaction_owner_fkey
+	foreign key (transaction_id, user_id)
+	references public.transactions (id, user_id)
+	on delete cascade;
 
 -- ⚠️ Indici sulle FK, non solo per le SELECT: senza, ogni cancellazione in
 -- cascata scandisce l'intera tabella. È la classe che la #43 ha chiuso a metà e

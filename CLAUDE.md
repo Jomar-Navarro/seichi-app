@@ -184,12 +184,16 @@ categories: id (UUID), user_id (UUID, nullable), name (VARCHAR 50),
 --   type='risparmio' + target_amount/target_date. saved_amount è calcolato
 --   sommando le transazioni risparmio della categoria (vedi getGoals).
 
-transactions: id (UUID), user_id (UUID NOT NULL), amount (DECIMAL 10,2),
-              type (VARCHAR 20), category_id (UUID), investment_type (VARCHAR 50,
-              nullable), date (TIMESTAMP senza fuso), notes (VARCHAR 255),
+transactions: id (UUID), user_id (UUID NOT NULL), amount (DECIMAL 10,2 NOT NULL,
+              CHECK > 0), type (VARCHAR 20 NOT NULL), category_id (UUID),
+              investment_type (VARCHAR 50, nullable), date (TIMESTAMP senza fuso,
+              NOT NULL), notes (VARCHAR 255),
               created_at (TIMESTAMP), recurring_rule_id (UUID, nullable),
               account_id (UUID NOT NULL), to_account_id (UUID, nullable),
               import_id (UUID, nullable), import_key (TEXT, nullable)
+-- amount > 0, e NOT NULL anche type e date: dalla 20260821 (#123). Gli importi
+--   sono SENZA SEGNO e la direzione la porta `type`: un -50 su una `spesa`
+--   faceva SALIRE il saldo, e nessun vincolo lo fermava.
 -- import_id: il lotto da cui la riga proviene (Fase 21). ON DELETE CASCADE —
 --   cancellare la riga di `imports` ANNULLA l'import. È l'unica cascade oltre
 --   a quella di `categories`, e come quella è l'operazione, non un effetto.
@@ -228,12 +232,14 @@ transactions: id (UUID), user_id (UUID NOT NULL), amount (DECIMAL 10,2),
 --   e regge solo perché su Supabase è UTC. Debito aperto, non risolto da #43:
 --   cambiare il tipo cambia il significato dei dati già scritti.
 
-recurring_rules: id, user_id, amount (DECIMAL 10,2), type (TEXT), category_id,
-                 notes (TEXT), frequency (TEXT), start_date (DATE), next_run (DATE),
-                 end_date (DATE, nullable), active (BOOL), created_at
+recurring_rules: id, user_id, amount (DECIMAL 10,2, CHECK > 0), type (TEXT),
+                 category_id, notes (TEXT), frequency (TEXT), start_date (DATE),
+                 next_run (DATE), end_date (DATE, nullable), active (BOOL), created_at
 -- frequency: 'settimanale' | 'mensile' | 'annuale'
 -- pg_cron chiama generate_recurring_transactions() (giornaliero): per ogni regola
---   attiva con next_run <= oggi inserisce transazioni e avanza next_run (idempotente)
+--   attiva con next_run <= oggi inserisce transazioni e avanza next_run (idempotente).
+--   Dalla 20260821 il cursore è `for update skip locked`: cron e RPC sovrapposti
+--   non scrivono più due volte la stessa occorrenza (#123).
 ```
 
 ### Ricostruzione dello schema (2026-08-12, issue #43 — CHIUSA)
@@ -393,18 +399,30 @@ coppia: il controllo di integrità cerca per `account_id`, e quell'indice c'è.
 la RLS da sé su ogni tabella nuova. Comoda rete di sicurezza, ma non sostituisce
 il `enable row level security` esplicito nelle migration — quello dice l'intenzione.
 
-#### ⚠️ Le guardie: tre file non vanno più rieseguiti
+#### ⚠️ Le guardie: i file superati non vanno più rieseguiti
 
-`20260727`, `20260728` e `20260809` descrivono stati **superati** da migration
-successive, e rieseguirli non dà un errore pulito: fallisce a metà, dopo aver già
-modificato qualcosa. Ciascuno ha ora un `do $$ … raise exception` in testa che si
-rifiuta di partire, riconoscendo il file successivo da un fatto del catalogo:
+`20260727`, `20260728`, `20260804` e `20260809` descrivono stati **superati** da
+migration successive, e rieseguirli non dà un errore pulito: fallisce a metà, dopo
+aver già modificato qualcosa — o, peggio, riesce. Ciascuno ha ora un `do $$ …
+raise exception` in testa che si rifiuta di partire, riconoscendo il file
+successivo da un fatto del catalogo:
 
 | file | cosa rifarebbe | riconosce il successore da |
 |---|---|---|
 | `20260727` | ricrea le colonne residue e le 20 policy duplicate | `profiles_theme_check` (la `20260813`) |
 | `20260728` | ridichiara `generate_recurring_transactions()` `returns void` | il tipo di ritorno `integer` (la `20260810`) |
-| `20260809` | sostituisce `run_daily_jobs()` con quella che scarta il conteggio | idem |
+| `20260804` | ⚠️ `drop table notifications` — cancella TUTTE le notifiche — e riporta indietro `run_daily_jobs()` e `generate_notifications()` | la tabella `job_runs` (la `20260809`) — dalla #123 |
+| `20260809` | sostituisce `run_daily_jobs()` con quella che scarta il conteggio | idem `20260728` |
+
+Hanno la loro guardia anche la `20260810`, `20260814`, `20260815` e `20260816`,
+descritte nelle rispettive fasi.
+
+⚠️ **La `20260804` è rimasta senza guardia fino alla #123, e diceva "È
+idempotente".** Contiene `cron.schedule`, quindi era uno dei file a cui si torna
+per riagganciare il cron — e rieseguita cancellava il registro delle notifiche,
+con le `dedup_key` che provano quali eventi sono già stati emessi. L'affermazione
+"idempotente" in testa a un file che inizia con `drop table` è la classe dei
+DEFAULT della #43: una frase sul mondo che nessuno aveva verificato.
 
 La regola che le genera: **il file più recente dev'essere autosufficiente**, così
 non c'è mai motivo di tornare indietro — e se qualcuno ci torna comunque, viene
@@ -423,6 +441,12 @@ sostituisca una funzione o una struttura definita in un file precedente.
   dei due: non per completezza, ma perché su `transactions` quel NULL era
   diventato un buco di sicurezza invece che un'anomalia teorica. Un debito si
   paga quando qualcosa comincia a dipenderne.
+  ⚠️ **Dalla #123 qualcosa ne dipende**: le FK verso `categories` sono a colonna
+  singola, quindi un movimento, un budget o una regola possono puntare alla
+  categoria di un altro utente. La `20260821` chiude la conseguenza visibile (il
+  job copiava il nome nella notifica), non la causa: la chiusura sono FK
+  composite `(category_id, user_id)` come per i conti, e quelle vogliono
+  `categories.user_id` NOT NULL.
 - **`anon` ha DML su tutte e tre**, per default di Supabase. Innocuo *solo*
   grazie alla RLS — ogni policy è `to authenticated` — quindi è difesa singola.
 
@@ -5832,6 +5856,63 @@ Tre trappole del driver, da ricordare:
 - Una nota fissa per movimento si somma fra un giro e l'altro: il conteggio
   diceva 2 per il residuo del giro prima. Note uniche per esecuzione.
 
+### Database — guardie, importi positivi, job in concorrenza, rinnovi (issue #123)
+
+Dalla review completa del 2026-09-28 (#128). Migration
+`20260821_integrity_job_safety.sql`, più correzioni alla `20260804`, `20260809`,
+`20260811` e `20260818`.
+
+⚠️⚠️ **Ordine: PRIMA il deploy del codice, POI la migration** — il contrario del
+solito. Le notifiche di rinnovo perdono `days`, e il codice vecchio fa
+`relativeDayLabel(Number(undefined))`: `Intl.RelativeTimeFormat.format(NaN)`
+SOLLEVA, e porta via l'intero pannello. Verificato col codice di master su un
+payload con la sola `date`: `RangeError`. Il codice nuovo regge entrambi i
+payload.
+
+- ⚠️ **La `20260804` non aveva guardia e si dichiarava "idempotente"**: rieseguita
+  faceva `drop table notifications`. Ora si ferma se `job_runs` esiste. Vedi la
+  tabella delle guardie nella sezione #43; corretti anche i commenti della
+  `20260809` e `20260811` che la davano per assente ("l'unico file con
+  `cron.schedule`").
+- **La `20260818` non era rieseguibile** (`2BP01`): la FK degli allegati poggia su
+  `transactions_id_user_key`. Ora si toglie per nome prima e si ricrea dopo,
+  FUORI dal `create table`, che su una tabella esistente non fa niente. La
+  lezione della 20b — *`drop … if exists` non è idempotenza* — applicata dove
+  mancava.
+- **`amount > 0` su `transactions` e `recurring_rules`, `type`/`amount`/`date`
+  NOT NULL.** Le action lo controllano dalla #119; il vincolo copre il resto —
+  SQL Editor, import, la prossima action che se ne dimentica. La migration conta
+  le righe che lo violerebbero e si ferma PRIMA di scrivere.
+  ⚠️ **Il CHECK ha reso fatale un caso dell'import generico**: "0,0001" passava
+  il `!== 0`, diventava 0,00 nella colonna, e col vincolo avrebbe fatto fallire
+  l'INTERO lotto. Ora il netto si arrotonda al centesimo prima del controllo,
+  come già faceva Trade Republic. **Un vincolo nuovo trasforma in errore ogni
+  scrittore che oggi produce il valore vietato: vanno cercati tutti prima.**
+- **`for update skip locked` nel job delle ricorrenti.** Cron e
+  `createRecurringRule` sovrapposti scrivevano due volte la stessa occorrenza.
+  ⚠️ **Scartato l'indice unico su `(recurring_rule_id, date)`**: un movimento
+  generato si modifica, data compresa, e tiene il suo `recurring_rule_id` —
+  l'affitto di settembre spostato al 5 ottobre occuperebbe la chiave di ottobre,
+  e il job salterebbe l'occorrenza vera in silenzio. Pagato anche il debito di
+  `search_path to 'public'`.
+- ⚠️ **Il rinnovo salva la DATA, non la distanza.** `days = next_run − oggi` era
+  vero solo il giorno in cui il job girava: siccome le notifiche non si
+  cancellano, la riga diceva "fra 3 giorni" per sempre. La migration legge la
+  data dalla `dedup_key` delle righe vecchie e toglie `days`; l'app conta la
+  distanza dall'oggi del CLIENTE (`getNotifications(todayLocalISO())`). Un
+  rinnovo passato dice "ieri", "2 settimane fa", "2 mesi fa", col corpo al
+  passato. ⚠️ **Niente data assoluta**: dopo il sostantivo vorrebbe un articolo
+  che cambia col numero ("del 5", "dell'8", "del 1°") — la trappola di "il 0%".
+  E oltre la settimana `numeric: "always"`: con `"auto"` `-1 week` è "la
+  settimana scorsa", una settimana di calendario, falsa detta di dieci giorni fa.
+  Senza una data leggibile la riga dice solo `Rinnovo "Spotify"`.
+- **Le join di `generate_notifications()` verso `categories` confrontano il
+  proprietario.** Una riga può puntare alla categoria di un altro utente (FK a
+  colonna singola), e la funzione ne copiava il nome. Per i budget la riga si
+  SALTA: con il nome NULL il client l'avrebbe letta come il budget globale. Le FK
+  composite `(category_id, user_id)` restano da fare, e richiedono di chiudere
+  prima `categories.user_id` nullable (vedi "Debiti restati aperti").
+
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 
 Il guasto è emerso guardando a occhio una data in `/impostazioni/ricorrenti`: una
@@ -6026,9 +6107,11 @@ dichiarazione falsa no.*
   *notifica* sarebbe la sede giusta — il job è vivo, quindi può generarla, a
   differenza dell'allarme "job morto" che per costruzione non può esserlo.
 
-**E un silenzio che sarebbe tornato da solo:** fino alla `20260811` l'unico file
-con `cron.schedule` era la `20260809`, quindi era là che si tornava per
-riagganciare il job — ma quel file contiene anche la **propria** versione di
+**E un silenzio che sarebbe tornato da solo:** fino alla `20260811` i file con
+`cron.schedule` erano la `20260809` e la `20260804` (qui c'era scritto "l'unico
+file era la `20260809`", ed era falso — vedi la #123: la `20260804` rieseguita
+cancellava le notifiche), quindi era là che si tornava per riagganciare il job —
+ma la `20260809` contiene anche la **propria** versione di
 `run_daily_jobs()`, quella che scarta il conteggio delle regole saltate.
 Rieseguirlo dopo la `20260810` avrebbe restaurato il difetto originale senza un
 errore e senza traccia. Due difese: una **guardia** in testa alla `20260809` che
@@ -6054,9 +6137,9 @@ Tre correzioni di testo, tutte della stessa famiglia:
 
 Restano aperti, come commit separati: `createRecurringRule()` che scarta errore e
 conteggio dell'RPC (`app/(main)/action.ts`), `details` che porta il conteggio ma
-non gli id delle regole, `search_path to 'public'` in
-`generate_recurring_transactions()` dove tutte le altre usano `''`, `logged_at`
-che nessuno legge, e il `Promise.all` di `/impostazioni` che affianca una
+non gli id delle regole, ~~`search_path to 'public'` in
+`generate_recurring_transactions()` dove tutte le altre usano `''`~~ (chiuso
+dalla `20260821`, #123), `logged_at` che nessuno legge, e il `Promise.all` di `/impostazioni` che affianca una
 funzione capace di `redirect()` a una promise che resterebbe non osservata.
 
 ### Costo delle richieste a Supabase (2026-08-08)

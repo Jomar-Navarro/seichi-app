@@ -1028,8 +1028,10 @@ export const en: Dictionary = {
 			savedOf: "You've set aside {saved} of {target}",
 
 			renewal: 'Renewal "{name}" {when}',
+			renewalUndated: 'Renewal "{name}"',
 			renewalFallbackName: "subscription",
 			renewalAmount: "{amount} due",
+			renewalAmountPast: "{amount} was due",
 
 			recurringGenerated: {
 				one: "{n} recurring transaction recorded",

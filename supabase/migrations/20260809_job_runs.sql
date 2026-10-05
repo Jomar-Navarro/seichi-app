@@ -33,10 +33,13 @@
 -- ----------------------------------------------------------------------------
 -- ⚠️ 0. Guardia: questo file NON va rieseguito dopo la 20260810
 -- ----------------------------------------------------------------------------
--- Il motivo per tornare qui è reale: fino alla `20260811` questo era l'unico
--- file contenente `cron.schedule`, quindi era il posto dove si veniva a
--- riagganciare il job. Ma qui sotto c'è anche una versione di `run_daily_jobs()`
--- che invoca `generate_recurring_transactions()` con `perform`, **scartandone
+-- Il motivo per tornare qui è reale: prima della `20260811` questo file e la
+-- `20260804` erano gli unici a contenere `cron.schedule`, quindi erano i posti
+-- dove si veniva a riagganciare il job. (La riga diceva "l'unico file", ed era
+-- falso: anche la `20260804` lo contiene, e rieseguita cancellava le notifiche —
+-- dalla #123 ha la propria guardia.) Ma qui sotto c'è anche una versione di
+-- `run_daily_jobs()` che invoca `generate_recurring_transactions()` con
+-- `perform`, **scartandone
 -- il valore di ritorno** — cioè il conteggio delle regole saltate introdotto
 -- dalla `20260810`.
 --

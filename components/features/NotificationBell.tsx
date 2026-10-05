@@ -8,6 +8,7 @@ import {
 	markAllNotificationsRead,
 	markNotificationRead,
 } from "@/app/(main)/notification-actions";
+import { todayLocalISO } from "@/lib/dates";
 import { BADGE_MAX, notificationMeta, relativeTime } from "@/lib/notifications";
 import type { RenderedNotification } from "@/types";
 import { useI18n } from "./I18nProvider";
@@ -101,7 +102,8 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 
 	async function load() {
 		setLoading(true);
-		const res = await getNotifications();
+		// L'oggi dell'utente, non quello del server: "fra 3 giorni" si conta da qui.
+		const res = await getNotifications(todayLocalISO());
 		setLoading(false);
 
 		if ("error" in res) {

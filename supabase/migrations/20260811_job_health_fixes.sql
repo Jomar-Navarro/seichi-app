@@ -176,8 +176,10 @@ grant  execute on function public.daily_job_health() to authenticated;
 -- ----------------------------------------------------------------------------
 -- 4. Il cron, riagganciato — e perché la riga sta ANCHE qui
 -- ----------------------------------------------------------------------------
--- ⚠️ Finora `cron.schedule` esisteva solo in `20260809_job_runs.sql`, e questo
--- era un invito a rieseguire quel file per riagganciare il job. Ma la `20260809`
+-- ⚠️ Finora `cron.schedule` esisteva solo in `20260809_job_runs.sql` e nella
+-- `20260804_notifications.sql` (la riga diceva "solo nella 20260809", ed era
+-- falso — vedi la #123), e questo era un invito a rieseguire quei file per
+-- riagganciare il job. La `20260804` cancellava le notifiche; la `20260809`
 -- contiene anche la propria versione di `run_daily_jobs()` — quella che scarta
 -- il conteggio delle regole saltate — quindi rieseguirla DOPO la `20260810`
 -- riportava indietro la rilevazione dei fallimenti parziali **senza un errore e
