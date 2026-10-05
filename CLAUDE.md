@@ -5921,6 +5921,26 @@ payload.
   composite `(category_id, user_id)` restano da fare, e richiedono di chiudere
   prima `categories.user_id` nullable (vedi "Debiti restati aperti").
 
+Collaudo del 2026-10-05, migration eseguita e verificata:
+
+- **Query di verifica, prima di tutto**: zero occorrenze doppie, zero righe non
+  valide, 4 rinnovi tutti con la data nella `dedup_key`, zero riferimenti a
+  categorie altrui. La corsa del job non era ancora successa sui dati veri.
+- ⚠️ **La corsa si prova su un account usa e getta, via REST, PRIMA e DOPO.** Una
+  regola settimanale con 501 occorrenze arretrate e due chiamate RPC lanciate
+  insieme: prima della migration **501 doppie in 2 corse su 3**, dopo **0 su 6**.
+  Sei e non tre perché tre esiti puliti avevano ancora ~4% di probabilità di
+  essere fortuna (corse che non si sovrappongono). Lo stesso account: un `-50`
+  su una `spesa` accettato con il saldo che SALE, poi rifiutato con `23514`.
+  ⚠️ **Le righe della controprova vanno cancellate subito**: la sezione 1 della
+  migration conta le righe non valide di TUTTO il database, e si sarebbe
+  fermata per il `-50` dell'account di prova.
+- **Controprova SQL** 9/9, con c3 e c4 non saltate (c'è un secondo utente). La c4
+  ha un gemello positivo — lo stesso budget su una categoria PROPRIA deve
+  notificare — o passerebbe anche se il ramo dei budget non scattasse affatto.
+- `20260804` rieseguita: STOP. `20260818` rieseguita: Success. Il pannello dice
+  `Rinnovo "Palestra" l'altro ieri` · *Erano previsti € 40*.
+
 ### Sorveglianza del job giornaliero (2026-08-09, issue #47)
 
 Il guasto è emerso guardando a occhio una data in `/impostazioni/ricorrenti`: una
