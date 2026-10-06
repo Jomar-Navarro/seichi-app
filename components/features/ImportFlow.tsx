@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronDown, FileText, Info, Plus, Undo2, Upload } from "lucide-react";
 import Select from "@/components/UI/Select";
+import LoadError from "@/components/UI/LoadError";
 import { useI18n } from "@/components/features/I18nProvider";
 import { fill, formatDate, formatNumber, lookup, plural } from "@/lib/i18n/format";
 import { categoryTypeFor, formatAmount, TIPO_COLOR, TIPO_INK } from "@/lib/transaction-utils";
@@ -45,6 +46,12 @@ interface Props {
 	categories: ImportCategory[];
 	/** Gli import già eseguiti, da cui si annulla. */
 	previous: ImportSummary[];
+	/**
+	 * La lettura di `previous` è fallita (#124). Non è "nessun import": quell'
+	 * elenco è l'unico posto da cui si annulla un import, e un elenco sparito
+	 * in silenzio si legge come "non ce n'è da annullare".
+	 */
+	previousFailed: boolean;
 }
 
 /** Valore sentinella del selettore conto: "creane uno nuovo". */
@@ -67,7 +74,7 @@ const STEP_INDEX: Record<Step, number> = { file: 0, gruppi: 1, riepilogo: 2, fat
  * Le righe restano ispezionabili aprendo il gruppo; è la DECISIONE che si
  * accorpa, non l'informazione.
  */
-export default function ImportFlow({ accounts, categories, previous }: Props) {
+export default function ImportFlow({ accounts, categories, previous, previousFailed }: Props) {
 	const { t, locale } = useI18n();
 	const router = useRouter();
 
@@ -332,6 +339,7 @@ export default function ImportFlow({ accounts, categories, previous }: Props) {
 					pending={pending}
 					onContinue={continueFromFile}
 					previous={previous}
+					previousFailed={previousFailed}
 					onUndone={() => router.refresh()}
 				/>
 			)}
@@ -551,6 +559,7 @@ interface FileStepProps {
 	pending: boolean;
 	onContinue: () => void;
 	previous: ImportSummary[];
+	previousFailed: boolean;
 	onUndone: () => void;
 }
 
@@ -568,6 +577,7 @@ function FileStep({
 	pending,
 	onContinue,
 	previous,
+	previousFailed,
 	onUndone,
 }: FileStepProps) {
 	const { t, locale } = useI18n();
@@ -784,6 +794,9 @@ function FileStep({
 			*/}
 			{!file && previous.length > 0 && (
 				<ImportHistory items={previous} accounts={accounts} onUndone={onUndone} />
+			)}
+			{!file && previousFailed && (
+				<LoadError message={t.import.history.loadError} className="mt-6" />
 			)}
 		</div>
 	);

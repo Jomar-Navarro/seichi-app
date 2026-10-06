@@ -9,6 +9,8 @@ import { advanceDate } from "@/lib/recurring";
 import { budgetStatus } from "@/lib/budget";
 import { disponibileDaTotali } from "@/lib/totals";
 import { isStorableAmount } from "@/lib/amount";
+import { genericError } from "@/lib/errors";
+import type { Dictionary } from "@/lib/i18n/dictionaries/it";
 import type { ClientClock } from "@/lib/dates";
 import type {
 	BudgetAt,
@@ -62,7 +64,13 @@ export async function setBudget(input: {
 		p_today: input.clock.today,
 	});
 
-	if (error) return { error: error.message };
+	/*
+	 * ⚠️ Anche i rifiuti di `set_budget()` passano dalla frase generica: le sue
+	 * `raise exception` sono in italiano e parlano allo sviluppatore
+	 * ("categoria inesistente o non di tipo spesa"), e i controlli che le fanno
+	 * scattare li applica già il form. Restano nel log (#124).
+	 */
+	if (error) return { error: genericError("budget: set_budget", error, t) };
 	revalidatePath("/", "layout");
 	return { success: true };
 }
@@ -71,9 +79,10 @@ export async function setBudget(input: {
 async function readBudgetsAt(
 	supabase: SupabaseServerClient,
 	clock: ClientClock,
+	t: Dictionary,
 ): Promise<{ data: BudgetAt[] } | { error: string }> {
 	const { data, error } = await supabase.rpc("budgets_at", { ref_date: clock.today });
-	if (error) return { error: error.message };
+	if (error) return { error: genericError("budget: budgets_at", error, t) };
 	return { data: (data ?? []) as BudgetAt[] };
 }
 
@@ -89,7 +98,7 @@ export async function getBudgetForCategory(
 	const { supabase, user, t } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
-	const rows = await readBudgetsAt(supabase, clock);
+	const rows = await readBudgetsAt(supabase, clock, t);
 	if ("error" in rows) return rows;
 
 	const row = rows.data.find((b) => b.category_id === categoryId);
@@ -108,7 +117,7 @@ export async function getGlobalBudget(
 	const { supabase, user, t } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
-	const rows = await readBudgetsAt(supabase, clock);
+	const rows = await readBudgetsAt(supabase, clock, t);
 	if ("error" in rows) return rows;
 
 	const row = rows.data.find((b) => b.category_id === null);
@@ -126,13 +135,13 @@ export async function getBudgetOverview(
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	const [rows, fixed] = await Promise.all([
-		readBudgetsAt(supabase, clock),
+		readBudgetsAt(supabase, clock, t),
 		// ⚠️ `readFixedOutflows`, non `getFixedOutflows`: quella è una server
 		// action a sé e aprirebbe un secondo client, rifacendo il proprio
 		// controllo di autenticazione e il proprio caricamento del dizionario per
 		// query che da qui partono già nello stesso `Promise.all`. È la forma
 		// annidata rimossa da `getNotifications()`, che qui era sopravvissuta.
-		readFixedOutflows(supabase, user.id, clock),
+		readFixedOutflows(supabase, user.id, clock, t),
 	]);
 	if ("error" in rows) return rows;
 	if ("error" in fixed) return fixed;
@@ -180,8 +189,8 @@ export async function getBudgetOverview(
 				.eq("user_id", user.id),
 		]);
 
-	if (txnsError) return { error: txnsError };
-	if (catsError) return { error: catsError.message };
+	if (txnsError) return { error: genericError("budget: spese del periodo", txnsError, t) };
+	if (catsError) return { error: genericError("budget: categorie", catsError, t) };
 
 	const catById = new Map(
 		(cats ?? []).map((c) => [c.id, c as Pick<Category, "id" | "name" | "icon" | "color">]),
@@ -287,10 +296,10 @@ export async function getAvailableThisMonth(clock: ClientClock): Promise<
 
 	const [totals, fixed] = await Promise.all([
 		supabase.rpc("dashboard_totals", { p_bounds: bounds, p_account_id: null }),
-		readFixedOutflows(supabase, user.id, clock),
+		readFixedOutflows(supabase, user.id, clock, t),
 	]);
 
-	if (totals.error) return { error: totals.error.message };
+	if (totals.error) return { error: genericError("budget: disponibile", totals.error, t) };
 	if ("error" in fixed) return fixed;
 
 	type TotalRow = { bucket_index: number | null; type: string; total: number | string };
@@ -346,6 +355,7 @@ async function readFixedOutflows(
 	supabase: SupabaseServerClient,
 	userId: string,
 	clock: ClientClock,
+	t: Dictionary,
 ): Promise<{ data: number } | { error: string }> {
 	const { start, end } = monthBoundsOf(clock.today);
 
@@ -366,8 +376,8 @@ async function readFixedOutflows(
 				.eq("active", true),
 		]);
 
-	if (txnsError) return { error: txnsError.message };
-	if (rulesError) return { error: rulesError.message };
+	if (txnsError) return { error: genericError("budget: uscite fisse, movimenti", txnsError, t) };
+	if (rulesError) return { error: genericError("budget: uscite fisse, regole", rulesError, t) };
 
 	const alreadyCharged = (txns ?? []).reduce((acc, t) => acc + t.amount, 0);
 

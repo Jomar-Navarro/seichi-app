@@ -1,6 +1,7 @@
 import { getRecurringRules } from "../../action";
 import RecurringManager from "@/components/features/RecurringManager";
 import PageHeader from "@/components/UI/PageHeader";
+import LoadError from "@/components/UI/LoadError";
 import JobHealthNotice from "@/components/features/JobHealthNotice";
 import { getI18n } from "@/lib/i18n/server";
 import { getDailyJobHealth } from "@/lib/jobs";
@@ -15,7 +16,6 @@ export default async function RicorrentiPage() {
 		getRecurringRules(),
 		getDailyJobHealth(),
 	]);
-	const rules = "error" in result ? [] : ((result.data as RecurringRule[]) ?? []);
 	const { t } = await getI18n();
 
 	return (
@@ -26,7 +26,12 @@ export default async function RicorrentiPage() {
 
 			{jobHealth?.stale && <JobHealthNotice health={jobHealth} />}
 
-			<RecurringManager rules={rules} />
+			{/* Come per le categorie (#124): zero regole è un invito a crearne. */}
+			{"error" in result ? (
+				<LoadError message={t.recurring.loadError} />
+			) : (
+				<RecurringManager rules={(result.data as RecurringRule[]) ?? []} />
+			)}
 		</div>
 	);
 }

@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { isCurrency, normalizeLocale } from "@/lib/i18n/config";
 import { dictionaryFor, setLocaleCookie } from "@/lib/i18n/server";
 import type { Dictionary } from "@/lib/i18n/dictionaries/it";
+import { genericError } from "@/lib/errors";
 
 export async function savePreferences(currency: string, language: string) {
 	const { supabase, user, t } = await requireUser();
@@ -48,14 +49,14 @@ export async function savePreferences(currency: string, language: string) {
 	 * trappola della Fase 19 ("scrivere il cookie non basta a cambiare la lingua
 	 * resa"), in versione anticipata: qui il cookie non è nemmeno ancora scritto.
 	 */
-	const account = await ensureFirstAccount(supabase, user.id, dictionaryFor(locale));
+	const account = await ensureFirstAccount(supabase, user.id, dictionaryFor(locale), t);
 	if ("error" in account) return account;
 
 	const { error } = await supabase
 		.from("profiles")
 		.upsert({ id: user.id, currency, language: locale });
 
-	if (error) return { error: error.message };
+	if (error) return { error: genericError("onboarding: preferenze", error, t) };
 
 	// Il cookie è ciò che il rendering legge: senza questa riga la scelta finirebbe
 	// nel database e la pagina successiva dell'onboarding resterebbe in italiano.
@@ -211,7 +212,7 @@ export async function saveCategories(selected: string[]) {
 		}
 	}
 
-	return ensureFirstAccount(supabase, user.id, t);
+	return ensureFirstAccount(supabase, user.id, t, t);
 }
 
 /**
@@ -237,13 +238,19 @@ async function ensureFirstAccount(
 	supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
 	userId: string,
 	dict: Dictionary,
+	/**
+	 * La lingua dei messaggi d'errore, che non è sempre quella del nome: in
+	 * `savePreferences` il nome segue la lingua appena scelta, mentre l'errore
+	 * compare sulla pagina ancora resa in quella di prima.
+	 */
+	t: Dictionary,
 ) {
 	const { count, error: countError } = await supabase
 		.from("accounts")
 		.select("id", { count: "exact", head: true })
 		.eq("user_id", userId);
 
-	if (countError) return { error: countError.message };
+	if (countError) return { error: genericError("onboarding: conteggio conti", countError, t) };
 	if ((count ?? 0) > 0) return { success: true };
 
 	const { error } = await supabase.from("accounts").insert({
@@ -252,5 +259,5 @@ async function ensureFirstAccount(
 		type: "corrente",
 	});
 
-	return error ? { error: error.message } : { success: true };
+	return error ? { error: genericError("onboarding: primo conto", error, t) } : { success: true };
 }

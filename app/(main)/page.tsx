@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ChevronRight } from "lucide-react";
+import LoadError from "@/components/UI/LoadError";
 import HomeHero from "@/components/features/HomeHero";
 import CoachBubble from "@/components/features/CoachBubble";
 import AccountSelector from "@/components/features/AccountSelector";
@@ -107,11 +108,11 @@ async function DashboardContent({
 	 */
 	if ("error" in result) {
 		console.error("[home] getDashboardTotals:", result.error);
-		return <p>{t.home.error}</p>;
+		return <LoadError message={t.common.pageLoadFailed} className="min-h-dvh justify-center" />;
 	}
 	if ("error" in transaction) {
 		console.error("[home] getTransactions:", transaction.error);
-		return <p>{t.home.error}</p>;
+		return <LoadError message={t.common.pageLoadFailed} className="min-h-dvh justify-center" />;
 	}
 
 	// ⚠️ I conti degradano, non bloccano: un errore qui non deve far sparire la

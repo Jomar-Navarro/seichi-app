@@ -7,6 +7,7 @@ import { getSelectedAccount } from "@/lib/accounts-server";
 import { getI18n } from "@/lib/i18n/server";
 import { isAnalyticsPeriod, periodoLabel } from "@/lib/analytics";
 import { DISPLAY_CURRENCY, fill, formatDate, formatMoney } from "@/lib/i18n/format";
+import LoadError from "@/components/UI/LoadError";
 import MonthlyLineChart from "@/components/features/MonthlyLineChart";
 import SpendingPieChart from "@/components/features/SpendingPieChart";
 import PrintButton from "@/components/features/PrintButton";
@@ -78,7 +79,7 @@ export default async function ReportPage({
 	]);
 	const { locale, t } = await getI18n();
 
-	if ("error" in analytics) return <p className="p-5">{t.home.error}</p>;
+	if ("error" in analytics) return <LoadError message={t.common.pageLoadFailed} className="min-h-dvh justify-center" />;
 
 	/*
 	 * ⚠️⚠️ Qui NON si degrada come su `/analisi`, ed è la differenza fra una
@@ -95,7 +96,7 @@ export default async function ReportPage({
 	 */
 	if ("error" in accountsResult) {
 		console.error("[report] getAccountOptions:", accountsResult.error);
-		if (accountId) return <p className="p-5">{t.home.error}</p>;
+		if (accountId) return <LoadError message={t.common.pageLoadFailed} className="min-h-dvh justify-center" />;
 	}
 	const accounts = "error" in accountsResult ? [] : accountsResult.data;
 

@@ -52,10 +52,13 @@ export default async function ImpostazioniPage() {
 	// Il filtro esplicito è ridondante con la policy RLS, ed è voluto: se un
 	// domani quella policy venisse allentata, il conteggio non deve diventare
 	// globale senza che nessuno se ne accorga.
-	const { count: categoriesCount } = await supabase
+	const { count: categoriesCount, error: categoriesError } = await supabase
 		.from("categories")
 		.select("id", { count: "exact", head: true })
 		.eq("user_id", account.userId);
+	// ⚠️ Su un errore la riga non dice "0" (#124): uno zero è un'affermazione —
+	// "non hai categorie" — e su una lettura fallita è falsa.
+	if (categoriesError) console.error("[impostazioni] conteggio categorie:", categoriesError.message);
 
 	// Fase 26a — il PIN vero non lascia mai questo dispositivo (localStorage),
 	// ma il flag "un PIN è configurato" è nel cookie apposta per questo: farlo
@@ -176,7 +179,7 @@ export default async function ImpostazioniPage() {
 						<SettingsRow
 							icon={<LayoutGrid size={17} className="text-secondary" />}
 							label={t.settings.manageCategories}
-							value={categoriesCount ?? 0}
+							value={categoriesError ? t.settings.countUnavailable : (categoriesCount ?? 0)}
 							href="/impostazioni/categorie"
 							chevron
 						/>

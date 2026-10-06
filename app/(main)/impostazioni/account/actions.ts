@@ -2,9 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { createClient, type SupabaseServerClient } from "@/lib/supabase/server";
+import { authErrorMessage, genericError } from "@/lib/errors";
 import { PASSWORD_MIN_LENGTH, validateNewPassword } from "@/lib/password";
 import { getDictionary } from "@/lib/i18n/server";
+import type { Dictionary } from "@/lib/i18n/dictionaries/it";
 import { fill } from "@/lib/i18n/format";
 import { SITE_URL } from "@/lib/site-url";
 import { RECEIPT_BUCKET } from "@/lib/attachments";
@@ -41,14 +44,28 @@ export type ActionResult = { error: string } | { success: true };
  * confermato le claims restano indietro fino alla scadenza del token, e
  * `deleteAccount()` confronta proprio l'indirizzo. Con i due nomi uguali, un
  * domani basterebbe un import distratto per riaprire il difetto.
+ *
+ * ⚠️ `denied` è la frase da restituire quando `user` manca, e NON è sempre
+ * "non autenticato" (#124). `getUser()` è una chiamata di rete, e un guasto di
+ * GoTrue lasciava `user` a `null` esattamente come una sessione scaduta: chi
+ * cambiava la password con un servizio lento leggeva "Non autenticato" da
+ * loggato. È il difetto già chiuso in `getSessionUser()` e nel proxy — "non lo
+ * so" non è "non sei autenticato".
  */
 async function requireLiveUser() {
 	const supabase = await createClient();
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
-	const t = await getDictionary();
-	return { supabase, user, t };
+	const [
+		{
+			data: { user },
+			error,
+		},
+		t,
+	] = await Promise.all([supabase.auth.getUser(), getDictionary()]);
+	const denied =
+		!user && error && isAuthRetryableFetchError(error)
+			? authErrorMessage("account", error, t)
+			: t.errors.notAuthenticated;
+	return { supabase, user, t, denied };
 }
 
 /**
@@ -59,13 +76,22 @@ async function requireLiveUser() {
  *
  * signInWithPassword rinnova la sessione dello stesso utente: i cookie vengono
  * riscritti, l'utente non se ne accorge.
+ *
+ * ⚠️ `wrongPassword` è la frase per le credenziali sbagliate, e la sceglie il
+ * chiamante ("la password attuale" in un cambio password). Fino alla #124 ogni
+ * errore diventava quella frase: un servizio che non risponde o troppi
+ * tentativi dicevano "password non corretta" a chi l'aveva digitata giusta.
  */
-async function reauthenticate(email: string, password: string): Promise<string | null> {
+async function reauthenticate(
+	email: string,
+	password: string,
+	t: Dictionary,
+	wrongPassword: string,
+): Promise<string | null> {
 	const supabase = await createClient();
 	const { error } = await supabase.auth.signInWithPassword({ email, password });
 	if (!error) return null;
-	const t = await getDictionary();
-	return t.errors.wrongPassword;
+	return authErrorMessage("riautenticazione", error, t, { wrongCredentials: wrongPassword });
 }
 
 /* ------------------------------------------------------------------ */
@@ -73,8 +99,8 @@ async function reauthenticate(email: string, password: string): Promise<string |
 /* ------------------------------------------------------------------ */
 
 export async function updateFullName(fullName: string): Promise<ActionResult> {
-	const { supabase, user, t } = await requireLiveUser();
-	if (!user) return { error: t.errors.notAuthenticated };
+	const { supabase, user, t, denied } = await requireLiveUser();
+	if (!user) return { error: denied };
 
 	const name = fullName.trim().replace(/\s+/g, " ");
 	if (name.length > 80) return { error: t.errors.nameTooLong };
@@ -87,7 +113,7 @@ export async function updateFullName(fullName: string): Promise<ActionResult> {
 		.from("profiles")
 		.upsert({ id: user.id, full_name: name || null });
 
-	if (error) return { error: error.message };
+	if (error) return { error: genericError("account: nome", error, t) };
 
 	revalidatePath("/", "layout");
 	return { success: true };
@@ -140,8 +166,8 @@ function purgeAvatarFiles(
 }
 
 export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
-	const { supabase, user, t } = await requireLiveUser();
-	if (!user) return { error: t.errors.notAuthenticated };
+	const { supabase, user, t, denied } = await requireLiveUser();
+	if (!user) return { error: denied };
 
 	const file = formData.get("avatar");
 	if (!(file instanceof File) || file.size === 0) return { error: t.errors.noFileSelected };
@@ -171,7 +197,7 @@ export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
 		.from(AVATAR_BUCKET)
 		.upload(path, file, { contentType: file.type, upsert: false });
 
-	if (uploadError) return { error: uploadError.message };
+	if (uploadError) return { error: genericError("account: caricamento avatar", uploadError, t) };
 
 	const {
 		data: { publicUrl },
@@ -185,7 +211,7 @@ export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
 		// Il puntatore non è stato salvato: rimuoviamo il file appena caricato e
 		// lasciamo intatto quello vecchio, che è ancora quello referenziato.
 		await supabase.storage.from(AVATAR_BUCKET).remove([path]);
-		return { error: error.message };
+		return { error: genericError("account: puntatore avatar", error, t) };
 	}
 
 	await purgeAvatarFiles(supabase, user.id, path);
@@ -195,8 +221,8 @@ export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
 }
 
 export async function removeAvatar(): Promise<ActionResult> {
-	const { supabase, user, t } = await requireLiveUser();
-	if (!user) return { error: t.errors.notAuthenticated };
+	const { supabase, user, t, denied } = await requireLiveUser();
+	if (!user) return { error: denied };
 
 	// Stesso principio di uploadAvatar, al contrario: prima si toglie il
 	// puntatore, poi si cancellano i file. Invertendo l'ordine, un update fallito
@@ -205,7 +231,7 @@ export async function removeAvatar(): Promise<ActionResult> {
 		.from("profiles")
 		.upsert({ id: user.id, avatar_url: null });
 
-	if (error) return { error: error.message };
+	if (error) return { error: genericError("account: rimozione avatar", error, t) };
 
 	await purgeAvatarFiles(supabase, user.id);
 
@@ -219,11 +245,11 @@ export async function removeAvatar(): Promise<ActionResult> {
 
 /** Passo 1: conferma dell'identità prima di mostrare il campo nuova email. */
 export async function verifyCurrentPassword(password: string): Promise<ActionResult> {
-	const { user, t } = await requireLiveUser();
-	if (!user?.email) return { error: t.errors.notAuthenticated };
+	const { user, t, denied } = await requireLiveUser();
+	if (!user?.email) return { error: denied };
 	if (!password) return { error: t.errors.enterPassword };
 
-	const error = await reauthenticate(user.email, password);
+	const error = await reauthenticate(user.email, password, t, t.errors.wrongPassword);
 	return error ? { error } : { success: true };
 }
 
@@ -232,8 +258,8 @@ export async function requestEmailChange(
 	newEmail: string,
 	password: string,
 ): Promise<ActionResult> {
-	const { supabase, user, t } = await requireLiveUser();
-	if (!user?.email) return { error: t.errors.notAuthenticated };
+	const { supabase, user, t, denied } = await requireLiveUser();
+	if (!user?.email) return { error: denied };
 
 	const email = newEmail.trim().toLowerCase();
 	if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: t.errors.invalidEmail };
@@ -242,7 +268,7 @@ export async function requestEmailChange(
 	// La riautenticazione va ripetuta: il passo 1 e il passo 2 sono due richieste
 	// distinte, e fidarsi di uno stato tenuto sul client renderebbe il controllo
 	// aggirabile chiamando direttamente questa action.
-	const authError = await reauthenticate(user.email, password);
+	const authError = await reauthenticate(user.email, password, t, t.errors.wrongPassword);
 	if (authError) return { error: authError };
 
 	// NON /callback: il cambio email non è un flusso PKCE (la sessione esiste
@@ -254,7 +280,7 @@ export async function requestEmailChange(
 		{ emailRedirectTo: `${SITE_URL}/email-confermata` },
 	);
 
-	if (error) return { error: error.message };
+	if (error) return { error: authErrorMessage("account: cambio email", error, t) };
 	return { success: true };
 }
 
@@ -267,8 +293,8 @@ export async function changePassword(
 	newPassword: string,
 	confirmPassword: string,
 ): Promise<ActionResult> {
-	const { supabase, user, t } = await requireLiveUser();
-	if (!user?.email) return { error: t.errors.notAuthenticated };
+	const { supabase, user, t, denied } = await requireLiveUser();
+	if (!user?.email) return { error: denied };
 
 	// `validateNewPassword` restituisce un codice, non una frase: la frase la
 	// compone chi conosce la lingua dell'utente.
@@ -286,11 +312,11 @@ export async function changePassword(
 		return { error: t.errors.samePassword };
 	}
 
-	const authError = await reauthenticate(user.email, currentPassword);
-	if (authError) return { error: t.errors.wrongCurrentPassword };
+	const authError = await reauthenticate(user.email, currentPassword, t, t.errors.wrongCurrentPassword);
+	if (authError) return { error: authError };
 
 	const { error } = await supabase.auth.updateUser({ password: newPassword });
-	if (error) return { error: error.message };
+	if (error) return { error: authErrorMessage("account: cambio password", error, t) };
 
 	return { success: true };
 }
@@ -300,8 +326,8 @@ export async function changePassword(
 /* ------------------------------------------------------------------ */
 
 export async function deleteAccount(confirmEmail: string, password: string) {
-	const { supabase, user, t } = await requireLiveUser();
-	if (!user?.email) return { error: t.errors.notAuthenticated };
+	const { supabase, user, t, denied } = await requireLiveUser();
+	if (!user?.email) return { error: denied };
 
 	if (confirmEmail.trim().toLowerCase() !== user.email.toLowerCase()) {
 		return { error: t.errors.emailMismatch };
@@ -311,8 +337,8 @@ export async function deleteAccount(confirmEmail: string, password: string) {
 	// è la sola digitazione dell'indirizzo.
 	const hasPasswordIdentity = user.identities?.some((i) => i.provider === "email") ?? false;
 	if (hasPasswordIdentity) {
-		const authError = await reauthenticate(user.email, password);
-		if (authError) return { error: t.errors.wrongPassword };
+		const authError = await reauthenticate(user.email, password, t, t.errors.wrongPassword);
+		if (authError) return { error: authError };
 	}
 
 	// Prova a vuoto prima di distruggere qualsiasi cosa: dry_run non cancella
@@ -320,7 +346,7 @@ export async function deleteAccount(confirmEmail: string, password: string) {
 	// modo per accorgersi che la migrazione non è mai stata eseguita PRIMA di
 	// cancellare l'avatar, che invece è irreversibile.
 	const { error: probeError } = await supabase.rpc("delete_current_user", { dry_run: true });
-	if (probeError) return { error: probeError.message };
+	if (probeError) return { error: genericError("account: eliminazione, prova a vuoto", probeError, t) };
 
 	// I file dell'avatar vanno rimossi QUI, con l'API storage: Supabase vieta il
 	// DELETE diretto su storage.objects, e dopo la RPC la sessione non esiste più
@@ -370,7 +396,7 @@ export async function deleteAccount(confirmEmail: string, password: string) {
 		// restare o l'account sopravvissuto mostrerebbe un avatar rotto ovunque.
 		await supabase.from("profiles").upsert({ id: user.id, avatar_url: null });
 		revalidatePath("/", "layout");
-		return { error: error.message };
+		return { error: genericError("account: eliminazione", error, t) };
 	}
 
 	await supabase.auth.signOut();

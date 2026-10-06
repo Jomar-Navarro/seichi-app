@@ -9,6 +9,7 @@ import { getAttachmentCounts } from "@/app/(main)/attachment-actions";
 import FilterBar from "@/components/features/Filterbar";
 import TransactionList from "@/components/features/TransactionList";
 import BudgetCards from "@/components/features/BudgetCards";
+import LoadError from "@/components/UI/LoadError";
 import { useUIStore } from "@/store/useUIStore";
 import { useViewedAccount } from "@/components/features/ViewedAccount";
 import { clientClock } from "@/lib/dates";
@@ -33,6 +34,15 @@ export default function MovimentiPage() {
 	const [transactions, setTransactions] = useState<Transaction[]>([]);
 	const [budgets, setBudgets] = useState<BudgetOverview | null>(null);
 	const [loading, setLoading] = useState(true);
+	/*
+	 * ⚠️ Una lettura fallita NON è una lista vuota (#124). Prima l'errore
+	 * azzerava le righe, e la pagina diceva "nessun movimento" — o "nessun
+	 * movimento con questi filtri" — a chi ne aveva centinaia. `page` = la
+	 * prima pagina non è arrivata (al posto della lista c'è `LoadError`);
+	 * `more` = "carica altri" non è arrivato (le righe già viste restano, e il
+	 * bottone è il "riprova").
+	 */
+	const [loadError, setLoadError] = useState<"page" | "more" | null>(null);
 	const transactionSavedAt = useUIStore((s) => s.transactionSavedAt);
 	/*
 	 * #112 — il filtro conto è anche il conto proposto a un nuovo movimento.
@@ -90,6 +100,7 @@ export default function MovimentiPage() {
 		async (offset: number, append: boolean) => {
 			const myRequest = ++requestId.current;
 			setLoading(true);
+			setLoadError(null);
 			try {
 				const result = await getTransactions({
 					tipo: tipo || undefined,
@@ -105,8 +116,15 @@ export default function MovimentiPage() {
 				if (myRequest !== requestId.current) return; // superata da una richiesta più recente
 
 				if ("error" in result) {
-					if (!append) setTransactions([]);
-					setHasMore(false);
+					// `hasMore` resta com'era SOLO dopo un "carica altri" fallito: là il
+					// bottone È il comando per riprovare. Su una prima pagina fallita si
+					// azzera, o la riga "la ricerca ha guardato N movimenti" del filtro
+					// precedente resterebbe sotto l'errore (review della #124).
+					if (!append) {
+						setTransactions([]);
+						setHasMore(false);
+					}
+					setLoadError(append ? "more" : "page");
 					return;
 				}
 				const rows = (result.data as Transaction[]) ?? [];
@@ -126,12 +144,32 @@ export default function MovimentiPage() {
 				 * graffetta. Bloccare la lista per un segnaposto sarebbe sproporzionato.
 				 */
 				if (rows.length > 0) {
-					const counts = await getAttachmentCounts(rows.map((r) => r.id));
-					if (myRequest !== requestId.current) return;
-					setAttachmentCounts((prev) => (append ? { ...prev, ...counts } : counts));
+					/*
+					 * ⚠️ Un `try` SUO (#124): `getAttachmentCounts` degrada a `{}` su un
+					 * errore di query, ma un'azione che SOLLEVA — un 500, un deploy che
+					 * cambia l'id dell'azione — usciva da qui come errore non gestito.
+					 * Il degrado resta lo stesso, una graffetta che manca; e le righe,
+					 * arrivate, non devono diventare un "non riesco a caricarle".
+					 */
+					try {
+						const counts = await getAttachmentCounts(rows.map((r) => r.id));
+						if (myRequest !== requestId.current) return;
+						setAttachmentCounts((prev) => (append ? { ...prev, ...counts } : counts));
+					} catch (e) {
+						console.error("[movimenti] conteggio ricevute:", e);
+					}
 				} else if (!append) {
 					setAttachmentCounts({});
 				}
+			} catch (e) {
+				// L'azione ha SOLLEVATO invece di restituire `{ error }`: stesso ramo.
+				if (myRequest !== requestId.current) return;
+				console.error("[movimenti] lettura:", e);
+				if (!append) {
+					setTransactions([]);
+					setHasMore(false);
+				}
+				setLoadError(append ? "more" : "page");
 			} finally {
 				if (myRequest === requestId.current) setLoading(false);
 			}
@@ -176,13 +214,17 @@ export default function MovimentiPage() {
 	 */
 	useEffect(() => {
 		let cancelled = false;
-		getAccountOptions().then((res) => {
-			if (cancelled || !("data" in res)) return;
-			// ⚠️ Si tengono TUTTI, archiviati compresi: il filtro deve poter
-			// nominare il conto su cui è puntato anche se nel frattempo è stato
-			// archiviato. La selezione dei *proponibili* avviene in FilterBar.
-			setAccounts(res.data);
-		});
+		getAccountOptions()
+			.then((res) => {
+				if (cancelled || !("data" in res)) return;
+				// ⚠️ Si tengono TUTTI, archiviati compresi: il filtro deve poter
+				// nominare il conto su cui è puntato anche se nel frattempo è stato
+				// archiviato. La selezione dei *proponibili* avviene in FilterBar.
+				setAccounts(res.data);
+			})
+			// Un filtro che non si popola resta "Tutti i conti" — ma un rifiuto senza
+			// questo ramo sarebbe un errore non gestito (#124).
+			.catch((e) => console.error("[movimenti] conti del filtro:", e));
 		return () => { cancelled = true; };
 		// ⚠️ Dipende da `transactionSavedAt`: senza, un conto creato altrove non
 		// compariva nel filtro fino a un ricaricamento completo della pagina.
@@ -198,10 +240,12 @@ export default function MovimentiPage() {
 	 */
 	useEffect(() => {
 		let cancelled = false;
-		getCategories().then((res) => {
-			if (cancelled || !("data" in res)) return;
-			setCategories(res.data);
-		});
+		getCategories()
+			.then((res) => {
+				if (cancelled || !("data" in res)) return;
+				setCategories(res.data);
+			})
+			.catch((e) => console.error("[movimenti] categorie del filtro:", e));
 		return () => { cancelled = true; };
 	}, [transactionSavedAt]);
 
@@ -219,10 +263,12 @@ export default function MovimentiPage() {
 	// diventare rossa la barra subito.
 	useEffect(() => {
 		let cancelled = false;
-		getBudgetOverview(clientClock()).then((res) => {
-			if (cancelled) return;
-			setBudgets("data" in res ? res.data : null);
-		});
+		getBudgetOverview(clientClock())
+			.then((res) => {
+				if (cancelled) return;
+				setBudgets("data" in res ? res.data : null);
+			})
+			.catch((e) => console.error("[movimenti] budget:", e));
 		return () => { cancelled = true; };
 	}, [transactionSavedAt]);
 
@@ -307,23 +353,27 @@ export default function MovimentiPage() {
 					spiegare card che non c'erano. Vedi il commento là.
 				*/}
 				{budgets && <BudgetCards overview={budgets} accountFiltered={Boolean(conto)} />}
-				<TransactionList
-					transactions={filtered}
-					loading={loading}
-					filtered={hasFilters}
-					attachmentCounts={attachmentCounts}
-					accounts={accounts}
-					/*
-						⚠️ `conto || null` e non `conto`: la stringa vuota significa
-						"tutti i conti", e passata così com'è farebbe credere ad
-						`amountSign()` che un conto sia selezionato. Nessun
-						`to_account_id` è mai uguale a "", quindi il difetto non
-						sarebbe esploso — avrebbe solo dato il segno sbagliato ai
-						trasferimenti, che è precisamente il tipo di guasto che non si
-						nota finché qualcuno non somma a mano.
-					*/
-					viewedAccountId={conto || null}
-				/>
+				{loadError === "page" ? (
+					<LoadError message={t.transactions.loadError} onRetry={() => loadPage(0, false)} />
+				) : (
+					<TransactionList
+						transactions={filtered}
+						loading={loading}
+						filtered={hasFilters}
+						attachmentCounts={attachmentCounts}
+						accounts={accounts}
+						/*
+							⚠️ `conto || null` e non `conto`: la stringa vuota significa
+							"tutti i conti", e passata così com'è farebbe credere ad
+							`amountSign()` che un conto sia selezionato. Nessun
+							`to_account_id` è mai uguale a "", quindi il difetto non
+							sarebbe esploso — avrebbe solo dato il segno sbagliato ai
+							trasferimenti, che è precisamente il tipo di guasto che non si
+							nota finché qualcuno non somma a mano.
+						*/
+						viewedAccountId={conto || null}
+					/>
+				)}
 
 				{/*
 					⚠️ Il pulsante compare solo se c'è davvero un'altra pagina, e
@@ -353,7 +403,13 @@ export default function MovimentiPage() {
 					</p>
 				)}
 
-				{hasMore && !searching && (
+				{loadError === "more" && (
+					<p role="alert" className="mt-4 px-1 text-[11.5px] leading-snug text-aka-ink">
+						{t.transactions.loadError}
+					</p>
+				)}
+
+				{hasMore && !searching && loadError !== "page" && (
 					<button
 						onClick={loadMore}
 						disabled={loading}

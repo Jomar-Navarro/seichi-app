@@ -7,6 +7,7 @@ import { getDictionary, syncLocaleFromProfile } from "@/lib/i18n/server";
 import { fill } from "@/lib/i18n/format";
 import { PASSWORD_MIN_LENGTH } from "@/lib/password";
 import { SITE_URL } from "@/lib/site-url";
+import { authErrorMessage } from "@/lib/errors";
 
 export async function login(_prevState: { error: string }, formData: FormData) {
 	const supabase = await createClient();
@@ -19,8 +20,18 @@ export async function login(_prevState: { error: string }, formData: FormData) {
 	const { data: { user }, error } = await supabase.auth.signInWithPassword(data);
 
 	if (error) {
+		/*
+		 * ⚠️ Non "credenziali errate" per ogni errore (#124): un servizio che non
+		 * risponde, troppi tentativi e un'email non ancora confermata mandavano
+		 * tutti a ridigitare una password giusta. Le credenziali sbagliate restano
+		 * l'unico caso che lo dice.
+		 */
 		const t = await getDictionary();
-		return { error: t.auth.errors.wrongCredentials };
+		return {
+			error: authErrorMessage("login", error, t, {
+				wrongCredentials: t.auth.errors.wrongCredentials,
+			}),
+		};
 	}
 
 	if (user) {
@@ -111,7 +122,14 @@ export async function signup(
 	});
 
 	if (error) {
-		return { error: error.message, emailSent: false, email: "" };
+		// Il testo di GoTrue è in inglese e non si mostra (#124): vedi `authErrorMessage`.
+		return {
+			error: authErrorMessage("registrazione", error, t, {
+				emailTaken: t.auth.errors.alreadyRegistered,
+			}),
+			emailSent: false,
+			email: "",
+		};
 	}
 
 	// Con la conferma email DISATTIVATA su Supabase, signUp restituisce già una

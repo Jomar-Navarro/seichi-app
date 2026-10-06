@@ -53,6 +53,8 @@ export const it = {
 		loading: "Caricamento…",
 		retry: "Riprova",
 		genericError: "Si è verificato un errore. Riprova.",
+		/** Una pagina che non si è potuta costruire: `app/(main)/error.tsx` (#124). */
+		pageLoadFailed: "Non è stato possibile caricare la pagina.",
 		unknownError: "Errore sconosciuto",
 		required: "Campo obbligatorio",
 		/** Segnaposto di un Select non ancora scelto: "Seleziona categoria". */
@@ -312,6 +314,15 @@ export const it = {
 		wrongCurrentPassword: "La password attuale non è corretta",
 		wrongPassword: "Password non corretta",
 		emailMismatch: "L'email digitata non corrisponde al tuo account",
+		/**
+		 * ⚠️ Un guasto di GoTrue (rete, 5xx) NON è una password sbagliata né una
+		 * sessione scaduta (#124): "riprova" lo risolve, ridigitare la password no.
+		 * Vedi `authErrorMessage()` in `lib/errors.ts`.
+		 */
+		authUnavailable: "Non riesco a contattare il servizio di autenticazione. Riprova fra qualche istante.",
+		tooManyAttempts: "Troppi tentativi. Aspetta qualche minuto e riprova.",
+		weakPassword: "Questa password non è abbastanza sicura: scegline un'altra.",
+		emailTaken: "Questo indirizzo è già usato da un altro account.",
 		avatarRemoveFailed: "Non è stato possibile rimuovere la foto profilo. Riprova.",
 		/**
 		 * ⚠️ Frase PROPRIA e non `avatarRemoveFailed`: due cause diverse non possono
@@ -487,6 +498,14 @@ export const it = {
 
 		errors: {
 			wrongCredentials: "Credenziali di login errate",
+			/**
+			 * Il caso normale il giorno in cui si riattiva *Confirm email* (#40):
+			 * prima finiva in "credenziali errate", e mandava a ridigitare una
+			 * password giusta (#124).
+			 */
+			emailNotConfirmed: "Devi prima confermare l'indirizzo email: controlla la posta.",
+			alreadyRegistered: "Esiste già un account con questa email. Prova ad accedere.",
+			signupDisabled: "Le registrazioni non sono aperte al momento.",
 			acceptTerms: "Devi accettare i termini di servizio",
 			passwordTooShort: "La password deve essere di almeno {n} caratteri",
 			passwordMismatch: "Le password non corrispondono",
@@ -624,7 +643,6 @@ export const it = {
 
 	home: {
 		greeting: "Bentornato",
-		error: "Errore",
 		/**
 		 * ⚠️ Non è più "Saldo totale" (Fase 20a), e non è una rinomina: la cifra
 		 * grande è un'altra. Era entrate meno tutto il resto su TUTTA la storia,
@@ -807,6 +825,8 @@ export const it = {
 
 	transactions: {
 		title: "Movimenti",
+		/** Una lettura fallita, detta come tale e non come una lista vuota (#124): vedi `LoadError`. */
+		loadError: "Non è stato possibile caricare i movimenti.",
 		modalNew: "Nuovo movimento",
 		modalEdit: "Modifica movimento",
 		modalTypeQuestion: "Che tipo di movimento vuoi registrare?",
@@ -986,6 +1006,8 @@ export const it = {
 
 	investments: {
 		title: "Investimenti",
+		/** Una lettura fallita, detta come tale e non come una lista vuota (#124): vedi `LoadError`. */
+		loadError: "Non è stato possibile caricare gli investimenti.",
 		emptyTitle: "Nessun investimento ancora",
 		/** ⚠️ Cita il nome del tipo: arriva da `t.transactionTypes.investimento.label`. */
 		emptyDescription:
@@ -1224,13 +1246,17 @@ export const it = {
 		fixedOutflows: "Uscite fisse previste",
 		fixedOutflowsHint: "Abbonamenti di questo mese, fuori dal limite",
 		amountMustBePositive: "Inserisci un importo maggiore di zero",
-		readFailed: "Impossibile leggere il budget: {reason}",
+		/**
+		 * ⚠️ Senza `{reason}` dalla #124: il motivo era il testo grezzo di Postgres
+		 * o di un'eccezione, in inglese. Ora resta nel log del server.
+		 */
+		readFailed: "Non è stato possibile leggere il budget. Riprova.",
 		/**
 		 * ⚠️ Una SCRITTURA fallita deve dirlo quanto una lettura. Senza, il tocco
 		 * sul suggerimento non faceva niente e non spiegava perché — e un gesto
 		 * muto si legge come «il comando non esiste», non come «è rotto».
 		 */
-		saveFailed: "Impossibile salvare il budget: {reason}",
+		saveFailed: "Non è stato possibile salvare il budget. Riprova.",
 
 		/**
 		 * ⚠️ «Disponibile», mai «stipendio meno uscite fisse»: l'app non sa quale
@@ -1304,7 +1330,7 @@ export const it = {
 		subtitle: "Quello che dicono i tuoi numeri",
 		close: "Chiudi",
 		loading: "Sto guardando i tuoi numeri…",
-		readFailed: "Non riesco a leggere i tuoi numeri: {reason}",
+		readFailed: "Non riesco a leggere i tuoi numeri. Riprova fra poco.",
 		/** ⚠️ Dice cosa si può fare ORA: toccare, non scrivere. */
 		hint: "Tocca una domanda",
 		/**
@@ -1574,6 +1600,8 @@ export const it = {
 
 	/** Gestione delle categorie (Fase 13). */
 	categories: {
+		/** Una lettura fallita, detta come tale e non come una lista vuota (#124): vedi `LoadError`. */
+		loadError: "Non è stato possibile caricare le categorie.",
 		deleteTitle: "Elimina categoria",
 		/** `{name}` viene reso in grassetto, quindi la frase è spezzata in due. */
 		deleteQuestionBefore: "Vuoi eliminare ",
@@ -1610,6 +1638,8 @@ export const it = {
 
 	/** Transazioni ricorrenti (Fase 14). */
 	recurring: {
+		/** Una lettura fallita, detta come tale e non come una lista vuota (#124): vedi `LoadError`. */
+		loadError: "Non è stato possibile caricare i pagamenti ricorrenti.",
 		emptyTitle: "Nessun pagamento ricorrente",
 		emptyDescription:
 			"I tuoi abbonamenti e pagamenti pianificati appariranno qui non appena ne aggiungerai uno.",
@@ -1738,7 +1768,11 @@ export const it = {
 		/** Meno di un minuto fa. Intl darebbe "ora", ambiguo accanto a "1 ora fa". */
 		justNow: "adesso",
 		title: "Notifiche",
+		/** L'aria-label della campanella con dei non letti: era cablato in italiano. */
+		bellUnread: { one: "Notifiche, {n} non letta", other: "Notifiche, {n} non lette" },
 		markAllRead: "segna tutte come lette",
+		/** Sotto un errore del pannello: minuscolo come `markAllRead`, è un comando di riga. */
+		retry: "riprova",
 		emptyDescription: "Qui arrivano gli avvisi su budget, obiettivi e rinnovi in arrivo.",
 		/** Il pannello parte compresso (~metà schermo): compaiono solo se la lista trabocca. */
 		showAll: "mostra tutto",
@@ -1819,6 +1853,8 @@ export const it = {
 
 		importData: "Importa transazioni",
 		exportData: "Esporta transazioni",
+		/** Al posto di un conteggio che non si è potuto leggere: mai "0" (#124). */
+		countUnavailable: "non disponibile",
 		manageCategories: "Gestisci categorie",
 		recurringTransactions: "Transazioni ricorrenti",
 		/** Titolo della pagina dedicata: lì il contesto rende superfluo "Transazioni". */
@@ -1852,6 +1888,11 @@ export const it = {
 	/** Import di transazioni da file — Fase 21. */
 	import: {
 		title: "Importa transazioni",
+		/**
+		 * Conti o categorie non letti (#124): senza, il flusso diceva "non hai
+		 * conti" e offriva di crearne uno — cioè un doppione.
+		 */
+		loadError: "Non è stato possibile caricare conti e categorie.",
 
 		file: {
 			/** Il gesto, non il formato: "trascina" è ciò che si può fare qui. */
@@ -1898,6 +1939,11 @@ export const it = {
 		/** Gli import già fatti, da cui si annulla. */
 		history: {
 			title: "Import precedenti",
+			/**
+			 * ⚠️ L'elenco è l'unico posto da cui si ANNULLA un import (Fase 21): se la
+			 * lettura fallisce va detto, o sembra che non ce ne siano (#124).
+			 */
+			loadError: "Non è stato possibile caricare gli import precedenti.",
 			/** ⚠️ Le righe si contano adesso: quelle cancellate a mano non ci sono più. */
 			rows: { one: "{n} movimento", other: "{n} movimenti" },
 		},
