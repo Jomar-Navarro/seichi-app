@@ -12,6 +12,7 @@ import { removeStorageFiles } from "@/lib/storage-files";
 import { readAll } from "@/lib/read-all";
 import { endOfDayInMonth } from "@/lib/dates";
 import { receiptPathsOf } from "@/lib/attachment-paths";
+import { genericError } from "@/lib/errors";
 import type { SupabaseServerClient } from "@/lib/supabase/server";
 
 export async function getGoals(): Promise<{ data: GoalWithProgress[] } | { error: string }> {
@@ -40,8 +41,8 @@ export async function getGoals(): Promise<{ data: GoalWithProgress[] } | { error
 		),
 	]);
 
-	if (catsError) return { error: catsError.message };
-	if (txnsError) return { error: txnsError };
+	if (catsError) return { error: genericError("obiettivi: categorie", catsError, t) };
+	if (txnsError) return { error: genericError("obiettivi: versamenti", txnsError, t) };
 
 	// I versamenti di ciascun obiettivo, in ordine di data.
 	const byGoal = new Map<string, { amount: number; date: string }[]>();
@@ -167,7 +168,7 @@ export async function getInvestments(
 		return query.order("id", { ascending: true }).range(from, to);
 	}, "investimenti");
 
-	if (error) return { error };
+	if (error) return { error: genericError("investimenti: lettura", error, t) };
 
 	/*
 	 * ⚠️ La variazione confronta lo STESSO tratto dei due mesi (#121): dal 1°
@@ -404,7 +405,7 @@ export async function createGoal(payload: {
 		target_date: payload.target_date,
 	});
 
-	if (error) return { error: error.message };
+	if (error) return { error: genericError("obiettivi: creazione", error, t) };
 	revalidatePath("/", "layout");
 	return {};
 }
@@ -435,7 +436,7 @@ export async function updateGoal(
 		.eq("id", id)
 		.eq("user_id", user.id);
 
-	if (error) return { error: error.message };
+	if (error) return { error: genericError("obiettivi: modifica", error, t) };
 	revalidatePath("/", "layout");
 	return {};
 }
@@ -468,13 +469,8 @@ export async function getGoalDeletionImpact(
 			.eq("category_id", id),
 	]);
 
-	if (deposits.error || rules.error) {
-		console.error(
-			"[obiettivi] impatto eliminazione:",
-			deposits.error?.message ?? rules.error?.message,
-		);
-		return { error: t.common.genericError };
-	}
+	const countError = deposits.error ?? rules.error;
+	if (countError) return { error: genericError("obiettivi: impatto eliminazione", countError, t) };
 
 	return { data: { deposits: deposits.count ?? 0, rules: rules.count ?? 0 } };
 }
@@ -515,7 +511,7 @@ export async function deleteGoal(id: string): Promise<{ error?: string }> {
 		.eq("user_id", user.id)
 		.eq("type", "risparmio");
 
-	if (txnError) return { error: txnError.message };
+	if (txnError) return { error: genericError("obiettivi: eliminazione, versamenti", txnError, t) };
 
 	/*
 	 * I file dei versamenti si rimuovono SUBITO, non in fondo alla funzione: da
@@ -550,10 +546,7 @@ export async function deleteGoal(id: string): Promise<{ error?: string }> {
 		.eq("category_id", id)
 		.eq("user_id", user.id);
 
-	if (rulesError) {
-		console.error("[obiettivi] eliminazione, regole ricorrenti:", rulesError.message);
-		return { error: t.common.genericError };
-	}
+	if (rulesError) return { error: genericError("obiettivi: eliminazione, regole ricorrenti", rulesError, t) };
 
 	const { error } = await supabase
 		.from("categories")
@@ -561,7 +554,7 @@ export async function deleteGoal(id: string): Promise<{ error?: string }> {
 		.eq("id", id)
 		.eq("user_id", user.id);
 
-	if (error) return { error: error.message };
+	if (error) return { error: genericError("obiettivi: eliminazione, categoria", error, t) };
 
 	// Gli altri movimenti della categoria sono caduti con lei, in cascata.
 	await removeOrphanedReceipts(supabase, otherPaths);

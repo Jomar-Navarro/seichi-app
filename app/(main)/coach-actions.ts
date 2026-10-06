@@ -1,6 +1,7 @@
 "use server";
 
 import { requireUser } from "@/lib/auth";
+import { genericError } from "@/lib/errors";
 import { localMidnightInstant, monthBoundsOf } from "@/lib/dates";
 import { DISPLAY_CURRENCY } from "@/lib/i18n/format";
 import { disponibileDaTotali, flussoDaTotali } from "@/lib/totals";
@@ -76,7 +77,7 @@ export async function getCoachSnapshot(
 
 	if ("error" in budget) return budget;
 	if ("error" in goals) return goals;
-	if (totals.error) return { error: totals.error.message };
+	if (totals.error) return { error: genericError("coach: dashboard_totals", totals.error, t) };
 
 	type Riga = { bucket_index: number | null; type: string; total: number | string };
 	const righe = (totals.data ?? []) as Riga[];

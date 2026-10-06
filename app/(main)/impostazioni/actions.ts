@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { isCurrency, normalizeLocale } from "@/lib/i18n/config";
 import { setLocaleCookie } from "@/lib/i18n/server";
 import { plural } from "@/lib/i18n/format";
+import { genericError } from "@/lib/errors";
 import type { Category } from "@/types";
 
 // Il colore di una categoria deriva dal suo tipo (design Zen Glass)
@@ -30,7 +31,7 @@ export async function getCategories(): Promise<{ data: Category[] } | { error: s
 		.eq("user_id", user.id)
 		.order("created_at", { ascending: true });
 
-	return error ? { error: error.message } : { data: data as Category[] };
+	return error ? { error: genericError("categorie: lettura", error, t) } : { data: data as Category[] };
 }
 
 export async function createCategory(input: { name: string; icon: string; type: string }) {
@@ -56,7 +57,7 @@ export async function createCategory(input: { name: string; icon: string; type: 
 		.select("id")
 		.single();
 
-	if (error) return { error: error.message };
+	if (error) return { error: genericError("categorie: creazione", error, t) };
 	revalidatePath("/", "layout");
 	return { success: true as const, id: data.id as string };
 }
@@ -93,10 +94,8 @@ export async function updateCategory(
 		.eq("id", id)
 		.eq("user_id", user.id)
 		.maybeSingle();
-	if (readError || !current) {
-		if (readError) console.error("[categorie] modifica, lettura:", readError.message);
-		return { error: t.common.genericError };
-	}
+	if (readError) return { error: genericError("categorie: modifica, lettura", readError, t) };
+	if (!current) return { error: t.common.genericError };
 
 	if (current.type !== input.type) {
 		const [movements, rules] = await Promise.all([
@@ -111,13 +110,8 @@ export async function updateCategory(
 				.eq("user_id", user.id)
 				.eq("category_id", id),
 		]);
-		if (movements.error || rules.error) {
-			console.error(
-				"[categorie] modifica, conteggi:",
-				movements.error?.message ?? rules.error?.message,
-			);
-			return { error: t.common.genericError };
-		}
+		const countError = movements.error ?? rules.error;
+		if (countError) return { error: genericError("categorie: modifica, conteggi", countError, t) };
 		if ((movements.count ?? 0) > 0) {
 			return { error: plural(t.errors.categoryTypeLockedTransactions, movements.count ?? 0, locale) };
 		}
@@ -137,7 +131,7 @@ export async function updateCategory(
 		.eq("id", id)
 		.eq("user_id", user.id);
 
-	if (error) return { error: error.message };
+	if (error) return { error: genericError("categorie: modifica", error, t) };
 	revalidatePath("/", "layout");
 	return { success: true };
 }
@@ -154,7 +148,7 @@ export async function deleteCategory(id: string) {
 		.eq("user_id", user.id)
 		.eq("category_id", id);
 
-	if (countError) return { error: countError.message };
+	if (countError) return { error: genericError("categorie: eliminazione, conteggio movimenti", countError, t) };
 	if ((count ?? 0) > 0) {
 		return {
 			error: plural(t.errors.categoryHasTransactions, count ?? 0, locale),
@@ -178,10 +172,7 @@ export async function deleteCategory(id: string) {
 		.eq("user_id", user.id)
 		.eq("category_id", id);
 
-	if (rulesError) {
-		console.error("[categorie] eliminazione, conteggio regole:", rulesError.message);
-		return { error: t.common.genericError };
-	}
+	if (rulesError) return { error: genericError("categorie: eliminazione, conteggio regole", rulesError, t) };
 	if ((rules ?? 0) > 0) {
 		return {
 			error: plural(t.errors.categoryHasRecurring, rules ?? 0, locale),
@@ -195,7 +186,7 @@ export async function deleteCategory(id: string) {
 		.eq("id", id)
 		.eq("user_id", user.id);
 
-	if (error) return { error: error.message };
+	if (error) return { error: genericError("categorie: eliminazione", error, t) };
 	revalidatePath("/", "layout");
 	return { success: true };
 }
@@ -216,7 +207,7 @@ export async function updatePreferences(currency: string, language: string) {
 		.from("profiles")
 		.upsert({ id: user.id, currency, language: locale });
 
-	if (error) return { error: error.message };
+	if (error) return { error: genericError("impostazioni: preferenze", error, t) };
 
 	// Prima del `revalidatePath`: il layout riletto deve già vedere il cookie
 	// nuovo, altrimenti la pagina si ridisegna nella lingua vecchia e il cambio

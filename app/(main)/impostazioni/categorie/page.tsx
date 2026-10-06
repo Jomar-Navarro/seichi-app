@@ -1,11 +1,11 @@
 import { getCategories } from "../actions";
 import CategoryManager from "@/components/features/CategoryManager";
 import PageHeader from "@/components/UI/PageHeader";
+import LoadError from "@/components/UI/LoadError";
 import { getI18n } from "@/lib/i18n/server";
 
 export default async function CategoriePage() {
 	const result = await getCategories();
-	const categories = "error" in result ? [] : result.data;
 	const { t } = await getI18n();
 
 	return (
@@ -15,7 +15,16 @@ export default async function CategoriePage() {
 			    da tradurre a parte, quindi le due copie collassano sul componente. */}
 			<PageHeader title={t.settings.groups.categories} backHref="/impostazioni" />
 
-			<CategoryManager categories={categories} />
+			{/*
+				⚠️ Non una lista vuota (#124): `CategoryManager` con zero categorie
+				invita a crearne, e su una lettura fallita quell'invito portava a
+				duplicare categorie che esistono già.
+			*/}
+			{"error" in result ? (
+				<LoadError message={t.categories.loadError} />
+			) : (
+				<CategoryManager categories={result.data} />
+			)}
 		</div>
 	);
 }

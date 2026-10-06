@@ -6,6 +6,8 @@ import { plural } from "@/lib/i18n/format";
 import { isAccountId } from "@/lib/accounts";
 import { countActiveAccounts } from "@/lib/account";
 import { isStorableAmount } from "@/lib/amount";
+import { genericError } from "@/lib/errors";
+import type { Dictionary } from "@/lib/i18n/dictionaries/it";
 import { ACCOUNT_TYPES, type Account, type AccountWithBalance } from "@/types";
 import type { SupabaseServerClient } from "@/lib/supabase/server";
 
@@ -99,7 +101,7 @@ export async function getAccounts(): Promise<
 		.eq("user_id", user.id)
 		.order("created_at", { ascending: true });
 
-	if (error) return { error: error.message };
+	if (error) return { error: genericError("conti: lettura", error, t) };
 
 	// `numeric` arriva come stringa da PostgREST a seconda della scala: si
 	// converte al confine, una volta, invece di sperare che sia già un numero.
@@ -134,7 +136,7 @@ export async function getAccountOptions(): Promise<
 		.eq("user_id", user.id)
 		.order("created_at", { ascending: true });
 
-	return error ? { error: error.message } : { data: data ?? [] };
+	return error ? { error: genericError("conti: opzioni", error, t) } : { data: data ?? [] };
 }
 
 export async function createAccount(input: AccountInput) {
@@ -252,7 +254,7 @@ export async function setAccountArchived(id: string, archived: boolean) {
 			.eq("user_id", user.id)
 			.eq("archived", false);
 
-		if (countError) return { error: countError.message };
+		if (countError) return { error: genericError("conti: archiviazione, conteggio", countError, t) };
 		if ((count ?? 0) <= 1) return { error: t.accounts.errors.lastAccount };
 
 		/*
@@ -289,7 +291,7 @@ export async function setAccountArchived(id: string, archived: boolean) {
 			.eq("account_id", id)
 			.eq("active", true);
 
-		if (rulesError) return { error: rulesError.message };
+		if (rulesError) return { error: genericError("conti: archiviazione, regole", rulesError, t) };
 		if ((rules ?? 0) > 0) {
 			return { error: plural(t.accounts.errors.hasRecurring, rules ?? 0, locale) };
 		}
@@ -303,7 +305,7 @@ export async function setAccountArchived(id: string, archived: boolean) {
 		.select("id")
 		.maybeSingle();
 
-	if (error) return { error: error.message };
+	if (error) return { error: genericError("conti: archiviazione", error, t) };
 	if (!data) return { error: t.accounts.errors.notFound };
 
 	revalidatePath("/", "layout");
@@ -343,7 +345,7 @@ export async function getAccount(
 	// trovato" anche a un guasto di rete. Un errore di lettura vero e un id
 	// che non esiste sono fatti diversi e non possono avere lo stesso testo
 	// solo perché arrivano dallo stesso `if`.
-	if (error) return { error: error.message };
+	if (error) return { error: genericError("conti: dettaglio", error, t) };
 	if (!data) return { error: t.accounts.errors.notFound };
 
 	const account: AccountWithBalance = {
@@ -383,6 +385,7 @@ async function hasAnyMovement(
 	supabase: SupabaseServerClient,
 	userId: string,
 	accountId: string,
+	t: Dictionary,
 ): Promise<{ data: boolean } | { error: string }> {
 	const [asOrigin, asDestination, asRule, asImport] = await Promise.all([
 		supabase
@@ -407,10 +410,8 @@ async function hasAnyMovement(
 			.eq("account_id", accountId),
 	]);
 
-	if (asOrigin.error) return { error: asOrigin.error.message };
-	if (asDestination.error) return { error: asDestination.error.message };
-	if (asRule.error) return { error: asRule.error.message };
-	if (asImport.error) return { error: asImport.error.message };
+	const failed = asOrigin.error ?? asDestination.error ?? asRule.error ?? asImport.error;
+	if (failed) return { error: genericError("conti: movimenti del conto", failed, t) };
 
 	return {
 		data:
@@ -456,16 +457,18 @@ export async function canDeleteAccount(
 		.eq("user_id", user.id)
 		.maybeSingle();
 
-	if (accountError) return { error: accountError.message };
+	if (accountError) return { error: genericError("conti: eliminabile, lettura", accountError, t) };
 	if (!account) return { error: t.accounts.errors.notFound };
 
 	if (!account.archived) {
 		const activeCount = await countActiveAccounts(supabase, user.id);
-		if ("error" in activeCount) return activeCount;
+		if ("error" in activeCount) {
+			return { error: genericError("conti: eliminabile, conti attivi", activeCount.error, t) };
+		}
 		if (activeCount.data <= 1) return { data: false };
 	}
 
-	const result = await hasAnyMovement(supabase, user.id, id);
+	const result = await hasAnyMovement(supabase, user.id, id, t);
 	if ("error" in result) return result;
 	return { data: !result.data };
 }
@@ -501,16 +504,18 @@ export async function deleteAccount(id: string): Promise<{ success: true } | { e
 		.eq("user_id", user.id)
 		.maybeSingle();
 
-	if (accountError) return { error: accountError.message };
+	if (accountError) return { error: genericError("conti: eliminazione, lettura", accountError, t) };
 	if (!account) return { error: t.accounts.errors.notFound };
 
 	if (!account.archived) {
 		const activeCount = await countActiveAccounts(supabase, user.id);
-		if ("error" in activeCount) return { error: activeCount.error };
+		if ("error" in activeCount) {
+			return { error: genericError("conti: eliminazione, conti attivi", activeCount.error, t) };
+		}
 		if (activeCount.data <= 1) return { error: t.accounts.errors.lastAccount };
 	}
 
-	const movement = await hasAnyMovement(supabase, user.id, id);
+	const movement = await hasAnyMovement(supabase, user.id, id, t);
 	if ("error" in movement) return { error: movement.error };
 	// ⚠️ Il messaggio è diverso da `lastAccount`: due cause diverse, due frasi
 	// diverse, o l'utente cerca il rimedio sbagliato per l'una o per l'altra.

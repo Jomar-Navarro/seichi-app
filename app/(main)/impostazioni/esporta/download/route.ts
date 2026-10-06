@@ -118,10 +118,15 @@ export async function GET(req: NextRequest) {
 	// embedded di PostgREST si chiama come il VINCOLO
 	// (`accounts!transactions_account_owner_fkey`), quindi si romperebbe in
 	// silenzio alla prossima rinomina. Stessa scelta della lista movimenti.
-	const { data: accounts, error: accountsError } = await supabase
-		.from("accounts")
-		.select("id, name")
-		.eq("user_id", user.id);
+	//
+	// La categoria del filtro si verifica nello stesso giro (#124, vedi sotto):
+	// le due letture sono indipendenti.
+	const [{ data: accounts, error: accountsError }, categoryRes] = await Promise.all([
+		supabase.from("accounts").select("id, name").eq("user_id", user.id),
+		categoria !== ""
+			? supabase.from("categories").select("id").eq("id", categoria).eq("user_id", user.id).maybeSingle()
+			: null,
+	]);
 
 	if (accountsError) {
 		console.error("[export] conti:", accountsError.message);
@@ -129,6 +134,27 @@ export async function GET(req: NextRequest) {
 	}
 
 	const accountName = new Map((accounts ?? []).map((a) => [a.id, a.name]));
+
+	/*
+	 * ⚠️ Un conto o una categoria ben formati ma NON dell'utente producevano un
+	 * CSV vuoto (#124). Il controllo di forma qui sopra li lasciava passare, e la
+	 * RLS poi restituiva zero righe: il file scaricato diceva "nessun movimento"
+	 * su quel conto — la stessa affermazione falsa che il rifiuto dei filtri
+	 * malformati esiste per impedire, arrivata dalla porta accanto. Un id
+	 * cancellato altrove nel frattempo è lo stesso caso.
+	 *
+	 * Il conto si verifica sulla mappa che serve comunque per i nomi; la
+	 * categoria con una query sua, minuscola, solo quando il filtro c'è.
+	 */
+	if (conto !== "" && !accountName.has(conto)) return fail(t.export.errors.badFilter, 404);
+
+	if (categoryRes) {
+		if (categoryRes.error) {
+			console.error("[export] categoria:", categoryRes.error.message);
+			return fail(t.export.errors.failed, 500);
+		}
+		if (!categoryRes.data) return fail(t.export.errors.badFilter, 404);
+	}
 
 	const c = t.export.columns;
 	const rows: CsvValue[][] = [
@@ -221,6 +247,16 @@ export async function GET(req: NextRequest) {
 		if (!result.hasMore) {
 			const contoSlug = conto ? slug(accountName.get(conto) ?? "") : "";
 			/*
+			 * ⚠️ Il PERIODO nel nome (#124), come promette la Fase 23: tre export
+			 * nella cartella Download devono distinguersi senza aprirli, e "ultimi 7
+			 * giorni" e "tutto" fatti lo stesso giorno avevano lo stesso nome. È
+			 * l'etichetta che l'utente ha scelto, nella sua lingua ("30-giorni",
+			 * "all-time"): la data accanto dice da quando contare.
+			 */
+			const periodSlug = slug(
+				lookup(t.transactions.periods, periodo, (label) => label, periodo),
+			);
+			/*
 			 * ⚠️ La data viene dall'orologio del SERVER, che su Vercel è UTC: fra
 			 * mezzanotte e le 2 ora italiana il nome porta il giorno prima. È
 			 * accettato — a differenza dei confini di periodo dei budget (17a), qui
@@ -229,7 +265,7 @@ export async function GET(req: NextRequest) {
 			 * validare per un'etichetta.
 			 */
 			const stamp = new Date().toISOString().slice(0, 10);
-			const name = ["seichi-movimenti", contoSlug, stamp].filter(Boolean).join("-");
+			const name = ["seichi-movimenti", periodSlug, contoSlug, stamp].filter(Boolean).join("-");
 
 			return new NextResponse(toCsv(rows, locale), {
 				headers: {

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { SupabaseServerClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth";
+import { genericError } from "@/lib/errors";
 import { isISODate } from "@/lib/dates";
 import { renderNotification } from "@/lib/notifications";
 import type { AppNotification, RenderedNotification } from "@/types";
@@ -53,8 +54,8 @@ export async function getNotifications(
 			unreadCountQuery(supabase, user.id),
 		]);
 
-	if (error) return { error: error.message };
-	if (countError) return { error: countError.message };
+	if (error) return { error: genericError("notifiche: lettura", error, t) };
+	if (countError) return { error: genericError("notifiche: conteggio", countError, t) };
 
 	// La valuta arriva dal profilo, non è cablata: è la stessa scelta
 	// nell'onboarding che governa ogni altro importo dell'app.
@@ -94,7 +95,7 @@ export async function getUnreadCount(): Promise<{ data: number } | { error: stri
 
 	const { count, error } = await unreadCountQuery(supabase, user.id);
 
-	return error ? { error: error.message } : { data: count ?? 0 };
+	return error ? { error: genericError("notifiche: badge", error, t) } : { data: count ?? 0 };
 }
 
 /**
@@ -117,7 +118,7 @@ export async function markNotificationRead(
 		.eq("id", id)
 		.eq("user_id", user.id);
 
-	if (error) return { error: error.message };
+	if (error) return { error: genericError("notifiche: segna letta", error, t) };
 	revalidatePath("/");
 	return { success: true };
 }
@@ -136,7 +137,7 @@ export async function markAllNotificationsRead(): Promise<
 		.eq("user_id", user.id)
 		.eq("read", false);
 
-	if (error) return { error: error.message };
+	if (error) return { error: genericError("notifiche: segna tutte", error, t) };
 	revalidatePath("/");
 	return { success: true };
 }

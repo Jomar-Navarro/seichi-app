@@ -36,6 +36,7 @@ export const en: Dictionary = {
 		loading: "Loading…",
 		retry: "Try again",
 		genericError: "Something went wrong. Please try again.",
+		pageLoadFailed: "This page couldn't be loaded.",
 		unknownError: "Unknown error",
 		required: "This field is required",
 		selectPlaceholder: "Select {field}",
@@ -182,6 +183,10 @@ export const en: Dictionary = {
 		wrongCurrentPassword: "Your current password is not correct",
 		wrongPassword: "Incorrect password",
 		emailMismatch: "That email doesn't match your account",
+		authUnavailable: "Couldn't reach the authentication service. Try again in a moment.",
+		tooManyAttempts: "Too many attempts. Wait a few minutes and try again.",
+		weakPassword: "This password isn't strong enough: choose another one.",
+		emailTaken: "This address is already used by another account.",
 		avatarRemoveFailed: "Could not remove your profile photo. Please try again.",
 		/** ⚠️ Frase propria, non quella dell'avatar — vedi la nota in it.ts. */
 		receiptsRemoveFailed:
@@ -299,6 +304,9 @@ export const en: Dictionary = {
 
 		errors: {
 			wrongCredentials: "Incorrect sign-in details",
+			emailNotConfirmed: "Confirm your email address first: check your inbox.",
+			alreadyRegistered: "An account with this email already exists. Try signing in.",
+			signupDisabled: "Sign-ups aren't open right now.",
 			acceptTerms: "You must accept the terms of service",
 			passwordTooShort: "Your password must be at least {n} characters",
 			passwordMismatch: "The passwords don't match",
@@ -390,7 +398,6 @@ export const en: Dictionary = {
 
 	home: {
 		greeting: "Welcome back",
-		error: "Something went wrong",
 		flowTitle: "Flow",
 		flowExplain: "money in minus money out this month — not your account balances",
 		cards: {
@@ -488,6 +495,7 @@ export const en: Dictionary = {
 
 	transactions: {
 		title: "Transactions",
+		loadError: "Could not load your transactions.",
 		modalNew: "New transaction",
 		modalEdit: "Edit transaction",
 		modalTypeQuestion: "What kind of transaction do you want to record?",
@@ -585,6 +593,7 @@ export const en: Dictionary = {
 
 	investments: {
 		title: "Investments",
+		loadError: "Could not load your investments.",
 		emptyTitle: "No investments yet",
 		emptyDescription:
 			"Add a transaction of type “{type}” to start tracking your portfolio.",
@@ -680,9 +689,9 @@ export const en: Dictionary = {
 		fixedOutflows: "Expected fixed outflows",
 		fixedOutflowsHint: "This month's subscriptions, outside the limit",
 		amountMustBePositive: "Enter an amount greater than zero",
-		readFailed: "Could not read your budget: {reason}",
+		readFailed: "Could not read your budget. Please try again.",
 		/** ⚠️ Vedi it.ts: una scrittura fallita deve dirlo quanto una lettura. */
-		saveFailed: "Could not save your budget: {reason}",
+		saveFailed: "Could not save your budget. Please try again.",
 
 		/** ⚠️ Mai "salary": vedi la nota in it.ts. Sono TUTTE le entrate del mese. */
 		available: "Available",
@@ -706,7 +715,7 @@ export const en: Dictionary = {
 		subtitle: "What your numbers say",
 		close: "Close",
 		loading: "Looking at your numbers…",
-		readFailed: "I can't read your numbers: {reason}",
+		readFailed: "I can't read your numbers. Try again in a moment.",
 		hint: "Tap a question",
 		/** ⚠️ Vedi it.ts: compare solo con un filtro conto attivo sulla home. */
 		acrossAccounts: "These numbers cover every account, not just the one you selected.",
@@ -880,6 +889,7 @@ export const en: Dictionary = {
 	},
 
 	categories: {
+		loadError: "Could not load your categories.",
 		deleteTitle: "Delete category",
 		deleteQuestionBefore: "Delete ",
 		deleteQuestionAfter: "? This cannot be undone.",
@@ -908,6 +918,7 @@ export const en: Dictionary = {
 	},
 
 	recurring: {
+		loadError: "Could not load your recurring payments.",
 		emptyTitle: "No recurring payments",
 		emptyDescription:
 			"Your subscriptions and scheduled payments will show up here as soon as you add one.",
@@ -1012,7 +1023,9 @@ export const en: Dictionary = {
 		empty: "No notifications",
 		justNow: "just now",
 		title: "Notifications",
+		bellUnread: { one: "Notifications, {n} unread", other: "Notifications, {n} unread" },
 		markAllRead: "mark all as read",
+		retry: "try again",
 		emptyDescription: "Alerts about budgets, goals and upcoming renewals show up here.",
 		showAll: "show all",
 		showLess: "show less",
@@ -1062,6 +1075,7 @@ export const en: Dictionary = {
 
 		importData: "Import transactions",
 		exportData: "Export transactions",
+		countUnavailable: "unavailable",
 		manageCategories: "Manage categories",
 		recurringTransactions: "Recurring transactions",
 		recurringTitle: "Recurring",
@@ -1089,6 +1103,7 @@ export const en: Dictionary = {
 
 	import: {
 		title: "Import transactions",
+		loadError: "Could not load your accounts and categories.",
 
 		file: {
 			drop: "Drag a CSV file",
@@ -1115,6 +1130,7 @@ export const en: Dictionary = {
 
 		history: {
 			title: "Previous imports",
+			loadError: "Could not load your previous imports.",
 			rows: { one: "{n} movement", other: "{n} movements" },
 		},
 

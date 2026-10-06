@@ -8,6 +8,7 @@ import { getAttachmentCounts } from "@/app/(main)/attachment-actions";
 import { TRANSACTIONS_PAGE_SIZE } from "@/lib/transaction-utils";
 import AccountSheet from "./AccountSheet";
 import TransactionList from "./TransactionList";
+import LoadError from "@/components/UI/LoadError";
 import { useI18n } from "./I18nProvider";
 import { useViewedAccount } from "./ViewedAccount";
 import { useUIStore } from "@/store/useUIStore";
@@ -48,6 +49,8 @@ export default function AccountDetailClient({ account }: AccountDetailClientProp
 	const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({});
 	const [hasMore, setHasMore] = useState(false);
 	const [loading, setLoading] = useState(true);
+	/** Come in `/transazioni` (#124): una lettura fallita non è un estratto vuoto. */
+	const [loadError, setLoadError] = useState<"page" | "more" | null>(null);
 	const transactionSavedAt = useUIStore((s) => s.transactionSavedAt);
 	// #112 — un movimento nuovo aperto da qui parte da questo conto (se attivo).
 	useViewedAccount(account.id);
@@ -64,10 +67,12 @@ export default function AccountDetailClient({ account }: AccountDetailClientProp
 	 */
 	useEffect(() => {
 		let cancelled = false;
-		getAccountOptions().then((res) => {
-			if (cancelled || !("data" in res)) return;
-			setAccounts(res.data);
-		});
+		getAccountOptions()
+			.then((res) => {
+				if (cancelled || !("data" in res)) return;
+				setAccounts(res.data);
+			})
+			.catch((e) => console.error("[conto] conti:", e));
 		return () => { cancelled = true; };
 	}, [transactionSavedAt]);
 
@@ -91,6 +96,7 @@ export default function AccountDetailClient({ account }: AccountDetailClientProp
 		async (offset: number, append: boolean) => {
 			const myRequest = ++requestId.current;
 			setLoading(true);
+			setLoadError(null);
 			try {
 				const result = await getTransactions({
 					conto: account.id,
@@ -100,8 +106,13 @@ export default function AccountDetailClient({ account }: AccountDetailClientProp
 				if (myRequest !== requestId.current) return; // superata da una richiesta più recente
 
 				if ("error" in result) {
-					if (!append) setTransactions([]);
-					setHasMore(false);
+					// `hasMore` resta solo dopo un "carica altri" fallito: là il bottone
+					// è il riprova. Vedi la stessa nota in `/transazioni`.
+					if (!append) {
+						setTransactions([]);
+						setHasMore(false);
+					}
+					setLoadError(append ? "more" : "page");
 					return;
 				}
 				const rows = (result.data as Transaction[]) ?? [];
@@ -111,12 +122,26 @@ export default function AccountDetailClient({ account }: AccountDetailClientProp
 				// I conteggi degli allegati SOLO per le righe appena arrivate — vedi
 				// la stessa nota in `/transazioni`.
 				if (rows.length > 0) {
-					const counts = await getAttachmentCounts(rows.map((r) => r.id));
-					if (myRequest !== requestId.current) return;
-					setAttachmentCounts((prev) => (append ? { ...prev, ...counts } : counts));
+					// Un `try` suo, come in `/transazioni` (#124): un conteggio che
+					// solleva costa al più una graffetta, non la lista.
+					try {
+						const counts = await getAttachmentCounts(rows.map((r) => r.id));
+						if (myRequest !== requestId.current) return;
+						setAttachmentCounts((prev) => (append ? { ...prev, ...counts } : counts));
+					} catch (e) {
+						console.error("[conto] conteggio ricevute:", e);
+					}
 				} else if (!append) {
 					setAttachmentCounts({});
 				}
+			} catch (e) {
+				if (myRequest !== requestId.current) return;
+				console.error("[conto] movimenti:", e);
+				if (!append) {
+					setTransactions([]);
+					setHasMore(false);
+				}
+				setLoadError(append ? "more" : "page");
 			} finally {
 				if (myRequest === requestId.current) setLoading(false);
 			}
@@ -208,15 +233,25 @@ export default function AccountDetailClient({ account }: AccountDetailClientProp
 			<p className="text-xs font-medium tracking-wide text-muted mt-6 mb-2.5 ml-1">
 				{t.transactions.title}
 			</p>
-			<TransactionList
-				transactions={transactions}
-				loading={loading && transactions.length === 0}
-				attachmentCounts={attachmentCounts}
-				accounts={accounts}
-				viewedAccountId={account.id}
-			/>
+			{loadError === "page" ? (
+				<LoadError message={t.transactions.loadError} onRetry={() => loadPage(0, false)} />
+			) : (
+				<TransactionList
+					transactions={transactions}
+					loading={loading && transactions.length === 0}
+					attachmentCounts={attachmentCounts}
+					accounts={accounts}
+					viewedAccountId={account.id}
+				/>
+			)}
 
-			{hasMore && (
+			{loadError === "more" && (
+				<p role="alert" className="mt-4 px-1 text-[11.5px] leading-snug text-aka-ink">
+					{t.transactions.loadError}
+				</p>
+			)}
+
+			{hasMore && loadError !== "page" && (
 				<button
 					onClick={loadMore}
 					disabled={loading}

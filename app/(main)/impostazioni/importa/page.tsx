@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { getI18n } from "@/lib/i18n/server";
 import PageHeader from "@/components/UI/PageHeader";
 import ImportFlow from "@/components/features/ImportFlow";
+import LoadError from "@/components/UI/LoadError";
 import { listImports } from "./actions";
 
 /**
@@ -32,7 +33,7 @@ export default async function ImportaPage() {
 	 */
 	const previous = await listImports();
 
-	const [{ data: accounts }, { data: categories }] = await Promise.all([
+	const [accountsRes, categoriesRes] = await Promise.all([
 		supabase
 			.from("accounts")
 			.select("id, name, type, icon, color")
@@ -52,14 +53,29 @@ export default async function ImportaPage() {
 	 * padding più corto l'ultimo elemento della pagina finisce sotto la barra. Con
 	 * `pb-24` il pulsante "Continua" era coperto.
 	 */
+	/*
+	 * ⚠️ Conti e categorie non letti FERMANO il flusso, non lo svuotano (#124).
+	 * Con gli elenchi vuoti il primo passo diceva "non hai conti" e offriva di
+	 * crearne uno, e i selettori del secondo non avevano categorie: un import
+	 * fatto così finiva su un conto doppione, senza categorie. Il messaggio
+	 * grezzo resta nel log.
+	 */
+	const readFailed = accountsRes.error ?? categoriesRes.error;
+	if (readFailed) console.error("[import] conti/categorie:", readFailed.message);
+
 	return (
 		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34 lg:max-w-2xl lg:mx-auto lg:w-full">
 			<PageHeader title={t.import.title} backHref="/impostazioni" className="mb-5" />
-			<ImportFlow
-				accounts={accounts ?? []}
-				categories={categories ?? []}
-				previous={"data" in previous ? previous.data : []}
-			/>
+			{readFailed ? (
+				<LoadError message={t.import.loadError} />
+			) : (
+				<ImportFlow
+					accounts={accountsRes.data ?? []}
+					categories={categoriesRes.data ?? []}
+					previous={"data" in previous ? previous.data : []}
+					previousFailed={"error" in previous}
+				/>
+			)}
 		</div>
 	);
 }

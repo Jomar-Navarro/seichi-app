@@ -4,6 +4,7 @@ import { Printer } from "lucide-react";
 import { redirect } from "next/navigation";
 import { getAnalyticsData } from "../action";
 import { getAccounts } from "../conti/actions";
+import LoadError from "@/components/UI/LoadError";
 import SpendingPieChart from "@/components/features/SpendingPieChart";
 import FixedOutflowsLink from "@/components/features/FixedOutflowsLink";
 import MonthlyLineChart from "@/components/features/MonthlyLineChart";
@@ -40,7 +41,7 @@ export default async function AnalyticsPage({
 		getAccounts(),
 	]);
 	const { locale, t } = await getI18n();
-	if ("error" in analytics) return <p>{t.home.error}</p>;
+	if ("error" in analytics) return <LoadError message={t.common.pageLoadFailed} className="min-h-dvh justify-center" />;
 
 	/*
 	 * ⚠️ I conti DEGRADANO, non bloccano: un errore qui non deve far sparire i

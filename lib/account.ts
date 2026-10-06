@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient, type SupabaseServerClient } from "@/lib/supabase/server";
+import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { getSessionUser } from "@/lib/auth";
 import { getInitials, getDisplayName } from "@/lib/profile";
 import { DEFAULT_LOCALE, normalizeLocale } from "@/lib/i18n/config";
@@ -29,20 +30,41 @@ import type { AccountContext, ProfileHeader } from "@/types";
  *
  * Il costo è contenuto perché sono pagine di impostazioni: una chiamata per
  * vista, non cinque. La home NON passa di qui — usa `getProfileHeader()`.
+ *
+ * ⚠️ **Un guasto SOLLEVA, non rimanda al login e non inventa valori** (#124).
+ * `getUser()` è una chiamata di rete: un GoTrue che non risponde lasciava
+ * `user` a `null` come una sessione scaduta, e la pagina spediva su /sign un
+ * utente loggato — il difetto già chiuso in `getSessionUser()` e nel proxy. E
+ * una lettura del profilo fallita diventava "EUR" e la lingua di ripiego nella
+ * riga delle preferenze: valori che il database non contiene, presentati come
+ * la scelta dell'utente. Sollevando, la pagina mostra l'errore di
+ * `app/(main)/error.tsx` con il suo "Riprova".
  */
 export async function getAccountContext(): Promise<AccountContext> {
 	const supabase = await createClient();
 	const {
 		data: { user },
+		error: userError,
 	} = await supabase.auth.getUser();
 
+	if (!user && userError && isAuthRetryableFetchError(userError)) {
+		console.error("[account] getUser non raggiungibile:", userError.message);
+		throw userError;
+	}
 	if (!user) redirect("/sign");
 
-	const { data: profile } = await supabase
+	// `maybeSingle`: la riga può mancare davvero (utenti precedenti al trigger
+	// che non hanno finito l'onboarding), e quello non è un guasto.
+	const { data: profile, error: profileError } = await supabase
 		.from("profiles")
 		.select("full_name, avatar_url, currency, language")
 		.eq("id", user.id)
-		.single();
+		.maybeSingle();
+
+	if (profileError) {
+		console.error("[account] lettura del profilo:", profileError.message);
+		throw new Error("profile read failed");
+	}
 
 	const email = user.email ?? "";
 	const fullName = profile?.full_name ?? null;
