@@ -9,6 +9,7 @@ import {
 	markNotificationRead,
 } from "@/app/(main)/notification-actions";
 import { todayLocalISO } from "@/lib/dates";
+import { plural } from "@/lib/i18n/format";
 import { BADGE_MAX, notificationMeta, relativeTime } from "@/lib/notifications";
 import type { RenderedNotification } from "@/types";
 import { useI18n } from "./I18nProvider";
@@ -144,7 +145,9 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 		if (!n.read) {
 			setItems((prev) => prev?.map((i) => (i.id === n.id ? { ...i, read: true } : i)) ?? prev);
 			setUnread((u) => Math.max(0, u - 1));
-			void markNotificationRead(n.id);
+			// Il `catch` (#124): un'azione che SOLLEVA era un errore non gestito.
+			// Il resto non cambia — la riga torna non letta alla prossima apertura.
+			markNotificationRead(n.id).catch((e) => console.error("[notifiche] segna letta:", e));
 		}
 		router.push(n.destination);
 	}
@@ -156,7 +159,16 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 		setItems((prev) => prev?.map((i) => ({ ...i, read: true })) ?? prev);
 		setUnread(0);
 
-		const res = await markAllNotificationsRead();
+		let res: Awaited<ReturnType<typeof markAllNotificationsRead>>;
+		try {
+			res = await markAllNotificationsRead();
+		} catch (e) {
+			// Un'azione che SOLLEVA invece di restituire `{ error }` lasciava il
+			// pannello tutto "letto" e il badge a zero, senza un messaggio e con il
+			// database fermo dov'era (#124): lo stesso ramo del rifiuto qui sotto.
+			console.error("[notifiche] segna tutte:", e);
+			res = { error: t.common.genericError };
+		}
 		if ("error" in res) {
 			// Qui l'utente resta sulla pagina a guardare il risultato, quindi
 			// l'ottimismo va annullato: lasciare il badge a zero mentre nel
@@ -179,7 +191,7 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 				// una tessera. Il tondo resta all'avatar, che è una persona. Da `lg:`
 				// raggio 15 (mockup desktop, issue #108), in coppia col coach.
 				className={`relative w-10.5 h-10.5 rounded-[14px] lg:rounded-[15px] flex items-center justify-center bg-surface card-shadow-ring active:opacity-80 cursor-pointer ${open ? "z-50" : ""}`}
-				aria-label={unread > 0 ? `Notifiche, ${unread} non lette` : "Notifiche"}
+				aria-label={unread > 0 ? plural(t.notifications.bellUnread, unread, locale) : t.notifications.title}
 				aria-expanded={open}
 			>
 				<Bell size={18} strokeWidth={1.6} className="text-secondary" />
@@ -257,7 +269,7 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 										onClick={load}
 										className="text-[12px] text-muted underline mt-1.5 cursor-pointer"
 									>
-										riprova
+										{t.notifications.retry}
 									</button>
 								</div>
 							)}

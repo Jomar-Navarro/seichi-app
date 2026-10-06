@@ -42,14 +42,36 @@ export default function PreferencesSection({ currency, language }: PreferencesSe
 	// ripiegava su "it" mostrando "Italiano" a chi aveva scelto English.
 	const [lang, setLang] = useState<string>(normalizeLocale(language) ?? DEFAULT_LOCALE);
 	const [saving, setSaving] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 
-	async function save(nextCur: string, nextLang: string) {
+	/*
+	 * ⚠️ La riga mostra la scelta PRIMA che il server la confermi, quindi un
+	 * salvataggio fallito deve rimetterla com'era (#124). Prima l'esito veniva
+	 * ignorato: la riga diceva "USD" o "English" mentre il database conteneva
+	 * ancora la scelta di prima, e nessun messaggio lo spiegava — fino al
+	 * ricaricamento, quando la scelta "salvata" spariva da sola.
+	 *
+	 * `previous` si passa da fuori e non si legge dallo stato: dentro `onChange`
+	 * lo stato è già stato aggiornato al valore nuovo.
+	 */
+	async function save(nextCur: Currency, nextLang: string, previous: { cur: Currency; lang: string }) {
 		setSaving(true);
+		setError(null);
+		let failed: string | null = null;
 		try {
-			await updatePreferences(nextCur, nextLang);
-			router.refresh();
+			const res = await updatePreferences(nextCur, nextLang);
+			if ("error" in res) failed = res.error ?? t.common.genericError;
+			else router.refresh();
+		} catch (e) {
+			console.error("[preferenze] salvataggio:", e);
+			failed = t.common.genericError;
 		} finally {
 			setSaving(false);
+		}
+		if (failed) {
+			setCur(previous.cur);
+			setLang(previous.lang);
+			setError(failed);
 		}
 	}
 
@@ -67,6 +89,10 @@ export default function PreferencesSection({ currency, language }: PreferencesSe
 				</span>
 				<select
 					value={cur}
+					// ⚠️ Spente durante il salvataggio (review della #124): con due
+					// salvataggi sovrapposti il ripristino del primo cancellava la
+					// scelta del secondo, che intanto era andata a buon fine.
+					disabled={saving}
 					onChange={(e) => {
 						// La guardia stringe il `string` del DOM al codice tipizzato.
 						// Le opzioni le generiamo noi, quindi non può fallire — ma è
@@ -74,7 +100,7 @@ export default function PreferencesSection({ currency, language }: PreferencesSe
 						const next = e.target.value;
 						if (!isCurrency(next)) return;
 						setCur(next);
-						save(next, lang);
+						save(next, lang, { cur, lang });
 					}}
 					className="absolute inset-0 opacity-0 cursor-pointer"
 					aria-label={t.settings.preferences.currency}
@@ -99,9 +125,10 @@ export default function PreferencesSection({ currency, language }: PreferencesSe
 				</span>
 				<select
 					value={lang}
+					disabled={saving}
 					onChange={(e) => {
 						setLang(e.target.value);
-						save(cur, e.target.value);
+						save(cur, e.target.value, { cur, lang });
 					}}
 					className="absolute inset-0 opacity-0 cursor-pointer"
 					aria-label={t.settings.preferences.language}
@@ -116,6 +143,12 @@ export default function PreferencesSection({ currency, language }: PreferencesSe
 					))}
 				</select>
 			</label>
+
+			{error && (
+				<p role="alert" className="px-4 pb-3.5 -mt-1 text-[11.5px] leading-snug text-aka-ink">
+					{error}
+				</p>
+			)}
 		</div>
 	);
 }

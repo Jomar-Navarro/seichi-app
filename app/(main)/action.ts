@@ -12,6 +12,7 @@ import { removeStorageFiles } from "@/lib/storage-files";
 import { readAll } from "@/lib/read-all";
 import { endOfDayInMonth } from "@/lib/dates";
 import { receiptPathsOf } from "@/lib/attachment-paths";
+import { genericError } from "@/lib/errors";
 import type { Frequency } from "@/types";
 
 /**
@@ -242,7 +243,7 @@ export async function getTransactions(opts: {
 	}
 
 	const { data, error } = await query;
-	if (error) return { error: error.message };
+	if (error) return { error: genericError("movimenti: lettura", error, t) };
 
 	if (limit === undefined) return { data, hasMore: false };
 
@@ -315,7 +316,7 @@ export async function deleteTransaction(id: string) {
 		.eq("id", id)
 		.eq("user_id", user.id);
 
-	if (error) return { error: error.message };
+	if (error) return { error: genericError("movimenti: eliminazione", error, t) };
 
 	/*
 	 * I file si rimuovono DOPO, e un fallimento qui non annulla niente: il
@@ -393,7 +394,7 @@ export async function getRecurringRules() {
 		.eq("user_id", user.id)
 		.order("created_at", { ascending: false });
 
-	return error ? { error: error.message } : { data };
+	return error ? { error: genericError("ricorrenti: lettura", error, t) } : { data };
 }
 
 export async function deleteRecurringRule(id: string) {
@@ -606,7 +607,7 @@ export async function getDashboardTotals(accountId?: string | null) {
 		p_account_id: accountId ?? null,
 	});
 
-	if (error) return { error: error.message };
+	if (error) return { error: genericError("home: dashboard_totals", error, t) };
 
 	type TotalRow = { bucket_index: number | null; type: string; total: number | string };
 	const totals = (data ?? []) as TotalRow[];
@@ -799,7 +800,7 @@ export async function getAnalyticsData(periodo: string = "mese", accountId?: str
 		 * fatto — e ogni altra query di questa funzione l'errore lo restituisce.
 		 */
 		const { data: prima, error: primaError } = await primaQuery;
-		if (primaError) return { error: primaError.message };
+		if (primaError) return { error: genericError("analisi: primo movimento", primaError, t) };
 
 		/*
 		 * ⚠️ `Math.min` con l'anno corrente: una data FUTURA (si inserisce a mano,
@@ -909,7 +910,9 @@ export async function getAnalyticsData(periodo: string = "mese", accountId?: str
 		),
 	]);
 
-	if (trendRes.error || speseRes.error) return { error: trendRes.error ?? speseRes.error! };
+	if (trendRes.error || speseRes.error) {
+		return { error: genericError("analisi: letture", trendRes.error ?? speseRes.error!, t) };
+	}
 	const trendData = trendRes.rows;
 	const speseData = speseRes.rows;
 

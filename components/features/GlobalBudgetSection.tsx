@@ -71,6 +71,9 @@ export default function GlobalBudgetSection() {
 			([budgetRes, availRes]) => {
 				if (cancelled) return;
 
+				// ⚠️ Una lettura fallita mostra `t.budget.readFailed` (vedi il render), non
+				// il testo che torna dall'azione: quello è la frase generica, e il
+				// motivo vero è già nel log del server (#124).
 				if ("error" in budgetRes) {
 					setLoadFailed(true);
 					setError(budgetRes.error);
@@ -100,13 +103,17 @@ export default function GlobalBudgetSection() {
 			 * action dell'import senza `try/finally`) e nella 22.
 			 */
 			if (cancelled) return;
+			// Il messaggio di un'eccezione non è una frase per l'utente: in
+			// produzione Next lo sostituisce con un testo generico in inglese (#124).
+			console.error("[budget globale] lettura:", e);
 			setLoadFailed(true);
-			setError(e instanceof Error ? e.message : String(e));
+			setError(t.budget.readFailed);
 			setLoading(false);
 		});
 
 		return () => { cancelled = true; };
-	}, [locale]);
+		// La frase cambia solo con la lingua, quindi non aggiunge riletture.
+	}, [locale, t.budget.readFailed]);
 
 	/** La scrittura vera, condivisa fra il campo e il suggerimento: due strade
 	 *  per lo stesso effetto non possono avere due gestioni dell'errore. */
@@ -135,7 +142,8 @@ export default function GlobalBudgetSection() {
 			 * esista, non che sia rotto — ed è quello già registrato nella Fase 22
 			 * per `crypto.randomUUID()`.
 			 */
-			setError(fill(t.budget.saveFailed, { reason: e instanceof Error ? e.message : String(e) }));
+			console.error("[budget globale] salvataggio:", e);
+			setError(t.budget.saveFailed);
 			return false;
 		} finally {
 			setSaving(false);
@@ -384,7 +392,7 @@ export default function GlobalBudgetSection() {
 
 			{error && (
 				<p className="text-[11.5px] mt-2 ml-1" style={{ color: "var(--ink-aka)" }}>
-					{loadFailed ? fill(t.budget.readFailed, { reason: error }) : error}
+					{loadFailed ? t.budget.readFailed : error}
 				</p>
 			)}
 		</>

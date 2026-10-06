@@ -7,7 +7,6 @@ import { getCoachSnapshot } from "@/app/(main)/coach-actions";
 import { useI18n } from "@/components/features/I18nProvider";
 import { clientClock } from "@/lib/dates";
 import { coachOpening, coachReplies } from "@/lib/coach";
-import { fill } from "@/lib/i18n/format";
 import type { CoachReply, CoachTopic } from "@/lib/coach";
 import type { CoachSnapshot } from "@/types";
 
@@ -90,7 +89,9 @@ function CoachPanel({
 }) {
 	const { locale, t } = useI18n();
 	const [snapshot, setSnapshot] = useState<CoachSnapshot | null>(null);
-	const [errore, setErrore] = useState<string | null>(null);
+	// Un booleano e non il testo (review della #124): il motivo grezzo non va a
+	// schermo, quindi non c'è ragione di tenerlo nello stato.
+	const [fallito, setFallito] = useState(false);
 	const [scelto, setScelto] = useState<CoachTopic | null>(null);
 
 	/*
@@ -106,7 +107,7 @@ function CoachPanel({
 		getCoachSnapshot(clientClock())
 			.then((res) => {
 				if (annullato) return;
-				if ("error" in res) setErrore(res.error);
+				if ("error" in res) setFallito(true);
 				else setSnapshot(res.data);
 			})
 			/*
@@ -116,7 +117,8 @@ function CoachPanel({
 			 */
 			.catch((e) => {
 				if (annullato) return;
-				setErrore(e instanceof Error ? e.message : String(e));
+				console.error("[coach] snapshot:", e);
+				setFallito(true);
 			});
 		return () => { annullato = true; };
 	}, []);
@@ -143,9 +145,11 @@ function CoachPanel({
 					</button>
 				</div>
 
-				{errore !== null ? (
+				{fallito ? (
 					<p className="text-[13px] leading-relaxed" style={{ color: "var(--ink-aka)" }}>
-						{fill(t.coach.readFailed, { reason: errore })}
+						{/* ⚠️ La frase e non il motivo (#124): quello era il testo grezzo
+						    del database o di un'eccezione, ed è già nei log. */}
+						{t.coach.readFailed}
 					</p>
 				) : snapshot === null ? (
 					<p className="text-[13px] text-muted">{t.coach.loading}</p>

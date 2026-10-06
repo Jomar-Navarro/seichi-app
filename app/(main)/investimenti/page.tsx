@@ -4,6 +4,7 @@ import { getAccounts } from "../conti/actions";
 import InvestimentiTab from "@/components/features/InvestimentiTab";
 import AccountSelector from "@/components/features/AccountSelector";
 import ViewedAccount from "@/components/features/ViewedAccount";
+import LoadError from "@/components/UI/LoadError";
 import { getSelectedAccount } from "@/lib/accounts-server";
 import { getI18n } from "@/lib/i18n/server";
 import { plural } from "@/lib/i18n/format";
@@ -129,7 +130,17 @@ export default async function InvestimentiPage({
 				)}
 			</div>
 
-			<InvestimentiTab data={data} />
+			{/*
+				⚠️ Una lettura fallita non è un portafoglio vuoto (#124). Con `data`
+				a `null` il componente mostrava "Nessun investimento ancora —
+				aggiungi una transazione", mentre home e `/analisi` dicevano
+				l'errore: tre pagine, due versioni dello stesso guasto.
+			*/}
+			{"error" in result ? (
+				<LoadError message={t.investments.loadError} />
+			) : (
+				<InvestimentiTab data={data} />
+			)}
 		</div>
 	);
 }
