@@ -14,8 +14,7 @@
  * la stessa sicurezza-per-oscurità già scartata altrove in questo progetto
  * (il path degli avatar, Fase 16). Meglio dichiararlo che fingerlo.
  *
- * Due cookie NON segreti (stesso pattern di `lib/theme.ts` — scritti da
- * `document.cookie`, mai httpOnly, un anno di durata) esistono per un motivo
+ * Due cookie NON segreti (mai httpOnly, un anno di durata) esistono per un motivo
  * solo: senza di loro il server non saprebbe nulla e lascerebbe passare un
  * fotogramma di DASHBOARD VERA (Server Component: i numeri sono già
  * nell'HTML) prima che il JS client decida di coprirla. Non portano il PIN,
@@ -37,12 +36,20 @@
  * ITP un cookie scritto da `document.cookie` dura al massimo 7 giorni,
  * qualunque `Max-Age` si chieda. Il blocco era fail-closed sulla finestra di
  * grazia e fail-OPEN sulla sua esistenza.
- * Ora il client decide dall'UNIONE delle due fonti (`isLockedOnClient`), e il
- * cookie si riscrive a ogni caricamento e a ogni `markActiveNow()`: chi usa
- * l'app almeno una volta a settimana non lo vede mai scadere. Resta un
- * residuo che da qui non si chiude: dopo più di 7 giorni senza aprire l'app
- * il server non sa del PIN, e il velo arriva con il JavaScript invece che col
- * primo byte: un istante di pagina vera prima del velo, una volta.
+ * Ora il client decide dall'UNIONE delle due fonti (`isLockedOnClient`), e
+ * `seichi-lock-enabled` lo scrive il SERVER (`setAppLockCookie`, una server
+ * action): ITP tronca i cookie di `document.cookie`, non quelli di un
+ * `Set-Cookie`. È la regola già scelta per la lingua (`LOCALE_COOKIE_OPTIONS`):
+ * un cookie, uno scrittore. Il client lo cancella (`clearPin`), non lo crea.
+ * Se all'apertura il cookie e `localStorage` non concordano, `enabledCookieFix`
+ * dice in che verso correggerlo.
+ * Resta un residuo, una volta sola: un PIN impostato prima della #125 ha il
+ * cookie scritto dal client, e quando ITP lo fa scadere il server rende una
+ * pagina senza velo — il velo arriva con il JavaScript, e da lì il cookie è
+ * quello del server.
+ *
+ * `seichi-lock-active-until` invece resta del client: lo scrive a ogni uscita
+ * dal primo piano, e una finestra di grazia dura minuti, non giorni.
  */
 
 export const APP_LOCK_ENABLED_COOKIE = "seichi-lock-enabled";
@@ -183,31 +190,57 @@ export function isLockedOnClient(): boolean {
 }
 
 /**
- * Riscrive `seichi-lock-enabled` se un PIN c'è (#125) — anche quando il cookie
- * esiste già, perché riscriverlo ne rinnova la scadenza (vedi `MAX_AGE`).
- * Ritorna `true` se il cookie MANCAVA, cioè se il server ha appena reso una
- * pagina senza sapere del PIN e ciò che ne ha ricavato va riletto.
+ * Il PIN NON c'è, e lo dice `localStorage` — non un'eccezione nel leggerlo.
+ * `hasStoredPin()` tratta le due cose allo stesso modo, e per decidere se
+ * bloccare va bene; per dire "il PIN non c'è più" o per spegnere il cookie no:
+ * un'archiviazione che rifiuta la lettura per un attimo non è un PIN perso.
  */
-export function refreshEnabledCookie(): boolean {
-	if (!hasStoredPin()) return false;
-	const wasMissing = readCookie(APP_LOCK_ENABLED_COOKIE) !== "1";
-	document.cookie = `${APP_LOCK_ENABLED_COOKIE}=1${cookieAttrs()}`;
-	return wasMissing;
+export function isStoredPinAbsent(): boolean {
+	try {
+		return localStorage.getItem(PIN_STORAGE_KEY) === null;
+	} catch {
+		return false;
+	}
 }
 
 /**
- * Rinfresca la finestra di grazia da QUESTO istante — a ogni sblocco riuscito
- * e a ogni uscita dal primo piano. E con lei il cookie del PIN (#125): sono i
- * momenti in cui si sa che l'app è in uso.
+ * In che verso correggere `seichi-lock-enabled` perché dica ciò che dice
+ * `localStorage` (#125): `true` va acceso, `false` va spento, `null` è giusto.
+ *
+ * Spegnerlo solo ad app SBLOCCATA: lì chi guarda è entro la finestra di
+ * grazia, e un cookie che annuncia un PIN inesistente farebbe soltanto dire
+ * "attivo" a /impostazioni mentre /impostazioni/blocco offre di impostarlo —
+ * e, alla prossima uscita, chiuderebbe fuori l'utente. Ad app bloccata il
+ * cookie resta: il velo dice che il PIN non c'è più e offre l'uscita.
  */
+export function enabledCookieFix(unlocked: boolean): boolean | null {
+	const cookieOn = readCookie(APP_LOCK_ENABLED_COOKIE) === "1";
+	if (hasStoredPin()) return cookieOn ? null : true;
+	if (cookieOn && unlocked && isStoredPinAbsent()) return false;
+	return null;
+}
+
+/** Attributi di `seichi-lock-enabled` per chi lo scrive: solo il server, vedi in testa. */
+export const APP_LOCK_ENABLED_COOKIE_OPTIONS = {
+	path: "/",
+	maxAge: MAX_AGE,
+	sameSite: "lax",
+	// Il client lo legge (`isPinEnabledOnClient`) e lo cancella (`clearPin`).
+	httpOnly: false,
+	secure: process.env.NODE_ENV === "production",
+} as const;
+
+/** Rinfresca la finestra di grazia da QUESTO istante — a ogni sblocco riuscito e a ogni uscita dal primo piano. */
 export function markActiveNow() {
 	const until = Date.now() + readGraceMs();
 	document.cookie = `${APP_LOCK_ACTIVE_UNTIL_COOKIE}=${until}${cookieAttrs()}`;
-	refreshEnabledCookie();
 }
 
 /**
- * Salva il PIN e accende il flag lato server — a fine impostazione o cambio.
+ * Salva il PIN e apre la finestra di grazia — a fine impostazione o cambio.
+ * Il cookie del PIN lo accende poi il chiamante, con `setAppLockCookie(true)`:
+ * lo scrive il server (vedi in testa), e da qui non si importa una server
+ * action senza un'importazione circolare.
  *
  * ⚠️ Ritorna `false` se `localStorage` ha rifiutato la scrittura, e in quel
  * caso NON accende il cookie. Trovato dal code-review: la versione
@@ -224,8 +257,6 @@ export function savePin(pin: string): boolean {
 	} catch {
 		return false;
 	}
-	// Accende anche `seichi-lock-enabled`: il PIN ora c'è, e `markActiveNow()`
-	// riscrive il cookie ogni volta che lo trova.
 	markActiveNow();
 	return true;
 }
@@ -256,7 +287,7 @@ export function clearPin() {
 /* ------------------------------------------------------- solo telefono e tablet (#125) --- */
 
 /**
- * Dove l'input principale è un mouse o un trackpad, cioè su un computer.
+ * Un computer: un dispositivo senza alcun input touch.
  *
  * ⚠️ Lì il PIN non si OFFRE, deciso con Jomar il 2026-10-07. Il velo copre una
  * pagina i cui numeri sono già nel DOM: sul computer F12 o "visualizza
@@ -266,19 +297,32 @@ export function clearPin() {
  * home screen che apre dritta sui conti.
  *
  * Il criterio è l'input, non la larghezza: un iPad in orizzontale è largo
- * come un portatile, ed è un tablet. Decide solo che cosa OFFRIRE in
- * `/impostazioni/blocco`: un PIN già impostato su un computer continua a
- * bloccare, finché chi l'ha messo non lo toglie.
+ * come un portatile, ed è un tablet. E non il puntatore PRINCIPALE: con una
+ * tastiera e un trackpad attaccati un iPad può dichiararsi `pointer: fine`,
+ * ma lo schermo touch resta (`any-pointer: coarse`) — trovato dalla review.
+ * Un portatile con lo schermo touch risulta così un tablet, e il PIN gli si
+ * offre: sbagliare in quel verso è com'era prima della #125.
+ *
+ * Decide solo che cosa OFFRIRE in `/impostazioni/blocco`: un PIN già
+ * impostato su un computer continua a bloccare, finché chi l'ha messo non lo
+ * toglie.
  */
-const COMPUTER_POINTER_QUERY = "(hover: hover) and (pointer: fine)";
+const TOUCH_QUERY = "(any-pointer: coarse)";
 
-export function isComputerPointer(): boolean {
-	return window.matchMedia(COMPUTER_POINTER_QUERY).matches;
+/** Una sola per pagina: `isComputer` è l'istantanea di `useSyncExternalStore`, letta a ogni render. */
+let touchQuery: MediaQueryList | undefined;
+function touchMedia(): MediaQueryList {
+	touchQuery ??= window.matchMedia(TOUCH_QUERY);
+	return touchQuery;
 }
 
-/** Per `useSyncExternalStore`: un portatile con lo schermo touch può cambiare input. */
-export function subscribeComputerPointer(onChange: () => void): () => void {
-	const mq = window.matchMedia(COMPUTER_POINTER_QUERY);
+export function isComputer(): boolean {
+	return !touchMedia().matches;
+}
+
+/** Per `useSyncExternalStore`: attaccare o staccare uno schermo touch cambia la risposta. */
+export function subscribeComputer(onChange: () => void): () => void {
+	const mq = touchMedia();
 	mq.addEventListener("change", onChange);
 	return () => mq.removeEventListener("change", onChange);
 }

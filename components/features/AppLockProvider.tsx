@@ -1,14 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
 import AppLockScreen from "@/components/features/AppLockScreen";
-import {
-	isLockedOnClient,
-	isPinEnabledOnClient,
-	markActiveNow,
-	refreshEnabledCookie,
-} from "@/lib/app-lock";
+import { setAppLockCookie } from "@/app/(main)/impostazioni/blocco/actions";
+import { enabledCookieFix, isLockedOnClient, isPinEnabledOnClient, markActiveNow } from "@/lib/app-lock";
 
 /**
  * Lo stato "bloccato" vive FUORI da React, in un piccolo store per istanza
@@ -27,6 +22,14 @@ import {
  * da sola fra due letture farebbe sbagliare React. E il client AGGIUNGE un
  * blocco, non lo toglie: se il server ha detto "bloccato", resta bloccato
  * finché qualcuno non digita il PIN — come prima della #125.
+ *
+ * ⚠️ E `serverLocked` si legge UNA volta, al montaggio, come faceva lo
+ * `useState(initialLocked)` di prima: il layout si rende di nuovo a ogni
+ * `revalidatePath("/", "layout")`, cioè dopo ogni movimento salvato, e la
+ * finestra di grazia si rinnova solo uscendo dal primo piano — chi usa l'app
+ * da due minuti ha `active-until` già passato, e applicare la nuova decisione
+ * del server lo chiuderebbe fuori a ogni salvataggio. Dopo il montaggio il
+ * blocco lo alzano solo `visibilitychange` e lo abbassa solo il PIN.
  */
 function createLockStore(serverLocked: boolean) {
 	let locked: boolean | undefined;
@@ -65,7 +68,6 @@ export default function AppLockProvider({
 	initialLocked: boolean;
 	children: ReactNode;
 }) {
-	const router = useRouter();
 	const [store] = useState(() => createLockStore(initialLocked));
 	const locked = useSyncExternalStore(store.subscribe, store.get, store.getServer);
 
@@ -75,13 +77,16 @@ export default function AppLockProvider({
 	}, [store]);
 
 	useEffect(() => {
-		// #125 — il PIN c'è e il cookie no: questa pagina il server l'ha resa
-		// senza saperlo. Il velo l'ha già messo `get()`; qui si riscrive il
-		// cookie, e si rifanno i Server Component che ne avevano tratto
-		// qualcosa — la riga "Blocco con PIN · Attivo" di /impostazioni.
-		// Una volta sola: dopo la riscrittura il cookie c'è.
-		if (refreshEnabledCookie()) router.refresh();
-	}, [router]);
+		// #125 — il cookie del PIN e `localStorage` non concordano: questa pagina
+		// il server l'ha resa credendo al cookie. Il velo, se serve, l'ha già
+		// messo `get()`; qui si corregge il cookie dal server, che fa anche
+		// rendere di nuovo i Server Component che ne avevano tratto qualcosa —
+		// la riga "Blocco con PIN · Attivo" di /impostazioni. Una volta sola:
+		// dopo la correzione concordano. Su un errore, ci si riprova al
+		// prossimo caricamento: il blocco intanto lo decide `localStorage`.
+		const fix = enabledCookieFix(!store.get());
+		if (fix !== null) setAppLockCookie(fix).catch(() => {});
+	}, [store]);
 
 	useEffect(() => {
 		function onVisibilityChange() {

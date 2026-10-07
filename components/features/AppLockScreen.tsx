@@ -9,7 +9,7 @@ import {
 	APP_LOCK_REJECT_DISPLAY_MS,
 	clearPin,
 	hasBiometricCredential,
-	hasStoredPin,
+	isStoredPinAbsent,
 	readStoredPin,
 	verifyBiometric,
 } from "@/lib/app-lock";
@@ -79,14 +79,18 @@ export default function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
 	);
 
 	// #125 — il velo è su perché il COOKIE dice che c'è un PIN, ma il PIN non
-	// è più in `localStorage` (dati del sito cancellati a metà, archiviazione
-	// che rifiuta la lettura). Nessuna cifra può coincidere: il tastierino
-	// risponderebbe "PIN errato" a quello giusto, che è una frase falsa. Si
-	// dice cosa è successo e si offre subito l'unica uscita. Fail-closed resta:
-	// sbloccare senza un PIN da verificare riaprirebbe la #125 dall'altro lato.
+	// è più in `localStorage` (dati del sito cancellati a metà). Nessuna cifra
+	// può coincidere: il tastierino risponderebbe "PIN errato" a quello giusto,
+	// che è una frase falsa. Si dice cosa è successo e si offre subito l'unica
+	// uscita — in un tocco, perché l'etichetta è già il comando vero, non una
+	// domanda come "Hai dimenticato il PIN?". Fail-closed resta: sbloccare senza
+	// un PIN da verificare riaprirebbe la #125 dall'altro lato.
+	// ⚠️ "Assente", non "illeggibile" (`isStoredPinAbsent`): un'archiviazione
+	// che rifiuta la lettura per un attimo non è un PIN perso, e l'uscita
+	// cancellerebbe il PIN vero appena tornasse leggibile.
 	const pinMissing = useSyncExternalStore(
 		() => () => {},
-		() => !hasStoredPin(),
+		isStoredPinAbsent,
 		() => false,
 	);
 
