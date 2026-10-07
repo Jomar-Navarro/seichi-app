@@ -26,7 +26,7 @@ import { Sprout } from "lucide-react";
  * piena non c'è comunque nulla sotto da vedere per poterlo toccare
  * consapevolmente, e la finestra di sovrapposizione è sotto il secondo.
  *
- * ⚠️ `z-70`, sopra il velo di blocco PIN (`AppLockScreen`, z-60): su un
+ * ⚠️ `z-70`, sopra il velo di blocco PIN (`AppLockScreen`, z-65): su un
  * dispositivo con blocco attivo la sequenza è splash → (una volta svanito)
  * schermata di sblocco, mai il contrario.
  *

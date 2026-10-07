@@ -217,9 +217,12 @@ export const it = {
 		 *  (redesign: non più un bottone separato, vedi `PinPad`/`AppLockScreen`). */
 		unlockWithBiometric: "Sblocca con la biometria",
 
-		/** Onestà dichiarata — vedi issue #67: blocca lo SCHERMO, non i dati. */
+		/** Onestà dichiarata — vedi issue #67: blocca lo SCHERMO, non i dati.
+		 *  ⚠️ Diceva "dopo qualche minuto di inattività" (#125): un tempo
+		 *  d'inattività non è mai esistito, si blocca quando la pagina viene
+		 *  NASCOSTA — un'altra app, o lo schermo che si spegne. */
 		disclaimer:
-			"Blocca solo la schermata su questo dispositivo, dopo qualche minuto di inattività. Non protegge i dati: la sessione resta quella di sempre, come per ogni app.",
+			"Blocca solo la schermata su questo dispositivo, quando esci dall'app o lo schermo si spegne per più del tempo scelto. Non protegge i dati: la sessione resta quella di sempre, come per ogni app.",
 		active: "Attivo",
 		setPin: "Imposta PIN",
 		changePin: "Cambia PIN",
@@ -266,7 +269,7 @@ export const it = {
 		/** ⚠️ Non promette più l'impronta come passo automatico: dalla Fase 26b
 		 *  esiste, ma è un interruttore separato che l'utente accende da sé,
 		 *  non una conseguenza dell'impostare il PIN. */
-		howItWorksStep2: "La schermata si blocca da sola dopo un po' di inattività — la durata si sceglie.",
+		howItWorksStep2: "Se esci dall'app o lo schermo si spegne per più del tempo scelto, al ritorno serve il PIN.",
 		howItWorksStep3: "Se dimentichi il PIN, esci e rientri con la password.",
 
 		/** Solo nello stato ACCESO, sotto i due bottoni. */
@@ -283,6 +286,24 @@ export const it = {
 		/** Il dispositivo non c'entra: manca una connessione sicura (https). */
 		biometricInsecureContext: "richiede una connessione sicura (https)",
 		biometricEnableFailed: "Non è stato possibile attivare il blocco biometrico. Riprova.",
+		/** I due nomi della passkey (#125) — il sistema operativo li mostra nel
+		 *  proprio elenco, e quale dei due dipende dalla piattaforma. */
+		passkeyUserName: "blocco-seichi",
+		passkeyDisplayName: "Blocco Seichi",
+
+		/* ------------------------------------------------------------------ #125 --- */
+
+		/** Il cookie dice che c'è un PIN, ma il PIN non è più sul dispositivo:
+		 *  nessuna cifra può coincidere, e "PIN errato" sarebbe falso. */
+		pinMissingTitle: "Il PIN non c'è più",
+		pinMissing:
+			"Questo dispositivo ha perso il PIN salvato. Esci e accedi di nuovo con la password: i dati restano al loro posto.",
+		/** Sul computer il PIN non si offre — il perché è su `isComputer()`. */
+		computerUnavailable:
+			"Sul computer il PIN non c'è. Il blocco coprirebbe lo schermo, ma i numeri resterebbero leggibili dagli strumenti del browser: qui a proteggere Seichi è il blocco schermo del sistema. Il PIN è per telefono e tablet.",
+		/** …e chi ne aveva già impostato uno lo tiene finché non lo toglie. */
+		computerExisting:
+			"Sul computer il PIN non si imposta più: i numeri resterebbero leggibili dagli strumenti del browser, e qui a proteggere Seichi è il blocco schermo del sistema. Quello che hai continua a funzionare finché non lo togli.",
 	},
 
 	/**

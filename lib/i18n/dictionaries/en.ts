@@ -121,7 +121,7 @@ export const en: Dictionary = {
 		unlockWithBiometric: "Unlock with biometrics",
 
 		disclaimer:
-			"Locks only the screen on this device, after a few minutes of inactivity. It doesn't protect your data: your session stays the same, as with any app.",
+			"Locks only the screen on this device, when you leave the app or the screen turns off for longer than the time you choose. It doesn't protect your data: your session stays the same, as with any app.",
 		active: "Active",
 		setPin: "Set PIN",
 		changePin: "Change PIN",
@@ -152,7 +152,7 @@ export const en: Dictionary = {
 
 		howItWorksTitle: "what happens next",
 		howItWorksStep1: "Choose {length} digits and confirm them once.",
-		howItWorksStep2: "The screen locks itself after a while of inactivity — you choose how long.",
+		howItWorksStep2: "If you leave the app or the screen turns off for longer than the time you choose, you'll need the PIN when you come back.",
 		howItWorksStep3: "If you forget your PIN, sign out and back in with your password.",
 
 		activeDisclaimer:
@@ -163,6 +163,16 @@ export const en: Dictionary = {
 		biometricUnavailable: "not available on this device",
 		biometricInsecureContext: "requires a secure connection (https)",
 		biometricEnableFailed: "Couldn't turn on biometric unlock. Please try again.",
+		passkeyUserName: "seichi-lock",
+		passkeyDisplayName: "Seichi lock",
+
+		pinMissingTitle: "Your PIN is gone",
+		pinMissing:
+			"This device lost the PIN it had saved. Sign out and back in with your password: your data stays put.",
+		computerUnavailable:
+			"There's no PIN on a computer. The lock would cover the screen, but your numbers would still be readable through the browser's developer tools: here, Seichi is protected by your system's screen lock. The PIN is for phones and tablets.",
+		computerExisting:
+			"A PIN can no longer be set on a computer: your numbers would still be readable through the browser's developer tools, and here Seichi is protected by your system's screen lock. The one you have keeps working until you remove it.",
 	},
 
 	errors: {

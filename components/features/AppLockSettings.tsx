@@ -20,13 +20,16 @@ import {
 	hasStoredPin,
 	isAppLockGraceMs,
 	isBiometricAvailable,
+	isComputer,
 	isInsecureContextForBiometric,
 	readGraceMs,
 	readStoredPin,
 	registerBiometric,
 	savePin,
+	subscribeComputer,
 	writeGraceMs,
 } from "@/lib/app-lock";
+import { setAppLockCookie } from "@/app/(main)/app-lock-actions";
 
 /**
  * `/impostazioni/blocco` (Fase 26a) — imposta, cambia o rimuove il PIN.
@@ -57,6 +60,10 @@ import {
  *
  * La riga "richiedi il PIN dopo" INVECE è toccabile, su richiesta esplicita
  * (era stata prima una costante fissa).
+ *
+ * ⚠️ Sul computer il PIN non si offre (#125, deciso con Jomar): il perché è
+ * su `isComputer()`. Senza PIN la pagina dice solo questo; con un PIN
+ * impostato prima, si può togliere ma non cambiare.
  *
  * ⚠️ Il primo tentativo copiava `PreferencesSection` (valuta/lingua): una
  * `<select>` nativa invisibile sopra la riga. Corretto — il picker che ne
@@ -111,6 +118,14 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 		hasStoredPin,
 		() => initialHasPin,
 	);
+
+	// #125 — sul computer il PIN non si offre: il perché è su `isComputer()`.
+	// Il server non conosce gli input del dispositivo, quindi l'idratazione
+	// parte da "non è un computer": su un computer, a un ricaricamento,
+	// l'offerta compare per un istante; il contrario scriverebbe "sul
+	// computer…" su un telefono, che è una frase falsa. Per questo i comandi
+	// che IMPOSTANO qualcosa rileggono `isComputer()` al tocco, non `onComputer`.
+	const onComputer = useSyncExternalStore(subscribeComputer, isComputer, () => false);
 
 	// Stessa ragione di `hasPin`: `readGraceMs()` tocca `localStorage`, che
 	// non esiste durante il render sul server — da qui il default SICURO
@@ -200,6 +215,8 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 
 	async function toggleBiometric() {
 		setBiometricError(false);
+		// Sul computer il blocco non si estende (#125): si spegne, non si accende.
+		if (!biometricEnabled && isComputer()) return;
 		if (biometricEnabled) {
 			// Nessuna riautenticazione per spegnerlo: è un interruttore, non
 			// un'operazione sensibile — il PIN resta comunque a proteggere lo
@@ -219,7 +236,10 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 		// futura lascerebbe `biometricBusy` bloccato a `true` per sempre, riga
 		// spenta senza che nulla lo dica.
 		try {
-			const okBio = await registerBiometric();
+			const okBio = await registerBiometric({
+				userName: t.appLock.passkeyUserName,
+				displayName: t.appLock.passkeyDisplayName,
+			});
 			if (okBio) setBiometricOverride(true);
 			else setBiometricError(true);
 		} finally {
@@ -266,6 +286,11 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 		}
 		if (afterVerify === "remove") {
 			clearPin();
+			// Anche dal server, non solo da `document.cookie` (#125): se l'accensione
+			// del cookie è ancora in viaggio — un PIN messo e tolto offline — il suo
+			// `Set-Cookie` arriverebbe DOPO la cancellazione e lo riaccenderebbe.
+			// Next esegue le server action una alla volta, quindi questa arriva dopo.
+			setAppLockCookie(false).catch((e) => console.error("[app-lock] cookie del PIN:", e));
 			reset();
 			return;
 		}
@@ -280,6 +305,14 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 	}
 
 	function onCreateConfirm(pin: string) {
+		// #125 — l'ultimo punto prima di `savePin()`, qualunque strada porti qui
+		// (un tocco nell'istante dell'idratazione, uno schermo touch staccato a
+		// metà): sul computer un PIN non si scrive. Non è un gesto muto: il
+		// riposo, sul computer, è la frase che dice perché il PIN qui non c'è.
+		if (isComputer()) {
+			reset();
+			return;
+		}
 		if (pin !== firstPin) {
 			setRejected(true);
 			setMismatchShowing(true);
@@ -296,7 +329,12 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 		// l'esito e andava comunque a "done" — l'utente vedeva "PIN impostato"
 		// su un PIN mai scritto, e l'app si sarebbe bloccata senza che nessun
 		// PIN digitato potesse mai aprirla di nuovo.
-		setStep(savePin(pin) ? "done" : "save-error");
+		const saved = savePin(pin);
+		// Il cookie del PIN lo scrive il server (#125, vedi `lib/app-lock.ts`).
+		// Se la richiesta fallisce, lo ricorregge `AppLockProvider` alla
+		// prossima apertura: intanto il blocco lo decide `localStorage`.
+		if (saved) setAppLockCookie(true).catch((e) => console.error("[app-lock] cookie del PIN:", e));
+		setStep(saved ? "done" : "save-error");
 	}
 
 	/* ---------------------------------------------------------- i quattro/cinque passi --- */
@@ -411,6 +449,7 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 	/* ---------------------------------------------------------- riposo --- */
 
 	function startCreate() {
+		if (isComputer()) return; // #125 — vedi `onComputer`
 		setStep("create-enter");
 	}
 	function startRemove() {
@@ -418,9 +457,16 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 		setStep("verify-current");
 	}
 
+	// Sul computer, senza un PIN: niente da offrire, solo il perché.
+	if (onComputer && !hasPin) {
+		return <p className="text-[13px] text-muted leading-relaxed">{t.appLock.computerUnavailable}</p>;
+	}
+
 	return (
 		<div>
-			<p className="text-[13px] text-muted leading-relaxed mb-7">{t.appLock.disclaimer}</p>
+			<p className="text-[13px] text-muted leading-relaxed mb-7">
+				{onComputer ? t.appLock.computerExisting : t.appLock.disclaimer}
+			</p>
 
 			<SettingsGroup>
 				{/* La riga È il comando (`onClick` sulla riga stessa): l'interruttore
@@ -437,7 +483,9 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 				/>
 				{hasPin && (
 					<>
-						{biometricAvailable === false ? (
+						{/* Sul computer il biometrico non si offre (#125): la riga resta
+						    solo per spegnerlo, se era già acceso. */}
+						{onComputer && !biometricEnabled ? null : biometricAvailable === false ? (
 							// ⚠️ Trovato usando l'app da un iPhone 15: "non disponibile su
 							// questo dispositivo" è FALSO quando la causa è il contesto non
 							// sicuro (l'IP di LAN) — un iPhone con Face ID smentisce quella
@@ -544,14 +592,17 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 				<SubmitButton label={t.appLock.setPin} onClick={startCreate} />
 			) : (
 				<div className="space-y-3">
-					<SubmitButton
-						label={t.appLock.changePin}
-						variant="ghost"
-						onClick={() => {
-							setAfterVerify("change");
-							setStep("verify-current");
-						}}
-					/>
+					{/* Sul computer un PIN nuovo non si imposta, e cambiarlo lo è. */}
+					{!onComputer && (
+						<SubmitButton
+							label={t.appLock.changePin}
+							variant="ghost"
+							onClick={() => {
+								setAfterVerify("change");
+								setStep("verify-current");
+							}}
+						/>
+					)}
 					<SubmitButton label={t.appLock.removePin} danger onClick={startRemove} />
 				</div>
 			)}

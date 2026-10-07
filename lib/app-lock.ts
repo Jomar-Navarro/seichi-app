@@ -9,13 +9,12 @@
  *
  * Il PIN vive SOLO in `localStorage`, per dispositivo: mai sul server, mai
  * sincronizzato fra dispositivi, mai in un cookie. ⚠️ Ed è in CHIARO, non
- * hashato: un hash di un PIN a 4 cifre si forza offline in microsecondi, e
+ * hashato: un hash di un PIN a 6 cifre si forza offline in microsecondi, e
  * hasharlo comunque darebbe solo l'ILLUSIONE di una protezione che non c'è —
  * la stessa sicurezza-per-oscurità già scartata altrove in questo progetto
  * (il path degli avatar, Fase 16). Meglio dichiararlo che fingerlo.
  *
- * Due cookie NON segreti (stesso pattern di `lib/theme.ts` — scritti da
- * `document.cookie`, mai httpOnly, un anno di durata) esistono per un motivo
+ * Due cookie NON segreti (mai httpOnly, un anno di durata) esistono per un motivo
  * solo: senza di loro il server non saprebbe nulla e lascerebbe passare un
  * fotogramma di DASHBOARD VERA (Server Component: i numeri sono già
  * nell'HTML) prima che il JS client decida di coprirla. Non portano il PIN,
@@ -23,10 +22,35 @@
  * quando vale la finestra di grazia" — che bastano al server per rendere già
  * corretto il primo byte, esattamente come `.dark` per il tema.
  *
- * Questo modulo non importa `next/headers`: `isLockedFromCookies` va letta
- * anche dal server (`app/(main)/layout.tsx`, valori grezzi da `cookies()`) e
- * dal client (`AppLockProvider`, valori grezzi da `document.cookie`) — la
- * STESSA funzione, non due copie che potrebbero divergere.
+ * Questo modulo non importa `next/headers`: la decisione va presa anche dal
+ * server (`app/(main)/layout.tsx`, valori grezzi da `cookies()`) e dal client
+ * (`AppLockProvider`) — la STESSA funzione (`isLockedFor`), non due copie che
+ * potrebbero divergere.
+ *
+ * ⚠️⚠️ **Due fonti per "c'è un PIN", e il cookie è solo la COPIA** (#125).
+ * Il PIN sta in `localStorage`; `seichi-lock-enabled` esiste perché il server
+ * non può leggerlo. Fino alla #125 il client decideva dal solo cookie, scritto
+ * una volta al salvataggio: se spariva mentre il PIN restava, il blocco si
+ * spegneva su server e client, mentre `/impostazioni/blocco` — che legge
+ * `localStorage` — continuava a dire "attivo". Su Safari succede da sé: con
+ * ITP un cookie scritto da `document.cookie` dura al massimo 7 giorni,
+ * qualunque `Max-Age` si chieda. Il blocco era fail-closed sulla finestra di
+ * grazia e fail-OPEN sulla sua esistenza.
+ * Ora il client decide dall'UNIONE delle due fonti (`isLockedOnClient`), e
+ * `seichi-lock-enabled` lo scrive il SERVER (`setAppLockCookie`, una server
+ * action): ITP tronca i cookie di `document.cookie`, non quelli di un
+ * `Set-Cookie`. È la regola già scelta per la lingua (`LOCALE_COOKIE_OPTIONS`):
+ * un cookie, uno scrittore. Il client lo cancella subito (`clearPin`) e chiede
+ * al server di cancellarlo (`setAppLockCookie(false)`), ma non lo crea mai.
+ * Se all'apertura il cookie e `localStorage` non concordano, `enabledCookieFix`
+ * dice in che verso correggerlo.
+ * Resta un residuo, una volta sola: un PIN impostato prima della #125 ha il
+ * cookie scritto dal client, e quando ITP lo fa scadere il server rende una
+ * pagina senza velo — il velo arriva con il JavaScript, e da lì il cookie è
+ * quello del server.
+ *
+ * `seichi-lock-active-until` invece resta del client: lo scrive a ogni uscita
+ * dal primo piano, e una finestra di grazia dura minuti, non giorni.
  */
 
 export const APP_LOCK_ENABLED_COOKIE = "seichi-lock-enabled";
@@ -86,13 +110,18 @@ export function writeGraceMs(ms: AppLockGraceMs) {
  */
 export const APP_LOCK_REJECT_DISPLAY_MS = 900;
 
-/** Un anno, come i cookie del tema: la scelta non deve scadere da sola. */
+/**
+ * Un anno, come i cookie del tema: la scelta non deve scadere da sola.
+ * ⚠️ Su Safari è una richiesta, non una garanzia, per i cookie scritti da
+ * `document.cookie`: ITP li tronca a 7 giorni. Per questo `seichi-lock-enabled`
+ * lo scrive il server — vedi in testa al file.
+ */
 const MAX_AGE = 60 * 60 * 24 * 365;
 
 /* ---------------------------------------------------------- server e client --- */
 
 /**
- * Decide se il velo va mostrato, dai soli DUE COOKIE.
+ * Decide se il velo va mostrato — l'unica regola, per server e client.
  *
  * Fail CLOSED: se un PIN è configurato e non risulta un'attività recente
  * valida (cookie assente, scaduto o manomesso), il default è bloccato — mai
@@ -100,14 +129,22 @@ const MAX_AGE = 60 * 60 * 24 * 365;
  * annullato in un istante da chi conosce il PIN; il costo di sbagliare per
  * difetto sarebbe la dashboard vera esposta a chi non lo conosce.
  */
+function isLockedFor(pinEnabled: boolean, activeUntilRaw: string | undefined): boolean {
+	if (!pinEnabled) return false; // nessun PIN configurato: niente da bloccare
+	const activeUntil = activeUntilRaw ? Number(activeUntilRaw) : NaN;
+	if (!Number.isFinite(activeUntil)) return true; // mai sbloccato, o cookie assente/manomesso
+	return Date.now() > activeUntil;
+}
+
+/**
+ * Il blocco visto dal SERVER, che ha soltanto i due cookie. Il client decide
+ * con `isLockedOnClient`, che vede anche `localStorage`.
+ */
 export function isLockedFromCookies(
 	enabledRaw: string | undefined,
 	activeUntilRaw: string | undefined,
 ): boolean {
-	if (enabledRaw !== "1") return false; // nessun PIN configurato: niente da bloccare
-	const activeUntil = activeUntilRaw ? Number(activeUntilRaw) : NaN;
-	if (!Number.isFinite(activeUntil)) return true; // mai sbloccato, o cookie assente/manomesso
-	return Date.now() > activeUntil;
+	return isLockedFor(enabledRaw === "1", activeUntilRaw);
 }
 
 export function isValidPin(value: string): boolean {
@@ -138,6 +175,67 @@ function cookieAttrs(): string {
 	return `; Path=/; Max-Age=${MAX_AGE}; SameSite=Lax${secure}`;
 }
 
+/**
+ * Un PIN è configurato su questo dispositivo, secondo QUALUNQUE delle due
+ * fonti (#125). L'unione è la scelta fail-closed in entrambi i versi: il PIN
+ * senza cookie blocca, e blocca anche il cookie senza PIN — là il velo dice
+ * che il PIN non c'è più e offre l'uscita (`AppLockScreen`).
+ */
+export function isPinEnabledOnClient(): boolean {
+	return hasStoredPin() || readCookie(APP_LOCK_ENABLED_COOKIE) === "1";
+}
+
+/** Il blocco visto dal CLIENT — stessa regola del server, con la fonte che il server non ha. */
+export function isLockedOnClient(): boolean {
+	return isLockedFor(isPinEnabledOnClient(), readCookie(APP_LOCK_ACTIVE_UNTIL_COOKIE));
+}
+
+/**
+ * Il PIN NON c'è, e lo dice `localStorage` — non un'eccezione nel leggerlo.
+ * `hasStoredPin()` tratta le due cose allo stesso modo, e per decidere se
+ * bloccare va bene; per dire "il PIN non c'è più" o per spegnere il cookie no:
+ * un'archiviazione che rifiuta la lettura per un attimo non è un PIN perso.
+ */
+export function isStoredPinAbsent(): boolean {
+	try {
+		return localStorage.getItem(PIN_STORAGE_KEY) === null;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * In che verso correggere `seichi-lock-enabled` perché dica ciò che dice
+ * `localStorage` (#125): `true` va acceso, `false` va spento, `null` è giusto.
+ *
+ * Spegnerlo solo ad app SBLOCCATA: lì chi guarda è entro la finestra di
+ * grazia, e un cookie che annuncia un PIN inesistente farebbe soltanto dire
+ * "attivo" a /impostazioni mentre /impostazioni/blocco offre di impostarlo —
+ * e, alla prossima uscita, chiuderebbe fuori l'utente. Ad app bloccata il
+ * cookie resta: il velo dice che il PIN non c'è più e offre l'uscita.
+ */
+export function enabledCookieFix(unlocked: boolean): boolean | null {
+	const cookieOn = readCookie(APP_LOCK_ENABLED_COOKIE) === "1";
+	if (hasStoredPin()) return cookieOn ? null : true;
+	if (cookieOn && unlocked && isStoredPinAbsent()) return false;
+	return null;
+}
+
+/**
+ * Attributi di `seichi-lock-enabled` per chi lo scrive: solo il server, vedi in
+ * testa. `secure` lo decide la server action dal protocollo della richiesta,
+ * come `cookieAttrs()` sul client: legato a `NODE_ENV`, una build di produzione
+ * provata in LAN su http vedrebbe il cookie rifiutato dal browser, e ogni
+ * caricamento chiederebbe di nuovo di scriverlo.
+ */
+export const APP_LOCK_ENABLED_COOKIE_OPTIONS = {
+	path: "/",
+	maxAge: MAX_AGE,
+	sameSite: "lax",
+	// Il client lo legge (`isPinEnabledOnClient`) e lo cancella (`clearPin`).
+	httpOnly: false,
+} as const;
+
 /** Rinfresca la finestra di grazia da QUESTO istante — a ogni sblocco riuscito e a ogni uscita dal primo piano. */
 export function markActiveNow() {
 	const until = Date.now() + readGraceMs();
@@ -145,7 +243,10 @@ export function markActiveNow() {
 }
 
 /**
- * Salva il PIN e accende il flag lato server — a fine impostazione o cambio.
+ * Salva il PIN e apre la finestra di grazia — a fine impostazione o cambio.
+ * Il cookie del PIN lo accende poi il chiamante, con `setAppLockCookie(true)`:
+ * lo scrive il server (vedi in testa), e da qui non si importa una server
+ * action senza un'importazione circolare.
  *
  * ⚠️ Ritorna `false` se `localStorage` ha rifiutato la scrittura, e in quel
  * caso NON accende il cookie. Trovato dal code-review: la versione
@@ -162,7 +263,6 @@ export function savePin(pin: string): boolean {
 	} catch {
 		return false;
 	}
-	document.cookie = `${APP_LOCK_ENABLED_COOKIE}=1${cookieAttrs()}`;
 	markActiveNow();
 	return true;
 }
@@ -188,6 +288,49 @@ export function clearPin() {
 	document.cookie = `${APP_LOCK_ENABLED_COOKIE}=; Path=/; Max-Age=0`;
 	document.cookie = `${APP_LOCK_ACTIVE_UNTIL_COOKIE}=; Path=/; Max-Age=0`;
 	clearBiometric();
+}
+
+/* ------------------------------------------------------- solo telefono e tablet (#125) --- */
+
+/**
+ * Un computer: un dispositivo senza alcun input touch.
+ *
+ * ⚠️ Lì il PIN non si OFFRE, deciso con Jomar il 2026-10-07. Il velo copre una
+ * pagina i cui numeri sono già nel DOM: sul computer F12 o "visualizza
+ * sorgente" li leggono sotto il blocco, e la protezione vera è il blocco
+ * schermo del sistema. Sul telefono quegli strumenti non sono a portata di
+ * mano, e il PIN fa ciò per cui è nato (Fase 25): proteggere l'icona sulla
+ * home screen che apre dritta sui conti.
+ *
+ * Il criterio è l'input, non la larghezza: un iPad in orizzontale è largo
+ * come un portatile, ed è un tablet. E non il puntatore PRINCIPALE: con una
+ * tastiera e un trackpad attaccati un iPad può dichiararsi `pointer: fine`,
+ * ma lo schermo touch resta (`any-pointer: coarse`) — trovato dalla review.
+ * Un portatile con lo schermo touch risulta così un tablet, e il PIN gli si
+ * offre: sbagliare in quel verso è com'era prima della #125.
+ *
+ * Decide solo che cosa OFFRIRE in `/impostazioni/blocco`: un PIN già
+ * impostato su un computer continua a bloccare, finché chi l'ha messo non lo
+ * toglie.
+ */
+const TOUCH_QUERY = "(any-pointer: coarse)";
+
+/** Una sola per pagina: `isComputer` è l'istantanea di `useSyncExternalStore`, letta a ogni render. */
+let touchQuery: MediaQueryList | undefined;
+function touchMedia(): MediaQueryList {
+	touchQuery ??= window.matchMedia(TOUCH_QUERY);
+	return touchQuery;
+}
+
+export function isComputer(): boolean {
+	return !touchMedia().matches;
+}
+
+/** Per `useSyncExternalStore`: attaccare o staccare uno schermo touch cambia la risposta. */
+export function subscribeComputer(onChange: () => void): () => void {
+	const mq = touchMedia();
+	mq.addEventListener("change", onChange);
+	return () => mq.removeEventListener("change", onChange);
 }
 
 /** Legge un cookie per nome — solo client, `document.cookie` non esiste sul server. */
@@ -313,8 +456,12 @@ export function hasBiometricCredential(): boolean {
  * sezione sul perché un round-trip di verifica non aggiungerebbe difesa
  * reale. `attestation: "none"` perché nessuno verificherà mai l'attestazione;
  * chiederla comunque sarebbe solo un prompt di privacy in più per l'utente.
+ *
+ * I due nomi della credenziale arrivano dal chiamante (#125): erano cablati in
+ * italiano, e il sistema operativo li mostra nel proprio elenco di passkey —
+ * quale dei due dipende dalla piattaforma, quindi li traduciamo entrambi.
  */
-export async function registerBiometric(): Promise<boolean> {
+export async function registerBiometric(names: { userName: string; displayName: string }): Promise<boolean> {
 	try {
 		const credential = (await navigator.credentials.create({
 			publicKey: {
@@ -322,8 +469,8 @@ export async function registerBiometric(): Promise<boolean> {
 				rp: { name: "Seichi" },
 				user: {
 					id: crypto.getRandomValues(new Uint8Array(16)),
-					name: "blocco-seichi",
-					displayName: "Blocco Seichi",
+					name: names.userName,
+					displayName: names.displayName,
 				},
 				pubKeyCredParams: [
 					{ type: "public-key", alg: -7 }, // ES256
