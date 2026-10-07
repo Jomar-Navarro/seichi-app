@@ -9,6 +9,7 @@ import {
 	APP_LOCK_REJECT_DISPLAY_MS,
 	clearPin,
 	hasBiometricCredential,
+	hasStoredPin,
 	readStoredPin,
 	verifyBiometric,
 } from "@/lib/app-lock";
@@ -77,6 +78,18 @@ export default function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
 		() => false,
 	);
 
+	// #125 — il velo è su perché il COOKIE dice che c'è un PIN, ma il PIN non
+	// è più in `localStorage` (dati del sito cancellati a metà, archiviazione
+	// che rifiuta la lettura). Nessuna cifra può coincidere: il tastierino
+	// risponderebbe "PIN errato" a quello giusto, che è una frase falsa. Si
+	// dice cosa è successo e si offre subito l'unica uscita. Fail-closed resta:
+	// sbloccare senza un PIN da verificare riaprirebbe la #125 dall'altro lato.
+	const pinMissing = useSyncExternalStore(
+		() => () => {},
+		() => !hasStoredPin(),
+		() => false,
+	);
+
 	async function tryBiometric() {
 		setBiometricBusy(true);
 		// `try/finally`: `verifyBiometric()` non lancia oggi, ma senza questa
@@ -124,9 +137,32 @@ export default function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
 		});
 	}
 
+	const escapeButton = (
+		<button
+			type="button"
+			onClick={forgotPin}
+			disabled={signingOut}
+			// issue #69 — py-3.5 porta l'area toccabile a 44px: il link è
+			// solo, sotto il tastierino, senza vicini da rispettare.
+			className="text-[13px] font-semibold mt-7 py-3.5 disabled:opacity-50"
+			style={{ color: "var(--ink-aka)" }}
+		>
+			{signingOut ? "…" : t.appLock.signOutAndReset}
+		</button>
+	);
+
 	return (
+		/*
+		 * ⚠️ `z-65`: sopra QUALUNQUE livello dell'app, sotto solo `BootSplash`
+		 * (z-70). Era `z-60`, e una card dell'import con la tendina aperta sale
+		 * a 60 per superare la `BottomNav` (#125): stesso z-index nello stesso
+		 * contesto di impilamento, e vinceva lei perché veniva dopo nel
+		 * documento — la controparte del gruppo (nome e IBAN), gli importi e
+		 * l'elenco aperto disegnati sopra il velo. `inert` impedisce di toccare,
+		 * non di vedere. Chi aggiunge un livello sopra 60 deve guardare qui.
+		 */
 		<div
-			className="fixed inset-0 z-60 flex flex-col items-center justify-center px-7 overflow-hidden"
+			className="fixed inset-0 z-65 flex flex-col items-center justify-center px-7 overflow-hidden"
 			style={{ background: "var(--background)" }}
 		>
 			<div className="circle-1" />
@@ -155,56 +191,56 @@ export default function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
 					</div>
 				</div>
 
-				<h1 className="text-lg font-semibold mb-1.5 text-center">
-					{rejected ? t.appLock.wrongPinTitle : t.appLock.unlockTitle}
-				</h1>
-				<p className="text-[13px] text-muted mb-9 text-center min-h-8.5">
-					{rejected
-						? t.appLock.wrongPin
-						: fill(t.appLock.enterPin, { length: APP_LOCK_PIN_LENGTH })}
-				</p>
+				{pinMissing ? (
+					<>
+						<h1 className="text-lg font-semibold mb-1.5 text-center">{t.appLock.pinMissingTitle}</h1>
+						<p className="text-[13px] text-muted text-center">{t.appLock.pinMissing}</p>
+						{escapeButton}
+					</>
+				) : (
+					<>
+						<h1 className="text-lg font-semibold mb-1.5 text-center">
+							{rejected ? t.appLock.wrongPinTitle : t.appLock.unlockTitle}
+						</h1>
+						<p className="text-[13px] text-muted mb-9 text-center min-h-8.5">
+							{rejected
+								? t.appLock.wrongPin
+								: fill(t.appLock.enterPin, { length: APP_LOCK_PIN_LENGTH })}
+						</p>
 
-				<PinPad
-					length={APP_LOCK_PIN_LENGTH}
-					onComplete={check}
-					rejected={rejected}
-					// ⚠️ Trovato dal code-review: senza `biometricBusy`, un PIN corretto
-					// digitato MENTRE la cerimonia biometrica è ancora in sospeso poteva
-					// chiamare `onUnlock()` una prima volta, e la promise biometrica
-					// risolversi poco dopo e chiamarlo una seconda — innocuo oggi
-					// perché `unlock()` è idempotente, ma i due percorsi di sblocco non
-					// hanno motivo di poter correre insieme. Disabilitare l'intero pad
-					// copre anche il tasto biometrico appena sotto: non ha senso poterlo
-					// ripremere mentre una cerimonia è già in corso.
-					disabled={signingOut || biometricBusy}
-					deleteLabel={t.appLock.deleteKey}
-					onBiometric={hasBiometric ? tryBiometric : undefined}
-					biometricLabel={t.appLock.unlockWithBiometric}
-				/>
+						<PinPad
+							length={APP_LOCK_PIN_LENGTH}
+							onComplete={check}
+							rejected={rejected}
+							// ⚠️ Trovato dal code-review: senza `biometricBusy`, un PIN corretto
+							// digitato MENTRE la cerimonia biometrica è ancora in sospeso poteva
+							// chiamare `onUnlock()` una prima volta, e la promise biometrica
+							// risolversi poco dopo e chiamarlo una seconda — innocuo oggi
+							// perché `unlock()` è idempotente, ma i due percorsi di sblocco non
+							// hanno motivo di poter correre insieme. Disabilitare l'intero pad
+							// copre anche il tasto biometrico appena sotto: non ha senso poterlo
+							// ripremere mentre una cerimonia è già in corso.
+							disabled={signingOut || biometricBusy}
+							deleteLabel={t.appLock.deleteKey}
+							onBiometric={hasBiometric ? tryBiometric : undefined}
+							biometricLabel={t.appLock.unlockWithBiometric}
+						/>
 
-				{attempts >= SHOW_ESCAPE_AFTER_ATTEMPTS &&
-					(confirmingForgot ? (
-						<button
-							type="button"
-							onClick={forgotPin}
-							disabled={signingOut}
-							// issue #69 — py-3.5 porta l'area toccabile a 44px: il link è
-							// solo, sotto il tastierino, senza vicini da rispettare.
-							className="text-[13px] font-semibold mt-7 py-3.5 disabled:opacity-50"
-							style={{ color: "var(--ink-aka)" }}
-						>
-							{signingOut ? "…" : t.appLock.signOutAndReset}
-						</button>
-					) : (
-						<button
-							type="button"
-							onClick={() => setConfirmingForgot(true)}
-							// issue #69 — py-3.5 porta l'area toccabile a 44px.
-							className="text-[13px] font-medium text-muted underline underline-offset-2 mt-7 py-3.5"
-						>
-							{t.appLock.forgotPin}
-						</button>
-					))}
+						{attempts >= SHOW_ESCAPE_AFTER_ATTEMPTS &&
+							(confirmingForgot ? (
+								escapeButton
+							) : (
+								<button
+									type="button"
+									onClick={() => setConfirmingForgot(true)}
+									// issue #69 — py-3.5 porta l'area toccabile a 44px.
+									className="text-[13px] font-medium text-muted underline underline-offset-2 mt-7 py-3.5"
+								>
+									{t.appLock.forgotPin}
+								</button>
+							))}
+					</>
+				)}
 			</div>
 		</div>
 	);

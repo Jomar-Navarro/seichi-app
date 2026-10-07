@@ -20,11 +20,13 @@ import {
 	hasStoredPin,
 	isAppLockGraceMs,
 	isBiometricAvailable,
+	isComputerPointer,
 	isInsecureContextForBiometric,
 	readGraceMs,
 	readStoredPin,
 	registerBiometric,
 	savePin,
+	subscribeComputerPointer,
 	writeGraceMs,
 } from "@/lib/app-lock";
 
@@ -57,6 +59,10 @@ import {
  *
  * La riga "richiedi il PIN dopo" INVECE è toccabile, su richiesta esplicita
  * (era stata prima una costante fissa).
+ *
+ * ⚠️ Sul computer il PIN non si offre (#125, deciso con Jomar): il perché è
+ * su `isComputerPointer()`. Senza PIN la pagina dice solo questo; con un PIN
+ * impostato prima, si può togliere ma non cambiare.
  *
  * ⚠️ Il primo tentativo copiava `PreferencesSection` (valuta/lingua): una
  * `<select>` nativa invisibile sopra la riga. Corretto — il picker che ne
@@ -111,6 +117,13 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 		hasStoredPin,
 		() => initialHasPin,
 	);
+
+	// #125 — sul computer il PIN non si offre: il perché è su
+	// `isComputerPointer()`. Il server non conosce il dispositivo d'ingresso,
+	// quindi l'idratazione parte da "non è un computer": su un computer, a un
+	// ricaricamento, l'offerta compare per un istante; il contrario
+	// scriverebbe "sul computer…" su un telefono, che è una frase falsa.
+	const onComputer = useSyncExternalStore(subscribeComputerPointer, isComputerPointer, () => false);
 
 	// Stessa ragione di `hasPin`: `readGraceMs()` tocca `localStorage`, che
 	// non esiste durante il render sul server — da qui il default SICURO
@@ -219,7 +232,10 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 		// futura lascerebbe `biometricBusy` bloccato a `true` per sempre, riga
 		// spenta senza che nulla lo dica.
 		try {
-			const okBio = await registerBiometric();
+			const okBio = await registerBiometric({
+				userName: t.appLock.passkeyUserName,
+				displayName: t.appLock.passkeyDisplayName,
+			});
 			if (okBio) setBiometricOverride(true);
 			else setBiometricError(true);
 		} finally {
@@ -418,9 +434,16 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 		setStep("verify-current");
 	}
 
+	// Sul computer, senza un PIN: niente da offrire, solo il perché.
+	if (onComputer && !hasPin) {
+		return <p className="text-[13px] text-muted leading-relaxed">{t.appLock.computerUnavailable}</p>;
+	}
+
 	return (
 		<div>
-			<p className="text-[13px] text-muted leading-relaxed mb-7">{t.appLock.disclaimer}</p>
+			<p className="text-[13px] text-muted leading-relaxed mb-7">
+				{onComputer ? t.appLock.computerExisting : t.appLock.disclaimer}
+			</p>
 
 			<SettingsGroup>
 				{/* La riga È il comando (`onClick` sulla riga stessa): l'interruttore
@@ -544,14 +567,17 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 				<SubmitButton label={t.appLock.setPin} onClick={startCreate} />
 			) : (
 				<div className="space-y-3">
-					<SubmitButton
-						label={t.appLock.changePin}
-						variant="ghost"
-						onClick={() => {
-							setAfterVerify("change");
-							setStep("verify-current");
-						}}
-					/>
+					{/* Sul computer un PIN nuovo non si imposta, e cambiarlo lo è. */}
+					{!onComputer && (
+						<SubmitButton
+							label={t.appLock.changePin}
+							variant="ghost"
+							onClick={() => {
+								setAfterVerify("change");
+								setStep("verify-current");
+							}}
+						/>
+					)}
 					<SubmitButton label={t.appLock.removePin} danger onClick={startRemove} />
 				</div>
 			)}
