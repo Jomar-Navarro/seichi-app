@@ -40,7 +40,8 @@
  * `seichi-lock-enabled` lo scrive il SERVER (`setAppLockCookie`, una server
  * action): ITP tronca i cookie di `document.cookie`, non quelli di un
  * `Set-Cookie`. È la regola già scelta per la lingua (`LOCALE_COOKIE_OPTIONS`):
- * un cookie, uno scrittore. Il client lo cancella (`clearPin`), non lo crea.
+ * un cookie, uno scrittore. Il client lo cancella subito (`clearPin`) e chiede
+ * al server di cancellarlo (`setAppLockCookie(false)`), ma non lo crea mai.
  * Se all'apertura il cookie e `localStorage` non concordano, `enabledCookieFix`
  * dice in che verso correggerlo.
  * Resta un residuo, una volta sola: un PIN impostato prima della #125 ha il
@@ -111,9 +112,9 @@ export const APP_LOCK_REJECT_DISPLAY_MS = 900;
 
 /**
  * Un anno, come i cookie del tema: la scelta non deve scadere da sola.
- * ⚠️ Su Safari è una richiesta, non una garanzia: ITP tronca a 7 giorni i
- * cookie scritti da `document.cookie`. Per questo `seichi-lock-enabled` si
- * riscrive a ogni uso invece di una volta sola — vedi in testa al file.
+ * ⚠️ Su Safari è una richiesta, non una garanzia, per i cookie scritti da
+ * `document.cookie`: ITP li tronca a 7 giorni. Per questo `seichi-lock-enabled`
+ * lo scrive il server — vedi in testa al file.
  */
 const MAX_AGE = 60 * 60 * 24 * 365;
 
@@ -220,14 +221,19 @@ export function enabledCookieFix(unlocked: boolean): boolean | null {
 	return null;
 }
 
-/** Attributi di `seichi-lock-enabled` per chi lo scrive: solo il server, vedi in testa. */
+/**
+ * Attributi di `seichi-lock-enabled` per chi lo scrive: solo il server, vedi in
+ * testa. `secure` lo decide la server action dal protocollo della richiesta,
+ * come `cookieAttrs()` sul client: legato a `NODE_ENV`, una build di produzione
+ * provata in LAN su http vedrebbe il cookie rifiutato dal browser, e ogni
+ * caricamento chiederebbe di nuovo di scriverlo.
+ */
 export const APP_LOCK_ENABLED_COOKIE_OPTIONS = {
 	path: "/",
 	maxAge: MAX_AGE,
 	sameSite: "lax",
 	// Il client lo legge (`isPinEnabledOnClient`) e lo cancella (`clearPin`).
 	httpOnly: false,
-	secure: process.env.NODE_ENV === "production",
 } as const;
 
 /** Rinfresca la finestra di grazia da QUESTO istante — a ogni sblocco riuscito e a ogni uscita dal primo piano. */

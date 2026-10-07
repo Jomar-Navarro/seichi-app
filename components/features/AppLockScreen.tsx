@@ -14,6 +14,7 @@ import {
 	verifyBiometric,
 } from "@/lib/app-lock";
 import { signOut } from "@/app/(main)/impostazioni/actions";
+import { setAppLockCookie } from "@/app/(main)/app-lock-actions";
 
 /**
  * Schermata di sblocco (Fase 26a) — velo a schermo intero, montato da
@@ -137,6 +138,10 @@ export default function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
 			// (rete assente), resta un residuo accettabile: il blocco sparisce
 			// ma la sessione resta quella di prima — non un utente chiuso fuori.
 			clearPin();
+			// Anche dal server (#125): un'accensione ancora in viaggio non deve
+			// riaccenderlo dopo. Le server action vanno una alla volta, e un suo
+			// guasto non deve fermare l'uscita.
+			await setAppLockCookie(false).catch((e) => console.error("[app-lock] cookie del PIN:", e));
 			await signOut();
 		});
 	}

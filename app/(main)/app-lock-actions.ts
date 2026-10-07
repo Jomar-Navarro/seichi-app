@@ -1,6 +1,6 @@
 "use server";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { APP_LOCK_ENABLED_COOKIE, APP_LOCK_ENABLED_COOKIE_OPTIONS } from "@/lib/app-lock";
 
 /**
@@ -10,6 +10,9 @@ import { APP_LOCK_ENABLED_COOKIE, APP_LOCK_ENABLED_COOKIE_OPTIONS } from "@/lib/
  * i cookie creati dal JavaScript, qualunque `Max-Age` si chieda: il blocco si
  * spegneva da solo una settimana dopo aver impostato il PIN. Un `Set-Cookie`
  * non ha quel tetto. Vedi `lib/app-lock.ts`.
+ *
+ * Qui accanto alle altre azioni di `(main)` e non dentro /impostazioni/blocco:
+ * la usa anche `AppLockProvider`, cioè il layout di ogni pagina.
  *
  * Nessun `requireUser()`: non legge né scrive dati, solo un cookie non segreto
  * sul browser di chi chiama. Accenderlo senza un PIN mostra al più il velo "il
@@ -21,7 +24,9 @@ import { APP_LOCK_ENABLED_COOKIE, APP_LOCK_ENABLED_COOKIE_OPTIONS } from "@/lib/
  * "Attivo" la riga di /impostazioni quando il cookie mancava.
  */
 export async function setAppLockCookie(enabled: boolean) {
+	const proto = (await headers()).get("x-forwarded-proto")?.split(",")[0]?.trim();
+	const options = { ...APP_LOCK_ENABLED_COOKIE_OPTIONS, secure: proto === "https" };
 	const store = await cookies();
-	if (enabled === true) store.set(APP_LOCK_ENABLED_COOKIE, "1", APP_LOCK_ENABLED_COOKIE_OPTIONS);
-	else store.set(APP_LOCK_ENABLED_COOKIE, "", { ...APP_LOCK_ENABLED_COOKIE_OPTIONS, maxAge: 0 });
+	if (enabled === true) store.set(APP_LOCK_ENABLED_COOKIE, "1", options);
+	else store.set(APP_LOCK_ENABLED_COOKIE, "", { ...options, maxAge: 0 });
 }

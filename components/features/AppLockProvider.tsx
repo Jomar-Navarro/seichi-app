@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import AppLockScreen from "@/components/features/AppLockScreen";
-import { setAppLockCookie } from "@/app/(main)/impostazioni/blocco/actions";
+import { setAppLockCookie } from "@/app/(main)/app-lock-actions";
 import { enabledCookieFix, isLockedOnClient, isPinEnabledOnClient, markActiveNow } from "@/lib/app-lock";
 
 /**
@@ -83,9 +83,10 @@ export default function AppLockProvider({
 		// rendere di nuovo i Server Component che ne avevano tratto qualcosa —
 		// la riga "Blocco con PIN · Attivo" di /impostazioni. Una volta sola:
 		// dopo la correzione concordano. Su un errore, ci si riprova al
-		// prossimo caricamento: il blocco intanto lo decide `localStorage`.
+		// prossimo caricamento: il blocco intanto lo decide `localStorage`, e
+		// il guasto resta nei log (#124: un fallimento non è un non-evento).
 		const fix = enabledCookieFix(!store.get());
-		if (fix !== null) setAppLockCookie(fix).catch(() => {});
+		if (fix !== null) setAppLockCookie(fix).catch((e) => console.error("[app-lock] cookie del PIN:", e));
 	}, [store]);
 
 	useEffect(() => {

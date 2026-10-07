@@ -298,7 +298,7 @@ export const it = {
 		pinMissingTitle: "Il PIN non c'è più",
 		pinMissing:
 			"Questo dispositivo ha perso il PIN salvato. Esci e accedi di nuovo con la password: i dati restano al loro posto.",
-		/** Sul computer il PIN non si offre — il perché è su `isComputerPointer()`. */
+		/** Sul computer il PIN non si offre — il perché è su `isComputer()`. */
 		computerUnavailable:
 			"Sul computer il PIN non c'è. Il blocco coprirebbe lo schermo, ma i numeri resterebbero leggibili dagli strumenti del browser: qui a proteggere Seichi è il blocco schermo del sistema. Il PIN è per telefono e tablet.",
 		/** …e chi ne aveva già impostato uno lo tiene finché non lo toglie. */

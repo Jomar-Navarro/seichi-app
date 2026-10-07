@@ -29,7 +29,7 @@ import {
 	subscribeComputer,
 	writeGraceMs,
 } from "@/lib/app-lock";
-import { setAppLockCookie } from "@/app/(main)/impostazioni/blocco/actions";
+import { setAppLockCookie } from "@/app/(main)/app-lock-actions";
 
 /**
  * `/impostazioni/blocco` (Fase 26a) — imposta, cambia o rimuove il PIN.
@@ -62,7 +62,7 @@ import { setAppLockCookie } from "@/app/(main)/impostazioni/blocco/actions";
  * (era stata prima una costante fissa).
  *
  * ⚠️ Sul computer il PIN non si offre (#125, deciso con Jomar): il perché è
- * su `isComputerPointer()`. Senza PIN la pagina dice solo questo; con un PIN
+ * su `isComputer()`. Senza PIN la pagina dice solo questo; con un PIN
  * impostato prima, si può togliere ma non cambiare.
  *
  * ⚠️ Il primo tentativo copiava `PreferencesSection` (valuta/lingua): una
@@ -286,6 +286,11 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 		}
 		if (afterVerify === "remove") {
 			clearPin();
+			// Anche dal server, non solo da `document.cookie` (#125): se l'accensione
+			// del cookie è ancora in viaggio — un PIN messo e tolto offline — il suo
+			// `Set-Cookie` arriverebbe DOPO la cancellazione e lo riaccenderebbe.
+			// Next esegue le server action una alla volta, quindi questa arriva dopo.
+			setAppLockCookie(false).catch((e) => console.error("[app-lock] cookie del PIN:", e));
 			reset();
 			return;
 		}
@@ -302,7 +307,8 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 	function onCreateConfirm(pin: string) {
 		// #125 — l'ultimo punto prima di `savePin()`, qualunque strada porti qui
 		// (un tocco nell'istante dell'idratazione, uno schermo touch staccato a
-		// metà): sul computer un PIN non si scrive.
+		// metà): sul computer un PIN non si scrive. Non è un gesto muto: il
+		// riposo, sul computer, è la frase che dice perché il PIN qui non c'è.
 		if (isComputer()) {
 			reset();
 			return;
@@ -327,7 +333,7 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 		// Il cookie del PIN lo scrive il server (#125, vedi `lib/app-lock.ts`).
 		// Se la richiesta fallisce, lo ricorregge `AppLockProvider` alla
 		// prossima apertura: intanto il blocco lo decide `localStorage`.
-		if (saved) setAppLockCookie(true).catch(() => {});
+		if (saved) setAppLockCookie(true).catch((e) => console.error("[app-lock] cookie del PIN:", e));
 		setStep(saved ? "done" : "save-error");
 	}
 
