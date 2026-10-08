@@ -148,7 +148,10 @@ export default function CategoryManager({ categories }: { categories: Category[]
 									    "nuova risparmio", "nuova abbonamento". L'aggettivo si
 									    accorda col genere del nome, e il genere non sta nella
 									    chiave del database. Ora è una frase intera per tipo. */}
-									<span className="text-[13px] font-medium capitalize" style={{ color: ink }}>
+									{/* issue #126 — `capitalize` maiuscolizza OGNI parola
+									    ("Nuova Entrata"): `t.newByType` è già una frase
+									    intera con la propria maiuscola iniziale. */}
+									<span className="text-[13px] font-medium" style={{ color: ink }}>
 										{t.newByType[type]}
 									</span>
 								</button>

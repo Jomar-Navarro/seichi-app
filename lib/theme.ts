@@ -75,9 +75,20 @@ export function resolveTheme(choice: ThemeChoice): ResolvedTheme {
  *
  * È ciò che rende il cambio istantaneo: il cookie serve al PROSSIMO caricamento,
  * questa riga al fotogramma corrente.
+ *
+ * ⚠️ issue #126 — aggiorna anche lo sfondo SOLIDO di `<html>` (issue #86, il
+ * rimbalzo di iOS), che altrimenti resta quello del render del server finché
+ * non si ricarica la pagina. `app/layout.tsx` lo scrive come hex LETTERALE
+ * perché al primissimo paint il foglio esterno non è ancora arrivato; qui
+ * invece — un cambio fatto USANDO l'app — `globals.css` è già caricato, quindi
+ * si legge il valore vero invece di duplicare gli hex una terza volta.
  */
 export function applyThemeClass(resolved: ResolvedTheme) {
-	document.documentElement.classList.toggle("dark", resolved === "dark");
+	const root = document.documentElement;
+	root.classList.toggle("dark", resolved === "dark");
+	root.style.backgroundColor = getComputedStyle(root)
+		.getPropertyValue("--background-secondary")
+		.trim();
 }
 
 /**

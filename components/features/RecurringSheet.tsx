@@ -9,7 +9,7 @@ import Select, { type Option } from "@/components/UI/Select";
 import FrequencySelector from "@/components/UI/FrequencySelector";
 import { buildCategoryOptions } from "@/lib/category-options";
 import { ACCOUNT_ICON_FALLBACK, ACCOUNT_TYPE_ICON, accountColor } from "@/lib/accounts";
-import { TIPO_COLOR } from "@/lib/transaction-utils";
+import { TIPO_COLOR, TIPO_INK } from "@/lib/transaction-utils";
 import { updateRecurringRule } from "@/app/(main)/action";
 import { useI18n } from "./I18nProvider";
 import { DISPLAY_CURRENCY, currencySymbol } from "@/lib/i18n/format";
@@ -69,6 +69,7 @@ export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 	}, []);
 
 	const color = TIPO_COLOR[rule.type] ?? "var(--color-kiri)";
+	const ink = TIPO_INK[rule.type] ?? "var(--ink-kiri)";
 	const todayISO = new Date().toLocaleDateString("sv-SE");
 	/*
 	 * ⚠️ Il testo si legge com'è scritto, non si ripulisce mentre si scrive.
@@ -197,7 +198,7 @@ export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 					{/* Frequenza */}
 					<div>
 						<label className="text-xs text-muted mb-1.5 block">{t.recurring.frequency}</label>
-						<FrequencySelector value={frequency} onChange={setFrequency} color={color} />
+						<FrequencySelector value={frequency} onChange={setFrequency} color={color} ink={ink} />
 					</div>
 
 					{/* Prossima data */}

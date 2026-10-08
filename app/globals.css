@@ -110,8 +110,23 @@
 
 	--text-primary: var(--color-yoru);
 	--text-secondary: var(--color-kage);
-	--text-muted: var(--color-kiri);
-	--text-disabled: var(--color-hai);
+	/*
+	 * issue #126 — `--color-kiri` nudo dava 2,84–3,13:1, sotto la soglia che
+	 * questo stesso file si dà. `--ink-kiri` è la stessa tinta già portata
+	 * oltre 4,5:1 per il sesto inchiostro dei grafici (vedi sopra): la si
+	 * riusa qui invece di inventare un valore nuovo.
+	 *
+	 * ⚠️ `--text-disabled` punta allo STESSO valore, non per pigrizia: il
+	 * budget di contrasto su questa palette è così stretto che un secondo
+	 * grigio "più spento ma ancora ≥4,5:1" non esiste in pratica (il margine
+	 * fra 4,5:1 e il punto in cui `--ink-kiri` già siede è di pochi millesimi
+	 * di luminanza, invisibile in hex). I due token restano separati per
+	 * significato — muted = dato, disabled = etichetta di sezione/hint,
+	 * vedi GoalCard — e la differenza visiva fra i due la porta la
+	 * tipografia (maiuscole, tracking, dimensione), non il colore.
+	 */
+	--text-muted: var(--ink-kiri);
+	--text-disabled: var(--ink-kiri);
 
 	/* ---------- Components ---------- */
 	--seg-bg: rgba(70, 62, 48, 0.05);
@@ -209,7 +224,13 @@
 	--text-primary: #e6e9ef;
 	--text-secondary: #c7cdda;
 	--text-muted: #8892a6;
-	--text-disabled: #6e7688;
+	/*
+	 * issue #126 — era #6e7688 (~3,5:1 sulle superfici scure, 2,30–2,86:1
+	 * sopra --card): sotto soglia esattamente come il kiri in chiaro, stessa
+	 * causa. Stesso rimedio: punta a `--text-muted`, non a un secondo grigio
+	 * — vedi il commento gemello in `:root`.
+	 */
+	--text-disabled: var(--text-muted);
 
 	/* Modal */
 	--modal-bg: rgba(19, 26, 40, 0.85);
@@ -733,6 +754,20 @@ body {
 	.paper {
 		print-color-adjust: exact;
 		-webkit-print-color-adjust: exact;
+	}
+
+	/*
+	 * issue #126 — `html { background-color: var(--background-secondary) }`
+	 * qui sopra non è un'IMMAGINE (la regola precedente spegne solo quelle):
+	 * è un colore SOLIDO su tutto il canvas, pensato per il rimbalzo di iOS
+	 * (#86), non per il documento. Partendo dal tema scuro e con «Grafica di
+	 * sfondo» attiva resterebbe dietro il foglio chiaro di `.paper`. `html`
+	 * non è contenuto del report — nessun testo né dato vive lì — quindi si
+	 * spegne senza eccezioni, a differenza di `.paper` qui sopra che la
+	 * lascia intenzionalmente accesa per i pallini della legenda.
+	 */
+	html {
+		background-color: transparent !important;
 	}
 
 	/* Un blocco non si spezza a metà fra due fogli. */

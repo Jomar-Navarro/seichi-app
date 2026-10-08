@@ -56,7 +56,6 @@ export const it = {
 		/** Una pagina che non si è potuta costruire: `app/(main)/error.tsx` (#124). */
 		pageLoadFailed: "Non è stato possibile caricare la pagina.",
 		unknownError: "Errore sconosciuto",
-		required: "Campo obbligatorio",
 		/** Segnaposto di un Select non ancora scelto: "Seleziona categoria". */
 		selectPlaceholder: "Seleziona {field}",
 		/** L'occhio che nasconde gli importi: è un bottone con la sola icona. */
@@ -149,7 +148,7 @@ export const it = {
 	},
 
 	/**
-	 * "nuova entrata", "nuovo investimento"…
+	 * "Nuova entrata", "Nuovo investimento"…
 	 *
 	 * ⚠️ Frasi INTERE, non "nuov{o|a} " + il nome del tipo. Il codice concatenava
 	 * `nuova ${type}` per tutti e cinque, che in italiano è sbagliato per tre di
@@ -158,13 +157,18 @@ export const it = {
 	 * una chiave del database. In inglese il problema non esiste — ed è
 	 * esattamente perché non esiste che un template pensato in inglese lo
 	 * nasconde.
+	 *
+	 * ⚠️ Maiuscola solo sulla PRIMA parola (issue #126): la label è un
+	 * comando a sé, non incastonato in una frase più lunga, e un
+	 * `capitalize` in CSS l'avrebbe resa "Nuova Entrata" — maiuscolizzando
+	 * anche la seconda parola, che in italiano non si fa.
 	 */
 	newByType: {
-		entrata: "nuova entrata",
-		spesa: "nuova spesa",
-		risparmio: "nuovo risparmio",
-		investimento: "nuovo investimento",
-		abbonamento: "nuovo abbonamento",
+		entrata: "Nuova entrata",
+		spesa: "Nuova spesa",
+		risparmio: "Nuovo risparmio",
+		investimento: "Nuovo investimento",
+		abbonamento: "Nuovo abbonamento",
 		/* Niente `trasferimento`: vedi la nota in `typesSingular`. */
 	},
 
@@ -1002,6 +1006,23 @@ export const it = {
 		amountInvalid: "Inserisci un importo valido",
 		dateLabel: "Data obiettivo",
 		iconLabel: "Icona",
+		/**
+		 * issue #126 — nome accessibile delle 8 icone del picker (`GoalSheet`):
+		 * erano etichette italiane scritte a mano in `lib/goal-icons.ts`, mai
+		 * lette da nessuno — i bottoni-icona non avevano `aria-label`.
+		 * Piatta e non annidata per tipo come `iconLabels`: a differenza delle
+		 * icone categoria, nessuna di queste cambia nome col contesto.
+		 */
+		goalIcons: {
+			plane: "Viaggio",
+			car: "Auto",
+			home: "Casa",
+			heart: "Generico",
+			"graduation-cap": "Formazione",
+			shield: "Emergenza",
+			star: "Altro",
+			"trending-up": "Investimento",
+		},
 		saveChanges: "Salva modifiche",
 		deleteConfirm: "Conferma eliminazione",
 		delete: "Elimina obiettivo",

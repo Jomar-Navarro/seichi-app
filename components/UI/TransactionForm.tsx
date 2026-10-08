@@ -7,7 +7,7 @@ import Select, { type Option } from "@/components/UI/Select";
 import { ACCOUNT_ICON_FALLBACK, ACCOUNT_TYPE_ICON, accountColor } from "@/lib/accounts";
 import FrequencySelector from "@/components/UI/FrequencySelector";
 import { SwitchVisual } from "@/components/UI/Switch";
-import { categoryTypeFor } from "@/lib/transaction-utils";
+import { categoryTypeFor, TIPO_INK } from "@/lib/transaction-utils";
 import AttachmentPicker, {
 	type AttachmentPickerHandle,
 } from "@/components/features/AttachmentPicker";
@@ -744,6 +744,7 @@ export default function TransactionForm({
 								value={frequency}
 								onChange={setFrequency}
 								color={selectedType.color}
+								ink={TIPO_INK[selectedType.id] ?? "var(--ink-kiri)"}
 							/>
 						</div>
 					)}

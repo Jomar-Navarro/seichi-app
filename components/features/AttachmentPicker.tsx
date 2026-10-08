@@ -4,6 +4,7 @@ import { useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { RefObject } from "react";
 import Image from "next/image";
 import { Paperclip, Trash2, X } from "lucide-react";
+import DashedBorder from "@/components/UI/DashedBorder";
 import {
 	ATTACHMENT_MAX_BYTES,
 	ATTACHMENT_MAX_EDGE,
@@ -567,8 +568,19 @@ export default function AttachmentPicker({
 						type="button"
 						disabled={pending}
 						onClick={() => inputRef.current?.click()}
-						className="w-20 h-20 rounded-xl border border-dashed border-subtle flex flex-col items-center justify-center gap-1 text-disabled disabled:opacity-50"
+						// issue #126 — due difetti dello stesso riquadro:
+						// 1) `border border-dashed border-subtle` su un angolo arrotondato
+						//    è il difetto Firefox della #81 (bordo traslucido + raggio).
+						//    Un `box-shadow` non sa disegnare un tratteggio, quindi la
+						//    correzione è `DashedBorder` (lo stesso SVG di
+						//    `DashedAddButton`, condiviso invece di ricopiato), non l'anello.
+						// 2) `text-disabled` era applicato a riposo: il comando è ATTIVO
+						//    (`disabled:opacity-50` già copre lo stato davvero
+						//    disabilitato durante `pending`), quindi a riposo vuole
+						//    `text-muted` come ogni altro comando quieto dell'app.
+						className="relative w-20 h-20 rounded-xl flex flex-col items-center justify-center gap-1 text-muted disabled:opacity-50"
 					>
+						<DashedBorder radius={12} />
 						<Paperclip size={16} />
 						<span className="text-[10px] leading-tight text-center px-1">
 							{pending ? t.attachments.uploading : t.attachments.add}

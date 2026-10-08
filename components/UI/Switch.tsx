@@ -67,7 +67,10 @@ export default function Switch({ checked, onChange, label }: SwitchProps) {
 			aria-checked={checked}
 			aria-label={label}
 			onClick={() => onChange(!checked)}
-			className="shrink-0 cursor-pointer"
+			// issue #126 — il disegno (38×22) restava anche il bersaglio: sotto i
+			// 44×44 della #69. Il bottone cresce a 44×44 e centra il disegno al
+			// suo interno, invece di cambiarne la geometria visiva.
+			className="w-11 h-11 flex items-center justify-center shrink-0 cursor-pointer"
 		>
 			<SwitchVisual checked={checked} />
 		</button>

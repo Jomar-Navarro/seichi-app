@@ -21,13 +21,20 @@ export const GOAL_ICON_MAP: Record<string, SeichiIcon> = {
 	"trending-up": TrendingUpIcon,
 };
 
-export const GOAL_ICONS: { id: string; icon: SeichiIcon; label: string }[] = [
-	{ id: "plane", icon: PlaneIcon, label: "Viaggio" },
-	{ id: "car", icon: CarIcon, label: "Auto" },
-	{ id: "home", icon: HomeIcon, label: "Casa" },
-	{ id: "heart", icon: HeartIcon, label: "Generico" },
-	{ id: "graduation-cap", icon: GraduationCapIcon, label: "Formazione" },
-	{ id: "shield", icon: ShieldIcon, label: "Emergenza" },
-	{ id: "star", icon: StarIcon, label: "Altro" },
-	{ id: "trending-up", icon: TrendingUpIcon, label: "Investimento" },
+/*
+ * issue #126 — qui c'era anche `label` in italiano, scritta a mano e mai
+ * letta da nessuno: gli 8 bottoni-icona di `GoalSheet` non avevano un nome
+ * accessibile. Le parole ora vivono in `t.goals.goalIcons` (entrambe le
+ * lingue), come ogni altra stringa rivolta all'utente; qui resta solo la
+ * meccanica — id e componente icona.
+ */
+export const GOAL_ICONS: { id: string; icon: SeichiIcon }[] = [
+	{ id: "plane", icon: PlaneIcon },
+	{ id: "car", icon: CarIcon },
+	{ id: "home", icon: HomeIcon },
+	{ id: "heart", icon: HeartIcon },
+	{ id: "graduation-cap", icon: GraduationCapIcon },
+	{ id: "shield", icon: ShieldIcon },
+	{ id: "star", icon: StarIcon },
+	{ id: "trending-up", icon: TrendingUpIcon },
 ];

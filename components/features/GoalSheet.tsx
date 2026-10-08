@@ -234,6 +234,10 @@ export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 										key={id}
 										type="button"
 										onClick={() => setForm((f) => ({ ...f, icon: id }))}
+										// issue #126 — nessun testo proprio: senza `aria-label`
+										// uno screen reader non aveva modo di distinguerle.
+										aria-label={t.goals.goalIcons[id as keyof typeof t.goals.goalIcons] ?? id}
+										aria-pressed={selected}
 										className="aspect-square rounded-[15px] flex items-center justify-center transition-all"
 										style={{
 											background: selected

@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, X, Check, Delete } from "lucide-react";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useUIStore } from "@/store/useUIStore";
 import { TRANSACTION_TYPES } from "@/types";
+import { TIPO_INK } from "@/lib/transaction-utils";
 import TransactionForm, {
 	WIZARD_FOOTER_BUTTON_CLASS,
 	WIZARD_FOOTER_BUTTON_STYLE,
@@ -331,7 +332,9 @@ function TransactionModalContent() {
 							{step !== "type" && selectedType && (
 								<p
 									className="text-xs font-medium mb-0.5"
-									style={{ color: selectedType.color }}
+									// issue #126 — era `selectedType.color` (l'accento pieno):
+									// sotto soglia come testo in tema chiaro.
+									style={{ color: TIPO_INK[selectedType.id] ?? "var(--ink-kiri)" }}
 								>
 									{t.transactionTypes[selectedType.id].label}
 								</p>
