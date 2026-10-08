@@ -7,7 +7,7 @@ import BottomSheetShell from "@/components/UI/BottomSheetShell";
 import { ICON_MAP } from "@/lib/icon-map";
 import { GOAL_ICON_MAP } from "@/lib/goal-icons";
 import { CATEGORY_LIBRARY } from "@/lib/category-icons";
-import { TIPO_COLOR } from "@/lib/transaction-utils";
+import { TIPO_COLOR, TIPO_INK } from "@/lib/transaction-utils";
 import { TRANSACTION_TYPES } from "@/types";
 import {
 	createCategory,
@@ -141,6 +141,10 @@ export default function CategorySheet({
 
 	const nameError = submitted && !name.trim();
 	const color = TIPO_COLOR[type] ?? "var(--color-kiri)";
+	// issue #126 — stesso ruolo di `color`, ma per il TESTO: `color` resta per
+	// riempimenti e bordi (dove l'accento pieno serve a risaltare), questo per
+	// le etichette, dove sotto soglia WCAG AA in tema chiaro.
+	const ink = TIPO_INK[type] ?? "var(--ink-kiri)";
 	const iconList = iconListFor(type, icon);
 	/**
 	 * Solo le categorie di spesa hanno un budget. Gli abbonamenti no: sono
@@ -318,6 +322,9 @@ export default function CategorySheet({
 							{TYPE_ORDER.map((typeId) => {
 								const selected = type === typeId;
 								const tColor = TIPO_COLOR[typeId];
+								// issue #126 — l'accento pieno resta su riempimento/icona
+								// (3:1 basta), l'etichetta vuole l'inchiostro.
+								const tInk = TIPO_INK[typeId] ?? "var(--ink-kiri)";
 								const TIcon = typeIcon(typeId);
 								return (
 									<button
@@ -343,7 +350,7 @@ export default function CategorySheet({
 										)}
 										<span
 											className="text-[10px] font-medium leading-none"
-											style={{ color: selected ? tColor : "var(--text-muted)" }}
+											style={{ color: selected ? tInk : "var(--text-muted)" }}
 										>
 											{t.typesShort[typeId]}
 										</span>
@@ -378,7 +385,9 @@ export default function CategorySheet({
 													? `color-mix(in srgb, ${color} 14%, transparent)`
 													: "var(--color-input)",
 												borderColor: selected ? color : "transparent",
-												color: selected ? color : "var(--text-muted)",
+												// issue #126 — `color` resta sul riempimento/bordo, il
+												// testo vuole l'inchiostro.
+												color: selected ? ink : "var(--text-muted)",
 												fontWeight: selected ? 600 : 500,
 											}}
 										>
@@ -481,7 +490,9 @@ export default function CategorySheet({
 										</span>
 										<span
 											className="text-[9.5px] leading-tight text-center w-full truncate"
-											style={{ color: selected ? color : "var(--text-muted)" }}
+											// issue #126 — era `color` (l'accento pieno): sotto
+											// soglia come testo in tema chiaro.
+											style={{ color: selected ? ink : "var(--text-muted)" }}
 										>
 											{label}
 										</span>

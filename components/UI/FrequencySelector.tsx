@@ -8,9 +8,22 @@ interface FrequencySelectorProps {
 	value: Frequency;
 	onChange: (f: Frequency) => void;
 	color: string;
+	/**
+	 * issue #126 — stesso ruolo di `color`, ma per il TESTO (coppia come
+	 * `TIPO_COLOR`/`TIPO_INK`): `color` resta sul riempimento, dove l'accento
+	 * pieno serve a risaltare; l'etichetta selezionata lo usava anche per il
+	 * testo, sotto soglia WCAG AA in tema chiaro. Facoltativo con ripiego
+	 * neutro, per non rompere un chiamante che non lo passasse.
+	 */
+	ink?: string;
 }
 
-export default function FrequencySelector({ value, onChange, color }: FrequencySelectorProps) {
+export default function FrequencySelector({
+	value,
+	onChange,
+	color,
+	ink = "var(--ink-kiri)",
+}: FrequencySelectorProps) {
 	const { t } = useI18n();
 
 	return (
@@ -35,7 +48,7 @@ export default function FrequencySelector({ value, onChange, color }: FrequencyS
 								: "var(--color-card)",
 							borderColor: selected ? color : undefined,
 							boxShadow: selected ? undefined : "var(--border) 0px 0px 0px 1px inset",
-							color: selected ? color : "var(--text-secondary)",
+							color: selected ? ink : "var(--text-secondary)",
 						}}
 					>
 						{t.frequencies[f].label}

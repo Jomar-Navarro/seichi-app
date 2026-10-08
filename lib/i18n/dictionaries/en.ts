@@ -38,7 +38,6 @@ export const en: Dictionary = {
 		genericError: "Something went wrong. Please try again.",
 		pageLoadFailed: "This page couldn't be loaded.",
 		unknownError: "Unknown error",
-		required: "This field is required",
 		selectPlaceholder: "Select {field}",
 		toggleVisibility: "Show or hide amounts",
 		uncategorized: "Uncategorized",
@@ -80,12 +79,15 @@ export const en: Dictionary = {
 		/* No `trasferimento` here, nor in `newByType`/`typesShort`: see it.ts. */
 	},
 
+	// issue #126 — maiuscola iniziale: era minuscola e un `capitalize` in CSS
+	// la correggeva finché non ha rotto l'italiano maiuscolizzando anche la
+	// seconda parola ("Nuova Entrata"). Tolto il CSS, va scritta qui.
 	newByType: {
-		entrata: "new income",
-		spesa: "new expense",
-		risparmio: "new saving",
-		investimento: "new investment",
-		abbonamento: "new subscription",
+		entrata: "New income",
+		spesa: "New expense",
+		risparmio: "New saving",
+		investimento: "New investment",
+		abbonamento: "New subscription",
 	},
 
 	theme: {
@@ -585,6 +587,16 @@ export const en: Dictionary = {
 		amountInvalid: "Enter a valid amount",
 		dateLabel: "Target date",
 		iconLabel: "Icon",
+		goalIcons: {
+			plane: "Travel",
+			car: "Car",
+			home: "Home",
+			heart: "General",
+			"graduation-cap": "Education",
+			shield: "Emergency",
+			star: "Other",
+			"trending-up": "Investment",
+		},
 		saveChanges: "Save changes",
 		deleteConfirm: "Confirm deletion",
 		delete: "Delete goal",

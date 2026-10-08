@@ -151,7 +151,10 @@ export default function GoalCard({ goal, onEdit }: GoalCardProps) {
 				<div className="flex-1 min-w-0">
 					<p
 						className="text-[15px] lg:text-[16.5px] font-semibold leading-tight truncate"
-						style={{ color: completed ? "var(--color-kiri)" : "var(--color-foreground)" }}
+						// issue #126 — `--color-kiri` non è ridefinito in `.dark`: un
+						// completato restava colorato uguale nei due temi. `--text-muted`
+						// è lo stesso spegnimento, ma che si adatta.
+						style={{ color: completed ? "var(--text-muted)" : "var(--color-foreground)" }}
 					>
 						{goal.name}
 					</p>
@@ -183,7 +186,7 @@ export default function GoalCard({ goal, onEdit }: GoalCardProps) {
 			<p className="text-[12.5px] mt-3.5 font-medium lg:mt-auto lg:pt-5 lg:flex lg:items-baseline lg:gap-1.5 lg:leading-tight">
 				<span
 					className="lg:text-[27px] lg:font-semibold"
-					style={{ color: completed ? "var(--color-kiri)" : "var(--color-foreground)" }}
+					style={{ color: completed ? "var(--text-muted)" : "var(--color-foreground)" }}
 				>
 					{formatAmount(goal.saved_amount, locale)}
 				</span>
