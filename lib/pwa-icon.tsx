@@ -44,6 +44,11 @@ export const MIDORI = "#6f8a63";
  * tratto scala con lei perché `strokeWidth` è nello spazio PRE-scala del
  * glifo (`viewBox 0 0 24 24`), non un pixel assoluto — la stessa logica di
  * `scripts/generate-pwa-icons.mjs`, che la commenta per esteso.
+ *
+ * ⚠️ Per questo il valore è FISSO a 2, come in lucide e nello script. Fino
+ * alla #127 era `2 * glyph / 22`: giusto per il favicon (glifo 22 → 2), ma il
+ * viewBox scalava il tratto una seconda volta, e nell'icona Apple (glifo 128)
+ * usciva circa sei volte più spesso.
  */
 export function sproutIconElement(canvasSize: number, glyphSize: number): ReactElement {
 	const wrapper: CSSProperties = {
@@ -54,11 +59,6 @@ export function sproutIconElement(canvasSize: number, glyphSize: number): ReactE
 		justifyContent: "center",
 		background: TSUKI,
 	};
-	// canvas 32px → tratto 2 (proporzione originale lucide); scala con la
-	// dimensione del glifo perché un tratto fisso sparirebbe a 180px o
-	// ingrasserebbe a 22px.
-	const strokeWidth = (2 * glyphSize) / 22;
-
 	return (
 		<div style={wrapper}>
 			<svg
@@ -67,7 +67,7 @@ export function sproutIconElement(canvasSize: number, glyphSize: number): ReactE
 				viewBox="0 0 24 24"
 				fill="none"
 				stroke={MIDORI}
-				strokeWidth={strokeWidth}
+				strokeWidth={2}
 				strokeLinecap="round"
 				strokeLinejoin="round"
 			>
