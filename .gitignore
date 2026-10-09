@@ -48,3 +48,13 @@ next-env.d.ts
 cookies.json
 shots/
 shots*/
+
+# AGENTS.md lo scrive `next dev` a ogni avvio (node_modules/next/dist/server/
+# lib/generate-agent-files.js) e lo ricrea se manca: è generato, non nostro.
+# Era tracciato, e ogni aggiornamento di Next lo lasciava modificato
+# nell'albero di lavoro, a rischio di finire in un commit per sbaglio. Le
+# stesse regole stanno in testa a CLAUDE.md. ⚠️ Questa riga funziona solo
+# perché il file è stato tolto dal repo (git rm --cached): .gitignore non ha
+# effetto su un file già tracciato, ed è il motivo per cui prima c'era senza
+# servire a niente.
+AGENTS.md
