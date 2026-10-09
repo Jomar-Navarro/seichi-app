@@ -1,32 +1,13 @@
-import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { createSerwistRoute } from "@serwist/turbopack";
-
-/**
- * `/~offline` (Fase 25) NON finisce nel precache di default: eredita
- * `cookies()` dal root layout (tema/lingua), quindi Next la marca `ƒ`
- * dinamica come ogni altra pagina — non un file statico che il glob del
- * precache possa trovare. Va aggiunta a mano con `additionalPrecacheEntries`:
- * Serwist la richiede DAVVERO all'installazione del service worker (non
- * legge un file), quindi funziona lo stesso pur essendo una rotta dinamica —
- * il contenuto non dipende in modo sostanziale dai cookie (stessi default
- * "nessuna scelta ancora" del resto dell'app).
- *
- * `revision` è un hash del sorgente della pagina, non un timestamp: cambia
- * solo se il TESTO della pagina cambia, quindi un deploy che non la tocca
- * non forza un refetch inutile alla prossima installazione del worker.
- */
-const offlinePageRevision = createHash("md5")
-	.update(readFileSync(join(process.cwd(), "app/~offline/page.tsx")))
-	.digest("hex")
-	.slice(0, 16);
+import { OFFLINE_URL, offlineRevision } from "@/lib/offline-revision.mjs";
 
 /**
  * Route Handler richiesta dall'integrazione Turbopack di Serwist (Fase 25):
- * serve il service worker compilato e i suoi asset — `withSerwist` in
- * `next.config.ts` inietta da sé lo script di registrazione lato client,
- * puntato qui.
+ * serve il service worker compilato e i suoi asset. ⚠️ La REGISTRAZIONE non
+ * sta qui né in `withSerwist` (`next.config.ts`), che è solo un wrapper di
+ * config: la fa `<SerwistProvider>` in `app/layout.tsx`, puntato a questa
+ * rotta. Senza quello il worker risponde 200 al curl e non si installa in
+ * nessun browser — la Fase 25 l'ha scoperto così.
  *
  * `swSrc: "app/sw.ts"` è l'unica opzione esplicita. Tutto il resto
  * (`globDirectory`, `globPatterns`, `injectionPoint`) resta ai default
@@ -34,9 +15,11 @@ const offlinePageRevision = createHash("md5")
  * soli quali asset di build precachare. La garanzia che conta — nessuna
  * pagina applicativa nel precache — non viene da questi parametri (un
  * default può cambiare da una versione all'altra della libreria): viene da
- * `runtimeCaching: []` in `app/sw.ts` e da `npm run audit:pwa-cache`, che
- * ispeziona il manifest REALMENTE generato dopo ogni build invece di
- * fidarsi di ciò che questa configurazione dichiara di fare.
+ * `app/sw.ts`, il cui unico `runtimeCaching` è un `NetworkOnly` (non legge né
+ * scrive una cache: aggancia soltanto il fallback offline), e da
+ * `npm run audit:pwa-cache`, che dopo ogni build ispeziona il worker REALMENTE
+ * compilato — precache e strategie di runtime — invece di fidarsi di ciò che
+ * questa configurazione dichiara di fare.
  *
  * `useNativeEsbuild: true` (il default su Windows, esplicitato qui perché
  * non è ovvio dal solo `swSrc`): la cartella del progetto contiene un
@@ -45,9 +28,27 @@ const offlinePageRevision = createHash("md5")
  * suo shim WASI di risoluzione dei percorsi, non del progetto. L'`esbuild`
  * nativo usa le API del filesystem del sistema operativo e non ha questo
  * problema. Verificato costruendo con entrambi.
+ *
+ * `/~offline` NON finisce nel precache di default: eredita `cookies()` dal
+ * root layout (tema/lingua), quindi Next la marca `ƒ` dinamica come ogni
+ * altra pagina — non un file statico che il glob possa trovare. Va aggiunta a
+ * mano: Serwist la richiede DAVVERO all'installazione del worker (non legge un
+ * file), quindi funziona lo stesso pur essendo una rotta dinamica — il
+ * contenuto non dipende in modo sostanziale dai cookie.
+ *
+ * ⚠️ La si aggiunge in una `manifestTransforms` e non con
+ * `additionalPrecacheEntries` (#127), perché la sua revisione si calcola dalle
+ * ALTRE voci del manifest — vedi `lib/offline-revision.mjs` per il perché — e
+ * Serwist esegue le trasformazioni PRIMA di accodare `additionalPrecacheEntries`
+ * (`transformManifest` in `@serwist/build`): da lì il manifest non si vede.
  */
 export const { GET, dynamic, dynamicParams, revalidate, generateStaticParams } = createSerwistRoute({
 	swSrc: "app/sw.ts",
 	useNativeEsbuild: true,
-	additionalPrecacheEntries: [{ url: "/~offline", revision: offlinePageRevision }],
+	manifestTransforms: [
+		(manifest) => ({
+			manifest: [...manifest, { url: OFFLINE_URL, revision: offlineRevision(manifest), size: 0 }],
+			warnings: [],
+		}),
+	],
 });

@@ -312,14 +312,14 @@ export default async function RootLayout({
 					  TransactionForm. È esattamente il reload automatico che PwaStatus
 					  vieta esplicitamente per l'avviso di aggiornamento.
 					- `cacheOnNavigation` manderebbe al service worker un messaggio
-					  `CACHE_URLS` per ogni navigazione client-side. Con `runtimeCaching: []`
-					  in app/sw.ts e nessun `setDefaultHandler` il messaggio non trova
-					  alcuna route e non cachea nulla (verificato in
-					  node_modules/serwist/src/Serwist.ts: `handleRequest` senza handler
-					  ritorna `undefined`) — ma è un canale che aggirerebbe
+					  `CACHE_URLS` per ogni navigazione client-side, cioè una richiesta di
+					  mettere in cache quegli URL. Oggi l'unica route di app/sw.ts è un
+					  `NetworkOnly` sulle navigazioni, che non scrive in nessuna cache, e
+					  non c'è un `setDefaultHandler` — ma è un canale che aggirerebbe
 					  `runtimeCaching` invece di rispettarlo, e spegnerlo esplicitamente
 					  non lascia la garanzia "nessuna pagina applicativa in cache" appesa
-					  a una coincidenza (route vuote oggi, magari non domani).
+					  a una coincidenza (nessuna strategia che scrive oggi, magari non
+					  domani).
 				*/}
 				<SerwistProvider
 					swUrl="/serwist/sw.js"
