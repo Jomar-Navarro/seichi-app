@@ -312,7 +312,11 @@ try {
 	}
 
 	/* ---------------------------------------- 5 · lista filtrata senza risultati */
-	await page.goto(`${BASE}/transazioni`, { waitUntil: "domcontentloaded" });
+	// ⚠️ `?conto=` vuoto: dalla #148 Movimenti parte dal conto RICORDATO, e il
+	// passo 2 ne ha appena scelto uno. Senza chiedere "tutti i conti" il chip
+	// porterebbe il nome del conto e il controllo qui sotto verrebbe saltato —
+	// la trappola che la 20b ha già pagato su home e /analisi.
+	await page.goto(`${BASE}/transazioni?conto=`, { waitUntil: "domcontentloaded" });
 	await page.waitForLoadState("networkidle").catch(() => {});
 	console.log("shot:", await shot(page, "movimenti"));
 
@@ -320,6 +324,10 @@ try {
 	// perché un budget è un limite su una CATEGORIA. La nota deve dirlo.
 	const contoChip = page.getByRole("button", { name: /tutti i conti|all accounts/i }).first();
 	if (await contoChip.isVisible().catch(() => false)) {
+		// ⚠️ Dalla #148 scegliere un conto QUI scrive la memoria condivisa con la
+		// home: senza rimetterla com'era, i passi dopo partirebbero dal conto
+		// scelto ora invece che da quello del passo 2 — un verde che misura altro.
+		const memoriaPrima = (await page.context().cookies()).find((c) => c.name === "seichi-account");
 		await contoChip.click();
 		await page.waitForTimeout(300);
 		const voci = page.locator("div.absolute button");
@@ -329,6 +337,10 @@ try {
 			await expectText(page, "budget valgono su tutti i conti", "5 i budget dichiarano il proprio ambito");
 			console.log("shot:", await shot(page, "movimenti-filtrati"));
 		}
+		await page.context().clearCookies({ name: "seichi-account" });
+		if (memoriaPrima) await page.context().addCookies([memoriaPrima]);
+	} else {
+		ko.push("KO  5 chip 'Tutti i conti' non trovato in Movimenti: controllo NON eseguito");
 	}
 
 	/* ======================================================= Fase 20b · trasferimenti */

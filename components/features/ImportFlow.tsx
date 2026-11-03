@@ -14,6 +14,7 @@ import { accountColor } from "@/lib/accounts";
 import type { Locale } from "@/lib/i18n/config";
 import { analyzeImport, runImport, undoImport } from "@/app/(main)/impostazioni/importa/actions";
 import { createAccount } from "@/app/(main)/conti/actions";
+import { useUIStore } from "@/store/useUIStore";
 import type {
 	GenericMapping,
 	GroupDecision,
@@ -77,6 +78,12 @@ const STEP_INDEX: Record<Step, number> = { file: 0, gruppi: 1, riepilogo: 2, fat
 export default function ImportFlow({ accounts, categories, previous, previousFailed }: Props) {
 	const { t, locale } = useI18n();
 	const router = useRouter();
+	/*
+	 * #148 — importare e annullare cambiano i movimenti senza passare dal form.
+	 * Il segnale butta la lista ricordata di Movimenti: dopo un annullamento la
+	 * copia mostrerebbe centinaia di righe che non esistono più.
+	 */
+	const notifyTransactionSaved = useUIStore((s) => s.notifyTransactionSaved);
 
 	const [step, setStep] = useState<Step>("file");
 	const [file, setFile] = useState<File | null>(null);
@@ -272,6 +279,7 @@ export default function ImportFlow({ accounts, categories, previous, previousFai
 			}
 			setOutcome(res.data);
 			setStep("fatto");
+			notifyTransactionSaved();
 		} catch {
 			setError(t.common.genericError);
 		} finally {
@@ -291,6 +299,7 @@ export default function ImportFlow({ accounts, categories, previous, previousFai
 			}
 			setConfirmUndo(false);
 			setUndone(true);
+			notifyTransactionSaved();
 		} catch {
 			setError(t.common.genericError);
 		} finally {
@@ -938,6 +947,7 @@ function ImportHistory({
 	onUndone: () => void;
 }) {
 	const { t, locale } = useI18n();
+	const notifyTransactionSaved = useUIStore((s) => s.notifyTransactionSaved);
 	const [confirming, setConfirming] = useState<string | null>(null);
 	const [busy, setBusy] = useState(false);
 	const name = new Map(accounts.map((a) => [a.id, a.name]));
@@ -961,6 +971,7 @@ function ImportHistory({
 				return;
 			}
 			setConfirming(null);
+			notifyTransactionSaved(); // #148, vedi ImportFlow
 			onUndone();
 		} catch {
 			setErr(t.common.genericError);

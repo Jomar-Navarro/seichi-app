@@ -99,8 +99,10 @@ const IN_CHUNK = 100;
 /**
  * Il conteggio, con l'esito della LETTURA accanto al risultato.
  *
- * ⚠️ I due chiamanti hanno bisogni OPPOSTI davanti allo stesso guasto, e per
- * questo la funzione dice anche se ha finito:
+ * ⚠️ Dalla #148 il chiamante è uno solo, l'export: le liste contano dentro la
+ * query dei movimenti. La distinzione qui sotto resta il motivo per cui l'export
+ * non usa quella strada. I due bisogni erano OPPOSTI davanti allo stesso
+ * guasto, e per questo la funzione dice anche se ha finito:
  *
  *   · la LISTA vuole degradare — una graffetta in meno è meglio di una lista
  *     che non si apre, e lo schermo resta lì a essere ricaricato;
@@ -142,19 +144,12 @@ async function countAttachments(
 	return { counts, complete: true };
 }
 
-/**
- * Il conteggio per la LISTA movimenti — degrada in silenzio.
- *
- * ⚠️ Degrada e non blocca: il segnaposto è un di più, e la lista deve restare
- * leggibile anche se questa query fallisce. Si mostra ciò che si è riusciti a
- * contare. L'export usa `getAttachmentCountsChecked` qui sotto, che invece
- * l'esito lo riporta.
+/*
+ * ⚠️ Qui c'era `getAttachmentCounts`, il conteggio per le LISTE, che degradava
+ * a `{}`. Dalla #148 le liste contano le ricevute dentro la query dei movimenti
+ * (`getTransactions({ withAttachmentCounts })`), e una seconda server action in
+ * coda dietro alla prima non serve più. Resta solo il conteggio dell'export.
  */
-export async function getAttachmentCounts(
-	transactionIds: string[],
-): Promise<Record<string, number>> {
-	return (await countAttachments(transactionIds)).counts;
-}
 
 /**
  * Il conteggio per l'EXPORT (Fase 23a) — dice anche se la lettura è riuscita.

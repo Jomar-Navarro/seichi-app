@@ -11,11 +11,13 @@ import ExportPanel from "@/components/features/ExportPanel";
  * ogni apertura di una tendina.
  *
  * ⚠️ **Il conto ricordato nel cookie NON si legge, deliberatamente.** Quel
- * cookie segue le due viste che rispondono a *"come sto andando"* — home e
- * analisi — e regge solo perché là la selezione è sempre visibile in un chip.
- * Qui produrrebbe un file filtrato per una scelta fatta in un'altra schermata,
- * cioè uno stato invisibile che finisce dentro un documento salvato. È la stessa
- * ragione per cui `/transazioni` non lo eredita.
+ * cookie segue le viste che si consultano — home, analisi e, dalla #148,
+ * Movimenti — e regge solo perché là la selezione è sempre visibile in un chip
+ * e si annulla con un tocco. Qui produrrebbe un file filtrato per una scelta
+ * fatta in un'altra schermata, cioè uno stato che finisce dentro un documento
+ * salvato: una pagina sbagliata si corregge al tocco dopo, un file archiviato
+ * no. (Fino alla #148 questo commento citava `/transazioni` come precedente;
+ * la ragione dell'export è sua, e resta anche ora che Movimenti ricorda.)
  */
 export default async function EsportaPage() {
 	const { supabase, user, t } = await requireUser();

@@ -549,6 +549,7 @@ export const en: Dictionary = {
 		filterAllCategories: "All categories",
 		resetFilters: "Clear filters",
 		loadMore: "Load more",
+		refreshFailed: "Couldn't refresh the list: what you see may be out of date.",
 		/** ⚠️ Righe guardate, non risultati trovati — vedi la nota in it.ts. */
 		searchScanLimit:
 			"Search looked at the {n} most recent transactions in this period. Narrow the period to search further back.",

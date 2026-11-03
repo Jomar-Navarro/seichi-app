@@ -13,7 +13,7 @@ import { readAll } from "@/lib/read-all";
 import { endOfDayInMonth } from "@/lib/dates";
 import { receiptPathsOf } from "@/lib/attachment-paths";
 import { genericError } from "@/lib/errors";
-import type { Frequency } from "@/types";
+import type { Frequency, Transaction } from "@/types";
 
 /**
  * ⚠️ `assertOwnAccount()` NON esiste più, e vale sapere cosa l'ha sostituita.
@@ -140,15 +140,43 @@ export async function getTransactions(opts: {
 	categoria?: string;
 	limit?: number;
 	offset?: number;
+	/**
+	 * #148 — conta anche le ricevute di ogni riga, nella STESSA query.
+	 *
+	 * Prima le liste facevano una seconda server action (`getAttachmentCounts`)
+	 * con gli id appena arrivati, e Next le spedisce una alla volta: la graffetta
+	 * aspettava in coda dietro a tutto il resto. PostgREST sa contare dentro
+	 * l'embed (`attachments(count)`, risolto dalla FK composita `(transaction_id,
+	 * user_id)` senza nominarla: un nome di vincolo nella query si romperebbe in
+	 * silenzio alla prima rinomina, lezione della 20b). La RLS di `attachments`
+	 * vale anche lì dentro.
+	 *
+	 * ⚠️ Una query sola fallisce INTERA: un guasto delle ricevute ora fa fallire
+	 * la lettura dei movimenti invece di togliere solo la graffetta. È onesto —
+	 * la lista dice "non è stato possibile caricare" e ha il suo "Riprova" (#124)
+	 * — e un guasto che colpisca solo l'embed è molto meno probabile di uno di
+	 * rete, che avrebbe colpito comunque entrambe le richieste.
+	 *
+	 * Facoltativo perché l'export (23a) ha bisogno di distinguere "zero ricevute"
+	 * da "non sono riuscito a contarle", e usa `getAttachmentCountsChecked`.
+	 */
+	withAttachmentCounts?: boolean;
 } = {}) {
-	const { tipo, periodo, conto, categoria, limit, offset } = opts;
+	const { tipo, periodo, conto, categoria, limit, offset, withAttachmentCounts } = opts;
 	const { supabase, user, t } = await requireUser();
 
 	if (!user) return { error: t.errors.notAuthenticated };
 
+	// ⚠️ La riga si DICHIARA: postgrest-js analizza il testo della select a
+	// livello di tipi, e una select scelta a runtime (un'unione di due letterali,
+	// o `string`) produce un `ParserError` al posto delle righe.
+	const columns = withAttachmentCounts
+		? "*, categories(name, icon, color), attachments(count)"
+		: "*, categories(name, icon, color)";
+
 	let query = supabase
 		.from("transactions")
-		.select("*, categories(name, icon, color)")
+		.select<string, Transaction & { attachments?: { count: number }[] }>(columns)
 		.eq("user_id", user.id)
 		.order("date", { ascending: false })
 		/*
@@ -243,12 +271,38 @@ export async function getTransactions(opts: {
 	}
 
 	const { data, error } = await query;
-	if (error) return { error: genericError("movimenti: lettura", error, t) };
+	if (error) {
+		/*
+		 * ⚠️ Con le ricevute dentro la query, un guasto del SOLO conteggio — la
+		 * relazione resa ambigua da una FK nuova (`PGRST201`), un permesso su
+		 * `attachments` — farebbe fallire l'intera lista. La Fase 22 aveva
+		 * promesso il contrario: la lista resta leggibile, al più manca la
+		 * graffetta. Si riprova quindi senza il conteggio, e una volta sola.
+		 * Trovato dalla review della #148. Un guasto di rete fallisce anche il
+		 * secondo giro, e allora l'errore è quello vero.
+		 */
+		if (withAttachmentCounts) {
+			console.error("[movimenti] lettura con le ricevute, riprovo senza:", error.code, error.message);
+			return getTransactions({ ...opts, withAttachmentCounts: false });
+		}
+		return { error: genericError("movimenti: lettura", error, t) };
+	}
 
-	if (limit === undefined) return { data, hasMore: false };
+	const hasMore = limit !== undefined && (data?.length ?? 0) > limit;
+	const rows = hasMore ? data!.slice(0, limit) : (data ?? []);
 
-	const hasMore = (data?.length ?? 0) > limit;
-	return { data: hasMore ? data!.slice(0, limit) : data, hasMore };
+	if (!withAttachmentCounts) return { data: rows, hasMore };
+
+	// Il conteggio esce dalle righe e diventa la mappa che le liste usavano già:
+	// lasciato dentro ogni movimento, `attachments` viaggerebbe in ogni oggetto
+	// `Transaction` senza che il tipo lo dichiari.
+	const attachmentCounts: Record<string, number> = {};
+	const plain: Transaction[] = rows.map(({ attachments, ...rest }) => {
+		const n = attachments?.[0]?.count ?? 0;
+		if (n > 0) attachmentCounts[rest.id] = n;
+		return rest;
+	});
+	return { data: plain, hasMore, attachmentCounts };
 }
 
 export async function updateTransaction(

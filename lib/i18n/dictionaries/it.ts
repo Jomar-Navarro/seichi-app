@@ -948,6 +948,18 @@ export const it = {
 		/** Il pulsante in fondo alla lista paginata (#9). */
 		loadMore: "Carica altri",
 		/**
+		 * #148 — rientrando in Movimenti la lista ricordata si mostra subito e si
+		 * riaggiorna in sottofondo. Se l'aggiornamento fallisce, le righe a schermo
+		 * restano ma vanno dichiarate VECCHIE: presentarle come attuali sarebbe una
+		 * lettura fallita travestita da fatto (#124).
+		 */
+		/*
+		 * ⚠️ "Non attuale", non "senza gli ultimi movimenti": dopo un'eliminazione
+		 * fatta altrove la copia può contenere righe che NON esistono più, e la
+		 * frase deve valere anche per quelle (review della #148).
+		 */
+		refreshFailed: "Non è stato possibile aggiornare la lista: quella a schermo potrebbe non essere attuale.",
+		/**
 		 * ⚠️ Parla di quante righe ha GUARDATO, non di quante ne ha trovate.
 		 * Cercando, il tetto vale sulle righe scandite e non sulle corrispondenze:
 		 * "altri risultati" sarebbe falso proprio quando non ce n'è nemmeno uno.
