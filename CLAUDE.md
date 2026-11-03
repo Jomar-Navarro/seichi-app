@@ -6859,6 +6859,29 @@ Il numero da guardare nel pannello Supabase non è il totale ma la **card Auth**
 se non è quasi piatta, da qualche parte è rientrato un `getUser()` sul percorso
 di lettura.
 
+#### Le funzioni stanno accanto al database (#148, 2026-11-03)
+
+Fino al 2026-11-03 le funzioni Vercel giravano a **Washington** (`iad1`, il
+predefinito: nessuno l'aveva scelto), mentre il database è in **Irlanda**
+(`eu-west-1`, dal pannello di Supabase). Ogni query di ogni pagina e di ogni
+server action attraversava l'Atlantico due volte. Ora `vercel.json` le fissa a
+**`dub1` (Dublino)**.
+
+- ⚠️ **La regione sta nel repo, non nel pannello di Vercel**: una scelta fatta
+  solo dal pannello non si legge da nessuna parte, ed è così che `iad1` è
+  rimasto per due mesi senza che nessuno lo sapesse.
+- **Si verifica dall'header `X-Vercel-Id`** di una risposta dinamica
+  (`curl -sI https://seichi-app.vercel.app/welcome`): il primo segmento è il
+  nodo d'ingresso (`fra1` dall'Italia), il **secondo** è la regione della
+  funzione. Deve dire `dub1`.
+- ⚠️ Se un giorno il progetto Supabase cambia regione, `vercel.json` va
+  spostato con lui: la regione giusta è quella del **database**, non quella
+  dell'utente. Ogni pagina fa più query che richieste.
+- Prima della modifica, da qui: `/welcome` mediana 266 ms, `/manifest.webmanifest`
+  227 ms (10 campioni, `time_starttransfer`). Due rotte che non leggono il
+  database: il guadagno vero è sulle pagine che lo leggono, da misurare dal
+  telefono.
+
 ## Auth Flow
 
 - `/welcome` → landing page pre-auth
