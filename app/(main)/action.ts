@@ -271,7 +271,22 @@ export async function getTransactions(opts: {
 	}
 
 	const { data, error } = await query;
-	if (error) return { error: genericError("movimenti: lettura", error, t) };
+	if (error) {
+		/*
+		 * ⚠️ Con le ricevute dentro la query, un guasto del SOLO conteggio — la
+		 * relazione resa ambigua da una FK nuova (`PGRST201`), un permesso su
+		 * `attachments` — farebbe fallire l'intera lista. La Fase 22 aveva
+		 * promesso il contrario: la lista resta leggibile, al più manca la
+		 * graffetta. Si riprova quindi senza il conteggio, e una volta sola.
+		 * Trovato dalla review della #148. Un guasto di rete fallisce anche il
+		 * secondo giro, e allora l'errore è quello vero.
+		 */
+		if (withAttachmentCounts) {
+			console.error("[movimenti] lettura con le ricevute, riprovo senza:", error.code, error.message);
+			return getTransactions({ ...opts, withAttachmentCounts: false });
+		}
+		return { error: genericError("movimenti: lettura", error, t) };
+	}
 
 	const hasMore = limit !== undefined && (data?.length ?? 0) > limit;
 	const rows = hasMore ? data!.slice(0, limit) : (data ?? []);

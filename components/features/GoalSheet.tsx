@@ -11,6 +11,7 @@ import { DISPLAY_CURRENCY, currencySymbol, fill, formatMoney, plural } from "@/l
 import DatePicker from "@/components/UI/DatePicker";
 import { amountErrorMessage, formatAmountInput, parseAmountInput } from "@/lib/amount";
 import type { GoalWithProgress } from "@/types";
+import { useUIStore } from "@/store/useUIStore";
 
 /**
  * ⚠️ Non c'è una prop `isOpen`, ed è il punto di questo componente.
@@ -48,6 +49,7 @@ const EMPTY_FORM: FormState = {
 export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 	const { locale, t } = useI18n();
 	const router = useRouter();
+	const notifyTransactionSaved = useUIStore((s) => s.notifyTransactionSaved);
 	// Inizializzatore pigro: gira una volta al montaggio, che è esattamente
 	// quando il pannello si apre. Gli altri stati partono già dal valore giusto.
 	const [form, setForm] = useState<FormState>(() =>
@@ -137,6 +139,9 @@ export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 				setServerError(result.error);
 				return;
 			}
+			// #148 — l'obiettivo porta con sé i suoi versamenti (cascata): la lista
+			// ricordata di Movimenti va buttata, o li mostrerebbe ancora rientrando.
+			notifyTransactionSaved();
 			router.refresh();
 			onClose();
 		} finally {

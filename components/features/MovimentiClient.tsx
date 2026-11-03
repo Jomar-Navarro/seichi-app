@@ -63,11 +63,17 @@ type FirstPage = {
 type Memory = {
 	userId: string;
 	/**
-	 * ⚠️ Il `transactionSavedAt` per cui le pagine valgono. Dopo un salvataggio
-	 * fatto nell'app — anche da un'altra pagina — le pagine si buttano: un
-	 * movimento appena ELIMINATO ricomparirebbe per un istante dalla copia,
-	 * prima dell'aggiornamento. Con un movimento nuovo sarebbe solo un ritardo;
-	 * con uno cancellato, un fantasma.
+	 * ⚠️ Il `transactionSavedAt` per cui pagine e budget valgono. Dopo un
+	 * cambiamento dei movimenti fatto nell'app — il form, l'eliminazione di un
+	 * obiettivo coi suoi versamenti, un import o il suo annullamento, da
+	 * qualunque pagina — si buttano: un movimento appena ELIMINATO ricomparirebbe
+	 * per un istante dalla copia, prima dell'aggiornamento, e una barra di budget
+	 * appena sforata tornerebbe verde. Con un movimento nuovo sarebbe solo un
+	 * ritardo; con uno cancellato, un fantasma.
+	 *
+	 * Conti e categorie invece restano: servono a nominare i filtri, e un
+	 * movimento salvato non li rinomina. Toglierli farebbe dire al chip "Tutti i
+	 * conti" sopra una lista filtrata, finché non arriva la risposta.
 	 */
 	savedAt: number;
 	pages: Map<string, FirstPage>;
@@ -83,15 +89,31 @@ const isBrowser = typeof window !== "undefined";
 
 const currentSavedAt = () => useUIStore.getState().transactionSavedAt;
 
+/*
+ * ⚠️ LETTURE senza effetti: si chiamano anche durante il render (gli
+ * inizializzatori di `useState`), e un render scartato — StrictMode, rendering
+ * concorrente — non deve poter cambiare la memoria condivisa. Ciò che è
+ * scaduto qui si SALTA; lo butta via `memoryFor`, che gira solo in callback.
+ */
 function recall(userId: string): Memory | null {
-	if (!memory || memory.userId !== userId) return null;
-	if (memory.savedAt !== currentSavedAt()) {
-		memory.pages.clear();
-		memory.savedAt = currentSavedAt();
-	}
-	return memory;
+	return memory && memory.userId === userId ? memory : null;
 }
 
+function isFresh(m: Memory) {
+	return m.savedAt === currentSavedAt();
+}
+
+function recallPage(userId: string, key: string): FirstPage | undefined {
+	const m = recall(userId);
+	return m && isFresh(m) ? m.pages.get(key) : undefined;
+}
+
+function recallBudgets(userId: string): BudgetOverview | null {
+	const m = recall(userId);
+	return m && isFresh(m) ? m.budgets : null;
+}
+
+/** Per SCRIVERE: crea la memoria dell'utente, e butta ciò che un salvataggio ha reso vecchio. */
 function memoryFor(userId: string): Memory | null {
 	if (!isBrowser || !userId) return null;
 	if (!memory || memory.userId !== userId) {
@@ -103,8 +125,12 @@ function memoryFor(userId: string): Memory | null {
 			categories: null,
 			budgets: null,
 		};
+	} else if (!isFresh(memory)) {
+		memory.pages.clear();
+		memory.budgets = null;
+		memory.savedAt = currentSavedAt();
 	}
-	return recall(userId);
+	return memory;
 }
 
 function filtersKey(f: Filters) {
@@ -154,7 +180,8 @@ export default function MovimentiClient({
 	// scheletro rientrando. Su un caricamento completo della pagina la memoria è
 	// vuota sia sul server sia nel browser, quindi i due render coincidono.
 	const [initialPage] = useState(() =>
-		recall(userId)?.pages.get(
+		recallPage(
+			userId,
 			filtersKey({ tipo: "", periodo: DEFAULT_PERIODO, conto: initialConto, categoria: "" }),
 		),
 	);
@@ -165,8 +192,16 @@ export default function MovimentiClient({
 	);
 	const [categories, setCategories] = useState<Category[]>(() => recall(userId)?.categories ?? []);
 	const [accounts, setAccounts] = useState<AccountOption[]>(() => recall(userId)?.accounts ?? []);
-	const [budgets, setBudgets] = useState<BudgetOverview | null>(() => recall(userId)?.budgets ?? null);
+	const [budgets, setBudgets] = useState<BudgetOverview | null>(() => recallBudgets(userId));
 	const [loading, setLoading] = useState(!initialPage);
+	/*
+	 * ⚠️ A schermo c'è la copia e la sua versione aggiornata è in viaggio (#148).
+	 * Non è `loading` — niente scheletro — ma "carica altri" va spento: la sua
+	 * richiesta numerata scarterebbe per sempre quella dell'aggiornamento, e la
+	 * pagina successiva, letta all'offset dei dati VERI, si appenderebbe a una
+	 * prima pagina vecchia. Righe doppie o mancanti, trovato dalla review.
+	 */
+	const [refreshing, setRefreshing] = useState(Boolean(initialPage));
 	/*
 	 * ⚠️ Una lettura fallita NON è una lista vuota (#124).
 	 * `page` = la prima pagina non è arrivata (al posto della lista c'è
@@ -228,7 +263,7 @@ export default function MovimentiClient({
 			const savedAtAtStart = currentSavedAt();
 			const filters: Filters = { tipo, periodo, conto, categoria };
 			const key = filtersKey(filters);
-			const remembered = !append && !searching ? recall(userId)?.pages.get(key) : undefined;
+			const remembered = !append && !searching ? recallPage(userId, key) : undefined;
 
 			// Con la copia a schermo l'aggiornamento è SILENZIOSO: niente
 			// scheletro, che toglierebbe proprio ciò che la copia esiste per dare.
@@ -240,7 +275,28 @@ export default function MovimentiClient({
 			} else {
 				setLoading(true);
 			}
+			setRefreshing(Boolean(remembered));
 			setLoadError(null);
+
+			/*
+			 * Un fallimento, detto in tre modi secondo ciò che c'è a schermo. Uno
+			 * solo per il ramo `{ error }` e per l'eccezione: scritto due volte
+			 * divergerebbe alla prima modifica (review della #148).
+			 *
+			 * `hasMore` resta com'era SOLO dopo un "carica altri" fallito: là il
+			 * bottone È il comando per riprovare. Su una prima pagina fallita si
+			 * azzera, o la riga "la ricerca ha guardato N movimenti" del filtro
+			 * precedente resterebbe sotto l'errore (review della #124).
+			 */
+			const fail = () => {
+				if (append) setLoadError("more");
+				else if (remembered) setLoadError("refresh");
+				else {
+					setTransactions([]);
+					setHasMore(false);
+					setLoadError("page");
+				}
+			};
 
 			const limit = searching ? SEARCH_SCAN_LIMIT : TRANSACTIONS_PAGE_SIZE;
 			const query = {
@@ -270,7 +326,22 @@ export default function MovimentiClient({
 						const m = memoryFor(userId);
 						if (m) m.categories = data.categories;
 					}
-					optionsLoadedFor.current = currentSavedAt();
+					// ⚠️ Solo se sono arrivati ENTRAMBI: altrimenti "Riprova" non li
+					// chiederebbe più, fino al prossimo salvataggio (review della #148).
+					if (data.accounts && data.categories) optionsLoadedFor.current = currentSavedAt();
+
+					/*
+					 * ⚠️ Un conto filtrato che non si sa NOMINARE: i conti non sono
+					 * arrivati e non ce n'è una copia. Il chip direbbe "Tutti i conti"
+					 * sopra una lista filtrata sul conto ricordato — la contraddizione
+					 * etichetta/dati che questa pagina esiste per evitare. Meglio dire
+					 * che la pagina non si è caricata, col suo "Riprova", che ora
+					 * richiede anche i conti. Trovato dalla review.
+					 */
+					if (conto && !data.accounts && !recall(userId)?.accounts) {
+						fail();
+						return;
+					}
 
 					/*
 					 * ⚠️ Il conto non è fra quelli dell'utente: la lista è vuota per la
@@ -298,17 +369,7 @@ export default function MovimentiClient({
 				}
 
 				if ("error" in result) {
-					// `hasMore` resta com'era SOLO dopo un "carica altri" fallito: là il
-					// bottone È il comando per riprovare. Su una prima pagina fallita si
-					// azzera, o la riga "la ricerca ha guardato N movimenti" del filtro
-					// precedente resterebbe sotto l'errore (review della #124).
-					if (append) setLoadError("more");
-					else if (remembered) setLoadError("refresh");
-					else {
-						setTransactions([]);
-						setHasMore(false);
-						setLoadError("page");
-					}
+					fail();
 					return;
 				}
 
@@ -329,15 +390,12 @@ export default function MovimentiClient({
 				// L'azione ha SOLLEVATO invece di restituire `{ error }`: stesso ramo.
 				if (myRequest !== requestId.current) return;
 				console.error("[movimenti] lettura:", e);
-				if (append) setLoadError("more");
-				else if (remembered) setLoadError("refresh");
-				else {
-					setTransactions([]);
-					setHasMore(false);
-					setLoadError("page");
-				}
+				fail();
 			} finally {
-				if (myRequest === requestId.current && !restarting) setLoading(false);
+				if (myRequest === requestId.current && !restarting) {
+					setLoading(false);
+					setRefreshing(false);
+				}
 			}
 		},
 		[userId, contoFromUrl, tipo, periodo, conto, categoria, searching],
@@ -532,7 +590,7 @@ export default function MovimentiClient({
 				{hasMore && !searching && loadError !== "page" && (
 					<button
 						onClick={loadMore}
-						disabled={loading}
+						disabled={loading || refreshing}
 						className="w-full mt-4 py-3 rounded-2xl bg-card ring-border text-sm font-medium text-secondary disabled:opacity-50"
 					>
 						{loading ? t.common.loading : t.transactions.loadMore}
