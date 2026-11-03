@@ -33,10 +33,10 @@ interface TransactionListProps {
 	/**
 	 * Quanti allegati ha ciascun movimento (Fase 22), per id.
 	 *
-	 * ⚠️ Facoltativo e DEGRADA: un oggetto vuoto significa "non lo so", non
-	 * "nessuno". Il segnaposto è un di più, e la lista deve restare leggibile
-	 * anche se la query dei conteggi fallisce — è il motivo per cui
-	 * `getAttachmentCounts()` restituisce `{}` invece di sollevare.
+	 * Facoltativo: un oggetto vuoto significa nessuna graffetta. Dalla #148 il
+	 * conteggio arriva nella stessa query dei movimenti
+	 * (`getTransactions({ withAttachmentCounts })`), quindi se manca è mancata
+	 * anche la lista, e la pagina lo dice con `LoadError`.
 	 */
 	attachmentCounts?: Record<string, number>;
 	/**

@@ -312,7 +312,11 @@ try {
 	}
 
 	/* ---------------------------------------- 5 · lista filtrata senza risultati */
-	await page.goto(`${BASE}/transazioni`, { waitUntil: "domcontentloaded" });
+	// ⚠️ `?conto=` vuoto: dalla #148 Movimenti parte dal conto RICORDATO, e il
+	// passo 2 ne ha appena scelto uno. Senza chiedere "tutti i conti" il chip
+	// porterebbe il nome del conto e il controllo qui sotto verrebbe saltato —
+	// la trappola che la 20b ha già pagato su home e /analisi.
+	await page.goto(`${BASE}/transazioni?conto=`, { waitUntil: "domcontentloaded" });
 	await page.waitForLoadState("networkidle").catch(() => {});
 	console.log("shot:", await shot(page, "movimenti"));
 

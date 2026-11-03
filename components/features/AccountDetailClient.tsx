@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Pencil } from "lucide-react";
 import { getTransactions } from "@/app/(main)/action";
 import { getAccountOptions } from "@/app/(main)/conti/actions";
-import { getAttachmentCounts } from "@/app/(main)/attachment-actions";
 import { TRANSACTIONS_PAGE_SIZE } from "@/lib/transaction-utils";
 import AccountSheet from "./AccountSheet";
 import TransactionList from "./TransactionList";
@@ -102,6 +101,8 @@ export default function AccountDetailClient({ account }: AccountDetailClientProp
 					conto: account.id,
 					limit: TRANSACTIONS_PAGE_SIZE,
 					offset,
+					// Le ricevute nella stessa query (#148): vedi `getTransactions`.
+					withAttachmentCounts: true,
 				});
 				if (myRequest !== requestId.current) return; // superata da una richiesta più recente
 
@@ -116,24 +117,10 @@ export default function AccountDetailClient({ account }: AccountDetailClientProp
 					return;
 				}
 				const rows = (result.data as Transaction[]) ?? [];
+				const counts = ("attachmentCounts" in result && result.attachmentCounts) || {};
 				setTransactions((prev) => (append ? [...prev, ...rows] : rows));
 				setHasMore(result.hasMore);
-
-				// I conteggi degli allegati SOLO per le righe appena arrivate — vedi
-				// la stessa nota in `/transazioni`.
-				if (rows.length > 0) {
-					// Un `try` suo, come in `/transazioni` (#124): un conteggio che
-					// solleva costa al più una graffetta, non la lista.
-					try {
-						const counts = await getAttachmentCounts(rows.map((r) => r.id));
-						if (myRequest !== requestId.current) return;
-						setAttachmentCounts((prev) => (append ? { ...prev, ...counts } : counts));
-					} catch (e) {
-						console.error("[conto] conteggio ricevute:", e);
-					}
-				} else if (!append) {
-					setAttachmentCounts({});
-				}
+				setAttachmentCounts((prev) => (append ? { ...prev, ...counts } : counts));
 			} catch (e) {
 				if (myRequest !== requestId.current) return;
 				console.error("[conto] movimenti:", e);

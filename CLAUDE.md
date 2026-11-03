@@ -29,7 +29,8 @@ app/
 │   │                     #   + app-lock-actions.ts (#125: l'UNICO che scrive il
 │   │                     #   cookie del PIN — ITP tronca quelli di document.cookie)
 │   ├── error.tsx         #   una pagina che solleva: frase + Riprova (#124)
-│   ├── transazioni/      #   lista + filtri
+│   ├── transazioni/      #   lista + filtri: page server sottile (conto ricordato)
+│   │                     #   + actions.ts (getMovimentiData, #148) → MovimentiClient
 │   ├── risparmi/         #   obiettivi + actions.ts (getGoals, getInvestments, CRUD goal)
 │   ├── investimenti/     #   breakdown portafoglio
 │   ├── analisi/          #   statistiche + grafici
@@ -1801,11 +1802,15 @@ il primo byte è quello giusto.
 - **Il nome del conto sotto il periodo è sparito** da `/analisi`. Non perché la
   regola "se la pagina è filtrata deve dirlo" sia decaduta, ma perché a dirlo è
   ora il chip, che porta lo stesso nome ed è pure il comando per cambiarlo.
-- ⚠️ **`/transazioni` NON eredita la memoria, deliberatamente.** Il cookie segue
+- ~~⚠️ **`/transazioni` NON eredita la memoria, deliberatamente.** Il cookie segue
   le due viste che rispondono a *"come sto andando"*; la lista movimenti risponde
   a *"cosa è successo"* e ha la propria barra filtri sempre a schermo, dove la
   selezione è visibile e si cambia sul posto. Ricordarla là aggiungerebbe uno
-  stato invisibile senza togliere un passaggio.
+  stato invisibile senza togliere un passaggio.~~ — **rovesciato dalla #148**
+  (2026-11-03): usando l'app il passaggio c'era, il filtro andava rimesso a ogni
+  visita. Ora Movimenti eredita la memoria **e la scrive**: una sola scelta di
+  conto per tutta l'app. La condizione qui sopra regge, perché il chip del conto
+  in Movimenti è sempre a schermo e annullabile. Vedi la sezione della #148.
 - ⚠️ `keepParams` è un **oggetto di stringhe, non una funzione** che costruisce
   l'URL: `AccountSelector` è un client component istanziato da un server
   component, e una prop funzione fa fallire la serializzazione RSC — l'errore che
@@ -1918,8 +1923,9 @@ la stessa soluzione: uno stato condiviso, `viewedAccountId` in `useUIStore`.
   proporlo vorrebbe dire suggerire di scriverci sopra. In modifica resta il conto
   del movimento. Letto con `getState()` all'apertura, non sottoscritto: un form
   aperto non cambia conto da solo.
-- **`/transazioni` dichiara solo il filtro**, non la memoria in cookie, che
-  deliberatamente non eredita (20b): a filtro vuoto propone il primo attivo.
+- **`/transazioni` dichiara il proprio filtro conto**, che dalla #148 parte dalla
+  memoria in cookie: da Movimenti filtrata su Revolut il FAB propone Revolut. A
+  filtro vuoto ("Tutti i conti") propone il primo attivo.
 
 Collaudo: 14 controlli nell'app vera, fra cui la navigazione soft home →
 `/analisi` (stesso conto, resta proposto) e `/analisi` → `/risparmi`
@@ -2448,6 +2454,67 @@ stesso silenzio scritto due volte.
 **trovate**: cercando, il limite vale sulle righe scandite e non sulle
 corrispondenze. "Altri risultati" sarebbe falso proprio quando non ce n'è
 nemmeno uno.
+
+### Movimenti — conto ricordato, una richiesta sola, lista ricordata (#148)
+
+Chiesto usando l'app il 2026-11-03: Movimenti ripartiva sempre da "Tutti i
+conti" ed era lenta. Nessuna migration. La causa più grossa della lentezza era
+la regione delle funzioni, ed è in "Costo delle richieste a Supabase"; qui
+c'è ciò che riguarda la pagina.
+
+- **Il conto ricordato.** `page.tsx` è un server component sottile che legge
+  `getSelectedAccount()` e passa il conto a `MovimentiClient`. La scelta nella
+  barra filtri scrive la stessa memoria della home (`rememberAccount`), e "Tutti
+  i conti" e "Azzera" la cancellano: **una memoria sola**, deciso da Jomar.
+  L'alternativa (Movimenti legge ma non scrive) lasciava home e Movimenti su
+  conti diversi. Un conto che non è fra quelli dell'utente si dimentica, ma
+  solo se veniva dal cookie: un `?conto=` sbagliato è un'istruzione di quella
+  pagina e non cancella la scelta fatta in home.
+- ⚠️ **Il server component non legge niente dalla rete**: si rende a ogni
+  navigazione, e tutto ciò che aspetta ritarda il tocco sulla bottom nav.
+  ⚠️ E **niente `key`** sul client component: un `revalidatePath` dopo un
+  salvataggio lo rende di nuovo, e una `key` legata al conto rimonterebbe la
+  lista perdendo i filtri appena scelti.
+- ⚠️ **Una richiesta sola all'apertura** (`getMovimentiData`). Next spedisce le
+  server action una alla volta, e la pagina ne lanciava quattro con la lista in
+  coda **dietro** ai conti e alle categorie del filtro. Ora le tre letture
+  partono insieme sul server; conti e categorie degradano, i movimenti no.
+  Dopo, un cambio di filtro chiede solo i movimenti, e i dati del filtro tornano
+  insieme a loro solo dopo un salvataggio (`optionsLoadedFor`).
+- **Le ricevute nella stessa query**: `getTransactions({ withAttachmentCounts })`
+  aggiunge `attachments(count)`, che PostgREST risolve dalla FK composita senza
+  nominarla. Verificato prima di scrivere: `transactions?select=id,
+  attachments(count)` risponde 200, un nome inventato `PGRST200`. Usata da
+  Movimenti e da `/conti/[id]`; `getAttachmentCounts` è sparita. L'export resta
+  su `getAttachmentCountsChecked`, che distingue "zero" da "lettura fallita".
+  ⚠️ Una query sola fallisce intera: un guasto delle ricevute ora dice "non è
+  stato possibile caricare i movimenti", invece di togliere solo la graffetta.
+- ⚠️ `select()` di postgrest-js analizza il testo **a livello di tipi**: una
+  select scelta a runtime produce un `ParserError` al posto delle righe. Si
+  dichiara la riga, `.select<string, Transaction & {…}>(columns)`.
+- **La lista ricordata** (stale-while-revalidate). La prima pagina di ogni
+  combinazione di filtri (le ultime 8), i dati dei filtri e i budget restano in
+  una variabile del modulo di `MovimentiClient`: rientrando si mostrano subito,
+  senza scheletro, e si richiedono comunque. Le regole:
+  - ⚠️ **si riaggiorna SEMPRE**: i movimenti cambiano anche dove la pagina non
+    lo sa (import, job notturno, cascata di una categoria eliminata, un altro
+    dispositivo), e `transactionSavedAt` copre solo i salvataggi del form;
+  - ⚠️ **è legata all'utente**: un modulo client sopravvive alle navigazioni, e
+    un cambio d'accesso nella stessa scheda è una navigazione;
+  - ⚠️ **e all'ultimo salvataggio** (`transactionSavedAt`): dopo una modifica
+    fatta nell'app, anche da un'altra pagina, le pagine ricordate si buttano.
+    Trovato rileggendo, prima di provarla: un movimento appena **eliminato**
+    sarebbe ricomparso per un istante dalla copia. Una risposta partita prima di
+    un salvataggio non viene ricordata, per lo stesso motivo;
+  - ⚠️ **si scrive solo nel browser**: sul server una variabile di modulo è
+    condivisa fra tutte le richieste di tutti gli utenti;
+  - vive nella memoria della scheda, non sul disco: un ricaricamento la svuota;
+  - se l'aggiornamento fallisce le righe restano, e la pagina dice che
+    potrebbero essere vecchie (`t.transactions.refreshFailed`), con "Riprova".
+    Una copia presentata come attuale sarebbe la classe della #124.
+- ⚠️ **Il collaudo**: "aprire Movimenti" non è più uno stato determinato. Il
+  passo 5 di `collauda-app` apre `/transazioni?conto=`, la trappola già pagata
+  dalla 20b su home e `/analisi`.
 
 ### Fase 22 — allegati / ricevute (issue #36)
 
