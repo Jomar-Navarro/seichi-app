@@ -2516,6 +2516,24 @@ c'è ciò che riguarda la pagina.
   passo 5 di `collauda-app` apre `/transazioni?conto=`, la trappola già pagata
   dalla 20b su home e `/analisi`.
 
+Collaudo del 2026-11-03 su una build di produzione locale, con un account di
+prova usa e getta (autorizzato da Jomar, registrato dall'app ed eliminato
+dall'app alla fine; il login successivo risponde `invalid_credentials`): **28
+controlli su 28**. La lista ricordata si prova **trattenendo 3 secondi** la
+richiesta dei movimenti: se le righe sono a schermo prima della risposta,
+vengono dalla memoria. L'aggiornamento fallito si prova rispondendo 500 alla
+sola azione dei movimenti (il corpo contiene `periodo`, quello dei budget no).
+**Controprova** sul deploy, cioè master, con lo stesso account: 13 KO, fra cui
+5 server action all'apertura, lo scheletro al rientro, il chip su "Tutti i
+conti" e il form che propone il primo conto.
+
+⚠️ Al primo giro un KO del FAB: il form non aveva ricevuto **nessun** conto
+("Serve un conto per registrare un movimento"). Diagnosticato prima di
+crederci: sul percorso vero propone Revolut in tre esecuzioni su tre, e il
+difetto sta nel form, che legge i conti dal browser e con `if (!data) return`
+tace su una lettura fallita. È il residuo già dichiarato nella #124, non questa
+modifica.
+
 ### Fase 22 — allegati / ricevute (issue #36)
 
 Implementata il 2026-08-21. Migration `20260818_attachments.sql`.
