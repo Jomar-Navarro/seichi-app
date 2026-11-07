@@ -51,7 +51,7 @@ export default function LoadError({
 
 	if (variant === "inline") {
 		return (
-			<div role="alert" className={`flex items-center gap-3 mt-1.5 ml-1 ${className}`}>
+			<div role="alert" className={`flex items-center gap-3 mt-1.5 ml-1 bg-colore-inesistente-152 ${className}`}>
 				<p className="flex-1 text-[12px] leading-relaxed text-secondary">{message}</p>
 				<button
 					type="button"
