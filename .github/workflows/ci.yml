@@ -15,9 +15,12 @@ on:
 permissions:
   contents: read
 
+# Una spinta nuova su una PR annulla il giro precedente della stessa PR.
+# ⚠️ Su master NO: due merge ravvicinati annullerebbero il controllo del
+# primo commit, che resterebbe per sempre senza un esito (code review #183).
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   verifica:
@@ -43,11 +46,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # La stessa versione di Node del lavoro in locale (`.nvmrc`). npm 11 serve
-      # anche per `allowScripts` in package.json.
+      # La versione di Node la dice `engines.node` in package.json, la stessa
+      # che Vercel usa per la produzione: una fonte sola, così CI e produzione
+      # non possono girare su due Node diversi senza che lo dica un file.
+      # npm 11 (Node 24) serve anche per `allowScripts`.
       - uses: actions/setup-node@v7
         with:
-          node-version-file: .nvmrc
+          node-version-file: package.json
           cache: npm
 
       # ⚠️ `allowScripts` approva versioni ESATTE: un aggiornamento che porta
@@ -55,14 +60,16 @@ jobs:
       # avviso. In locale è un avviso che scorre via; qui è un errore, così una
       # PR di Dependabot non passa con uno script mai vagliato.
       #
-      # ⚠️⚠️ Si cerca la FRASE, non il prefisso. npm 11.16 scrive `npm warn
+      # ⚠️⚠️ Si cerca la FRASE, e solo lei. npm 11.16 scrive `npm warn
       # allow-scripts …`, npm 11.19 `npm warn install-scripts …`: la prima
       # versione di questo controllo cercava `allow-scripts` e passava verde
-      # con esbuild tolto da allowScripts. L'ha trovato la controprova.
+      # con esbuild tolto da allowScripts (l'ha trovato la controprova). Il
+      # prefisso da solo no: un avviso informativo con lo stesso prefisso
+      # farebbe fallire ogni PR per un motivo che non c'è (code review #183).
       - name: Installazione
         run: |
           npm ci 2>&1 | tee npm-ci.log
-          if grep -qiE "not yet covered by allowScripts|warn (allow|install)-scripts" npm-ci.log; then
+          if grep -qi "not yet covered by allowScripts" npm-ci.log; then
             echo "::error::Uno script d'installazione non è approvato in allowScripts: leggilo, poi 'npm approve-scripts <pacchetto>'."
             exit 1
           fi
@@ -84,7 +91,10 @@ jobs:
       - name: Audit della cache PWA
         run: npm run audit:pwa-cache
 
-      # Solo dipendenze di produzione e solo da "alto" in su: i due moderati di
+      # L'intero albero, strumenti di sviluppo compresi, e solo da "alto" in su.
+      # ⚠️ Non `--omit=dev`: esbuild, Tailwind e Serwist girano durante
+      # `next build`, anche su Vercel, e un avviso alto lì passerebbe senza una
+      # parola (code review #183). I moderati restano fuori: quelli di
       # glob/minimatch dentro Serwist sono accettati e spiegati in CLAUDE.md.
       - name: Avvisi di sicurezza
-        run: npm audit --omit=dev --audit-level=high
+        run: npm audit --audit-level=high
