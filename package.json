@@ -10,6 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "audit:eslint-rules": "node scripts/audit-eslint-rules.mjs",
     "audit:tokens": "node scripts/audit-tokens.mjs",
     "audit:pwa-cache": "node scripts/audit-pwa-cache.mjs",
     "generate:pwa-icons": "node scripts/generate-pwa-icons.mjs",
