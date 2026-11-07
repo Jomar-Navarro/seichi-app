@@ -2534,7 +2534,8 @@ cinque). La spiegazione più probabile è quella già registrata nella 20b e
 nella #117: il form legge i conti dal browser e mostra quella frase **anche
 mentre stanno ancora arrivando**, oltre che su una lettura fallita (`if
 (!data) return`, il residuo della #124). Preesistente, da una issue a sé: il
-form non distingue "sto caricando" da "non ce ne sono".
+form non distingue "sto caricando" da "non ce ne sono". — **Chiuso dalla
+#150**: vedi «Form — conti e categorie in tre stati».
 
 #### Emerso dal code-review della PR #149 (10 rilievi, 9 applicati)
 
@@ -2585,6 +2586,33 @@ controlli**, fra cui "Carica altri" spento durante l'aggiornamento e il
 versamento di un obiettivo eliminato che non ricompare. ⚠️ E un controllo era
 cieco: cercava la vecchia frase dell'avviso, quindi "l'avviso sparisce dopo
 Riprova" passava senza guardare niente. Corretto, poi verde.
+
+### Form — conti e categorie in tre stati (#150, 2026-11-07)
+
+Il form del movimento scriveva «Serve un conto per registrare un movimento»
+a chi i conti li aveva: lo stato iniziale, il caricamento e «nessun conto»
+erano lo stesso array vuoto. Visto tre volte nei collaudi (20b, #117, #148) e
+tre volte preso per un difetto della PROVA, correggendo l'attesa del driver
+invece del form. **Un sintomo che torna in tre collaudi diversi non è
+un'attesa troppo corta.**
+
+- `components/UI/useClientRows.ts`: `useAccountRows()` e `useCategoryRows()`,
+  tre stati (`loading` / `ready` / `failed`) e `retry`. Il caricamento si
+  DERIVA da chiave e tentativo, senza `setState` nell'effetto. Usato dal form
+  del movimento e da `RecurringSheet`. Restano letture del browser: come
+  server action finirebbero in coda dietro a quelle della pagina.
+- «Serve un conto» solo a lettura arrivata **e** senza un conto su cui
+  scrivere (`effectiveAccountList` vuota). ⚠️ Prima la condizione era la lista
+  vuota: con tutti i conti archiviati il salvataggio restava spento **senza
+  una parola**. Trovato dalla controprova, non dalla issue.
+- Mentre le righe arrivano i selettori dicono «Caricamento…» (`Select`, prop
+  `placeholder`); una lettura fallita lo dice sotto il campo con «Riprova»
+  (`LoadError`, variante `inline`).
+
+Collaudo su una build di produzione, account usa e getta (eliminato): conti e
+categorie rallentati di 4 secondi, risposte 500 e una risposta con tutti i
+conti archiviati, tutto modificato nel browser. **22 controlli su 22**;
+controprova su master, stesso account: **12 KO**.
 
 ### Fase 22 — allegati / ricevute (issue #36)
 
@@ -6217,9 +6245,10 @@ Due falsi segnali, da ricordare:
 
 #### Residui dichiarati
 
-- `TransactionForm` e `RecurringSheet` leggono conti e categorie dal client
+- ~~`TransactionForm` e `RecurringSheet` leggono conti e categorie dal client
   senza guardare l'`error`: un conto non letto mostra "serve un conto per
-  registrare un movimento". Stessa classe, fuori dall'elenco della issue.
+  registrare un movimento". Stessa classe, fuori dall'elenco della issue.~~ —
+  chiuso dalla #150.
 - `/transazioni` e `AccountDetailClient` hanno la stessa gestione degli errori
   di pagina scritta due volte: un hook condiviso è un refactor a sé (review).
 - `importa/actions.ts` registra ancora a mano i propri errori (frase già del
