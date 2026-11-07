@@ -52,12 +52,22 @@ updates:
           - "eslint-config-next"
           - "esbuild"
     ignore:
-      # I tipi di Node restano sulla 20, la versione minima che il codice
-      # assume. ⚠️ Il Node su cui gira davvero l'app è un'impostazione del
-      # progetto Vercel e oggi non è scritto nel repo (né `engines` né
-      # .nvmrc): va fissato insieme alla CI (#152), e da lì questi tipi lo
-      # seguiranno. Fino ad allora un salto di maggiore descriverebbe API
-      # che a runtime potrebbero non esserci.
+      # I tipi di Node seguono `engines.node` in package.json (24), che è il
+      # Node di Vercel e della CI. Un salto di maggiore qui descriverebbe API
+      # che a runtime non ci sono: si alzano A MANO, insieme a `engines`.
       - dependency-name: "@types/node"
         update-types:
           - "version-update:semver-major"
+
+  # Le azioni del workflow della CI (#152): senza questa voce nessuno
+  # proporrebbe mai di aggiornarle, lo stesso silenzio che la #151 ha chiuso
+  # per npm (code review #183).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Rome"
+    commit-message:
+      prefix: "ci"
