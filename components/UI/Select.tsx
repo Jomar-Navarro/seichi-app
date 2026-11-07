@@ -27,6 +27,15 @@ export interface DropdownProps {
 	 * alzare la card è il chiamante, e per farlo deve sapere quando.
 	 */
 	onOpenChange?: (open: boolean) => void;
+	/**
+	 * Il testo della variante `compact` quando nessuna opzione corrisponde a
+	 * `selected`. Di norma è «Seleziona …», composto dal titolo.
+	 *
+	 * ⚠️ Mentre le opzioni stanno ancora arrivando il chiamante passa
+	 * «Caricamento…» (#150): un movimento CON un conto, aperto prima che i conti
+	 * arrivino, diceva «Seleziona conto», cioè sembrava non averne uno.
+	 */
+	placeholder?: string;
 }
 
 /**
@@ -46,6 +55,7 @@ export default function Select({
 	title,
 	variant = "default",
 	onOpenChange,
+	placeholder: placeholderOverride,
 }: DropdownProps) {
 	const { t } = useI18n();
 	const [isOpen, setIsOpen] = useState(false);
@@ -104,9 +114,11 @@ export default function Select({
 	 * ogni lingua può ricomporre la frase a modo suo invece di ereditare
 	 * l'ordine delle parole dell'italiano.
 	 */
-	const placeholder = fill(t.common.selectPlaceholder, {
-		field: title.toLowerCase(),
-	});
+	const placeholder =
+		placeholderOverride ??
+		fill(t.common.selectPlaceholder, {
+			field: title.toLowerCase(),
+		});
 
 	if (variant === "compact") {
 		return (

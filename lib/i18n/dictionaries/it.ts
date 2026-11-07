@@ -709,7 +709,7 @@ export const it = {
 	/** Conti multipli — Fase 20a. */
 	accounts: {
 		title: "Conti",
-		loadError: "Errore nel caricamento dei conti.",
+		loadError: "Non è stato possibile caricare i conti.",
 
 		/** Il selettore in home e il filtro nella lista movimenti. */
 		all: "Tutti i conti",

@@ -13,6 +13,13 @@ interface LoadErrorProps {
 	 * a un client component (l'errore RSC che né `tsc` né la build vedono).
 	 */
 	onRetry?: () => void;
+	/**
+	 * `block` (predefinito) prende il posto di un'intera lista o pagina.
+	 * `inline` sta sotto un campo di un modulo (#150): frase e «Riprova» sulla
+	 * stessa riga, perché il resto del modulo resta usabile e non deve sparire
+	 * sotto un blocco alto quanto mezzo schermo.
+	 */
+	variant?: "block" | "inline";
 	className?: string;
 }
 
@@ -27,7 +34,12 @@ interface LoadErrorProps {
  * Qui niente icona zen e niente invito: una frase che dice cosa non è arrivato,
  * e il comando che lo richiede di nuovo.
  */
-export default function LoadError({ message, onRetry, className = "" }: LoadErrorProps) {
+export default function LoadError({
+	message,
+	onRetry,
+	variant = "block",
+	className = "",
+}: LoadErrorProps) {
 	const { t } = useI18n();
 	const router = useRouter();
 	const [pending, startTransition] = useTransition();
@@ -35,6 +47,23 @@ export default function LoadError({ message, onRetry, className = "" }: LoadErro
 	function retry() {
 		if (onRetry) onRetry();
 		else startTransition(() => router.refresh());
+	}
+
+	if (variant === "inline") {
+		return (
+			<div role="alert" className={`flex items-center gap-3 mt-1.5 ml-1 ${className}`}>
+				<p className="flex-1 text-[12px] leading-relaxed text-secondary">{message}</p>
+				<button
+					type="button"
+					onClick={retry}
+					disabled={pending}
+					// issue #69 — 44px di bersaglio anche nella forma compatta.
+					className="shrink-0 min-h-11 px-4 rounded-full text-[12.5px] font-medium bg-surface card-shadow-ring text-secondary active:opacity-80 disabled:opacity-50 cursor-pointer"
+				>
+					{pending ? t.common.loading : t.common.retry}
+				</button>
+			</div>
+		);
 	}
 
 	return (

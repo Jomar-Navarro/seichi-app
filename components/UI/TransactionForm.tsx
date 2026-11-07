@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { TransactionType, Category, Transaction, Frequency, Account } from "@/types";
-import { createClient } from "@/lib/supabase/client";
+import { rowsOf, useAccountRows, useCategoryRows } from "@/components/UI/useClientRows";
+import LoadError from "@/components/UI/LoadError";
 import { Pencil, Check, Trash2, Repeat } from "lucide-react";
 import Select, { type Option } from "@/components/UI/Select";
 import { ACCOUNT_ICON_FALLBACK, ACCOUNT_TYPE_ICON, accountColor } from "@/lib/accounts";
@@ -121,27 +122,50 @@ export default function TransactionForm({
 		transaction ? new Date(transaction.date) : new Date(),
 	);
 	/*
-	 * Le categorie arrivate, con il tipo per cui sono state chieste: dopo un
-	 * cambio di tipo l'elenco vecchio resta in memoria finché arriva il nuovo, e
-	 * senza l'etichetta il selettore offrirebbe per un istante le categorie
-	 * dell'altro tipo.
-	 */
-	const [loadedCategories, setLoadedCategories] = useState<{
-		type: string;
-		list: Category[];
-	} | null>(null);
-	const categoryList = loadedCategories?.type === categoryKey ? loadedCategories.list : [];
-	/*
 	 * ⚠️ `accountId` parte da `null` anche in creazione, e viene riempito quando
 	 * i conti arrivano — non con un valore inventato. `account_id` è NOT NULL nel
 	 * database: un default sbagliato scriverebbe il movimento sul conto
 	 * sbagliato, in silenzio, che è peggio di un salvataggio bloccato per un
 	 * istante. Il bottone resta disabilitato finché un conto non c'è davvero.
 	 */
-	const [accountList, setAccountList] = useState<Account[]>([]);
 	const [accountId, setAccountId] = useState<string | null>(
 		transaction?.account_id ?? null,
 	);
+	/*
+	 * I conti non dipendono dal tipo di movimento, quindi si leggono una volta
+	 * sola (e di nuovo solo con «Riprova»).
+	 *
+	 * ⚠️ Si leggono TUTTI, archiviati compresi: la scelta di cosa è proponibile
+	 * avviene più in basso (`effectiveAccountList`). Filtrare nella query
+	 * lascerebbe senza opzione il conto di un movimento esistente poi archiviato.
+	 *
+	 * ⚠️ Tre stati (#150): finché la lettura non è arrivata il form NON dice
+	 * «Serve un conto», e una lettura fallita lo dice come tale. Vedi
+	 * `useClientRows`.
+	 */
+	const accountRows = useAccountRows((rows) => {
+		/*
+		 * Il default per un movimento NUOVO: il conto che la pagina sotto sta
+		 * guardando (#112), altrimenti il primo ATTIVO. In modifica `current`
+		 * è già il conto del movimento, e il `??` lo lascia dov'è.
+		 *
+		 * ⚠️ Il conto guardato passa dallo stesso filtro `!archived` del
+		 * ripiego: una pagina può guardare un conto archiviato (la sua storia
+		 * resta consultabile), ma proporlo significherebbe suggerire di
+		 * scriverci sopra. E deve essere fra i conti appena caricati, così un
+		 * id che non è (più) dell'utente ricade sul primo attivo invece di
+		 * lasciare il form senza conto.
+		 *
+		 * Letto con `getState()` e non sottoscritto: serve il valore al
+		 * momento dell'arrivo, non un form che cambia conto da solo se la
+		 * pagina sotto cambiasse mentre è aperto.
+		 */
+		const viewed = useUIStore.getState().viewedAccountId;
+		const proposed =
+			rows.find((a) => a.id === viewed && !a.archived) ?? rows.find((a) => !a.archived);
+		setAccountId((current) => current ?? proposed?.id ?? null);
+	});
+	const accountList = rowsOf(accountRows.load);
 	/*
 	 * ⚠️ La destinazione si ricorda PER TIPO, come la categoria (#122). Il form
 	 * sopravvive al ritorno alla griglia dei tipi, e la destinazione OBBLIGATORIA
@@ -238,75 +262,21 @@ export default function TransactionForm({
 	const canHaveDestination =
 		isTransfer || selectedType.id === "risparmio" || selectedType.id === "investimento";
 
-	useEffect(() => {
-		/*
-		 * Un trasferimento non ha categoria: la query non si fa proprio.
-		 * `categories_type_check` non ammette `trasferimento`, quindi tornerebbe
-		 * comunque vuota.
-		 *
-		 * Nessun azzeramento da fare: l'elenco porta il tipo per cui è stato
-		 * chiesto, e `categoryList` lo ignora quando non è quello di adesso.
-		 */
-		if (isTransfer) return;
-		// ⚠️ Due cambi di tipo ravvicinati (#122): la risposta del primo può
-		// arrivare dopo quella del secondo. L'etichetta la renderebbe innocua,
-		// ma non c'è motivo di scriverla.
-		let cancelled = false;
-		async function loadCategories() {
-			const supabase = createClient();
-			const { data } = await supabase
-				.from("categories")
-				.select("*")
-				.eq("type", categoryKey);
-			if (data && !cancelled) setLoadedCategories({ type: categoryKey, list: data });
-		}
-		loadCategories();
-		return () => {
-			cancelled = true;
-		};
-	}, [categoryKey, isTransfer]);
-
 	/*
-	 * I conti non dipendono dal tipo di movimento, quindi si caricano una volta
-	 * sola — effetto separato invece che appeso a `selectedType.id`, o li
-	 * ricaricherebbe a ogni cambio di tipo per niente.
+	 * Le categorie del tipo a schermo.
 	 *
-	 * ⚠️ Si caricano TUTTI, archiviati compresi: la scelta di cosa è proponibile
-	 * avviene più in basso (`effectiveAccountList`). Filtrare nella query
-	 * lascerebbe senza opzione il conto di un movimento esistente poi archiviato.
+	 * Un trasferimento non ha categoria: la lettura non si fa proprio (`null`).
+	 * `categories_type_check` non ammette `trasferimento`, quindi tornerebbe
+	 * comunque vuota.
+	 *
+	 * ⚠️ La lettura porta la chiave per cui è stata chiesta: dopo un cambio di
+	 * tipo il selettore torna a «Caricamento…» finché arriva l'elenco nuovo,
+	 * invece di offrire per un istante le categorie dell'altro tipo. Due cambi
+	 * ravvicinati (#122) non si scavalcano: la risposta di una chiave superata
+	 * viene scartata. Vedi `useClientRows`.
 	 */
-	useEffect(() => {
-		async function loadAccounts() {
-			const supabase = createClient();
-			const { data } = await supabase
-				.from("accounts")
-				.select("*")
-				.order("created_at", { ascending: true });
-			if (!data) return;
-			setAccountList(data);
-			/*
-			 * Il default per un movimento NUOVO: il conto che la pagina sotto sta
-			 * guardando (#112), altrimenti il primo ATTIVO. In modifica `current`
-			 * è già il conto del movimento, e il `??` lo lascia dov'è.
-			 *
-			 * ⚠️ Il conto guardato passa dallo stesso filtro `!archived` del
-			 * ripiego: una pagina può guardare un conto archiviato (la sua storia
-			 * resta consultabile), ma proporlo significherebbe suggerire di
-			 * scriverci sopra. E deve essere fra i conti appena caricati, così un
-			 * id che non è (più) dell'utente ricade sul primo attivo invece di
-			 * lasciare il form senza conto.
-			 *
-			 * Letto con `getState()` e non sottoscritto: serve il valore al
-			 * momento dell'apertura, non un form che cambia conto da solo se la
-			 * pagina sotto cambiasse mentre è aperto.
-			 */
-			const viewed = useUIStore.getState().viewedAccountId;
-			const proposed =
-				data.find((a) => a.id === viewed && !a.archived) ?? data.find((a) => !a.archived);
-			setAccountId((current) => current ?? proposed?.id ?? null);
-		}
-		loadAccounts();
-	}, []);
+	const categoryRows = useCategoryRows(isTransfer ? null : categoryKey);
+	const categoryList = rowsOf(categoryRows.load);
 
 	/*
 	 * ⚠️ Le regole ricorrenti NON possono essere trasferimenti, e non basta
@@ -610,13 +580,28 @@ export default function TransactionForm({
 					se la pone.
 				*/}
 				{!isTransfer && (
-					<Select
-						title={t.transactions.form.category}
-						variant="compact"
-						options={categoryOptions}
-						selected={categoryId ?? ""}
-						onChange={(val) => setCategoryId(val)}
-					/>
+					<div>
+						<Select
+							title={t.transactions.form.category}
+							variant="compact"
+							options={categoryOptions}
+							selected={categoryId ?? ""}
+							onChange={(val) => setCategoryId(val)}
+							placeholder={categoryRows.load.status === "loading" ? t.common.loading : undefined}
+						/>
+						{/*
+							La categoria è facoltativa: una lettura fallita non spegne il
+							salvataggio, ma va detta (#150). Il selettore vuoto avrebbe
+							detto «non hai categorie di questo tipo».
+						*/}
+						{categoryRows.load.status === "failed" && (
+							<LoadError
+								variant="inline"
+								message={t.categories.loadError}
+								onRetry={categoryRows.retry}
+							/>
+						)}
+					</div>
 				)}
 
 				{/*
@@ -630,15 +615,25 @@ export default function TransactionForm({
 					Su un trasferimento diventa "Dal conto": accanto a "Al conto" la
 					parola "Conto" da sola non direbbe quale dei due.
 				*/}
-				<Select
-					title={isTransfer ? t.transactions.form.fromAccount : t.accounts.fieldLabel}
-					variant="compact"
-					options={accountOptions}
-					selected={accountId ?? ""}
-					// Una destinazione ora identica all'origine sparisce da sé: vedi
-					// `toAccountId`, che la deriva.
-					onChange={(val) => setAccountId(val)}
-				/>
+				<div>
+					<Select
+						title={isTransfer ? t.transactions.form.fromAccount : t.accounts.fieldLabel}
+						variant="compact"
+						options={accountOptions}
+						selected={accountId ?? ""}
+						// Una destinazione ora identica all'origine sparisce da sé: vedi
+						// `toAccountId`, che la deriva.
+						onChange={(val) => setAccountId(val)}
+						placeholder={accountRows.load.status === "loading" ? t.common.loading : undefined}
+					/>
+					{accountRows.load.status === "failed" && (
+						<LoadError
+							variant="inline"
+							message={t.accounts.loadError}
+							onRetry={accountRows.retry}
+						/>
+					)}
+				</div>
 
 				{/*
 					Destinazione. Obbligatoria sui trasferimenti, facoltativa su
@@ -806,8 +801,14 @@ export default function TransactionForm({
 				È lo stesso difetto corretto in `AccountSheet` per l'ultimo conto —
 				bottone visibile ma spento **con la ragione scritta sotto** — e non
 				era stato portato qui.
+
+				⚠️⚠️ Solo a lettura ARRIVATA (#150). Prima bastava `accountList` vuoto,
+				che è anche lo stato mentre i conti stanno arrivando: la frase
+				compariva a chi i conti li aveva, su ogni rete lenta. E solo se non
+				resta un conto su cui scrivere — nessuno attivo e nessuno già scelto:
+				in modifica un movimento su un conto archiviato il suo conto ce l'ha.
 			*/}
-			{accountList.length === 0 && (
+			{accountRows.load.status === "ready" && effectiveAccountList.length === 0 && (
 				<p className="mt-2 text-[11.5px] text-center leading-relaxed" style={{ color: "var(--ink-aka)" }}>
 					{t.accounts.errors.none}
 				</p>
