@@ -226,3 +226,6 @@ export function isStorableAmount(
 	const cents = value * 100;
 	return Math.abs(cents - Math.round(cents)) < 1e-6;
 }
+
+// CONTROPROVA #152: errore di tipo voluto
+export const controprovaCi: number = "non un numero";
