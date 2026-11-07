@@ -80,6 +80,11 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # Il lint verde dice solo che l'app non ha violazioni: questo controlla
+      # che le regole scattino ancora (PR #185, plugin con il peer forzato).
+      - name: Audit delle regole ESLint
+        run: npm run audit:eslint-rules
+
       - name: Build
         run: npm run build
 

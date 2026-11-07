@@ -12,6 +12,7 @@ Next.js 16 App Router, TypeScript strict, Tailwind CSS v4, Supabase (cloud), Zus
 npm run dev          # avvia dev server
 npm run build        # build produzione
 npm run lint         # eslint
+npm run audit:eslint-rules # le regole di eslint scattano ancora (PR #185)
 npm run audit:tokens # token e classi di colore (richiede una build) — vedi sotto
 ```
 
@@ -7087,11 +7088,74 @@ sapeva: `npm audit` non lo lanciava nessuno. Passati a 16.4.5 con le minori.
   già prerenderizzato in build (● nell'output), quindi nessun input di un
   utente li raggiunge.
 
+#### Le prime maggiori di Dependabot (2026-11-07)
+
+Quattro PR aperte da Dependabot appena acceso, valutate provandole su un ramo
+locale invece che leggendo i numeri di versione:
+
+| | esito | come si è visto |
+|---|---|---|
+| espree 11, eslint-scope 9 | **adottate** | li usa solo `audit:pwa-cache`: la controprova della #127 (`...defaultCache` nel worker) dà gli stessi **18 problemi** di prima |
+| ESLint 10 | **adottata, con un limite** | un file con una violazione per famiglia (react, react-hooks, jsx-a11y, import, @next, typescript-eslint): **8 regole e 8 messaggi identici** a ESLint 9. ESLint 9 è già segnalato da npm come non più supportato |
+| TypeScript 7 | **rimandata** | `npm run lint` si ferma su «typescript-eslint does not support TS 7.0»; regola `ignore` in `dependabot.yml` da `>=6.1`, il limite del peer di typescript-eslint. La 6.0 ci rientra ma **non è stata provata**: arriverà come PR da provare come ogni maggiore |
+
+⚠️⚠️ **Il limite di ESLint 10 sta nei plugin col peer forzato.**
+`eslint-plugin-react`, `-import` e `-jsx-a11y` arrivano con
+`eslint-config-next` e dichiarano solo fino a ESLint 9: npm li installa con
+tre `npm warn ERESOLVE overriding peer dependency` e li annida sotto
+`eslint-config-next/node_modules`. ESLint 10 ha tolto metodi sia dal
+`context` delle regole (`getFilename`, `getSourceCode`, `parserOptions`…) sia
+da `SourceCode` (`getJSDocComment`, `isSpaceBetweenTokens`,
+`getTokenOrCommentBefore/After`): misurato, in ESLint 9.39 c'erano.
+
+⚠️ **`eslint-config-next` avvolge react e import con un proprio strato di
+compatibilità** (`dist/rule-context.js`, `fixupPluginRules`), che rimette i
+metodi del **`context`** ma non quelli di **`SourceCode`**. Quindi,
+misurato regola per regola il 2026-11-07:
+
+- **sei regole vanno in CRASH**, tutte su `SourceCode`: `import/order` e le
+  cinque di spaziatura JSX di react (`jsx-curly-spacing`, `jsx-equals-spacing`,
+  `jsx-tag-spacing`, `jsx-one-expression-per-line`,
+  `jsx-space-before-closing`). **Nessuna è accesa**: non accenderle finché
+  quei plugin non dichiarano ESLint 10;
+- il riconoscimento dei componenti dichiarati con `@extends React.Component`
+  nel JSDoc si spegne **in silenzio** (`try/catch` attorno a
+  `getJSDocComment`): `no-direct-mutation-state` su una classe così dà 0
+  segnalazioni, su una che estende `Component` 1. L'app non ha componenti di
+  classe;
+- `import/no-default-export`, `no-named-export`, `unambiguous`,
+  `react/forward-ref-uses-ref` e `jsx-filename-extension` usano il `context`
+  e funzionano, grazie allo strato di Next. ⚠️ La prima code review le dava in
+  crash leggendo il sorgente del plugin: era vero per ESLint nudo, non dentro
+  la configurazione di Next. **Un'API tolta va provata nella configurazione
+  vera, non dedotta dal sorgente**;
+- jsx-a11y non è avvolto e non usa nessuna delle API tolte.
+
+⚠️ **Un lint verde non dimostra che le regole girino**: un crash fa rumore, ma
+una regola che smette di scattare tace come una che funziona, perché il codice
+dell'app non ha violazioni. Da qui **`npm run audit:eslint-rules`**
+(`scripts/audit-eslint-rules.mjs`, nella CI dopo il lint): fa lintare un file
+**virtuale** con una violazione per regola e pretende che tutte le regole
+attese scattino, senza crash. Se una va in crash la spegne e riprova, così
+l'elenco dice tutti i crash e controlla comunque le altre. ⚠️ **È una
+sentinella, non una copertura**: dieci regole campione su 86 accese, una per
+famiglia più `set-state-in-effect`, su cui questo progetto si appoggia.
+Controprova: con `set-state-in-effect` spenta esce 1 su quella regola; con
+`jsx-tag-spacing` accesa e `jsx-key` spenta esce 1 con entrambi i problemi.
+Quando cambia il preset di `eslint-config-next`, l'elenco `EXPECTED` va
+riletto.
+
+⚠️ **`strict-peer-deps` deve restare spento** (il default di npm): acceso in
+un `.npmrc`, o con un gestore di pacchetti più severo, `npm ci` fallisce sui
+tre peer. Il lock porta anche copie doppie annidate (`minimatch`,
+`brace-expansion`, `semver`, `typescript-eslint`…): è il prezzo dell'annidamento,
+non un difetto. Tornare a ESLint 9 è una riga in `package.json`.
+
 ### CI (#152, 2026-11-07)
 
 `.github/workflows/ci.yml`, un job `verifica` su ogni PR e su master:
-installazione, `tsc`, lint, build, `audit:tokens`, `audit:pwa-cache`, `npm
-audit --audit-level=high`.
+installazione, `tsc`, lint, `audit:eslint-rules`, build, `audit:tokens`,
+`audit:pwa-cache`, `npm audit --audit-level=high`.
 
 - **Node da `engines.node` in `package.json` (24.x)**, che la CI legge con
   `node-version-file: package.json` e Vercel usa per la produzione: una fonte
