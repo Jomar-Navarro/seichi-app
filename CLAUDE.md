@@ -7019,6 +7019,26 @@ server action attraversava l'Atlantico due volte. Ora `vercel.json` le fissa a
   database: il guadagno vero è sulle pagine che lo leggono, da misurare dal
   telefono.
 
+### Dipendenze e avvisi di sicurezza (#151, 2026-11-07)
+
+Next 16.3.1 aveva un avviso critico e un DoS sulle server action, e nessuno lo
+sapeva: `npm audit` non lo lanciava nessuno. Passati a 16.4.5 con le minori.
+
+- **Dependabot** (`.github/dependabot.yml`): minori e patch in una PR il
+  lunedì, maggiori una per volta. Avvisi e PR di sicurezza accesi nelle
+  impostazioni del repository, non nel file.
+- ⚠️ **`allowScripts` è legato alla versione esatta.** Un aggiornamento che
+  porta uno script d'installazione nuovo lo segnala con `npm warn
+  allow-scripts`: si legge lo script, poi `npm approve-scripts <pkg>`, e si
+  tolgono a mano le voci di pacchetti spariti (oggi `sharp` 0.35 e
+  `unrs-resolver` 1.13 non ne hanno).
+- **`overrides.zod` (`^4.6.6`)**: `@serwist/build` fissa `zod` 4.6.5, sotto
+  l'avviso alto GHSA-mrhx-c7xc-m3w5. La patch è nella stessa minore. Si toglie
+  quando Serwist la porta da sé (`npm ls zod`).
+- **Restano due avvisi moderati, accettati**: `glob` 13 e `minimatch` 10 dentro
+  `@serwist/build`. La correzione è una maggiore che Serwist fissa, e girano
+  solo in `next build` sui nostri file: nessun input di un utente li raggiunge.
+
 ## Auth Flow
 
 - `/welcome` → landing page pre-auth

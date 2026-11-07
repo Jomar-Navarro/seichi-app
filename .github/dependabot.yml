@@ -1,0 +1,41 @@
+# Aggiornamenti delle dipendenze (#151).
+#
+# L'avviso critico di Next 16.3.1 è rimasto invisibile finché nessuno ha
+# lanciato `npm audit` a mano: da qui un giro automatico a settimana.
+#
+# - Minori e patch arrivano in UNA PR raggruppata: una per pacchetto sarebbero
+#   dieci PR a settimana, e il rumore fa smettere di leggerle.
+# - Le maggiori arrivano una per volta, perché ognuna va letta (per Next, nei
+#   doc in node_modules/next/dist/docs, regola in testa a CLAUDE.md).
+# - Gli aggiornamenti di SICUREZZA non aspettano il lunedì: li apre Dependabot
+#   appena esce l'avviso (impostazione del repository, non di questo file).
+#
+# ⚠️ Una PR di Dependabot non si mergia sulla fiducia: `allowScripts` in
+# package.json è legato alla versione esatta, quindi un pacchetto con uno
+# script d'installazione nuovo va vagliato (`npm approve-scripts <pkg>`) e la
+# PR va provata come qualunque altra.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Rome"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps"
+    groups:
+      minori-e-patch:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # I tipi di Node seguono la versione di Node su cui gira l'app, non
+      # l'ultima uscita: un salto di maggiore qui descriverebbe API che a
+      # runtime non esistono.
+      - dependency-name: "@types/node"
+        update-types:
+          - "version-update:semver-major"

@@ -17,7 +17,7 @@
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.2",
     "lucide-react": "^1.21.0",
-    "next": "^16.3.1",
+    "next": "^16.4.5",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "recharts": "^3.10.0",
@@ -30,7 +30,7 @@
     "@types/react-dom": "^19",
     "esbuild": "^0.28.2",
     "eslint": "^9",
-    "eslint-config-next": "^16.3.1",
+    "eslint-config-next": "^16.4.5",
     "eslint-scope": "^8.4.0",
     "espree": "^10.4.0",
     "playwright": "^1.62.1",
@@ -39,12 +39,11 @@
     "typescript": "^5"
   },
   "overrides": {
-    "browserslist": "^4.28.8"
+    "browserslist": "^4.28.8",
+    "zod": "^4.6.6"
   },
   "allowScripts": {
-    "sharp@0.34.5": true,
-    "unrs-resolver@1.12.2": true,
-    "@swc/core@1.15.46": true,
-    "esbuild@0.28.2": true
+    "esbuild@0.28.2": true,
+    "@swc/core@1.16.13": true
   }
 }
