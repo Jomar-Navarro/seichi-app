@@ -2605,9 +2605,16 @@ un'attesa troppo corta.**
   scrivere (`effectiveAccountList` vuota). ⚠️ Prima la condizione era la lista
   vuota: con tutti i conti archiviati il salvataggio restava spento **senza
   una parola**. Trovato dalla controprova, non dalla issue.
-- Mentre le righe arrivano i selettori dicono «Caricamento…» (`Select`, prop
-  `placeholder`); una lettura fallita lo dice sotto il campo con «Riprova»
-  (`LoadError`, variante `inline`).
+- `Select` riceve lo stato della lettura (`load`, con `optionsLoad()`): mentre
+  le righe arrivano il campo dice «Caricamento…», se la lettura fallisce «Non
+  disponibile» e sotto compare la frase con «Riprova» (`LoadError`, variante
+  `inline`). ⚠️ **Le tre parti stanno in `Select` e non nei moduli**: ricopiate
+  in quattro punti, al selettore di destinazione ne era già sfuggita una
+  (code review della #182). Due campi sulle stesse righe (origine e
+  destinazione) dicono la frase una volta sola: `failedMessage: null`.
+- «Non disponibile» e non «Seleziona …» su una lettura fallita: un movimento o
+  una regola CON un conto non devono sembrare senza. Neutro rispetto al
+  genere, perché lo stesso campo è un conto o una categoria.
 
 Collaudo su una build di produzione, account usa e getta (eliminato): conti e
 categorie rallentati di 4 secondi, risposte 500 e una risposta con tutti i
@@ -7440,7 +7447,12 @@ bisogno SOLO dell'anello, non della separazione in livelli.
 - Per i grafici usare sempre Recharts, non installare altre librerie chart
 - Le transazioni ricorrenti usano pg_cron + una funzione SQL `generate_recurring_transactions()` (Fase 14). Regole in tabella `recurring_rules`; il job inserisce transazioni normali con `recurring_rule_id`
 - PWA viene aggiunta solo a progetto completato (Fase 25)
-- Server Actions (`"use server"`) per tutte le operazioni DB — mai chiamate API REST dirette
+- Server Actions (`"use server"`) per tutte le operazioni DB — mai chiamate API REST dirette.
+  ⚠️ **Un'eccezione, dichiarata**: le LETTURE di conti e categorie dei moduli
+  (`components/UI/useClientRows.ts`, #150) partono dal browser, con la RLS a
+  limitare le righe. Next spedisce le server action una alla volta, e come
+  server action finirebbero in coda dietro a quelle della pagina sotto (#122,
+  #148). Solo letture: ogni SCRITTURA resta una server action
 - ⚠️ **I pannelli si MONTANO, non si nascondono.** Un bottom sheet non deve avere
   una prop `isOpen` con dentro `if (!isOpen) return null`: nascondere non è
   smontare, quindi lo stato del form sopravvive alla chiusura e va riazzerato a

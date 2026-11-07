@@ -5,8 +5,12 @@ import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import BottomSheetShell from "@/components/UI/BottomSheetShell";
 import Select, { type Option } from "@/components/UI/Select";
-import LoadError from "@/components/UI/LoadError";
-import { rowsOf, useAccountRows, useCategoryRows } from "@/components/UI/useClientRows";
+import {
+	optionsLoad,
+	rowsOf,
+	useAccountRows,
+	useCategoryRows,
+} from "@/components/UI/useClientRows";
 import FrequencySelector from "@/components/UI/FrequencySelector";
 import { buildCategoryOptions } from "@/lib/category-options";
 import { ACCOUNT_ICON_FALLBACK, ACCOUNT_TYPE_ICON, accountColor } from "@/lib/accounts";
@@ -160,23 +164,14 @@ export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 					</div>
 
 					{/* Categoria */}
-					<div>
-						<Select
-							title={t.recurring.category}
-							variant="compact"
-							options={categoryOptions}
-							selected={categoryId ?? ""}
-							onChange={(val) => setCategoryId(val || null)}
-							placeholder={categoryRows.load.status === "loading" ? t.common.loading : undefined}
-						/>
-						{categoryRows.load.status === "failed" && (
-							<LoadError
-								variant="inline"
-								message={t.categories.loadError}
-								onRetry={categoryRows.retry}
-							/>
-						)}
-					</div>
+					<Select
+						title={t.recurring.category}
+						variant="compact"
+						options={categoryOptions}
+						selected={categoryId ?? ""}
+						onChange={(val) => setCategoryId(val || null)}
+						load={optionsLoad(categoryRows, t.categories.loadError)}
+					/>
 
 					{/*
 						Conto. ⚠️ Non c'era, e la sua assenza faceva più danno di un campo
@@ -186,23 +181,14 @@ export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 						correggerla. È anche ciò che rende praticabile il rifiuto di
 						archiviare un conto con regole attive.
 					*/}
-					<div>
-						<Select
-							title={t.accounts.fieldLabel}
-							variant="compact"
-							options={accountOptions}
-							selected={accountId}
-							onChange={setAccountId}
-							placeholder={accountRows.load.status === "loading" ? t.common.loading : undefined}
-						/>
-						{accountRows.load.status === "failed" && (
-							<LoadError
-								variant="inline"
-								message={t.accounts.loadError}
-								onRetry={accountRows.retry}
-							/>
-						)}
-					</div>
+					<Select
+						title={t.accounts.fieldLabel}
+						variant="compact"
+						options={accountOptions}
+						selected={accountId}
+						onChange={setAccountId}
+						load={optionsLoad(accountRows, t.accounts.loadError)}
+					/>
 
 					{/* Frequenza */}
 					<div>

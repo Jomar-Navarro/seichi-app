@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import type { OptionsLoad } from "@/components/UI/Select";
 import type { Account, Category } from "@/types";
 
 /**
@@ -68,14 +69,11 @@ function useRows<T>(
 	);
 
 	/*
-	 * L'ultima `onArrive` del chiamante, letta quando le righe arrivano. In un
-	 * ref, aggiornato in un effetto, perché è una funzione nuova a ogni render:
+	 * L'ultima `onArrive` del chiamante, letta quando le righe arrivano. Un
+	 * Effect Event e non una dipendenza: è una funzione nuova a ogni render, e
 	 * fra le dipendenze rifarebbe partire la lettura a ogni tasto premuto.
 	 */
-	const onArriveRef = useRef(onArrive);
-	useEffect(() => {
-		onArriveRef.current = onArrive;
-	});
+	const arrive = useEffectEvent((rows: T[]) => onArrive?.(rows));
 
 	useEffect(() => {
 		if (key === null) return;
@@ -84,7 +82,7 @@ function useRows<T>(
 			(rows) => {
 				if (cancelled) return;
 				setStored({ key, attempt, load: { status: "ready", rows } });
-				onArriveRef.current?.(rows);
+				arrive(rows);
 			},
 			(error: { code?: string; message?: string } | null) => {
 				if (cancelled) return;
@@ -126,4 +124,16 @@ export function useCategoryRows(type: string | null) {
 /** Le righe se sono arrivate, altrimenti nessuna. */
 export function rowsOf<T>(load: RowsLoad<T>): T[] {
 	return load.status === "ready" ? load.rows : [];
+}
+
+/**
+ * Lo stato di una lettura nella forma che `Select` disegna: «Caricamento…»,
+ * «Non disponibile» e la frase con «Riprova» (`failedMessage`; `null` quando
+ * un altro campo sulle stesse righe la dice già).
+ */
+export function optionsLoad<T>(
+	{ load, retry }: { load: RowsLoad<T>; retry: () => void },
+	failedMessage: string | null,
+): OptionsLoad {
+	return { status: load.status, failedMessage, retry };
 }

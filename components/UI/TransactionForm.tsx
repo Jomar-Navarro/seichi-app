@@ -1,8 +1,12 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { TransactionType, Category, Transaction, Frequency, Account } from "@/types";
-import { rowsOf, useAccountRows, useCategoryRows } from "@/components/UI/useClientRows";
-import LoadError from "@/components/UI/LoadError";
+import {
+	optionsLoad,
+	rowsOf,
+	useAccountRows,
+	useCategoryRows,
+} from "@/components/UI/useClientRows";
 import { Pencil, Check, Trash2, Repeat } from "lucide-react";
 import Select, { type Option } from "@/components/UI/Select";
 import { ACCOUNT_ICON_FALLBACK, ACCOUNT_TYPE_ICON, accountColor } from "@/lib/accounts";
@@ -579,29 +583,20 @@ export default function TransactionForm({
 					"da dove" sono due domande vicine, e un trasferimento la prima non
 					se la pone.
 				*/}
+				{/*
+					`load` (#150): la categoria è facoltativa, quindi una lettura fallita
+					non spegne il salvataggio, ma va detta. Il selettore vuoto avrebbe
+					detto «non hai categorie di questo tipo».
+				*/}
 				{!isTransfer && (
-					<div>
-						<Select
-							title={t.transactions.form.category}
-							variant="compact"
-							options={categoryOptions}
-							selected={categoryId ?? ""}
-							onChange={(val) => setCategoryId(val)}
-							placeholder={categoryRows.load.status === "loading" ? t.common.loading : undefined}
-						/>
-						{/*
-							La categoria è facoltativa: una lettura fallita non spegne il
-							salvataggio, ma va detta (#150). Il selettore vuoto avrebbe
-							detto «non hai categorie di questo tipo».
-						*/}
-						{categoryRows.load.status === "failed" && (
-							<LoadError
-								variant="inline"
-								message={t.categories.loadError}
-								onRetry={categoryRows.retry}
-							/>
-						)}
-					</div>
+					<Select
+						title={t.transactions.form.category}
+						variant="compact"
+						options={categoryOptions}
+						selected={categoryId ?? ""}
+						onChange={(val) => setCategoryId(val)}
+						load={optionsLoad(categoryRows, t.categories.loadError)}
+					/>
 				)}
 
 				{/*
@@ -615,25 +610,16 @@ export default function TransactionForm({
 					Su un trasferimento diventa "Dal conto": accanto a "Al conto" la
 					parola "Conto" da sola non direbbe quale dei due.
 				*/}
-				<div>
-					<Select
-						title={isTransfer ? t.transactions.form.fromAccount : t.accounts.fieldLabel}
-						variant="compact"
-						options={accountOptions}
-						selected={accountId ?? ""}
-						// Una destinazione ora identica all'origine sparisce da sé: vedi
-						// `toAccountId`, che la deriva.
-						onChange={(val) => setAccountId(val)}
-						placeholder={accountRows.load.status === "loading" ? t.common.loading : undefined}
-					/>
-					{accountRows.load.status === "failed" && (
-						<LoadError
-							variant="inline"
-							message={t.accounts.loadError}
-							onRetry={accountRows.retry}
-						/>
-					)}
-				</div>
+				<Select
+					title={isTransfer ? t.transactions.form.fromAccount : t.accounts.fieldLabel}
+					variant="compact"
+					options={accountOptions}
+					selected={accountId ?? ""}
+					// Una destinazione ora identica all'origine sparisce da sé: vedi
+					// `toAccountId`, che la deriva.
+					onChange={(val) => setAccountId(val)}
+					load={optionsLoad(accountRows, t.accounts.loadError)}
+				/>
 
 				{/*
 					Destinazione. Obbligatoria sui trasferimenti, facoltativa su
@@ -647,6 +633,9 @@ export default function TransactionForm({
 							options={isTransfer ? destinationOptions : destinationOptionsWithNone}
 							selected={toAccountId ?? ""}
 							onChange={(val) => setToAccountId(val || null)}
+							// Le stesse righe dell'origine: la frase d'errore la dice già
+							// quel campo, qui basta «Non disponibile».
+							load={optionsLoad(accountRows, null)}
 						/>
 						{/*
 							⚠️ La riga di spiegazione c'è solo dove la destinazione è

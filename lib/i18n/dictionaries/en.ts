@@ -35,6 +35,7 @@ export const en: Dictionary = {
 		deleting: "Deleting…",
 		loading: "Loading…",
 		retry: "Try again",
+		unavailable: "Not available",
 		genericError: "Something went wrong. Please try again.",
 		pageLoadFailed: "This page couldn't be loaded.",
 		unknownError: "Unknown error",

@@ -52,6 +52,12 @@ export const it = {
 		deleting: "Elimino…",
 		loading: "Caricamento…",
 		retry: "Riprova",
+		/**
+		 * Un campo il cui valore non si è potuto leggere (#150). Neutro rispetto al
+		 * genere di proposito: lo stesso campo può essere un conto o una categoria,
+		 * e «Non caricato» sbaglierebbe l'accordo con la seconda.
+		 */
+		unavailable: "Non disponibile",
 		genericError: "Si è verificato un errore. Riprova.",
 		/** Una pagina che non si è potuta costruire: `app/(main)/error.tsx` (#124). */
 		pageLoadFailed: "Non è stato possibile caricare la pagina.",
