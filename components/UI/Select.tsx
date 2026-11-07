@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Check } from "lucide-react";
 import { useI18n } from "@/components/features/I18nProvider";
 import { fill } from "@/lib/i18n/format";
+import LoadError from "@/components/UI/LoadError";
 
 export interface Option {
 	icon: React.ReactNode;
@@ -27,6 +28,32 @@ export interface DropdownProps {
 	 * alzare la card è il chiamante, e per farlo deve sapere quando.
 	 */
 	onOpenChange?: (open: boolean) => void;
+	/**
+	 * Lo stato della lettura che fornisce le `options` (#150). Solo per la
+	 * variante `compact`, quella dei moduli: la variante normale vive
+	 * nell'onboarding e non ha un segnaposto.
+	 *
+	 * Mentre le opzioni arrivano il campo dice «Caricamento…», non «Seleziona
+	 * …»: un movimento CON un conto, aperto prima che i conti arrivino, sembrava
+	 * non averne uno. Se la lettura fallisce dice «Non disponibile», e sotto il
+	 * campo compare la frase con «Riprova».
+	 *
+	 * ⚠️ Sta qui e non nel chiamante perché le tre parti (segnaposto, frase,
+	 * Riprova) vanno insieme: ricopiate in ogni modulo, al selettore di
+	 * destinazione ne era già sfuggita una (code review della #182).
+	 */
+	load?: OptionsLoad;
+}
+
+export interface OptionsLoad {
+	status: "loading" | "ready" | "failed";
+	/**
+	 * La frase della lettura fallita («Non è stato possibile caricare i
+	 * conti.»). `null` = solo «Non disponibile» nel campo: quando due campi
+	 * leggono le STESSE righe (origine e destinazione), la frase la dice uno.
+	 */
+	failedMessage: string | null;
+	retry: () => void;
 }
 
 /**
@@ -46,6 +73,7 @@ export default function Select({
 	title,
 	variant = "default",
 	onOpenChange,
+	load,
 }: DropdownProps) {
 	const { t } = useI18n();
 	const [isOpen, setIsOpen] = useState(false);
@@ -104,12 +132,18 @@ export default function Select({
 	 * ogni lingua può ricomporre la frase a modo suo invece di ereditare
 	 * l'ordine delle parole dell'italiano.
 	 */
-	const placeholder = fill(t.common.selectPlaceholder, {
-		field: title.toLowerCase(),
-	});
+	const placeholder =
+		load?.status === "loading"
+			? t.common.loading
+			: load?.status === "failed"
+				? t.common.unavailable
+				: fill(t.common.selectPlaceholder, {
+						field: title.toLowerCase(),
+					});
 
 	if (variant === "compact") {
 		return (
+			<>
 			<div className="relative">
 				<p className="text-xs text-muted mb-1.5">{title}</p>
 				<button
@@ -165,6 +199,15 @@ export default function Select({
 					</div>
 				)}
 			</div>
+			{/*
+				FUORI dal contenitore `relative`: la tendina è `absolute top-full`
+				rispetto a lui, e una riga in più lì dentro la farebbe aprire sotto la
+				frase invece che sotto il campo.
+			*/}
+			{load?.status === "failed" && load.failedMessage !== null && (
+				<LoadError variant="inline" message={load.failedMessage} onRetry={load.retry} />
+			)}
+			</>
 		);
 	}
 

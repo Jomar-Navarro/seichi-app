@@ -1,11 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import BottomSheetShell from "@/components/UI/BottomSheetShell";
-import { createClient } from "@/lib/supabase/client";
 import Select, { type Option } from "@/components/UI/Select";
+import {
+	optionsLoad,
+	rowsOf,
+	useAccountRows,
+	useCategoryRows,
+} from "@/components/UI/useClientRows";
 import FrequencySelector from "@/components/UI/FrequencySelector";
 import { buildCategoryOptions } from "@/lib/category-options";
 import { ACCOUNT_ICON_FALLBACK, ACCOUNT_TYPE_ICON, accountColor } from "@/lib/accounts";
@@ -15,7 +20,7 @@ import { useI18n } from "./I18nProvider";
 import { DISPLAY_CURRENCY, currencySymbol } from "@/lib/i18n/format";
 import DatePicker from "@/components/UI/DatePicker";
 import { amountErrorMessage, formatAmountInput, parseAmountInput } from "@/lib/amount";
-import type { RecurringRule, Account, Category, Frequency } from "@/types";
+import type { RecurringRule, Frequency } from "@/types";
 
 /**
  * ⚠️ Niente prop `isOpen`, e qui era anche **ridondante**: il chiamante passava
@@ -42,31 +47,19 @@ export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 	const [frequency, setFrequency] = useState<Frequency>(rule.frequency);
 	const [nextRun, setNextRun] = useState(rule.next_run);
 	const [accountId, setAccountId] = useState(rule.account_id);
-	const [categoryList, setCategoryList] = useState<Category[]>([]);
-	const [accountList, setAccountList] = useState<Account[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [serverError, setServerError] = useState<string | null>(null);
 
-	useEffect(() => {
-		async function loadCategories() {
-			const supabase = createClient();
-			const { data } = await supabase.from("categories").select("*").eq("type", rule.type);
-			if (data) setCategoryList(data);
-		}
-		loadCategories();
-	}, [rule.type]);
-
-	useEffect(() => {
-		async function loadAccounts() {
-			const supabase = createClient();
-			const { data } = await supabase
-				.from("accounts")
-				.select("*")
-				.order("created_at", { ascending: true });
-			if (data) setAccountList(data);
-		}
-		loadAccounts();
-	}, []);
+	/*
+	 * ⚠️ Tre stati, non due (#150). Prima entrambe le letture partivano da `[]` e
+	 * `if (data)` scartava l'errore: una lettura fallita lasciava i due selettori
+	 * su «Seleziona …», cioè una regola CON categoria e conto sembrava non averne
+	 * — proprio nella schermata da cui li si corregge. Vedi `useClientRows`.
+	 */
+	const categoryRows = useCategoryRows(rule.type);
+	const accountRows = useAccountRows();
+	const categoryList = rowsOf(categoryRows.load);
+	const accountList = rowsOf(accountRows.load);
 
 	const color = TIPO_COLOR[rule.type] ?? "var(--color-kiri)";
 	const ink = TIPO_INK[rule.type] ?? "var(--ink-kiri)";
@@ -177,6 +170,7 @@ export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 						options={categoryOptions}
 						selected={categoryId ?? ""}
 						onChange={(val) => setCategoryId(val || null)}
+						load={optionsLoad(categoryRows, t.categories.loadError)}
 					/>
 
 					{/*
@@ -193,6 +187,7 @@ export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 						options={accountOptions}
 						selected={accountId}
 						onChange={setAccountId}
+						load={optionsLoad(accountRows, t.accounts.loadError)}
 					/>
 
 					{/* Frequenza */}
