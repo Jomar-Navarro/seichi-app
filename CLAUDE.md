@@ -7087,6 +7087,30 @@ sapeva: `npm audit` non lo lanciava nessuno. Passati a 16.4.5 con le minori.
   già prerenderizzato in build (● nell'output), quindi nessun input di un
   utente li raggiunge.
 
+#### Le prime maggiori di Dependabot (2026-11-07)
+
+Quattro PR aperte da Dependabot appena acceso, valutate provandole su un ramo
+locale invece che leggendo i numeri di versione:
+
+| | esito | come si è visto |
+|---|---|---|
+| espree 11, eslint-scope 9 | **adottate** | li usa solo `audit:pwa-cache`: la controprova della #127 (`...defaultCache` nel worker) dà gli stessi **18 problemi** di prima |
+| ESLint 10 | **adottata** | un file con una violazione per famiglia (react, react-hooks, jsx-a11y, import, @next, typescript-eslint): **8 regole e 8 messaggi identici** a ESLint 9. ESLint 9 è già segnalato da npm come non più supportato |
+| TypeScript 7 | **rimandata** | `npm run lint` si ferma su «typescript-eslint does not support TS 7.0»; regola `ignore` in `dependabot.yml` |
+
+⚠️ **ESLint 10 installa con tre `npm warn ERESOLVE overriding peer
+dependency`**: `eslint-plugin-react`, `-import` e `-jsx-a11y`, che arrivano con
+`eslint-config-next`, dichiarano solo fino a ESLint 9. Funzionano (la
+controprova lo dice regola per regola), e i doc di Next 16.4 dichiarano
+`eslint-config-next` compatibile con ESLint 10. Se un loro aggiornamento
+smettesse di funzionare, il lint della CI lo direbbe: tornare a ESLint 9 è una
+riga.
+
+⚠️ **Un lint verde non dimostra che le regole girino**: un plugin che non si
+carica fa un errore, ma una regola che non scatta più non fa rumore. Per
+questo il confronto si fa su violazioni volute, non sul codice dell'app che
+non ne ha.
+
 ### CI (#152, 2026-11-07)
 
 `.github/workflows/ci.yml`, un job `verifica` su ogni PR e su master:

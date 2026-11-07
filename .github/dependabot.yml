@@ -58,6 +58,15 @@ updates:
       - dependency-name: "@types/node"
         update-types:
           - "version-update:semver-major"
+      # ⚠️ TypeScript 7 (il compilatore nativo) ROMPE il lint: provato il
+      # 2026-11-07, `npm run lint` si ferma su «typescript-eslint does not
+      # support TS 7.0», e typescript-eslint dichiara `typescript <6.1.0`. Il
+      # supporto è tracciato in typescript-eslint/typescript-eslint#10940. Si
+      # riapre quando typescript-eslint (dentro eslint-config-next) lo
+      # dichiara, togliendo questa regola.
+      - dependency-name: "typescript"
+        update-types:
+          - "version-update:semver-major"
 
   # Le azioni del workflow della CI (#152): senza questa voce nessuno
   # proporrebbe mai di aggiornarle, lo stesso silenzio che la #151 ha chiuso
