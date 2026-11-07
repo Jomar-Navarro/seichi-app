@@ -29,7 +29,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "esbuild": "^0.28.2",
-    "eslint": "^9",
+    "eslint": "^10",
     "eslint-config-next": "^16.4.5",
     "eslint-scope": "^8.4.0",
     "espree": "^10.4.0",
