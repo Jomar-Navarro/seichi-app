@@ -7032,12 +7032,19 @@ sapeva: `npm audit` non lo lanciava nessuno. Passati a 16.4.5 con le minori.
   allow-scripts`: si legge lo script, poi `npm approve-scripts <pkg>`, e si
   tolgono a mano le voci di pacchetti spariti (oggi `sharp` 0.35 e
   `unrs-resolver` 1.13 non ne hanno).
-- **`overrides.zod` (`^4.6.6`)**: `@serwist/build` fissa `zod` 4.6.5, sotto
-  l'avviso alto GHSA-mrhx-c7xc-m3w5. La patch è nella stessa minore. Si toglie
-  quando Serwist la porta da sé (`npm ls zod`).
+- **`overrides["@serwist/turbopack"].zod` (`^4.6.6`)**: `@serwist/build` fissa
+  `zod` 4.6.5, sotto l'avviso alto GHSA-mrhx-c7xc-m3w5. La patch è nella stessa
+  minore. L'override vale solo nel ramo di Serwist, non nell'intero albero: un
+  pacchetto futuro che chieda un altro `zod` non ne resta forzato. Si toglie
+  quando Serwist porta da sé la 4.6.6 (`npm ls zod`).
 - **Restano due avvisi moderati, accettati**: `glob` 13 e `minimatch` 10 dentro
-  `@serwist/build`. La correzione è una maggiore che Serwist fissa, e girano
-  solo in `next build` sui nostri file: nessun input di un utente li raggiunge.
+  `@serwist/build`. ⚠️ `npm audit` li conta **quattro** volte, perché li
+  attribuisce anche a `@serwist/build` e `@serwist/turbopack`. La correzione è
+  una maggiore che Serwist fissa. Girano quando si costruisce il service
+  worker — in `next build`, e in `next dev` alla richiesta della rotta — sui
+  nostri file e sulla nostra configurazione; in produzione `/serwist/sw.js` è
+  già prerenderizzato in build (● nell'output), quindi nessun input di un
+  utente li raggiunge.
 
 ## Auth Flow
 
