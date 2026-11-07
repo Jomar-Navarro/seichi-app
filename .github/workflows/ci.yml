@@ -52,12 +52,17 @@ jobs:
 
       # ⚠️ `allowScripts` approva versioni ESATTE: un aggiornamento che porta
       # uno script d'installazione nuovo non lo esegue e lo dice solo con un
-      # `npm warn allow-scripts`. In locale è un avviso che scorre via; qui è un
-      # errore, così una PR di Dependabot non passa con uno script mai vagliato.
+      # avviso. In locale è un avviso che scorre via; qui è un errore, così una
+      # PR di Dependabot non passa con uno script mai vagliato.
+      #
+      # ⚠️⚠️ Si cerca la FRASE, non il prefisso. npm 11.16 scrive `npm warn
+      # allow-scripts …`, npm 11.19 `npm warn install-scripts …`: la prima
+      # versione di questo controllo cercava `allow-scripts` e passava verde
+      # con esbuild tolto da allowScripts. L'ha trovato la controprova.
       - name: Installazione
         run: |
           npm ci 2>&1 | tee npm-ci.log
-          if grep -q "allow-scripts" npm-ci.log; then
+          if grep -qiE "not yet covered by allowScripts|warn (allow|install)-scripts" npm-ci.log; then
             echo "::error::Uno script d'installazione non è approvato in allowScripts: leggilo, poi 'npm approve-scripts <pacchetto>'."
             exit 1
           fi
