@@ -7098,9 +7098,14 @@ audit --omit=dev --audit-level=high`.
 - **Variabili fittizie** per `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SITE_URL`:
   `next.config.ts` le pretende, e sono inlinizzate in compilazione, quindi la
   build della CI non è pubblicabile. Nessun segreto nel workflow.
-- ⚠️ **`npm warn allow-scripts` è un errore in CI.** `allowScripts` approva
+- ⚠️ **Uno script non approvato è un errore in CI.** `allowScripts` approva
   versioni esatte: un aggiornamento con uno script d'installazione nuovo non lo
   esegue e lo dice con un avviso che in locale scorre via.
+  ⚠️⚠️ Il controllo cerca la frase `not yet covered by allowScripts`, non il
+  prefisso: npm 11.16 (locale) scrive `npm warn allow-scripts`, npm 11.19
+  (CI, Node 24.22) `npm warn install-scripts`. La prima versione cercava il
+  prefisso vecchio e **passava verde con esbuild tolto da `allowScripts`**: lo
+  ha trovato la controprova, che è il motivo per cui si fa.
 - Il job si chiama `verifica`, ed è il nome che la protezione di `master`
   richiede verde: rinominarlo vuol dire aggiornare la regola.
 
