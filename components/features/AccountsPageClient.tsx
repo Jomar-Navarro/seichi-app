@@ -604,8 +604,11 @@ function ActiveAccountRow({
 				// lg: la riga del mockup desktop (#108) — raggio 22, 18/20 di
 				// margine interno, tessera 44 a raggio 15. Il vassoio da 120px ci sta
 				// con largo avanzo: la riga più stretta è quella di lg, ≈688px.
+				// Con movimento ridotto il vassoio compare senza scorrere (#153):
+				// 120px sono uno spostamento vero, e sul computer lo apre il solo
+				// passaggio del mouse, senza che nessuno l'abbia chiesto.
 				className={`relative w-full rounded-3xl card-shadow-ring overflow-hidden text-left lg:rounded-[22px] lg:cursor-pointer ${
-					dragOffset === null ? "transition-transform duration-200" : ""
+					dragOffset === null ? "transition-transform duration-200 motion-reduce:transition-none" : ""
 				}`}
 			>
 				<span className="absolute inset-0 bg-surface backdrop-blur-md lg:transition-colors lg:group-hover:bg-surface-elevated" />

@@ -150,7 +150,9 @@ function BudgetCard({
 				style={{ "--budget-track": `color-mix(in srgb, ${color} 18%, transparent)` } as CSSProperties}
 			>
 				<div
-					className="h-full rounded-full transition-all"
+					// La barra si allunga quando cambiano i dati (un conto scelto, un
+					// salvataggio): con movimento ridotto cambia senza scorrere (#153).
+					className="h-full rounded-full transition-all motion-reduce:transition-none"
 					style={{ width: `${budget.pct}%`, background: color, opacity: sforato ? 1 : 0.8 }}
 				/>
 			</div>

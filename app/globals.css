@@ -593,9 +593,15 @@ body {
  * stesso (#71).
  *
  * Niente regola globale che azzeri ogni durata: spegnerebbe anche lo splash
- * a metà strada e lascerebbe gli aloni a un'opacità mai disegnata. E le
- * transizioni brevi restano — chevron, interruttore, il vassoio di Conti:
- * partono da un gesto e spostano di pochi pixel.
+ * a metà strada e lascerebbe gli aloni a un'opacità mai disegnata. Le
+ * transizioni brevi restano — chevron, interruttore, puntini del carosello:
+ * partono da un gesto e spostano di pochi pixel. Quelle che spostano davvero
+ * si spengono sul posto con `motion-reduce:transition-none`: il vassoio di
+ * Conti (120px, e sul computer basta passarci sopra) e la barra del budget.
+ *
+ * ⚠️ Uno stato fermo usa un valore che l'animazione MOSTRA: aloni e anello
+ * non arrivano mai a opacità 1, che è il loro stile di base, quindi lo
+ * dichiarano; gli scheletri ci arrivano a ogni ciclo, e restano lì.
  *
  * Due pezzi non stanno qui: gli scorrimenti chiesti da JavaScript
  * (`scrollBehavior()` in `lib/motion.ts`) e i grafici, che Recharts ferma da
@@ -651,15 +657,17 @@ body {
 
 	/*
 	 * L'anello dice "sto caricando" attorno alla foto (`ProfileEditor`), quindi
-	 * non può semplicemente sparire. Senza animazione l'elemento torna al suo
-	 * stile di base — un anello pieno e fermo attorno all'avatar — ed è quella
-	 * l'indicazione statica, con accanto la scritta "Caricamento…".
+	 * non può semplicemente sparire: resta, fermo attorno all'avatar, ed è
+	 * quella l'indicazione statica, con accanto la scritta "Caricamento…".
+	 * A 0.65, il suo primo fotogramma: lo stile di base è opacità 1, più pieno
+	 * di quanto l'animazione lo mostri mai.
 	 * ⚠️ `animation: none`, non `animation-play-state: paused`: la pausa
 	 * congela un fotogramma qualunque, anche quello a opacità 0, e l'attesa
 	 * sparirebbe dallo schermo.
 	 */
 	@media (prefers-reduced-motion: reduce) {
 		animation: none;
+		opacity: 0.65;
 	}
 }
 
