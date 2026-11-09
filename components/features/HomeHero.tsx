@@ -51,7 +51,7 @@ export default function HomeHero({
 	const trackRef = useRef<HTMLDivElement>(null);
 
 	/*
-	 * ⚠️ Senza conti la seconda pagina NON si rende.
+	 * ⚠️ Senza conti la pagina del saldo NON si rende.
 	 *
 	 * `getAccounts()` può fallire, e la home degrada a `accounts = []` invece di
 	 * sparire — scelta giusta per il selettore, che semplicemente non compare.
@@ -64,6 +64,47 @@ export default function HomeHero({
 	 * scorrimento verso il vuoto.
 	 */
 	const showBalance = accounts.length > 0;
+
+	/*
+	 * Le pagine del carosello, in ordine: le card E i puntini si disegnano da
+	 * questo elenco. Quando le card si sono scambiate di posto (la giacenza
+	 * prima, vedi sotto), i puntini — scritti a parte — sono rimasti nell'ordine
+	 * vecchio: il primo si chiamava "Flusso" e portava al saldo, e solo un
+	 * lettore di schermo lo diceva. Con un elenco solo quel disaccordo non è
+	 * più esprimibile.
+	 */
+	const toggleHidden = () => setHidden((h) => !h);
+	const pages = [
+		...(showBalance
+			? [
+					{
+						key: "saldo",
+						label: t.accounts.balanceHeading,
+						card: (
+							<AccountsBalanceCard
+								accounts={accounts}
+								selectedId={selectedId}
+								hidden={hidden}
+								onToggleHidden={toggleHidden}
+							/>
+						),
+					},
+				]
+			: []),
+		{
+			key: "flusso",
+			label: t.home.flowTitle,
+			card: (
+				<FlowCard
+					flussoMese={flussoMese}
+					trend={flussoTrend}
+					monthLabel={monthLabel}
+					hidden={hidden}
+					onToggleHidden={toggleHidden}
+				/>
+			),
+		},
+	];
 
 	/*
 	 * La pagina attiva si deduce dallo scroll invece di essere pilotata da noi:
@@ -157,25 +198,11 @@ export default function HomeHero({
 					flusso, che si rende SEMPRE, mentre la seconda pagina esiste solo con
 					dei conti — senza, la home diceva "scorri →" verso il nulla.
 				*/}
-				{showBalance && (
-					<div className="snap-center shrink-0 w-full px-5 lg:px-0">
-						<AccountsBalanceCard
-							accounts={accounts}
-							selectedId={selectedId}
-							hidden={hidden}
-							onToggleHidden={() => setHidden((h) => !h)}
-						/>
+				{pages.map((p) => (
+					<div key={p.key} className="snap-center shrink-0 w-full px-5 lg:px-0">
+						{p.card}
 					</div>
-				)}
-				<div className="snap-center shrink-0 w-full px-5 lg:px-0">
-					<FlowCard
-						flussoMese={flussoMese}
-						trend={flussoTrend}
-						monthLabel={monthLabel}
-						hidden={hidden}
-						onToggleHidden={() => setHidden((h) => !h)}
-					/>
-				</div>
+				))}
 			</div>
 
 			{/*
@@ -187,7 +214,7 @@ export default function HomeHero({
 				quindi non c'è più nulla da far scorrere e i puntini non avrebbero
 				niente da indicare.
 			*/}
-			{showBalance && (
+			{pages.length > 1 && (
 			<div className="flex items-center justify-center gap-1.5 mt-3 lg:hidden">
 				{/*
 					issue #69 — un giro precedente aveva avvolto ogni pallino in un
@@ -200,11 +227,12 @@ export default function HomeHero({
 					soprattutto a chi non ce l'ha (mouse desktop) — non vale complicare
 					la spaziatura per un bersaglio secondario.
 				*/}
-				{[0, 1].map((i) => (
+				{/* Dallo stesso elenco delle card: vedi `pages`. */}
+				{pages.map((p, i) => (
 					<button
-						key={i}
+						key={p.key}
 						onClick={() => goTo(i)}
-						aria-label={i === 0 ? t.home.flowTitle : t.accounts.balanceHeading}
+						aria-label={p.label}
 						aria-current={page === i}
 						className="h-1.5 rounded-full transition-all"
 						style={{
