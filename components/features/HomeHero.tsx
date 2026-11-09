@@ -51,7 +51,7 @@ export default function HomeHero({
 	const trackRef = useRef<HTMLDivElement>(null);
 
 	/*
-	 * ⚠️ Senza conti la seconda pagina NON si rende.
+	 * ⚠️ Senza conti la pagina del saldo NON si rende.
 	 *
 	 * `getAccounts()` può fallire, e la home degrada a `accounts = []` invece di
 	 * sparire — scelta giusta per il selettore, che semplicemente non compare.
@@ -200,11 +200,19 @@ export default function HomeHero({
 					soprattutto a chi non ce l'ha (mouse desktop) — non vale complicare
 					la spaziatura per un bersaglio secondario.
 				*/}
-				{[0, 1].map((i) => (
+				{/*
+					⚠️ Le etichette nello STESSO ORDINE delle card qui sopra: giacenza,
+					poi flusso. Quando le card si sono scambiate di posto, le etichette
+					sono rimaste quelle di prima — il primo puntino si chiamava "Flusso"
+					e portava al saldo, e solo un lettore di schermo lo diceva. Se le
+					card cambiano di nuovo ordine, va cambiato anche questo elenco: lo
+					controlla il passo 1 del driver di `collauda-app`.
+				*/}
+				{[t.accounts.balanceHeading, t.home.flowTitle].map((label, i) => (
 					<button
 						key={i}
 						onClick={() => goTo(i)}
-						aria-label={i === 0 ? t.home.flowTitle : t.accounts.balanceHeading}
+						aria-label={label}
 						aria-current={page === i}
 						className="h-1.5 rounded-full transition-all"
 						style={{
