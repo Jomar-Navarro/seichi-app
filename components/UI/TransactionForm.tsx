@@ -29,6 +29,7 @@ import { useI18n } from "@/components/features/I18nProvider";
 import { useScrollFocusedIntoView } from "@/components/UI/useScrollFocusedIntoView";
 import { parseAmountInput } from "@/lib/amount";
 import { canRepeat } from "@/lib/recurring";
+import { scrollBehavior } from "@/lib/motion";
 
 /**
  * ⚠️ Il calendario NON sta più qui.
@@ -238,7 +239,7 @@ export default function TransactionForm({
 	 * tocco sembrerebbe di nuovo non aver fatto niente.
 	 */
 	useEffect(() => {
-		if (saveError) saveErrorRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+		if (saveError) saveErrorRef.current?.scrollIntoView({ block: "nearest", behavior: scrollBehavior() });
 	}, [saveError]);
 	const { closeTransactionModal, notifyTransactionSaved, recurringDefault } =
 		useUIStore();

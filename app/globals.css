@@ -545,6 +545,19 @@ body {
 	pointer-events: none;
 }
 
+/*
+ * Movimento ridotto (issue #153): gli aloni stanno fermi. L'opacità è la media
+ * del respiro (0.6–0.88): con il solo `animation: none` tornerebbero a 1, più
+ * accesi di quanto il disegno li mostri mai.
+ */
+@media (prefers-reduced-motion: reduce) {
+	.circle-1,
+	.circle-3 {
+		animation: none;
+		opacity: 0.74;
+	}
+}
+
 .deep-shadow {
 	background: var(--surface-elevated);
 	color: var(--text-primary);
@@ -572,6 +585,29 @@ body {
    ANIMAZIONI — respiro zen e pulse per skeleton
    ============================================================ */
 
+/*
+ * ⚠️ Movimento ridotto (issue #153): ogni animazione dice ACCANTO A SÉ cosa
+ * fa quando il sistema chiede `prefers-reduced-motion: reduce` — si ferma,
+ * lascia al suo posto uno stato fermo che dica la stessa cosa, o resta com'è
+ * per una ragione scritta lì (`zg-boot-out`). Un'animazione nuova fa lo
+ * stesso (#71).
+ *
+ * Niente regola globale che azzeri ogni durata: spegnerebbe anche lo splash
+ * a metà strada e lascerebbe gli aloni a un'opacità mai disegnata. Le
+ * transizioni brevi restano — chevron, interruttore, puntini del carosello:
+ * partono da un gesto e spostano di pochi pixel. Quelle che spostano davvero
+ * si spengono sul posto con `motion-reduce:transition-none`: il vassoio di
+ * Conti (120px, e sul computer basta passarci sopra) e la barra del budget.
+ *
+ * ⚠️ Uno stato fermo usa un valore che l'animazione MOSTRA: aloni e anello
+ * non arrivano mai a opacità 1, che è il loro stile di base, quindi lo
+ * dichiarano; gli scheletri ci arrivano a ogni ciclo, e restano lì.
+ *
+ * Due pezzi non stanno qui: gli scorrimenti chiesti da JavaScript
+ * (`scrollBehavior()` in `lib/motion.ts`) e i grafici, che Recharts ferma da
+ * sé con `isAnimationActive="auto"`.
+ */
+
 @keyframes zg-breathe {
 	0%,
 	100% {
@@ -596,6 +632,11 @@ body {
 
 @utility zg-pulse {
 	animation: zg-pulse 2.4s ease-in-out infinite;
+
+	/* Gli scheletri restano, fermi: la forma dice già "qui arriva qualcosa". */
+	@media (prefers-reduced-motion: reduce) {
+		animation: none;
+	}
 }
 
 /* Anello che si espande e svanisce — attesa attorno all'avatar in upload */
@@ -613,6 +654,21 @@ body {
 
 @utility zg-ring {
 	animation: zg-ring 1.8s ease-out infinite;
+
+	/*
+	 * L'anello dice "sto caricando" attorno alla foto (`ProfileEditor`), quindi
+	 * non può semplicemente sparire: resta, fermo attorno all'avatar, ed è
+	 * quella l'indicazione statica, con accanto la scritta "Caricamento…".
+	 * A 0.65, il suo primo fotogramma: lo stile di base è opacità 1, più pieno
+	 * di quanto l'animazione lo mostri mai.
+	 * ⚠️ `animation: none`, non `animation-play-state: paused`: la pausa
+	 * congela un fotogramma qualunque, anche quello a opacità 0, e l'attesa
+	 * sparirebbe dallo schermo.
+	 */
+	@media (prefers-reduced-motion: reduce) {
+		animation: none;
+		opacity: 0.65;
+	}
 }
 
 /* PIN errato (Fase 26a) — una sola scossa, non un loop: si ripete solo se
@@ -639,6 +695,11 @@ body {
 
 @utility zg-shake {
 	animation: zg-shake 0.4s ease-in-out;
+
+	/* I pallini diventano rossi: l'errore lo dicono già loro. */
+	@media (prefers-reduced-motion: reduce) {
+		animation: none;
+	}
 }
 
 /*
@@ -658,6 +719,16 @@ body {
  * (non animato, in `BootSplash.tsx`) ottiene lo stesso risultato — il velo
  * non intercetta mai i tocchi, nemmeno da opaco — con una sola proprietà
  * interpolabile e senza alcuna ambiguità cross-browser.
+ *
+ * ⚠️⚠️ NESSUNA regola di movimento ridotto, deliberatamente (issue #153).
+ * È questa animazione, con `forwards`, a portare il velo a opacità 0: con
+ * `animation: none` lo splash resterebbe sopra l'app per sempre. E non serve
+ * accorciarla: è una dissolvenza, e una dissolvenza non è movimento — le WCAG
+ * (2.3.3) escludono dall'animazione di movimento i cambi di opacità, e
+ * "Riduci movimento" di iOS sostituisce proprio gli spostamenti con
+ * dissolvenze. Accorciata scoprirebbe invece ciò che lo splash copre: la
+ * correzione del tema alla primissima visita (vedi `BootSplash`). Anello e
+ * aloni dentro il velo si fermano con le loro regole.
  */
 @keyframes zg-boot-out {
 	0%,

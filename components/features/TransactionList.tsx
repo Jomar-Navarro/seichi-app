@@ -74,13 +74,15 @@ interface TransactionListProps {
  * e due misure diverse per lo stesso oggetto si leggerebbero come due oggetti.
  *
  * Lo scheletro prende le stesse misure, o all'arrivo dei dati le card
- * cambierebbero forma sotto gli occhi.
+ * cambierebbero forma sotto gli occhi. E lo stesso respiro (`zg-pulse`) degli
+ * scheletri della home e della sidebar. Era la pulsazione di Tailwind: con una
+ * pulsazione sola, una regola sola la ferma con movimento ridotto (#153).
  */
 function Skeleton() {
 	return (
 		<div className="space-y-2">
 			{Array.from({ length: 4 }).map((_, i) => (
-				<div key={i} className="flex items-center gap-3.5 px-4 py-3.5 rounded-2xl bg-card ring-border animate-pulse lg:px-4.5 lg:py-3.75 lg:rounded-[20px] lg:bg-surface">
+				<div key={i} className="flex items-center gap-3.5 px-4 py-3.5 rounded-2xl bg-card ring-border zg-pulse lg:px-4.5 lg:py-3.75 lg:rounded-[20px] lg:bg-surface">
 					<div className="w-10 h-10 rounded-xl bg-surface-elevated shrink-0 lg:rounded-[13px]" />
 					<div className="flex-1 space-y-2">
 						<div className="h-3 rounded-full bg-surface-elevated w-28" />

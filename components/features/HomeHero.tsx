@@ -5,6 +5,7 @@ import { useI18n } from "@/components/features/I18nProvider";
 import FlowCard from "./FlowCard";
 import AccountsBalanceCard from "./AccountsBalanceCard";
 import type { AccountWithBalance } from "@/types";
+import { scrollBehavior } from "@/lib/motion";
 
 interface HomeHeroProps {
 	flussoMese: number;
@@ -84,7 +85,7 @@ export default function HomeHero({
 		// coincidono, ma basterebbe un `gap` o una pagina di larghezza diversa per
 		// far divergere il calcolo aritmetico dalla posizione reale.
 		const child = el.children[i] as HTMLElement | undefined;
-		el.scrollTo({ left: child?.offsetLeft ?? i * el.clientWidth, behavior: "smooth" });
+		el.scrollTo({ left: child?.offsetLeft ?? i * el.clientWidth, behavior: scrollBehavior() });
 	}
 
 	return (
