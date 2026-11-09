@@ -7231,6 +7231,32 @@ chi ne aggiunge una nuova (#71) trova il modello lì vicino.
 - Lo scheletro della lista movimenti usava la pulsazione di Tailwind invece di
   `zg-pulse`, come gli altri: allineato, così una regola sola le ferma tutte.
 
+Collaudo del 2026-11-09 su una build di produzione, con
+`emulateMedia`/`reducedMotion: "reduce"` e un account di prova usa e getta
+(registrato ed eliminato dall'app; il login successivo risponde
+`invalid_credentials`): **19/19** senza login (aloni, splash, anello e le
+regole su elementi iniettati) e **14/14** autenticati — grafici di `/analisi`
+e `/investimenti`, scheletro della lista con la risposta trattenuta 3 secondi,
+scossa del PIN (impostato solo nel `localStorage` del browser di prova),
+carosello della home. **Controprova su master**: 7 KO e 5 KO, fra cui il
+grafico di `/analisi` ridisegnato 91 volte con movimento ridotto e il
+carosello che scorre per 16 fotogrammi.
+
+- ⚠️ **Un grafico animato si misura contando i ridisegni**, non leggendo il
+  `d` del tracciato: l'`<Area>` di Recharts entra allargando un `clipPath`, a
+  tracciato fermo. Un ciclo di `requestAnimationFrame` confronta l'`outerHTML`
+  di ogni `svg.recharts-surface`: fermo cambia una volta, animato decine.
+- ⚠️ **Chromium non rispetta da solo il movimento ridotto negli scorrimenti
+  `smooth`**: la controprova del carosello è la prova che `scrollBehavior()`
+  serve, e non solo su Safari.
+- ⚠️ Il primo giro della scossa diceva KO su entrambi i rami, con UN pallino
+  pieno dopo sei tocchi: in un contesto con `hasTouch` il tastierino deduplica
+  pointerdown e click (il click fantasma della 26a), e i `click()` sintetici di
+  Playwright ci finiscono dentro. Con `tap()`, un tocco vero, è verde. La
+  verifica, non l'app.
+
+Resta da fare a mano: iOS con *Accessibilità → Movimento → Riduci movimento*.
+
 ## Auth Flow
 
 - `/welcome` → landing page pre-auth
