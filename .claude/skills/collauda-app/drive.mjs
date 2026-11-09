@@ -44,7 +44,8 @@ if (!STATE_FILE || !OUT) {
 /*
  * ⚠️ Si riusa la sessione del setup invece di rifare il login dal form: il
  * login lo ha già attraversato `teardown.mjs`, e qui interessa ciò che sta
- * dietro l'autenticazione. I token si rinnovano da soli finché l'account vive.
+ * dietro l'autenticazione. Il proxy rinnova i token scaduti, ma solo nel
+ * browser: per questo alla fine la sessione si risalva in `state.json`.
  */
 if (!existsSync(STATE_FILE)) {
 	console.error(`Manca ${STATE_FILE}: prima setup.mjs con lo stesso SEICHI_DIR.`);
@@ -92,13 +93,6 @@ function toNumber(text) {
 }
 
 /**
- * La cifra del Flusso in home. Il primo `p` con un "€" della pagina era il
- * Flusso finché era la prima card del carosello; ora la prima è il SALDO, e il
- * confronto 6 misurava la giacenza contro il flusso di /analisi. Si cerca la
- * cifra colorata (inchiostro verde o rosso) dentro il carosello: il saldo è
- * neutro di proposito (20a), quindi è l'unica che può essere.
- */
-/**
  * Il modale del movimento si apre sul passo dell'IMPORTO: senza passarlo, i
  * controlli sul form cercano campi che non sono ancora a schermo — e quelli
  * che pretendono un'ASSENZA ("Categoria NON deve esserci") passano senza aver
@@ -109,8 +103,22 @@ async function passaImporto(page) {
 	await page.getByRole("button", { name: "Continua" }).filter({ visible: true }).first().click();
 }
 
+/**
+ * La cifra del Flusso in home. Il primo `p` con un "€" della pagina era il
+ * Flusso finché era la prima card del carosello; ora la prima è il SALDO, e il
+ * confronto 6 misurava la giacenza contro il flusso di /analisi. Si cerca la
+ * cifra colorata (inchiostro verde o rosso) dentro il carosello: il saldo è
+ * neutro di proposito (20a), quindi è l'unica che può essere.
+ * ⚠️ Con un limite di tempo e senza sollevare: se un giorno la classe cambia,
+ * il confronto esce KO con NaN e i passi dopo girano lo stesso, invece di
+ * fermare l'intero giro dopo 30 secondi.
+ */
 async function homeFlowText(page) {
-	return page.locator("div.snap-x p.text-midori-ink, div.snap-x p.text-aka-ink").first().innerText();
+	return page
+		.locator("div.snap-x p.text-midori-ink, div.snap-x p.text-aka-ink")
+		.first()
+		.innerText({ timeout: 5000 })
+		.catch(() => "");
 }
 
 /**
@@ -160,6 +168,11 @@ try {
 	// subito e chiaramente che collezionare cinque "KO" senza spiegazione.
 	if (/\/welcome|\/sign/.test(page.url())) {
 		throw new Error(`sessione non valida — finito su ${page.url()}`);
+	}
+	// Su /start la sessione c'è ma l'onboarding no (`profiles.currency` NULL):
+	// ogni passo dopo cercherebbe una home che non c'è.
+	if (/\/start/.test(page.url())) {
+		throw new Error(`onboarding non completato — finito su ${page.url()}: il setup ha scritto il profilo?`);
 	}
 
 	/* ------------------------------------------------------- 1 · home flusso */
@@ -551,5 +564,12 @@ try {
 	for (const l of ko) console.log(l);
 	console.log("\n=========== ERRORI CONSOLE ===========");
 	console.log(errors.length ? errors.slice(0, 10).join("\n") : "nessuno");
+	/*
+	 * ⚠️ La sessione si RISALVA. Passata l'ora del token, il proxy lo rinnova e
+	 * il refresh token in `state.json` diventa già usato: ripresentarlo al giro
+	 * dopo è un riuso, e Supabase revoca l'intera sessione. Uno script ad hoc
+	 * che apre `state.json` deve fare lo stesso alla fine.
+	 */
+	await context.storageState({ path: STATE_FILE }).catch(() => {});
 	await browser.close();
 }

@@ -79,10 +79,22 @@ SEICHI_DIR=$D node .claude/skills/collauda-app/teardown.mjs   # elimina, SEMPRE
   `signUp` non restituisce una sessione e il setup si ferma: quel giorno va
   rifatto.
 
+- Se il setup si ferma a metà (server spento, registrazione rifiutata) lo
+  dice, lascia uno scatto in `SEICHI_DIR` e chiede il teardown, che elimina
+  l'account o scopre che non è mai nato. In entrambi i casi la cartella torna
+  pronta per un nuovo setup.
+
 **Dati propri del collaudo**: uno script nello scratchpad apre il contesto
 con `browser.newContext({ storageState: "<D>/state.json" })`, oppure prepara
 le righe via REST col token, come fa `setup.mjs`. Per risolvere `playwright`
 da lì: `createRequire("<repo>/package.json")("playwright")`.
+
+⚠️ **E alla fine risalva la sessione**: `context.storageState({ path:
+"<D>/state.json" })`, come fa il driver. Passata l'ora del token, il proxy lo
+rinnova solo nel browser, e il refresh token rimasto nel file è già stato
+usato. Ripresentarlo al giro dopo è un riuso, e Supabase revoca l'intera
+sessione: ogni giro successivo finirebbe su `/welcome` con l'account ancora
+vivo. Il teardown non ne soffre, perché entra dal form di login.
 
 ## 3 · Eseguire il driver
 
