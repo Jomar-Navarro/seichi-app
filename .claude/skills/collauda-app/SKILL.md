@@ -1,6 +1,6 @@
 ---
 name: collauda-app
-description: Avvia e pilota Seichi in un browser headless per vedere una modifica funzionare davvero — login via cookie di sessione, screenshot, confronto fra numeri di schermate diverse. Usare quando si chiede di eseguire l'app, fare screenshot, o verificare che un cambiamento regga nell'app vera e non solo nei test.
+description: Avvia e pilota Seichi in un browser headless per vedere una modifica funzionare davvero — con un account di prova usa e getta, registrato ed eliminato dall'app, screenshot e confronto fra numeri di schermate diverse. Usare quando si chiede di eseguire l'app, fare screenshot, o verificare che un cambiamento regga nell'app vera e non solo nei test.
 ---
 
 # Collaudare Seichi nell'app vera
@@ -9,7 +9,7 @@ description: Avvia e pilota Seichi in un browser headless per vedere una modific
 sbagliati, etichette che mentono, parametri dimenticati. Questo skill serve a
 **guardare l'app**, non a compilarla.
 
-## 1 · Il dev server
+## 1 · Il server
 
 ```bash
 npm run dev          # porta 3000
@@ -23,79 +23,83 @@ quindi non fidarti dell'output, controlla la porta:
 curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3000/welcome   # atteso 200
 ```
 
-Per fermarlo, il PID è nel messaggio di Next (`taskkill /PID <pid> /F`).
+**Una build di produzione** serve quando conta il CSS (in sviluppo Tailwind
+accumula le classi già generate, e una classe mancante sembra esserci: #114) e
+per ogni controprova:
 
-## 2 · L'autenticazione: cookie, non password
-
-⚠️ **Tutte le rotte utili sono dietro il login.** Senza sessione il proxy
-risponde `307 → /welcome` su `/`, `/conti`, `/transazioni`, `/analisi`: un
-browser vedrebbe solo la landing.
-
-**Cookie `sb-*`, non le credenziali.** La password non entra mai nella
-conversazione, e i token scadono da soli in **un'ora**.
-
-⚠️ **NON farseli incollare in chat.** Sembra la via ovvia — DevTools →
-Application → Cookies → copia i due valori — ed è quella che fallisce: il cookie
-di sessione è un JSON base64 da ~5000 caratteri che Supabase spezza in `.0` e
-`.1` a un punto **arbitrario**, quindi i due pezzi vanno riuniti *prima* di
-decodificare e **un solo carattere perso rende l'intera sessione invalida**.
-Copiando a mano stringhe di 3000 caratteri il carattere si perde: è successo due
-volte di fila (2026-08-12) — una `w` in coda a `.0`, poi `.1` troncato — e il
-sintomo è sempre lo stesso, un anonimo `finito su /welcome` che somiglia a un
-token scaduto e manda a cercare il difetto dalla parte sbagliata.
-
-⚠️ Il pezzo `.0` **decodifica pulito da solo**, il che rende la diagnosi
-ingannevole: sembra intero. Il taglio si vede solo riunendo i pezzi, e il
-controllo utile è che `.1` si allinei con **offset 0**: se serve un carattere di
-riempimento per leggerlo, a `.0` ne manca uno.
-
-**Farlo fare al browser.** Console su `http://localhost:3000` — i cookie di
-sessione **non sono `httpOnly`** (solo il marcatore di recupero lo è), quindi JS
-li legge:
-
-```js
-copy(JSON.stringify(document.cookie.split('; ')
-  .filter(c => c.startsWith('sb-'))
-  .map(s => { const i = s.indexOf('=');
-    return { name: s.slice(0, i), value: decodeURIComponent(s.slice(i + 1)) }; })))
+```bash
+npm run build && npx next start -p 3100     # poi SEICHI_URL=http://localhost:3100
 ```
 
-poi, in PowerShell, direttamente nel file che il driver legge:
+`next build` non disturba il dev server (che usa `.next/dev`). La controprova
+su master: `git checkout master`, build, stessi script, poi di nuovo il branch.
 
-```powershell
-Get-Clipboard | Set-Content -NoNewline "<scratchpad>\cookies.json"
+⚠️ **Su Windows un `next start` in background non si ferma con TaskStop**: il
+processo node resta e tiene la porta, e il server successivo esce con
+`EADDRINUSE`. Si chiude per PID:
+`netstat -ano | grep ":3100 .*LISTENING"`, poi `taskkill //PID <pid> //F`.
+
+## 2 · L'autenticazione: un account di prova usa e getta
+
+⚠️ **Non chiedere a Jomar cookie o password.** Le rotte utili sono dietro il
+login, e il modo di entrarci è un account creato apposta, che vive il tempo
+del collaudo e poi si elimina dall'app. È la pratica di questo progetto dalla
+#116, e Jomar l'ha confermata come quella da usare senza chiedere
+(2026-11-09).
+
+```bash
+D=<scratchpad>/collaudo
+SEICHI_DIR=$D node .claude/skills/collauda-app/setup.mjs      # registra e prepara
+# … driver e script ad hoc …
+SEICHI_DIR=$D node .claude/skills/collauda-app/teardown.mjs   # elimina, SEMPRE
 ```
 
-Nessuna trascrizione, nessun token nella conversazione, e il formato è già
-quello che serve.
+- **`setup.mjs`** registra l'utente dal form vero (`/sign?tab=signup`) e
+  prepara lo stato via REST **col token di quell'utente**, quindi sotto RLS
+  come farebbe l'app: due conti ("Conto principale", "Revolut"), una categoria
+  per tipo, sei mesi di movimenti, un trasferimento, un versamento su un
+  obiettivo, una regola ricorrente e un budget. È ciò che i passi del driver
+  si aspettano: senza un secondo conto il passo 2 non ha niente da scegliere,
+  senza un budget la nota del passo 5 non compare.
+  Scrive in `SEICHI_DIR` la sessione (`state.json`) e le credenziali
+  (`account.json`), e si rifiuta di partire se un `account.json` di un account
+  ancora vivo è lì.
+- **L'indirizzo** è `git config user.email` con `+seichi-<data>` davanti alla
+  chiocciola: arriva al titolare del repo senza essere scritto qui dentro —
+  ⚠️ **il repository è pubblico**. Si sovrascrive con `SEICHI_EMAIL`.
+- **La password** la genera lo script e sta solo in `account.json`, nello
+  scratchpad: non passa mai dalla conversazione.
+- **`teardown.mjs`** entra dal form di login, elimina l'account da
+  `/impostazioni/elimina` (così passa anche dalla pulizia dello Storage, che in
+  SQL non si fa) e poi **prova** che il login risponda `invalid_credentials`.
+  Va eseguito anche se il collaudo si è fermato a metà: il database è quello
+  di **produzione**, e il collaudo finisce quando i dati sono come li ha
+  trovati, non quando il referto è verde.
+- ⚠️ **Serve *Confirm email* spento** (oggi lo è, #40). Con la conferma accesa
+  `signUp` non restituisce una sessione e il setup si ferma: quel giorno va
+  rifatto.
 
-Costo dichiarato: così **non si verifica il percorso di login**, che va provato
-a mano.
-
-Il file è un JSON `[{name, value}, …]` **nello scratchpad, mai nel repo**, e si
-cancella finito il giro. Playwright lo carica con `context.addCookies()`
-aggiungendo `domain: "localhost"`, `path: "/"`, `sameSite: "Lax"`.
-
-⚠️ `SEICHI_COOKIES` e `SEICHI_SHOTS` sono **obbligatorie e senza default**: lo
-script esce se mancano. La prima versione ripiegava su `./cookies.json`, che si
-risolve contro la CWD — cioè la radice del repository — e avrebbe scritto una
-sessione viva in un percorso tracciato da git. `.gitignore` copre comunque
-`cookies.json` e `shots*/` come seconda difesa.
+**Dati propri del collaudo**: uno script nello scratchpad apre il contesto
+con `browser.newContext({ storageState: "<D>/state.json" })`, oppure prepara
+le righe via REST col token, come fa `setup.mjs`. Per risolvere `playwright`
+da lì: `createRequire("<repo>/package.json")("playwright")`.
 
 ## 3 · Eseguire il driver
 
-`drive.mjs` sta accanto a questo file, ma `import { chromium } from "playwright"`
-si risolve solo dalla radice del progetto: copiarlo lì, eseguirlo, cancellarlo.
-
 ```bash
-cp .claude/skills/collauda-app/drive.mjs ./_drive.tmp.mjs
-SEICHI_COOKIES=<scratchpad>/cookies.json SEICHI_SHOTS=<scratchpad>/shots \
-  node ./_drive.tmp.mjs
-rm -f ./_drive.tmp.mjs
+SEICHI_DIR=$D SEICHI_SHOTS=$D/shots node .claude/skills/collauda-app/drive.mjs
 ```
 
-⚠️ **Mai `cp -r node_modules` nello scratchpad** per aggirare la risoluzione:
-sono decine di migliaia di file e il comando va in timeout.
+Gli script si eseguono **dal loro posto**: Node cerca `playwright` risalendo
+le cartelle fino al `node_modules` della radice. (Una versione precedente di
+questo file diceva di copiare il driver nella radice: non serve.)
+`SEICHI_DIR` e `SEICHI_SHOTS` sono **obbligatorie e senza default**, perché un
+default si risolverebbe dentro il repo e scriverebbe lì una sessione viva.
+`.gitignore` copre comunque `state.json`, `account.json` e `shots*/` come
+seconda difesa.
+
+⚠️ **Mai `cp -r node_modules` nello scratchpad**: sono decine di migliaia di
+file e il comando va in timeout.
 
 ## 4 · Cosa guardare
 
@@ -112,14 +116,38 @@ quando la pagina sembra a posto.
 `/analisi` che mostrava "Flusso netto" — la stessa parola della home — con
 un'altra formula. Nessuna delle due pagine era sbagliata *da sola*.
 
-**Leggi `console --errors`.** Un errore durante una ricompilazione è
+**Leggi gli errori di console.** Un errore durante una ricompilazione è
 transitorio: rieseguire a compilazione ferma prima di dargli peso.
+
+**Diagnostica ogni KO prima di crederci, e ogni OK che pretende un'assenza.**
+Nel giro del 2026-11-09 il driver dava 12 KO: uno era un difetto vero
+dell'app, gli altri erano il driver rimasto indietro rispetto all'app. E "la
+categoria NON deve esserci" passava su un form che non si era nemmeno aperto.
 
 ## 5 · Trappole di questo progetto
 
 - ⚠️ **Il primo tocco su "Archivia" NON scrive**: arma la conferma nello stato
-  locale. È ciò che rende il collaudo sicuro su un database di **produzione** —
-  fermarsi lì e non completare mai l'azione.
+  locale. Il driver si ferma lì: anche su un account di prova, un collaudo
+  che legge non deve dipendere da uno che scrive.
+- ⚠️ **Molti pezzi sono montati due volte**, uno per breakpoint, e quello del
+  desktop è `display: none` sul telefono: il footer della sidebar, il
+  selettore conti della home (#111). `getByText(…).first()` prende la copia
+  nascosta. Si cerca per ruolo (`getByRole`, che salta i nascosti) o con
+  `.filter({ visible: true })` **prima** di `.first()`.
+- ⚠️ **Il modale del movimento si apre sul passo dell'importo**: per arrivare
+  al form serve un tasto e "Continua" (`passaImporto` nel driver).
+- ⚠️ **Il tocco su un conto apre `/conti/[id]`** (#62); "Modifica" sta lì.
+- ⚠️ **Il tastierino del PIN in un contesto `hasTouch` si preme con `tap()`**,
+  non `click()`: deduplica pointerdown e click (il click fantasma della 26a),
+  e i click sintetici di Playwright ci finiscono dentro.
+- ⚠️ **`locale: "it-IT"` nel contesto**: senza, Playwright manda
+  `Accept-Language: en-US` e l'app risponde in inglese.
+- ⚠️ **"Aprire la home" non è uno stato determinato**: il conto scelto si
+  ricorda in un cookie. `?conto=` vuoto è un'istruzione ("tutti i conti") e
+  batte la memoria — su home, `/analisi` e `/transazioni`.
+- ⚠️ **Dopo un `goto` lo splash copre la pagina per ~900ms**, e i grafici
+  Recharts entrano animati per ~1,5s: `shot()` aspetta entrambi, o lo scatto
+  mostra l'ensō in dissolvenza e un grafico a metà.
 - ⚠️ **La riga conto è un `div` col bottone dentro** (markup interattivo
   annidato vietato), quindi l'importo è in un *fratello*: un selettore
   `button` che contenga `€` non aggancia niente e va in timeout. Puntare al
@@ -136,6 +164,11 @@ transitorio: rieseguire a compilazione ferma prima di dargli peso.
 
 ## 6 · Cosa resta fuori
 
-Login, registrazione e onboarding: il driver salta il primo e gli altri due
-richiedono un utente nuovo. Vanno provati a mano, ed è dove si nascondono i
-difetti di ordinamento fra i passi.
+- **L'onboarding**: `setup.mjs` lo salta scrivendo `profiles.currency`, che è
+  il cancello. Registrazione e login invece li attraversano setup e teardown.
+  I tre passi vanno provati a mano, ed è dove si nascondono i difetti di
+  ordinamento fra i passi.
+- **Ciò che dipende dal dispositivo**: un'API che vuole un contesto sicuro
+  (`crypto.randomUUID()`, WebAuthn), la stampa, lo splash nativo di iOS, il
+  movimento ridotto vero. `localhost` in Chromium non li vede: si provano dal
+  telefono, sulla LAN o sul deploy HTTPS.

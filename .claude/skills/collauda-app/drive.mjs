@@ -1,18 +1,20 @@
 /**
- * Driver di verifica della Fase 20a — usa e getta, fuori dal repo.
+ * Driver del collaudo (skill `collauda-app`), nato per la Fase 20a e
+ * allineato all'app il 2026-11-09.
  *
  * ⚠️ È SOLA LETTURA sul database. L'unico gesto che potrebbe scrivere è il
  * secondo tocco su "Archivia": il primo arma soltanto la conferma nello stato
  * locale del componente, e quello è esattamente ciò che serve verificare. Lo
  * script si ferma lì.
  *
- * Nessuna credenziale: si riusa una sessione esistente via cookie.
- *   SEICHI_COOKIES  percorso del JSON coi cookie `sb-*` — FUORI dal repo
+ * La sessione è quella dell'account di prova usa e getta preparato da
+ * `setup.mjs` (SKILL.md, §2), che lascia anche i dati che i passi si aspettano.
+ *   SEICHI_DIR      la cartella del setup (legge `state.json`) — FUORI dal repo
  *   SEICHI_SHOTS    cartella degli screenshot — FUORI dal repo
  *   SEICHI_URL      opzionale, default http://localhost:3000
  */
 import { chromium } from "playwright";
-import { mkdirSync, readFileSync, existsSync } from "node:fs";
+import { mkdirSync, existsSync } from "node:fs";
 
 const BASE = process.env.SEICHI_URL ?? "http://localhost:3000";
 
@@ -29,30 +31,25 @@ const BASE = process.env.SEICHI_URL ?? "http://localhost:3000";
  * Ora il percorso è obbligatorio e lo script si rifiuta di partire senza.
  */
 const OUT = process.env.SEICHI_SHOTS;
-const COOKIE_FILE = process.env.SEICHI_COOKIES;
+const STATE_FILE = process.env.SEICHI_DIR && `${process.env.SEICHI_DIR}/state.json`;
 
-if (!COOKIE_FILE || !OUT) {
+if (!STATE_FILE || !OUT) {
 	console.error(
-		"Servono SEICHI_COOKIES e SEICHI_SHOTS, con percorsi FUORI dal repository " +
-			"(lo scratchpad della sessione). Nessun default: i cookie sono una sessione viva.",
+		"Servono SEICHI_DIR e SEICHI_SHOTS, con percorsi FUORI dal repository " +
+			"(lo scratchpad della sessione). Nessun default: state.json è una sessione viva.",
 	);
 	process.exit(2);
 }
 
 /*
- * ⚠️ Si riusa la SESSIONE ESISTENTE invece di fare il login dal form: così la
- * password non entra mai né nello script né nella cronologia. I cookie `sb-*`
- * di Supabase scadono da soli in un'ora, quindi anche il materiale che passa
- * di qui ha vita breve.
- *
- * Costo dichiarato: questo giro NON verifica il percorso di login, che resta
- * da provare a mano. Qui interessa ciò che sta dietro l'autenticazione.
+ * ⚠️ Si riusa la sessione del setup invece di rifare il login dal form: il
+ * login lo ha già attraversato `teardown.mjs`, e qui interessa ciò che sta
+ * dietro l'autenticazione. I token si rinnovano da soli finché l'account vive.
  */
-if (!existsSync(COOKIE_FILE)) {
-	console.error(`Manca ${COOKIE_FILE}: serve un array JSON di {name, value}.`);
+if (!existsSync(STATE_FILE)) {
+	console.error(`Manca ${STATE_FILE}: prima setup.mjs con lo stesso SEICHI_DIR.`);
 	process.exit(2);
 }
-const rawCookies = JSON.parse(readFileSync(COOKIE_FILE, "utf8"));
 
 mkdirSync(OUT, { recursive: true });
 
@@ -62,6 +59,17 @@ const ok = [];
 const ko = [];
 
 async function shot(page, name) {
+	// Dopo un `goto` lo splash (`zg-boot-out`, ~900ms) è ancora sopra la
+	// pagina: lo scatto mostrerebbe l'ensō in dissolvenza invece della pagina.
+	await page
+		.waitForFunction(() => {
+			const s = document.querySelector(".zg-boot-out");
+			return !s || getComputedStyle(s).opacity === "0";
+		}, null, { timeout: 3000 })
+		.catch(() => {});
+	// E i grafici Recharts entrano animati (~1,5s): scattando subito resterebbero
+	// a metà disegno, cioè un grafico che sembra sbagliato e non lo è.
+	if ((await page.locator("svg.recharts-surface").count()) > 0) await page.waitForTimeout(1600);
 	step += 1;
 	const file = `${OUT}/${String(step).padStart(2, "0")}-${name}.png`;
 	await page.screenshot({ path: file, fullPage: false });
@@ -73,17 +81,51 @@ async function shot(page, name) {
  * Si tiene il segno perché un flusso può essere negativo.
  */
 function toNumber(text) {
-	const m = text.replace(/\s| /g, "").match(/(−|-)?[\d.]+,\d{2}/);
+	// ⚠️ Il segno può stare PRIMA del simbolo: /analisi scrive "− € 18,50", la
+	// home "€ −18,50". Senza `€?` il segno di /analisi si perdeva, e il
+	// confronto 7 dava −18,50 contro 18,50 su due pagine che concordano.
+	const m = text.replace(/\s| /g, "").match(/(−|-)?€?[\d.]+,\d{2}/);
 	if (!m) return NaN;
 	const neg = /^(−|-)/.test(m[0]);
-	const n = Number(m[0].replace(/^(−|-)/, "").replace(/\./g, "").replace(",", "."));
+	const n = Number(m[0].replace(/^(−|-)/, "").replace("€", "").replace(/\./g, "").replace(",", "."));
 	return neg ? -n : n;
 }
 
-/** Verifica la presenza di un testo e registra l'esito senza fermare il giro. */
+/**
+ * La cifra del Flusso in home. Il primo `p` con un "€" della pagina era il
+ * Flusso finché era la prima card del carosello; ora la prima è il SALDO, e il
+ * confronto 6 misurava la giacenza contro il flusso di /analisi. Si cerca la
+ * cifra colorata (inchiostro verde o rosso) dentro il carosello: il saldo è
+ * neutro di proposito (20a), quindi è l'unica che può essere.
+ */
+/**
+ * Il modale del movimento si apre sul passo dell'IMPORTO: senza passarlo, i
+ * controlli sul form cercano campi che non sono ancora a schermo — e quelli
+ * che pretendono un'ASSENZA ("Categoria NON deve esserci") passano senza aver
+ * guardato niente. Nessun salvataggio: ci si ferma al form.
+ */
+async function passaImporto(page) {
+	await page.getByRole("button", { name: "1", exact: true }).filter({ visible: true }).last().click();
+	await page.getByRole("button", { name: "Continua" }).filter({ visible: true }).first().click();
+}
+
+async function homeFlowText(page) {
+	return page.locator("div.snap-x p.text-midori-ink, div.snap-x p.text-aka-ink").first().innerText();
+}
+
+/**
+ * Verifica la presenza di un testo e registra l'esito senza fermare il giro.
+ *
+ * ⚠️ `filter({ visible: true })` PRIMA di `.first()`: dalla 28e molti pezzi
+ * sono montati due volte, uno per breakpoint, e quello del desktop è
+ * `display: none` sul telefono — il footer della sidebar ("N conti attivi"),
+ * il selettore conti della home (#111). `.first()` da solo sceglieva la copia
+ * nascosta e dichiarava assente un testo che era a schermo.
+ */
 async function expectText(page, text, label) {
 	const found = await page
 		.getByText(text, { exact: false })
+		.filter({ visible: true })
 		.first()
 		.isVisible()
 		.catch(() => false);
@@ -94,19 +136,13 @@ async function expectText(page, text, label) {
 const browser = await chromium.launch();
 // Viewport mobile: l'app è disegnata per il telefono, e a 1280px la bottom nav
 // e i bottom sheet non sono nella forma in cui li vede l'utente.
-const context = await browser.newContext({ viewport: { width: 414, height: 896 } });
-
-await context.addCookies(
-	rawCookies.map((c) => ({
-		name: c.name,
-		value: c.value,
-		domain: "localhost",
-		path: "/",
-		httpOnly: false,
-		secure: false,
-		sameSite: "Lax",
-	})),
-);
+// ⚠️ `locale: "it-IT"`: senza, Playwright manda `Accept-Language: en-US` e
+// l'app risponde in inglese — i testi cercati qui sotto non si trovano più.
+const context = await browser.newContext({
+	viewport: { width: 414, height: 896 },
+	locale: "it-IT",
+	storageState: STATE_FILE,
+});
 
 const page = await context.newPage();
 
@@ -130,21 +166,31 @@ try {
 	await expectText(page, "Flusso", "1 home mostra Flusso");
 	const saldoTotale = await page.getByText("Saldo totale", { exact: false }).first().isVisible().catch(() => false);
 	(saldoTotale ? ko : ok).push(`${saldoTotale ? "KO " : "OK "} 1 "Saldo totale" non compare più`);
-	await expectText(page, "per i saldi, scorri", "1 riga che insegna lo scorrimento");
 	console.log("shot:", await shot(page, "home-flusso"));
 
-	/* ---------------------------------- 1-bis · carosello flusso / saldo */
+	/* ---------------------------------- 1-bis · carosello saldo / flusso */
 	/*
-	 * Il carosello è due pagine in uno scroll con snap. Si verifica che la
-	 * seconda esista e che il suo numero coincida con la somma dei saldi dei
-	 * conti attivi — cioè che la home e /conti dicano lo STESSO numero, che è la
-	 * ragione per cui questa card è ammessa in home.
+	 * Il carosello è due pagine in uno scroll con snap: prima il SALDO, poi il
+	 * FLUSSO. (La riga "per i saldi, scorri →" è stata tolta di proposito: vedi
+	 * il commento in `HomeHero`. A insegnare lo scorrimento sono i puntini.)
 	 */
 	const track = page.locator("div.snap-x").first();
 	if (await track.isVisible().catch(() => false)) {
+		// I puntini sono comandi: ognuno deve portare il nome della card a cui
+		// porta, nello stesso ordine in cui le card compaiono.
+		const etichette = await track
+			.locator("xpath=following-sibling::div[1]//button")
+			.evaluateAll((bs) => bs.map((b) => b.getAttribute("aria-label")));
+		const titoli = await track
+			.locator(":scope > div")
+			.evaluateAll((ds) => ds.map((d) => d.innerText.trim().split(/\s/)[0]));
+		const concordano = etichette.length === titoli.length && etichette.every((e, i) => titoli[i] === e);
+		(concordano ? ok : ko).push(
+			`${concordano ? "OK " : "KO "} 1 i puntini portano il nome della loro card — puntini ${JSON.stringify(etichette)}, card ${JSON.stringify(titoli)}`,
+		);
 		await track.evaluate((el) => el.scrollTo({ left: el.clientWidth }));
 		await page.waitForTimeout(600);
-		await expectText(page, "Saldo", "1b seconda pagina del carosello");
+		await expectText(page, "Saldo", "1b la card del saldo");
 		await expectText(page, "conti attivi", "1b pastiglia col conteggio");
 		console.log("shot:", await shot(page, "carosello-saldo"));
 		await track.evaluate((el) => el.scrollTo({ left: 0 }));
@@ -184,9 +230,15 @@ try {
 	 * bottone cliccabile contiene solo icona, nome e tipo — l'importo è in un
 	 * fratello. Si punta al nome, che è ciò su cui l'utente tocca davvero.
 	 */
+	// Dalla #62 il tocco sulla riga apre il DETTAGLIO (`/conti/[id]`), e
+	// "Modifica" sta lì, in chiaro.
 	const firstAccount = page.getByRole("button", { name: /conto principale|revolut/i }).first();
 	await firstAccount.click();
-	await page.waitForTimeout(500);
+	await page.waitForURL(/\/conti\/[0-9a-f-]{36}/, { timeout: 10000 }).catch(() => {});
+	const dettaglio = /\/conti\/[0-9a-f-]{36}/.test(page.url());
+	(dettaglio ? ok : ko).push(`${dettaglio ? "OK " : "KO "} 4 il tocco sulla riga apre il dettaglio del conto`);
+	await page.getByRole("button", { name: "Modifica", exact: true }).first().click().catch(() => {});
+	await page.waitForTimeout(800);
 	await expectText(page, "Modifica conto", "4 sheet di modifica aperto");
 
 	const archiveBtn = page.getByRole("button", { name: /archivia|archive/i }).first();
@@ -235,7 +287,7 @@ try {
 	await page.goto(`${BASE}/?conto=`, { waitUntil: "domcontentloaded" });
 	await page.waitForLoadState("networkidle").catch(() => {});
 	const homeFlow = toNumber(
-		await page.locator("p").filter({ hasText: /€/ }).first().innerText(),
+		await homeFlowText(page),
 	);
 
 	await page.goto(`${BASE}/analisi?conto=`, { waitUntil: "domcontentloaded" });
@@ -287,7 +339,7 @@ try {
 				const url = new URL(page.url());
 				const conto = url.searchParams.get("conto");
 				const homeFiltrato = toNumber(
-					await page.locator("p").filter({ hasText: /€/ }).first().innerText(),
+					await homeFlowText(page),
 				);
 				await page.goto(`${BASE}/analisi?conto=${conto}`, { waitUntil: "domcontentloaded" });
 				await page.waitForLoadState("networkidle").catch(() => {});
@@ -388,6 +440,7 @@ try {
 
 	/* --------------- 9 · il form trasferimento: due conti, nessuna categoria */
 	await cardTrasf.click();
+	await passaImporto(page);
 	// ⚠️ 2500ms e non 800: i conti arrivano da una query Supabase e alla PRIMA
 	// apertura c'è anche la compilazione del chunk. Con l'attesa corta lo scatto
 	// mostrava il form senza conti e con l'avviso rosso "serve un conto" — un
@@ -399,7 +452,7 @@ try {
 		["Categoria", "9 la categoria lascia il posto alla destinazione"],
 		["Ripeti", "9 niente ricorrenza sui trasferimenti"],
 	]) {
-		const c = await page.getByText(testo, { exact: false }).first().isVisible().catch(() => false);
+		const c = await page.getByText(testo, { exact: false }).filter({ visible: true }).first().isVisible().catch(() => false);
 		(c ? ko : ok).push(`${c ? "KO " : "OK "} ${etichetta} — "${testo}" NON deve esserci`);
 	}
 	console.log("shot:", await shot(page, "form-trasferimento"));
@@ -410,6 +463,7 @@ try {
 	await page.locator(".fab").first().click();
 	await page.waitForTimeout(700);
 	await page.getByText("Risparmio", { exact: true }).first().click();
+	await passaImporto(page);
 	await page.waitForTimeout(2000);
 	await expectText(page, "Categoria", "10 il risparmio tiene la categoria");
 	await expectText(page, "Conto di arrivo", "10 e guadagna la destinazione facoltativa");
@@ -448,7 +502,9 @@ try {
 	// determinato.
 	await page.goto(`${BASE}/?conto=`, { waitUntil: "domcontentloaded" });
 	await page.waitForLoadState("networkidle").catch(() => {});
-	await page.getByText("Tutti i conti", { exact: false }).first().click().catch(() => {});
+	// Per ruolo, non per testo: il selettore è montato due volte (#111) e la
+	// copia del desktop, nascosta, è la prima nel DOM.
+	await page.getByRole("button", { name: /tutti i conti/i }).first().click().catch(() => {});
 	await page.waitForTimeout(700);
 	const vociConto = page.locator("div.absolute button");
 	if ((await vociConto.count()) > 1) {
@@ -477,11 +533,11 @@ try {
 		// Si rimette "Tutti i conti", o il giro successivo partirebbe filtrato.
 		await page.goto(`${BASE}/`, { waitUntil: "domcontentloaded" });
 		await page.waitForLoadState("networkidle").catch(() => {});
-		await page.locator("button").filter({ hasText: new RegExp(nomeConto) }).first().click().catch(() => {});
+		await page.getByRole("button", { name: new RegExp(nomeConto) }).first().click().catch(() => {});
 		await page.waitForTimeout(700);
 		await page.locator("div.absolute button").first().click().catch(() => {});
 		await page.waitForTimeout(1200);
-		const pulito = await page.getByText("Tutti i conti", { exact: false }).first().isVisible().catch(() => false);
+		const pulito = await page.getByText("Tutti i conti", { exact: false }).filter({ visible: true }).first().isVisible().catch(() => false);
 		(pulito ? ok : ko).push(`${pulito ? "OK " : "KO "} 12b "Tutti i conti" cancella la memoria`);
 	} else {
 		ko.push("KO  12 pannello conti non apribile: memoria non verificata");
