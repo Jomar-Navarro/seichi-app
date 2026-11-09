@@ -7185,6 +7185,52 @@ installazione, `tsc`, lint, `audit:eslint-rules`, build, `audit:tokens`,
 - Il job si chiama `verifica`, ed è il nome che la protezione di `master`
   richiede verde: rinominarlo vuol dire aggiornare la regola.
 
+### Movimento ridotto (#153, 2026-11-09)
+
+Nessuna regola `prefers-reduced-motion` in tutto il repo, e quattro animazioni
+infinite. Ora ognuna dice **accanto a sé**, in `globals.css`, cosa fa quando
+il sistema chiede movimento ridotto — non un blocco in fondo al file, così
+chi ne aggiunge una nuova (#71) trova il modello lì vicino.
+
+| animazione | con movimento ridotto |
+|---|---|
+| `zg-breathe` (aloni) | ferma, a opacità 0.74 — la media del respiro: con il solo `animation: none` tornerebbe a 1, più accesa di quanto il disegno la mostri mai |
+| `zg-pulse` (scheletri) | ferma; la forma dice già "qui arriva qualcosa" |
+| `zg-shake` (PIN errato) | via; i pallini rossi dicono già l'errore |
+| `zg-ring` (attesa sull'avatar) | ferma **allo stile di base**: un anello pieno attorno alla foto, accanto a "Caricamento…" |
+| `zg-boot-out` (splash) | **nessuna regola**, deliberatamente |
+
+- ⚠️ **`zg-ring` si spegne con `animation: none`, non con
+  `animation-play-state: paused`**: la pausa congela un fotogramma qualunque,
+  anche quello a opacità 0, e l'attesa sparirebbe. Senza animazione resta lo
+  stile di base, che è proprio l'indicazione statica che la issue chiedeva.
+- ⚠️⚠️ **Lo splash resta com'è, e la issue proponeva di accorciarlo.** È
+  `zg-boot-out`, con `forwards`, a portare il velo a opacità 0: con
+  `animation: none` resterebbe sopra l'app per sempre (la controprova lo
+  mostra). E accorciarla non serve: è una dissolvenza, e le WCAG (2.3.3)
+  escludono i cambi di opacità dall'animazione di movimento — "Riduci
+  movimento" di iOS sostituisce proprio gli spostamenti con dissolvenze.
+  Accorciata scoprirebbe invece la correzione del tema alla prima visita, che
+  lo splash esiste per coprire. Anello e aloni dentro il velo si fermano con le
+  loro regole.
+- **Niente regola globale** che azzeri ogni durata (`* { animation-duration:
+  0.01ms }`, la ricetta diffusa): spegnerebbe lo splash a metà strada e
+  lascerebbe gli aloni a un'opacità mai disegnata. Le **transizioni brevi
+  restano** — chevron, interruttore, il vassoio di Conti: partono da un gesto
+  e spostano di pochi pixel.
+- ⚠️ **I grafici non avevano bisogno di un hook.** Recharts 3 ha
+  `isAnimationActive: "auto"` come default, e `"auto"` legge da sé
+  `prefers-reduced-motion`. Il donut di `/investimenti`, che la prop non la
+  passa, si fermava già; `MonthlyLineChart` e `SpendingPieChart` passavano
+  `animated = true` (la prop della stampa, 23b) e così **forzavano**
+  l'animazione proprio a chi l'aveva chiesta spenta. Ora `animated` diventa
+  `"auto"`, e `false` resta per il report.
+- **Gli scorrimenti chiesti da JavaScript** — il puntino del carosello della
+  home, il campo sopra la tastiera, la frase d'errore del form — saltano invece
+  di scorrere: `scrollBehavior()` in `lib/motion.ts`. Il CSS non li raggiunge.
+- Lo scheletro della lista movimenti usava la pulsazione di Tailwind invece di
+  `zg-pulse`, come gli altri: allineato, così una regola sola le ferma tutte.
+
 ## Auth Flow
 
 - `/welcome` → landing page pre-auth
@@ -7569,6 +7615,11 @@ bisogno SOLO dell'anello, non della separazione in livelli.
   `TransactionModal` (quest'ultimo diviso in guscio + contenuto, perché lo rende
   il layout e non ha un genitore che possa decidere)
 - Pagine onboarding usano `"use client"` + handler async con `useState` per loading/error
+- **Ogni animazione dice cosa fa con `prefers-reduced-motion`**, accanto alla
+  propria definizione in `globals.css`: si ferma, lascia uno stato fermo che
+  dica la stessa cosa, o resta per una ragione scritta lì. Uno scorrimento da
+  JavaScript passa da `scrollBehavior()` (`lib/motion.ts`), e un grafico
+  Recharts lascia `isAnimationActive` a `"auto"` invece di `true` (#153)
 
 ## Implementation Order
 

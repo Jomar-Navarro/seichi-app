@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, type RefObject } from "react";
+import { scrollBehavior } from "@/lib/motion";
 
 /**
  * Tempo lasciato alla tastiera per aprirsi (e al layout viewport, già
@@ -97,7 +98,7 @@ export function useScrollFocusedIntoView(containerRef: RefObject<HTMLElement | n
 			}
 
 			timer = setTimeout(() => {
-				target.scrollIntoView({ block: "center", behavior: "smooth" });
+				target.scrollIntoView({ block: "center", behavior: scrollBehavior() });
 			}, SCROLL_INTO_VIEW_DELAY_MS);
 		}
 

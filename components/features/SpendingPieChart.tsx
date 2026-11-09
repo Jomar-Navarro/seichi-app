@@ -15,6 +15,9 @@ interface SpendingPieChartProps {
 	 * il grafico **a metà disegno**, e sulla carta resta così per sempre. Non è
 	 * un caso di laboratorio — è il gesto normale, perché la pagina esiste per
 	 * essere stampata. A schermo l'animazione resta, che è dove serve.
+	 *
+	 * ⚠️ `true` diventa `"auto"` (issue #153), che spegne l'animazione quando
+	 * il sistema chiede movimento ridotto: vedi `MonthlyLineChart`.
 	 */
 	animated?: boolean;
 	/**
@@ -124,7 +127,7 @@ export default function SpendingPieChart({
 								data={data}
 								dataKey="total"
 								nameKey="name"
-								isAnimationActive={animated}
+								isAnimationActive={animated ? "auto" : false}
 								innerRadius="62%"
 								outerRadius="90%"
 								strokeWidth={2}

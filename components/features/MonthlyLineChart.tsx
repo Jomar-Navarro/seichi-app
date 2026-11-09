@@ -19,6 +19,12 @@ interface MonthlyLineChartProps {
 	 * il grafico **a metà disegno**, e sulla carta resta così per sempre. Non è
 	 * un caso di laboratorio — è il gesto normale, perché la pagina esiste per
 	 * essere stampata. A schermo l'animazione resta, che è dove serve.
+	 *
+	 * ⚠️ `true` diventa `"auto"`, non `true` (issue #153): `"auto"` è il default
+	 * di Recharts 3 e spegne l'animazione da sé quando il sistema chiede
+	 * movimento ridotto. Passando `true` la si forzava anche a chi l'aveva
+	 * chiesto — il donut di `/investimenti`, che la prop non la passa, si
+	 * fermava già.
 	 */
 	animated?: boolean;
 	/**
@@ -135,7 +141,7 @@ export default function MonthlyLineChart({ trend, animated = true, inCard = fals
 					<Area
 						type="monotone"
 						dataKey="entrate"
-						isAnimationActive={animated}
+						isAnimationActive={animated ? "auto" : false}
 						stroke="var(--color-midori)"
 						strokeWidth={2}
 						fill={`url(#${gradE})`}
@@ -145,7 +151,7 @@ export default function MonthlyLineChart({ trend, animated = true, inCard = fals
 					<Area
 						type="monotone"
 						dataKey="uscite"
-						isAnimationActive={animated}
+						isAnimationActive={animated ? "auto" : false}
 						stroke="var(--color-aka)"
 						strokeWidth={2}
 						fill={`url(#${gradU})`}
