@@ -105,13 +105,11 @@ const KIND_BY_TYPE: Record<string, GroupKind> = {
 };
 
 /**
- * Cosa proporre per ogni famiglia, e cosa lasciar scegliere.
+ * Cosa proporre per ogni famiglia, e cosa lasciar scegliere: `targetsFor()`.
  *
- * ⚠️ `vendite` propone `null`, cioè **niente**. Vedi issue #52: Seichi non ha un
- * tipo per il disinvestimento, e le due scorciatoie disponibili sbagliano in
- * direzioni opposte — `entrata` gonfia il Flusso di quel mese affermando un
- * guadagno che non c'è stato, `ignora` lascia il saldo del conto sbagliato del
- * ricavo. Fra due modi sbagliati non decide l'app.
+ * ⚠️ Fino alla #52 `vendite` proponeva `null`, perché non esisteva un tipo per
+ * il disinvestimento. Ora propone `disinvestimento` — vedi il ramo in
+ * `targetsFor()`, e il test in `trade-republic.test.ts` che lo pretende.
  */
 /**
  * Un bersaglio è compatibile con la direzione della riga?
