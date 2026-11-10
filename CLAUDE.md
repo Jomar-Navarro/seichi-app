@@ -401,9 +401,11 @@ exists`: in produzione non fa niente. Con quella sola riga le venti migration
 passano. Da allora la prova si ripete in CI a ogni PR: una migration che non
 regge su un database vuoto ferma il job `e2e`.
 
-⚠️ Resta da confermare la **versione maggiore di Postgres** della produzione:
-`config.toml` dice 17 (il default della CLI per un progetto nuovo), ma non è
-stata letta dal database (`select version();`).
+**Stessa versione maggiore di Postgres**, letta dal database il 2026-11-10
+(`select version();`): produzione **17.6**, locale 17.11 (`major_version = 17`
+in `config.toml`). Le minori diverse non cambiano niente che le migration
+usino. Se un giorno Supabase porta la produzione a una maggiore nuova,
+`major_version` va alzato insieme.
 
 #### Verifica contro il catalogo — 2026-08-13
 
