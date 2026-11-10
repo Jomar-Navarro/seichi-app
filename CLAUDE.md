@@ -7348,6 +7348,8 @@ stessa PR:
   ⚠️ La correzione cambia la chiave di deduplica delle righe generiche con un
   importo così: un file già importato col difetto, reimportato, scriverebbe
   una seconda riga accanto a quella sbagliata invece di riconoscerla.
+  **Verificato sul database il 2026-11-10: zero righe con chiave
+  `generico:%`**, quindi nessun import da riallineare.
 - ⚠️ **`parseDate("31/02/2026")` dava `2026-02-31`.** Si controllava il mese
   ma non il giorno, e Postgres rifiutava la data dentro `import_transactions()`,
   facendo fallire l'**intero** lotto. Ora la riga finisce fra le illeggibili,
