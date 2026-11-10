@@ -6187,6 +6187,37 @@ sessione si ferma al grant, prima della RLS.
   `"char"`, e `text || "char"` è un operatore ambiguo (`42725`). Serve
   `relkind::text`.
 
+#### Emerso dalla code review (7 rilievi, 6 applicati)
+
+La prima versione era già girata in produzione, e la review ha trovato tre
+modi in cui avrebbe potuto finire con "Success" lasciando `anon` al suo posto.
+Sul catalogo di quel giorno non è successo, ma il file deve difendersi da solo.
+
+- ⚠️ **La revoca sulle tabelle nominava solo `anon`**, mentre la guardia
+  cercava anche PUBLIC. Un grant a PUBLIC lasciato da una correzione a mano
+  passava la guardia (l'aveva concesso `postgres`) e restava. Ora la revoca
+  vale per `public, anon`.
+- ⚠️ **Le funzioni erano cinque nomi scritti a mano.** La prossima dimenticata
+  sarebbe passata, e su un database ricostruito senza `rls_auto_enable()` (che
+  nessun file del repo crea) il `revoke` avrebbe dato `42883` e annullato
+  l'intero file. Ora è un ciclo sul catalogo, che restituisce ad
+  `authenticated` e `service_role` esattamente ciò che avevano prima.
+- ⚠️ **Le post-condizioni erano solo nella controprova commentata.** Ora c'è
+  una sezione 4 di verifica, ESEGUITA dal file stesso, perché legge il catalogo
+  e non crea niente. Una revoca senza effetto diventa un errore, invece di un
+  WARNING sotto un "Success". La c9 della controprova inietta un grant e
+  pretende che quelle stesse query lo vedano.
+- La guardia controlla anche chi ha CONCESSO l'`execute` sulle funzioni, non
+  solo il proprietario.
+- La c3 pretendeva `USAGE` di `authenticated` su `job_runs_id_seq`, che l'app
+  non usa: avrebbe spinto a rimettere un privilegio che non deve esserci.
+
+Non applicato: togliere la riga globale sui default delle funzioni. Il prezzo
+è dichiarato, ed è ora anche nelle regole.
+
+La versione corretta è idempotente e va rieseguita una volta, perché la
+verifica della sezione 4 giri sul database vero.
+
 Collaudo del 2026-11-10:
 
 - **Controprova SQL c1-c8** tutta verde: nessun privilegio di `anon` su
@@ -7705,7 +7736,11 @@ bisogno SOLO dell'anello, non della separazione in livelli.
   funzioni, e i default di `postgres` fanno nascere così anche gli oggetti
   nuovi. Nessuna richiesta senza sessione legge una tabella. Se un giorno una
   pagina pubblica ne avesse bisogno, si concede quella tabella e quel
-  privilegio in una migration che dica perché, mai un grant generale
+  privilegio in una migration che dica perché, mai un grant generale.
+  ⚠️ Il rovescio: una funzione che `postgres` crea **fuori** da `public` e
+  `storage` (uno schema `private` per le policy, per esempio) nasce eseguibile
+  solo dal proprietario. L'`execute` ad `authenticated` si concede nella stessa
+  migration, o ogni policy che la chiama risponde `permission denied for function`
 - Usare `DECIMAL(10,2)` per tutti i valori monetari, mai float
 - UUID per tutti gli ID, mai INT sequenziali
 - Variabili Supabase sempre in `.env.local`, mai hardcoded

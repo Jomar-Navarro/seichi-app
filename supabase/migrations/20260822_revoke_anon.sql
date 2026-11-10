@@ -39,12 +39,22 @@
 -- ----------------------------------------------------------------------------
 --   0. guardia: si ferma se non gira come `postgres`, o se un privilegio di
 --      `anon` in `public` l'ha concesso qualcun altro
---   1. tabelle, viste e sequenze di `public`: via ogni privilegio di `anon`
---   2. le cinque funzioni: via PUBLIC e `anon`, `authenticated` e
---      `service_role` restano come sono
+--   1. tabelle, viste e sequenze di `public`: via ogni privilegio di PUBLIC e
+--      `anon`
+--   2. le funzioni eseguibili da `anon` (un ciclo sul catalogo; il 2026-11-10
+--      erano cinque): via PUBLIC e `anon`, `authenticated` e `service_role`
+--      escono con ciò che avevano
 --   3. i default di `postgres`: niente più `anon` sugli oggetti nuovi di
 --      `public`, e niente più PUBLIC sulle funzioni nuove
---   4. controprova (COMMENTATA — si esegue a parte)
+--   4. verifica ESEGUITA: se `anon` ha ancora qualcosa, il file si annulla
+--   5. controprova (COMMENTATA — si esegue a parte)
+--
+-- ⚠️ Eseguita il 2026-11-10 nella prima versione (cinque `revoke` per nome, solo
+-- `anon` sulle tabelle), poi corretta dalla code review. È idempotente, e sul
+-- catalogo di quel giorno le due versioni danno lo stesso stato — nessun grant
+-- a PUBLIC sulle relazioni, nessuna funzione oltre le cinque — ma va rieseguita
+-- comunque: solo così la verifica della sezione 4 gira una volta sul database
+-- vero.
 --
 -- ⚠️ Nessuna modifica al codice, e nessun ordine di deploy. Prima di scrivere
 -- questo file è stato verificato che l'app non legga mai una tabella senza
@@ -125,12 +135,22 @@ begin
 		  and a.grantee in (0, 'anon'::regrole::oid)
 		  and a.grantor <> 'postgres'::regrole::oid
 		union
+		-- Per le funzioni conta anche il CONCEDENTE, non solo il proprietario:
+		-- un `anon=X/supabase_admin` su una funzione di `postgres` darebbe lo
+		-- stesso WARNING muto delle tabelle.
 		select p.oid::regprocedure::text
 		from pg_proc p
 		join pg_namespace n on n.oid = p.pronamespace
 		where n.nspname = 'public'
 		  and has_function_privilege('anon', p.oid, 'EXECUTE')
-		  and p.proowner <> 'postgres'::regrole::oid
+		  and (
+			p.proowner <> 'postgres'::regrole::oid
+			or exists (
+				select 1 from aclexplode(p.proacl) a
+				where a.grantee in (0, 'anon'::regrole::oid)
+				  and a.grantor <> 'postgres'::regrole::oid
+			)
+		  )
 	) s;
 
 	if v_altrui is not null then
@@ -151,27 +171,46 @@ end $$;
 -- Revocare un privilegio di tabella revoca anche quello delle colonne: oggi
 -- `anon` non ne ha nessuno (verificato), ma la regola vale da sé.
 --
+-- ⚠️ Anche PUBLIC, di cui `anon` è membro: oggi nessuna relazione di `public`
+-- ha un grant a PUBLIC (verificato), ma uno lasciato da una correzione a mano
+-- passerebbe la guardia — l'ha concesso `postgres` — e `anon` lo erediterebbe.
+-- Tabelle e sequenze non hanno PUBLIC per default, quindi nessun altro ruolo
+-- perde qualcosa.
+--
 -- ⚠️ `authenticated` non perde niente. Il grant di sola colonna su
--- `notifications.read` (`20260804`) resta com'è: questo file nomina solo `anon`.
+-- `notifications.read` (`20260804`) resta com'è: questo file nomina solo PUBLIC
+-- e `anon`.
 
-revoke all on all tables    in schema public from anon;
-revoke all on all sequences in schema public from anon;
+revoke all on all tables    in schema public from public, anon;
+revoke all on all sequences in schema public from public, anon;
 
 
 -- ----------------------------------------------------------------------------
 -- 2. Le funzioni
 -- ----------------------------------------------------------------------------
--- Tutte e cinque erano eseguibili da `anon` in due modi: tramite PUBLIC (il
--- default di Postgres per ogni funzione) e con un grant esplicito arrivato dal
--- default di `postgres` su `public`. Va tolto da entrambi, o resta l'altro.
+-- Il 2026-11-10 erano cinque — `budget_period_start`, `budget_period_end`,
+-- `budget_warning_threshold`, `handle_new_user` e `rls_auto_enable` — tutte
+-- eseguibili da `anon` in due modi: tramite PUBLIC (il default di Postgres per
+-- ogni funzione) e con un grant esplicito arrivato dal default di `postgres`
+-- su `public`. Va tolto da entrambi, o resta l'altro.
 --
--- `authenticated` e `service_role` hanno ciascuno il proprio grant ESPLICITO
--- (letto dal catalogo), quindi togliere PUBLIC non li tocca. Il `grant` qui
--- sotto lo scrive comunque per le tre funzioni dei budget, perché per loro è
--- necessario e il file deve dirlo da sé: `budget_period_start` sta nel CHECK di
--- `budgets`, e `set_budget()` è `security invoker` — il CHECK si valuta col
--- ruolo di chi salva, cioè `authenticated`. Senza `execute`, salvare un budget
--- fallirebbe con `permission denied for function`.
+-- ⚠️ Un CICLO sul catalogo, non cinque nomi scritti a mano (code review della
+-- #154): un elenco fisso lascerebbe passare la prossima funzione dimenticata, e
+-- su un database ricostruito senza `rls_auto_enable()` — una funzione della
+-- piattaforma, che nessun file di questo repo crea — il suo `revoke` fallirebbe
+-- con `42883` e trascinerebbe nel rollback tutto il file.
+--
+-- ⚠️ Togliere PUBLIC toglie l'esecuzione a chi l'aveva SOLO da lì. Il ciclo
+-- quindi legge prima se `authenticated` e `service_role` la avevano, e dopo la
+-- revoca rende loro un grant esplicito: escono con ciò che avevano, né più né
+-- meno. (Il 2026-11-10 avevano già tutti e due un grant esplicito su tutte e
+-- cinque: il ripristino è la regola, non una correzione.)
+--
+-- Per le tre funzioni dei budget il `grant` è anche scritto per esteso, dopo il
+-- ciclo, perché lì è NECESSARIO e il file deve dirlo da sé: `budget_period_start`
+-- sta nel CHECK di `budgets`, e `set_budget()` è `security invoker` — il CHECK
+-- si valuta col ruolo di chi salva, cioè `authenticated`. Senza `execute`,
+-- salvare un budget fallirebbe con `permission denied for function`.
 --
 -- ⚠️ Togliere PUBLIC toglie l'esecuzione anche a ruoli che l'avevano SOLO da lì
 -- — `supabase_auth_admin`, `authenticator`, `seichi_ro`. Nessuno di loro chiama
@@ -190,11 +229,31 @@ revoke all on all sequences in schema public from anon;
 --     di `anon` non serviva a niente, se non a sporcare la regola;
 --   · il job notturno gira come `postgres`, proprietario di tutto.
 
-revoke all on function public.budget_period_start(text, date) from public, anon;
-revoke all on function public.budget_period_end(text, date)   from public, anon;
-revoke all on function public.budget_warning_threshold()      from public, anon;
-revoke all on function public.handle_new_user()               from public, anon;
-revoke all on function public.rls_auto_enable()               from public, anon;
+do $$
+declare
+	f record;
+begin
+	for f in
+		-- Firma qualificata a mano: `regprocedure` omette lo schema quando
+		-- `public` è nel search_path, e il file non deve dipendere da quello.
+		select format('%I.%I(%s)', n.nspname, p.proname, pg_get_function_identity_arguments(p.oid)) as sig,
+		       has_function_privilege('authenticated', p.oid, 'EXECUTE') as auth_aveva,
+		       has_function_privilege('service_role',  p.oid, 'EXECUTE') as svc_aveva
+		from pg_proc p
+		join pg_namespace n on n.oid = p.pronamespace
+		where n.nspname = 'public'
+		  and has_function_privilege('anon', p.oid, 'EXECUTE')
+	loop
+		execute format('revoke all on function %s from public, anon', f.sig);
+		if f.auth_aveva then
+			execute format('grant execute on function %s to authenticated', f.sig);
+		end if;
+		if f.svc_aveva then
+			execute format('grant execute on function %s to service_role', f.sig);
+		end if;
+		raise notice '20260822: anon non esegue più %', f.sig;
+	end loop;
+end $$;
 
 grant execute on function public.budget_period_start(text, date) to authenticated, service_role;
 grant execute on function public.budget_period_end(text, date)   to authenticated, service_role;
@@ -234,11 +293,74 @@ alter default privileges for role postgres                  revoke execute on fu
 
 
 -- ----------------------------------------------------------------------------
--- 4. Controprova
+-- 4. Verifica — ESEGUITA, non commentata
+-- ----------------------------------------------------------------------------
+-- Le post-condizioni leggono il catalogo e non creano niente, quindi possono
+-- stare nel file vivo (code review della #154). Ognuno dei modi in cui una
+-- revoca non ha effetto — un WARNING su un privilegio concesso da un altro
+-- ruolo, un grant a PUBLIC, una funzione sfuggita al ciclo — diventa qui un
+-- errore, e il SQL Editor annulla l'intero file invece di stampare un
+-- "Success" che mente. È la guardia della sezione 0 vista dall'altra parte:
+-- quella controlla le premesse, questa il risultato.
+
+do $$
+declare
+	v_txt text;
+begin
+	select string_agg(distinct c.relname::text, ', ') into v_txt
+	from pg_class c
+	join pg_namespace n on n.oid = c.relnamespace
+	cross join lateral aclexplode(c.relacl) a
+	where n.nspname = 'public'
+	  and a.grantee in (0, 'anon'::regrole::oid);
+	if v_txt is not null then
+		raise exception '20260822: anon (o PUBLIC) ha ancora privilegi su %. Niente è stato scritto.', v_txt;
+	end if;
+
+	select string_agg(p.oid::regprocedure::text, ', ') into v_txt
+	from pg_proc p
+	join pg_namespace n on n.oid = p.pronamespace
+	where n.nspname = 'public'
+	  and has_function_privilege('anon', p.oid, 'EXECUTE');
+	if v_txt is not null then
+		raise exception '20260822: anon esegue ancora %. Niente è stato scritto.', v_txt;
+	end if;
+
+	select string_agg(d.defaclobjtype::text, ', ') into v_txt
+	from pg_default_acl d
+	cross join lateral aclexplode(d.defaclacl) a
+	where d.defaclrole = 'postgres'::regrole::oid
+	  and d.defaclnamespace = 'public'::regnamespace::oid
+	  and a.grantee in (0, 'anon'::regrole::oid);
+	if v_txt is not null then
+		raise exception '20260822: i default di postgres su public concedono ancora ad anon (tipi: %). Niente è stato scritto.', v_txt;
+	end if;
+
+	if not exists (
+		select 1 from pg_default_acl d
+		where d.defaclrole = 'postgres'::regrole::oid
+		  and d.defaclnamespace = 0
+		  and d.defaclobjtype = 'f'
+		  and not exists (select 1 from aclexplode(d.defaclacl) a where a.grantee = 0)
+	) then
+		raise exception '20260822: le funzioni nuove di postgres nascono ancora con execute a PUBLIC. Niente è stato scritto.';
+	end if;
+
+	-- Il gemello positivo: una revoca troppo larga passerebbe tutte le prove qui
+	-- sopra. Questi due servono all'app (il CHECK di `budgets`, ogni lettura).
+	if not (has_function_privilege('authenticated', 'public.budget_period_start(text, date)', 'EXECUTE')
+	    and has_table_privilege('authenticated', 'public.transactions', 'SELECT')) then
+		raise exception '20260822: authenticated ha perso un privilegio che l''app usa. Niente è stato scritto.';
+	end if;
+end $$;
+
+
+-- ----------------------------------------------------------------------------
+-- 5. Controprova
 -- ----------------------------------------------------------------------------
 -- ⚠️⚠️ COMMENTATA, e non è un dettaglio: termina con un `raise exception`
 -- voluto, e il SQL Editor di Supabase esegue lo script come UNA transazione.
--- Lasciata eseguibile qui sotto, farebbe rollback anche delle sezioni 1-3 —
+-- Lasciata eseguibile qui sotto, farebbe rollback anche delle sezioni 1-4 —
 -- cioè di questa migration — stampando il messaggio di successo (Fase 21b).
 -- Si copia in una query NUOVA, si tolgono i `--`, si esegue a parte.
 --
@@ -275,7 +397,6 @@ alter default privileges for role postgres                  revoke execute on fu
 -- 	    and has_table_privilege('authenticated', 'public.transactions', 'UPDATE')
 -- 	    and has_table_privilege('authenticated', 'public.transactions', 'DELETE')
 -- 	    and has_table_privilege('authenticated', 'public.account_balances', 'SELECT')
--- 	    and has_sequence_privilege('authenticated', 'public.job_runs_id_seq', 'USAGE')
 -- 	    and has_function_privilege('authenticated', 'public.budget_period_start(text, date)', 'EXECUTE')
 -- 	    and has_function_privilege('authenticated', 'public.dashboard_totals(timestamptz[], uuid)', 'EXECUTE'))
 -- 	then raise exception 'c3 KO: authenticated ha perso un privilegio che l''app usa'; end if;
@@ -346,5 +467,24 @@ alter default privileges for role postgres                  revoke execute on fu
 -- 	select x into v_x from public._prova_154;
 -- 	if v_x is distinct from 42 then raise exception 'c8 KO: il trigger non è scattato (x = %)', v_x; end if;
 --
--- 	raise exception 'ROLLBACK VOLUTO — tutte le prove superate (c1-c8), niente è stato scritto';
+-- 	-- c9: le query della sezione 4 (le stesse di c1 e c2) VEDONO un guasto —
+-- 	-- un grant ad anon su una tabella, uno a PUBLIC su una funzione. Senza
+-- 	-- questa prova, una verifica che non guarda niente passerebbe come una
+-- 	-- che funziona. Il rollback finale toglie entrambi i grant.
+-- 	grant select on public.job_runs to anon;
+-- 	grant execute on function public.budget_warning_threshold() to public;
+-- 	select string_agg(distinct c.relname::text, ', ') into v_txt
+-- 	from pg_class c
+-- 	join pg_namespace n on n.oid = c.relnamespace
+-- 	cross join lateral aclexplode(c.relacl) a
+-- 	where n.nspname = 'public' and a.grantee in (0, 'anon'::regrole::oid);
+-- 	if v_txt is distinct from 'job_runs' then raise exception 'c9 KO: la verifica delle relazioni non vede il grant iniettato (%)', v_txt; end if;
+-- 	select string_agg(p.oid::regprocedure::text, ', ') into v_txt
+-- 	from pg_proc p
+-- 	join pg_namespace n on n.oid = p.pronamespace
+-- 	where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'EXECUTE');
+-- 	-- coalesce: con NULL, `not like` è NULL e la prova passerebbe senza aver visto niente
+-- 	if coalesce(v_txt, '') not like '%budget_warning_threshold%' then raise exception 'c9 KO: la verifica delle funzioni non vede PUBLIC (%)', v_txt; end if;
+--
+-- 	raise exception 'ROLLBACK VOLUTO — tutte le prove superate (c1-c9), niente è stato scritto';
 -- end $$;
