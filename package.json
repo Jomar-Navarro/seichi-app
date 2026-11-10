@@ -47,7 +47,7 @@
     "serwist": "^9.5.12",
     "supabase": "^2.122.1",
     "tailwindcss": "^4",
-    "typescript": "^5",
+    "typescript": "^6",
     "vitest": "^5.0.5"
   },
   "overrides": {
