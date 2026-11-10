@@ -52,9 +52,9 @@
 -- ⚠️ Eseguita il 2026-11-10 nella prima versione (cinque `revoke` per nome, solo
 -- `anon` sulle tabelle), poi corretta dalla code review. È idempotente, e sul
 -- catalogo di quel giorno le due versioni danno lo stesso stato — nessun grant
--- a PUBLIC sulle relazioni, nessuna funzione oltre le cinque — ma va rieseguita
--- comunque: solo così la verifica della sezione 4 gira una volta sul database
--- vero.
+-- a PUBLIC sulle relazioni, nessuna funzione oltre le cinque. RIESEGUITA lo
+-- stesso giorno nella versione corretta, perché la verifica della sezione 4
+-- girasse una volta sul database vero: "Success". Poi la controprova, c1-c9.
 --
 -- ⚠️ Nessuna modifica al codice, e nessun ordine di deploy. Prima di scrivere
 -- questo file è stato verificato che l'app non legga mai una tabella senza

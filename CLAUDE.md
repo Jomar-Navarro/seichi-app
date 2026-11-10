@@ -6215,12 +6215,14 @@ Sul catalogo di quel giorno non è successo, ma il file deve difendersi da solo.
 Non applicato: togliere la riga globale sui default delle funzioni. Il prezzo
 è dichiarato, ed è ora anche nelle regole.
 
-La versione corretta è idempotente e va rieseguita una volta, perché la
-verifica della sezione 4 giri sul database vero.
+La versione corretta è idempotente, ed è stata **rieseguita** lo stesso giorno
+perché la verifica della sezione 4 girasse sul database vero: "Success". Poi la
+controprova, **c1-c9 verde**, con la c9 che vede il grant iniettato.
 
 Collaudo del 2026-11-10:
 
-- **Controprova SQL c1-c8** tutta verde: nessun privilegio di `anon` su
+- **Controprova SQL c1-c8** tutta verde (c9 aggiunta dopo la review, vedi
+  sotto): nessun privilegio di `anon` su
   relazioni e funzioni, `authenticated` intatto, lettura e scrittura come
   `anon` rifiutate dal grant, tabella e funzione nuove senza `anon` (e la RLS
   accesa da `rls_auto_enable()`), il trigger senza `execute`.
