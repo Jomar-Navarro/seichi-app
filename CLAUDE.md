@@ -15,12 +15,19 @@ npm run lint         # eslint
 npm test             # Vitest, le funzioni pure di lib/ (#155) — `test:watch` in sviluppo
 npm run audit:eslint-rules # le regole di eslint scattano ancora (PR #185)
 npm run audit:tokens # token e classi di colore (richiede una build) — vedi sotto
+
+# collaudo end-to-end (#156) — su un Supabase LOCALE in Docker, mai la produzione
+npm run e2e:db       # avvia il database locale, ricostruito dalle migration
+npm run e2e:build    # costruisce l'app contro quel database (sovrascrive .next)
+npm run test:e2e     # la suite Playwright su `next start -p 3200`
 ```
 
 La CI (`.github/workflows/ci.yml`, #152) li esegue tutti da sola su ogni PR e
 su master, più `audit:pwa-cache` e `npm audit --audit-level=high` sull'intero
-albero. Node: `engines.node` in `package.json` (24.x), lo stesso per locale, CI
-e Vercel. Vedi «CI (#152)» sotto «Dipendenze e avvisi di sicurezza».
+albero; la suite end-to-end gira nel job `e2e`, accanto a `verifica`. Node:
+`engines.node` in `package.json` (24.x), lo stesso per locale, CI e Vercel.
+Vedi «CI (#152)» sotto «Dipendenze e avvisi di sicurezza» e «Collaudo
+end-to-end (#156)».
 
 ## Project Structure
 
@@ -141,6 +148,12 @@ lib/
 └── theme.ts              # tipi, cookie e risoluzione del tema (Fase 18)
 
 supabase/migrations/      # SQL da eseguire a mano nel SQL Editor di Supabase
+supabase/config.toml      # il Supabase LOCALE dei test end-to-end (#156) — non la produzione
+
+tests/e2e/                # #156 — scenari Playwright (`*.spec.ts`), uno per difetto
+│                         #   storico; support/ = account di prova, dati, gesti
+scripts/e2e.mjs           # #156 — `db` (supabase start) e `build` (l'app contro il
+                          #   database locale + il marcatore che global-setup pretende)
 
 store/  useUIStore.ts      # Zustand: modal transazioni, edit, refresh trigger,
                            #   conto guardato dalla pagina (#112, vedi ViewedAccount)
@@ -375,6 +388,22 @@ le colonne rimaste prima che sia un'altra fase a scoprirlo.
   `(user_id, date desc)` su `transactions` e gli indici sulle FK — quelli non
   servono alle SELECT ma alle **cancellazioni in cascata**, che senza scandiscono
   l'intera tabella.
+
+#### Ricostruita da zero per davvero — 2026-11-10 (#156)
+
+Fino alla #156 «il repo ricostruisce il database» era un'affermazione: nessuno
+aveva mai eseguito le migration su un database vuoto. `supabase start` lo fa a
+ogni avvio del collaudo end-to-end, e al primo giro si è fermato sulla
+`20260804`: **nessun file creava `pg_cron`**, acceso in produzione dal pannello
+con la Fase 14 (la ricostruzione del 2026-08-04 interrogava tabelle, vincoli,
+policy e funzioni, non le estensioni). Ora la crea la `20260728`, con `if not
+exists`: in produzione non fa niente. Con quella sola riga le venti migration
+passano. Da allora la prova si ripete in CI a ogni PR: una migration che non
+regge su un database vuoto ferma il job `e2e`.
+
+⚠️ Resta da confermare la **versione maggiore di Postgres** della produzione:
+`config.toml` dice 17 (il default della CLI per un progetto nuovo), ma non è
+stata letta dal database (`select version();`).
 
 #### Verifica contro il catalogo — 2026-08-13
 
@@ -7383,6 +7412,162 @@ uguale fa fallire il test e va decisa lì: tradotta, o aggiunta all'elenco.
 
   Un rosso va diagnosticato prima di correggere: due volte aveva torto il
   codice (i difetti qui sopra), due volte il test.
+
+### Collaudo end-to-end (#156, 2026-11-10)
+
+Fino alla #156 ogni fase era collaudata da un driver Playwright scritto nello
+scratchpad e poi buttato: le controprove sul codice di prima, la parte più
+preziosa di quel lavoro, non si potevano rieseguire. Ora stanno in
+`tests/e2e/` (`@playwright/test`) e girano in CI nel job `e2e`.
+
+#### ⚠️ Il database: un Supabase LOCALE, mai la produzione
+
+**Deciso da Jomar il 2026-11-10**, fra tre strade:
+
+| | perché no |
+|---|---|
+| account usa e getta in produzione (come `collauda-app`) | ogni PR scriverebbe sul database vero, e il giorno in cui la #40 riaccende *Confirm email* la registrazione non dà più una sessione: servirebbe la chiave `service_role` nei segreti di CI |
+| un secondo progetto cloud di staging | va allineato a mano a ogni migration, e il piano gratuito lo sospende dopo 7 giorni senza uso |
+| **Supabase locale in Docker** ✅ | — |
+
+`supabase start` (la CLI è in devDependencies, **2.122.x**: la 3.0 è una
+riscrittura di pochi giorni prima) ricostruisce il database **dalle migration
+del repo** e lo butta alla fine. Non tocca la produzione, non ha segreti — le
+chiavi del database locale sono quelle pubbliche della CLI — e la configurazione
+d'autenticazione è sua (`supabase/config.toml`): la #40 non lo cambia.
+
+```bash
+npm run e2e:db       # Docker deve girare. Ricrea lo schema solo se lo stack è spento
+npm run e2e:build    # l'app costruita CONTRO il database locale, in .next
+npm run test:e2e     # next start -p 3200 + la suite (anche: npx playwright test <file>)
+npx supabase stop --no-backup   # spegne e butta il database locale
+```
+
+- ⚠️⚠️ **La difesa della produzione è il MARCATORE.** Le NEXT_PUBLIC_* sono
+  inlinizzate in compilazione, quindi su quale database scrivono i test lo
+  decide la build, non le variabili del momento: una `.next` costruita con
+  `.env.local` e servita ai test creerebbe account sul database vero.
+  `e2e:build` lascia `.next/e2e-supabase.json`, `next build` svuota `.next`
+  all'inizio, e `global-setup.ts` si rifiuta di partire se il marcatore manca o
+  non punta a `127.0.0.1`. In più ogni chiamata dei test al database passa da
+  `assertLocal()`, e il webServer non riusa MAI un server già acceso (sulla
+  3100 può girare una build di produzione di `collauda-app`).
+  Verificato dopo la prima build: l'host di produzione non compare in nessun
+  file di `.next`.
+- ⚠️ `e2e:build` e `npm run build` **si sostituiscono a vicenda** in `.next`:
+  dopo un collaudo end-to-end, `audit:tokens` e `collauda-app` vogliono una
+  build normale, e viceversa.
+- **Le chiavi JWT sono ES256, come in produzione**: `e2e.mjs db` genera
+  `supabase/signing_keys.json` (ignorato da git) alla prima esecuzione. Col
+  segreto HS256 di default `getClaims()` ripiegherebbe in silenzio su
+  `getUser()`, e i test proverebbero un percorso d'autenticazione che la
+  produzione non usa.
+- `config.toml` accende solo ciò che l'app usa (niente realtime, edge
+  functions, analytics) e alza i limiti di accesso per IP: i test entrano tutti
+  dallo stesso indirizzo. ⚠️ **Non descrive la produzione**, e l'avvertenza in
+  testa al file dice perché non deve mai farlo (sotto).
+- **Il primo frutto: la ricostruzione da zero non reggeva.** Mancava `pg_cron`
+  (vedi «Ricostruita da zero per davvero» nella sezione della #43).
+
+#### ⚠️⚠️ L'integrazione GitHub di Supabase applica le migration al merge
+
+Scoperto preparando la #156, ed è **precedente**: l'integrazione GitHub del
+progetto ha *Deploy to production* acceso, e **a ogni commit su master prova
+ad applicare alla produzione tutte le migration** che non trova nella propria
+cronologia. Siccome le migration sono sempre state eseguite a mano dal SQL
+Editor, la cronologia è vuota, e il tentativo si ferma alla prima istruzione
+della `20260727`: «STOP: la 20260813 è già stata eseguita» (il controllo
+«Supabase Preview» rosso sui commit di master). **Le guardie hanno fatto
+esattamente il loro lavoro.**
+
+- Dal merge della #156 in poi la cartella ha un `config.toml`. Secondo la
+  documentazione (letta il 2026-11-10) la produzione riceve solo migration,
+  Edge Functions e bucket **dichiarati** in `config.toml`; `[auth]`, `[api]`,
+  `[db]` e seed restano fuori finché un blocco `[remotes]` non nomina il
+  progetto. Quindi: **mai un `[remotes]` per la produzione**, niente bucket né
+  funzioni in `config.toml`.
+- ⚠️ **Da decidere con la #157**: allineare la cronologia
+  (`supabase migration repair`) farebbe sì che il merge applichi DAVVERO le
+  migration nuove, in automatico. Cambierebbe la procedura di rilascio —
+  oggi a volte l'ordine è «prima il codice, poi la migration» (#123) — quindi
+  prima va scelto se tenere *Deploy to production* acceso.
+
+#### Gli account di prova
+
+Ogni test ne crea uno suo (`account` in `support/fixtures.ts`) e lo elimina
+alla fine, anche se fallisce: niente stato condiviso, quindi i test girano in
+parallelo e in qualunque ordine. L'utente nasce dall'API admin del database
+locale, **già confermato**; tutto il resto lo scrive col PROPRIO token, sotto
+RLS, come l'app. Indirizzi `@e2e.seichi.test` (un dominio riservato, mai
+consegnabile); `global-teardown.ts` elimina quelli di un test interrotto e
+fallisce se qualcuno resta. La registrazione dal form vero la prova il suo
+scenario.
+
+#### Gli scenari, e la controprova di ciascuno
+
+Ogni scenario custodisce un difetto che c'è stato davvero, e i numeri sono
+scelti perché ogni formula sbagliata dia un valore diverso. **Controprova del
+2026-11-10**: ogni difetto reintrodotto nel codice dell'app, due build da sei
+mutazioni scelte in modo che non si tocchino: in ciascuna **esattamente** i sei
+scenari mutati diventano rossi, per la ragione prevista, e gli altri sei
+restano verdi.
+
+| scenario | difetto (fase) | mutazione → esito |
+|---|---|---|
+| registrazione, abbandono dopo le preferenze | primo conto creato a `/category` (20a) | niente `ensureFirstAccount` in `savePreferences` → «Serve un conto…» |
+| onboarding completato una seconda volta | `saveCategories` cancellava tutto (#116) | cancellare prima di inserire → movimenti 2 → 0 |
+| home e /analisi, con e senza conto | /analisi sottraeva risparmi e investimenti (20a) | `sommaUscite` su ogni tipo ≠ entrata → 1020 invece di 1620 |
+| trasferimento dal form | segno dal tipo prima che dalla destinazione (20b) | ordine invertito in `amountSign` → niente «+ € 100,00» sul conto di arrivo |
+| il nuovo movimento propone il conto guardato | primo conto attivo sempre (#112) | ignorare `viewedAccountId` → «Conto principale» invece di Revolut |
+| «indietro» nel wizard | il form si smontava (#122) | montarlo solo al passo «form» → «Seleziona categoria» |
+| ricerca con lo spazio finale | ago non ripulito (#122) | niente `trim()` → nessun risultato |
+| export di un conto riletto da `parseCsv()` | Tipo da `t.typesSingular` (23a) | → «Spesa» e id minuscoli nella colonna |
+| velo del PIN senza il cookie | il client decideva dal solo cookie (#125) | `isPinEnabledOnClient` sul solo cookie → nessun velo |
+| import Trade Republic, vendite su ETF | categoria confrontata col tipo nudo (#118) | `type !== d.target` → l'import fallisce |
+| `@desktop` separatori delle impostazioni | classe incollata a `${` (#114) | → colore del testo, `rgb(51, 55, 61)` |
+| `@firefox` bordi traslucidi arrotondati | bordo vero sul vetro (#81) | `border border-subtle` sulla card di `SettingsGroup` → 9 elementi |
+
+- Tre progetti: `telefono` (414×896, tutto ciò che non ha un'etichetta),
+  `desktop` (1440×900, `@desktop`) e `firefox` (1024×768, `@firefox`).
+  ⚠️ Il controllo della #81 legge lo **stile calcolato**, quindi trova la causa
+  in qualunque motore; gira in Firefox perché è lì che il difetto si vede, e lo
+  scatto di un fallimento lo mostra. Unica eccezione dichiarata: il riquadro
+  tratteggiato dell'import.
+- `?conto=` esplicito ovunque conti il conto: con la memoria in cookie «aprire
+  la home» non è uno stato determinato (20b, #148).
+- Un'eccezione non gestita nella pagina fa fallire il test anche se ogni
+  asserzione è verde (`pageErrors`, automatica).
+- **Niente tentativi ripetuti** (`retries: 0`): un test che passa al secondo
+  giro è un difetto di tempi nascosto. Il limite è 90 s per test perché il
+  primo giro, con otto browser su un `next start` appena acceso, ha toccato i
+  50 su un portatile.
+
+#### Trappole trovate scrivendo la suite
+
+- **Lo splash si dissolve nell'OPACITÀ e resta nel DOM** (trasparente,
+  `pointer-events-none`): aspettare `visibility: hidden` non finisce mai.
+- **Il tastierino del PIN scarta la stessa cifra ripetuta entro 80 ms**
+  (il duplicato del tocco, 26a), e Playwright tocca più in fretta di un dito:
+  «000000» registra una cifra sola. I PIN dei test hanno cifre tutte diverse,
+  e dopo un PIN sbagliato si aspetta che l'errore sparisca (~900 ms durante i
+  quali il tastierino non accetta cifre).
+- **Il passo dell'importo legge la tastiera fisica** (28d): `keyboard.type()`
+  è più semplice e più vero dei tasti a schermo.
+- Il bottone «indietro» del modale **non ha un nome accessibile** (si trova
+  dall'icona `lucide-chevron-left`): materia della #165.
+- **`use` come parametro di una fixture** fa scattare `rules-of-hooks` di
+  React: nelle fixture si chiama `provide`.
+- **Un'assenza è vera anche un istante prima**: «nessun messaggio d'errore»
+  dopo «Importa» passava prima che l'errore arrivasse. Si aspetta la schermata
+  finale, non l'assenza dell'errore.
+
+#### Cosa resta fuori
+
+Ciò che dipende dal dispositivo (Face ID vero, la stampa, lo splash nativo di
+iOS, *Riduci movimento* vero), l'OAuth, e ciò che è proprio della produzione
+(SMTP, *Confirm email* acceso): restano al telefono e allo skill
+`collauda-app`. Il job `e2e` **non è ancora fra i controlli richiesti** da
+`master`: lo diventa quando Jomar aggiorna la regola del ramo.
 
 ### Movimento ridotto (#153, 2026-11-09)
 

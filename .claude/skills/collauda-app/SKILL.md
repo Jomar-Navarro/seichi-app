@@ -9,6 +9,13 @@ description: Avvia e pilota Seichi in un browser headless per vedere una modific
 sbagliati, etichette che mentono, parametri dimenticati. Questo skill serve a
 **guardare l'app**, non a compilarla.
 
+⚠️ **Dalla #156 c'è anche la suite `tests/e2e/`** (Playwright, su un Supabase
+LOCALE in Docker: `npm run e2e:db`, `e2e:build`, `test:e2e`). Questo skill
+resta per GUARDARE — screenshot, numeri messi a confronto, la produzione dopo
+un merge; un controllo che deve restare, con la sua controprova, si scrive là.
+⚠️ `e2e:build` e `npm run build` si sostituiscono in `.next`: prima di una
+build di produzione per questo skill, rifarla.
+
 ## 1 · Il server
 
 ```bash

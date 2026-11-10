@@ -1,3 +1,20 @@
+# ============================================================================
+# Seichi (#156): questo file configura SOLO il Supabase LOCALE in Docker su cui
+# gira il collaudo end-to-end (`npm run e2e:db`). Non descrive la produzione:
+# site_url su localhost:3200, conferma email spenta, limiti di frequenza alti.
+#
+# ⚠️⚠️ L'integrazione GitHub di Supabase legge questa cartella, e ha «Deploy to
+# production» acceso: a ogni merge su master applica alla produzione le
+# MIGRATION nuove, più le Edge Functions e i bucket DICHIARATI qui. Il resto —
+# [auth], [api], [db], il seed — la produzione lo ignora finché un blocco
+# `[remotes]` non nomina il suo progetto (docs: branching/github-integration,
+# letta il 2026-11-10). Quindi:
+#   · MAI un blocco [remotes] che nomini la produzione: porterebbe lì questo
+#     site_url e la conferma email spenta;
+#   · niente [storage.buckets.*] né [functions.*] qui: i bucket veri li creano
+#     le migration (`avatars` nella 20260729, `receipts` nella 20260818).
+# ============================================================================
+#
 # For detailed configuration reference documentation, visit:
 # https://supabase.com/docs/guides/local-development/cli/config
 # A string used to distinguish different Supabase projects on the same host. Defaults to the
