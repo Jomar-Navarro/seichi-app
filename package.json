@@ -48,7 +48,7 @@
     "supabase": "^2.122.1",
     "tailwindcss": "^4",
     "typescript": "^6",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   },
   "overrides": {
     "browserslist": "^4.28.8",
