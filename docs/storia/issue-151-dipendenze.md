@@ -30,6 +30,9 @@ sapeva: `npm audit` non lo lanciava nessuno. Passati a 16.4.5 con le minori.
   nostri file e sulla nostra configurazione; in produzione `/serwist/sw.js` è
   già prerenderizzato in build (● nell'output), quindi nessun input di un
   utente li raggiunge.
+  ⚠️ Non solo Serwist (ricontato il 2026-11-10, 12 voci moderate): lo stesso
+  `minimatch` 10 arriva anche da ESLint 10 (`@eslint/config-array`) e da
+  typescript-eslint. Girano solo nel lint, sui nostri file: stesso giudizio.
 
 #### Le prime maggiori di Dependabot (2026-11-07)
 
@@ -40,7 +43,8 @@ locale invece che leggendo i numeri di versione:
 |---|---|---|
 | espree 11, eslint-scope 9 | **adottate** | li usa solo `audit:pwa-cache`: la controprova della #127 (`...defaultCache` nel worker) dà gli stessi **18 problemi** di prima |
 | ESLint 10 | **adottata, con un limite** | un file con una violazione per famiglia (react, react-hooks, jsx-a11y, import, @next, typescript-eslint): **8 regole e 8 messaggi identici** a ESLint 9. ESLint 9 è già segnalato da npm come non più supportato |
-| TypeScript 7 | **rimandata** | `npm run lint` si ferma su «typescript-eslint does not support TS 7.0»; regola `ignore` in `dependabot.yml` da `>=6.1`, il limite del peer di typescript-eslint. La 6.0 ci rientra ma **non è stata provata**: arriverà come PR da provare come ogni maggiore |
+| TypeScript 7 | **rimandata** | `npm run lint` si ferma su «typescript-eslint does not support TS 7.0»; regola `ignore` in `dependabot.yml` da `>=6.1`, il limite del peer di typescript-eslint. La 6.0 ci rientra ~~ma **non è stata provata**: arriverà come PR da provare come ogni maggiore~~ — provata e adottata, riga sotto |
+| TypeScript 6.0.3 | **adottata** il 2026-11-10 (#186) | la PR di Dependabot, aggiornata sulla `master` col collaudo end-to-end: `verifica` (tipi, lint, `audit:eslint-rules`, build) ed `e2e` verdi; typescript-eslint 8.72 dichiara `typescript <6.1.0`, quindi nessun peer forzato; nessun avviso di opzioni deprecate |
 
 ⚠️⚠️ **Il limite di ESLint 10 sta nei plugin col peer forzato.**
 `eslint-plugin-react`, `-import` e `-jsx-a11y` arrivano con

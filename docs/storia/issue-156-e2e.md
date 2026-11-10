@@ -192,6 +192,12 @@ minuti e mezzo, e `--with-deps` installa comunque i pacchetti di sistema.
 Ciò che dipende dal dispositivo (Face ID vero, la stampa, lo splash nativo di
 iOS, *Riduci movimento* vero), l'OAuth, e ciò che è proprio della produzione
 (SMTP, *Confirm email* acceso): restano al telefono e allo skill
-`collauda-app`. Il job `e2e` **non è ancora fra i controlli richiesti** da
-`master`: lo diventa quando Jomar aggiorna la regola del ramo.
+`collauda-app`.
+
+Il job `e2e` è fra i controlli richiesti da `master` dal 2026-11-10, insieme
+a `verifica` (deciso con Jomar, dopo il merge della #192). La regola del ramo
+non vale per gli amministratori: se il job si rompe per una causa esterna — il
+registro delle immagini Docker giù, per esempio — il merge resta possibile a
+mano. Una PR aperta prima di quel giorno non ha il controllo e va aggiornata
+sulla `master`.
 

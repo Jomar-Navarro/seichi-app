@@ -62,8 +62,9 @@ updates:
       # 2026-11-07, `npm run lint` si ferma su «typescript-eslint does not
       # support TS 7.0», e typescript-eslint dichiara `typescript <6.1.0`. Il
       # supporto è tracciato in typescript-eslint/typescript-eslint#10940.
-      # Il limite è quello del peer, `>=6.1`: la 6.0 ci rientra e può arrivare,
-      # come PR da provare (non è stata provata). Si sposta quando la PR
+      # Il limite è quello del peer, `>=6.1`: la 6.0 ci rientra, ed è stata
+      # provata e adottata il 2026-11-10 (#186: verifica ed e2e verdi, peer di
+      # typescript-eslint 8.72 `<6.1.0` rispettato). Si sposta quando la PR
       # raggruppata porta un typescript-eslint (dentro eslint-config-next) con
       # un peer più largo: `npm ls typescript-eslint` e il suo `typescript`.
       - dependency-name: "typescript"
