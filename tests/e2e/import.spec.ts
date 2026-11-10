@@ -53,13 +53,14 @@ test("acquisti e vendite Trade Republic si compensano sulla categoria", async ({
 	await choose(card("Vendite"), "Categoria", "ETF");
 	await page.getByRole("button", { name: "Continua" }).click();
 	await page.getByRole("button", { name: "Importa", exact: true }).click();
-	await expect(page.getByText(/La categoria non corrisponde/)).toHaveCount(0);
+	// La schermata finale, non l'assenza dell'errore: un'assenza è vera anche
+	// un istante prima che l'errore arrivi.
+	await expect(page.getByText("Import completato")).toBeVisible();
+	await expect(page.getByText("2 movimenti importati")).toBeVisible();
 
-	await expect
-		.poll(async () =>
-			(await account.rest<{ type: string; amount: number; category_id: string }[]>("GET", "transactions?select=type,amount,category_id&order=type")),
-		)
-		.toEqual([
+	expect(
+		await account.rest<{ type: string; amount: number; category_id: string }[]>("GET", "transactions?select=type,amount,category_id&order=type"),
+	).toEqual([
 			{ type: "disinvestimento", amount: 199, category_id: s.cat("ETF") },
 			{ type: "investimento", amount: 501, category_id: s.cat("ETF") },
 		]);

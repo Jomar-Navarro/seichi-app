@@ -28,7 +28,9 @@ export default defineConfig({
 	retries: 0,
 	workers: process.env.CI ? 2 : undefined,
 	reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : [["list"]],
-	timeout: 60_000,
+	// 90 secondi e non 60: il primo giro, con otto browser che aprono insieme
+	// un `next start` appena acceso, ha toccato i 50 su un portatile.
+	timeout: 90_000,
 	expect: { timeout: 10_000 },
 	use: {
 		baseURL: BASE_URL,

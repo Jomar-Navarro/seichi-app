@@ -109,3 +109,55 @@ jobs:
       # glob/minimatch dentro Serwist sono accettati e spiegati in CLAUDE.md.
       - name: Avvisi di sicurezza
         run: npm audit --audit-level=high
+
+  # Il collaudo end-to-end (#156): l'app vera in un browser vero, contro un
+  # Supabase LOCALE che `supabase start` ricostruisce dalle migration del repo.
+  # Mai il database di produzione, e nessun segreto: le chiavi del database
+  # locale sono quelle pubbliche della CLI. Un job a parte perché la build è
+  # diversa (punta al database locale) e così gira accanto a `verifica`.
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: package.json
+          cache: npm
+
+      # Lo script d'installazione non approvato lo ferma già `verifica`.
+      - name: Installazione
+        run: npm ci
+
+      # Docker c'è già sui runner di GitHub. È anche la prova che le migration
+      # ricostruiscono il database da zero: se una non regge, ci si ferma qui.
+      - name: Supabase locale
+        run: npm run e2e:db
+
+      - name: Build contro il database locale
+        run: npm run e2e:build
+
+      - name: Browser di Playwright
+        run: npx playwright install --with-deps chromium firefox
+
+      - name: Collaudo end-to-end
+        run: npm run test:e2e
+
+      # Tracce e scatti dei test falliti. I dati sono quelli finti dei test, e
+      # le chiavi del database locale sono pubbliche: niente da nascondere.
+      - name: Referto
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
