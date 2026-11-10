@@ -12,6 +12,10 @@
 
 # testing
 /coverage
+# I referti di Playwright (#156): tracce e scatti di un giro, rifatti a ogni giro.
+/test-results/
+/playwright-report/
+/blob-report/
 
 # next.js
 /.next/

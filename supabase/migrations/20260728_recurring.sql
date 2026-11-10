@@ -58,6 +58,21 @@ end $$;
 
 
 -- ----------------------------------------------------------------------------
+-- 0-bis. L'estensione pg_cron (aggiunta il 2026-11-10, #156)
+-- ----------------------------------------------------------------------------
+-- In produzione è stata accesa dal pannello di Supabase (Database → Extensions)
+-- con la Fase 14, e nessun file la creava: la ricostruzione del 2026-08-04
+-- interrogava tabelle, vincoli, policy e funzioni, non le estensioni. Il buco
+-- si è visto solo ricostruendo il database da zero con `supabase start` (#156):
+-- la `20260804` si fermava su `relation "cron.job" does not exist`.
+--
+-- In `pg_catalog`, come la crea il pannello. `if not exists`: sul database di
+-- produzione, dove c'è già, non fa niente.
+
+create extension if not exists pg_cron with schema pg_catalog;
+
+
+-- ----------------------------------------------------------------------------
 -- 1. TABELLA recurring_rules
 -- ----------------------------------------------------------------------------
 -- Una REGOLA, non le occorrenze materializzate: 120 transazioni future non
