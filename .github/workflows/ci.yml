@@ -80,6 +80,12 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # Le funzioni pure di `lib/` (#155): importi, import, date, ricorrenti,
+      # segni, dizionari. Prima della build perché costano un secondo, e un
+      # numero sbagliato vale la pena di saperlo prima di aspettare il resto.
+      - name: Test unitari
+        run: npm test
+
       # Il lint verde dice solo che l'app non ha violazioni: questo controlla
       # che le regole scattino ancora (PR #185, plugin con il peer forzato).
       - name: Audit delle regole ESLint

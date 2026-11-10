@@ -16,6 +16,9 @@
  * come un errore di parsing.
  */
 
+import { isISODate } from "../dates";
+import { couldBeThousandsGroup } from "../thousands";
+
 /** Il carattere che separa i campi. Riconosciuto dalla prima riga. */
 export type Delimiter = "," | ";" | "\t";
 
@@ -202,9 +205,15 @@ export function parseAmount(raw: string | undefined): number | null {
 		 * Republic non è in quel caso — usa SEI decimali (`200.000000`,
 		 * `35070.710000`), quindi la coda non è mai di tre cifre.
 		 */
+		/*
+		 * ⚠️ E uno ZERO davanti non è mai un gruppo di migliaia (#155): `0,125`
+		 * letto come migliaia diventava **125** — di nuovo un fattore mille,
+		 * muto. La regola è in `couldBeThousandsGroup()`, la stessa del campo.
+		 */
 		const sep = dots > 0 ? "." : ",";
+		const head = cleaned.slice(0, cleaned.lastIndexOf(sep));
 		const tail = cleaned.slice(cleaned.lastIndexOf(sep) + 1);
-		const isThousands = dots + commas > 1 || /^\d{3}$/.test(tail);
+		const isThousands = dots + commas > 1 || couldBeThousandsGroup(head, tail);
 		normalized = isThousands ? cleaned.split(sep).join("") : cleaned.replace(sep, ".");
 	}
 
@@ -222,6 +231,11 @@ export function parseAmount(raw: string | undefined): number | null {
  * sintomo era una data plausibile e sbagliata. Qui i formati sono riconosciuti
  * uno per uno e quelli ambigui sono letti **giorno prima**, che è la
  * convenzione europea di ogni banca che questa app possa incontrare.
+ *
+ * ⚠️ E la data deve ESISTERE (#155). Prima si controllava solo il mese, quindi
+ * `31/02/2026` diventava `2026-02-31`: Postgres la rifiutava dentro
+ * `import_transactions()` e con lei l'intero lotto, invece della sola riga, che
+ * ora finisce fra le illeggibili come ogni altra data che non si capisce.
  */
 export function parseDate(raw: string | undefined): string | null {
 	if (raw == null) return null;
@@ -229,17 +243,16 @@ export function parseDate(raw: string | undefined): string | null {
 	if (value === "") return null;
 
 	// ISO, con o senza parte oraria: `2026-07-31`, `2026-07-31T16:37:36Z`.
-	const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
-	if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
-
 	// Europeo: `31/07/2026`, `31-07-2026`, `31.07.2026`.
+	const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
 	const eu = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/.exec(value);
-	if (eu) {
-		const day = eu[1].padStart(2, "0");
-		const month = eu[2].padStart(2, "0");
-		if (Number(month) > 12) return null;
-		return `${eu[3]}-${month}-${day}`;
-	}
+	const date = iso
+		? `${iso[1]}-${iso[2]}-${iso[3]}`
+		: eu
+			? `${eu[3]}-${eu[2].padStart(2, "0")}-${eu[1].padStart(2, "0")}`
+			: null;
 
-	return null;
+	// Un punto solo per la validazione: un mese oltre il 12 (il formato
+	// americano, `12/31/2026`) cade qui come ogni data che non esiste.
+	return date !== null && isISODate(date) ? date : null;
 }

@@ -1,6 +1,7 @@
 import { INTL_LOCALE, type Locale } from "./i18n/config";
 import { DISPLAY_CURRENCY, fill, formatMoney } from "./i18n/format";
 import type { Dictionary } from "./i18n/dictionaries/it";
+import { couldBeThousandsGroup } from "./thousands";
 
 /*
  * Gli importi SCRITTI DALL'UTENTE — issue #119.
@@ -113,10 +114,10 @@ export function parseAmountInput(
 		const tail = s.slice(s.indexOf(sep) + 1);
 		// Vedi la nota in testa: tre cifre dopo il separatore delle migliaia
 		// della lingua sono migliaia; dopo qualunque altro sono decimali.
-		// ⚠️ Salvo che davanti ci sia uno zero: nessuno scrive "zero mila", e
-		// "0.500" letto come migliaia diventerebbe 500 — resta un decimale, e
-		// tre decimali sono un errore.
-		decimal = tail.length === 3 && sep !== localeDecimal && /^[1-9]/.test(head) ? null : sep;
+		// ⚠️ Salvo che davanti ci sia uno zero: "0.500" resta un decimale, e tre
+		// decimali sono un errore. La regola è condivisa con il lettore
+		// dell'import (`couldBeThousandsGroup`), che l'aveva persa (#155).
+		decimal = sep !== localeDecimal && couldBeThousandsGroup(head, tail) ? null : sep;
 	}
 	// Un separatore ripetuto ("1.234.567") non può che essere delle migliaia:
 	// `decimal` resta null.
