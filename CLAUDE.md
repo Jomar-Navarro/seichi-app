@@ -94,6 +94,9 @@ lib/
 │                         #   (virgola e punto, migliaia; l'ambiguo lo decide la
 │                         #   lingua), formatAmountInput, i tasti del tastierino,
 │                         #   isStorableAmount per le server action — DECIMAL(10,2)
+├── thousands.ts          # #155 — couldBeThousandsGroup(): la regola delle migliaia
+│                         #   che amount.ts e import/csv.ts condividono
+├── *.test.ts             # #155 — test Vitest accanto ai moduli (`npm test`)
 ├── attachments.ts        # Fase 22 — bucket, limiti, MIME, TTL della firma,
 │                         #   ATTACHMENT_MAX_EDGE. ⚠️ client-safe TRANNE
 │                         #   receiptPath(): crypto.randomUUID() vuole un
@@ -7304,8 +7307,10 @@ CI dopo il lint.
 - **Accanto al modulo** (`lib/amount.test.ts`), solo funzioni pure: niente
   Supabase, niente DOM. Quello che passa dalla rete resta allo skill
   `collauda-app`. Per «oggi» si usa `vi.useFakeTimers({ toFake: ["Date"] })`.
-- **Vitest 5.0.5, non la 5.1.0**: era uscita da due giorni. Nessuno script
-  d'installazione da approvare; Vite 8 arriva come dipendenza di Vitest.
+- **Installata la 5.0.5 di Vitest**, perché la 5.1.0 era uscita da due giorni:
+  la fissa il lock, e le versioni successive arrivano da Dependabot come per
+  ogni altra dipendenza. Nessuno script d'installazione da approvare; Vite 8
+  arriva come dipendenza di Vitest.
 - ⚠️ **Il fuso è fissato** a `Europe/Rome` in `vitest.config.mts`, prima che
   partano i processi dei test. Metà di `lib/` ragiona in ora locale, e i casi
   che contano (il cambio dell'ora, la mezzanotte del primo del mese) esistono
@@ -7337,7 +7342,12 @@ stessa PR:
   cifre vale migliaia, anche con uno zero davanti: un fattore mille, muto.
   `lib/amount.ts` aveva già l'eccezione «nessuno scrive zero mila» dalla #119;
   qui mancava. È di nuovo la «migrazione a campione» della Fase 18, una regola
-  corretta in uno dei due parser e non nell'altro.
+  corretta in uno dei due parser e non nell'altro. Ora la regola sta in
+  `lib/thousands.ts` (`couldBeThousandsGroup`), usata da entrambi (code
+  review): per il resto i due parser divergono di proposito, su questa no.
+  ⚠️ La correzione cambia la chiave di deduplica delle righe generiche con un
+  importo così: un file già importato col difetto, reimportato, scriverebbe
+  una seconda riga accanto a quella sbagliata invece di riconoscerla.
 - ⚠️ **`parseDate("31/02/2026")` dava `2026-02-31`.** Si controllava il mese
   ma non il giorno, e Postgres rifiutava la data dentro `import_transactions()`,
   facendo fallire l'**intero** lotto. Ora la riga finisce fra le illeggibili,

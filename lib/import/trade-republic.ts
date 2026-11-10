@@ -105,12 +105,16 @@ const KIND_BY_TYPE: Record<string, GroupKind> = {
 };
 
 /**
- * Cosa proporre per ogni famiglia, e cosa lasciar scegliere: `targetsFor()`.
+ * I bersagli che portano denaro DENTRO al conto.
  *
- * ⚠️ Fino alla #52 `vendite` proponeva `null`, perché non esisteva un tipo per
- * il disinvestimento. Ora propone `disinvestimento` — vedi il ramo in
- * `targetsFor()`, e il test in `trade-republic.test.ts` che lo pretende.
+ * ⚠️ Da quando esiste `disinvestimento` (#52) non basta più confrontare con
+ * `entrata`: sono due tipi diversi che vanno nello stesso verso, e tenerne
+ * conto in un solo punto è ciò che impedisce alla direzione di essere
+ * reinterpretata a ogni ramo — che è il difetto già corretto una volta qui
+ * sotto.
  */
+const IN_ENTRATA: GroupTarget[] = ["entrata", "disinvestimento"];
+
 /**
  * Un bersaglio è compatibile con la direzione della riga?
  *
@@ -125,17 +129,6 @@ const KIND_BY_TYPE: Record<string, GroupKind> = {
  * È esattamente il difetto che il tipo `Direction` è stato introdotto per
  * rendere impossibile, sopravvissuto dentro le due eccezioni scritte a mano.
  */
-/**
- * I bersagli che portano denaro DENTRO al conto.
- *
- * ⚠️ Da quando esiste `disinvestimento` (#52) non basta più confrontare con
- * `entrata`: sono due tipi diversi che vanno nello stesso verso, e tenerne
- * conto in un solo punto è ciò che impedisce alla direzione di essere
- * reinterpretata a ogni ramo — che è il difetto già corretto una volta qui
- * sotto.
- */
-const IN_ENTRATA: GroupTarget[] = ["entrata", "disinvestimento"];
-
 function fits(target: GroupTarget, direction: Direction): boolean {
 	if (target === "ignora" || target === "trasferimento") return true;
 	return direction === "entrata"
@@ -143,6 +136,13 @@ function fits(target: GroupTarget, direction: Direction): boolean {
 		: !IN_ENTRATA.includes(target);
 }
 
+/**
+ * Cosa proporre per ogni famiglia, e cosa lasciar scegliere.
+ *
+ * ⚠️ Fino alla #52 `vendite` proponeva `null`, perché non esisteva un tipo per
+ * il disinvestimento; ora propone `disinvestimento` (il ramo qui sotto, e il
+ * test in `trade-republic.test.ts` che lo pretende).
+ */
 function targetsFor(
 	kind: GroupKind,
 	direction: Direction,

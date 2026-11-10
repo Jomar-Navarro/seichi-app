@@ -17,6 +17,7 @@
  */
 
 import { isISODate } from "../dates";
+import { couldBeThousandsGroup } from "../thousands";
 
 /** Il carattere che separa i campi. Riconosciuto dalla prima riga. */
 export type Delimiter = "," | ";" | "\t";
@@ -205,16 +206,14 @@ export function parseAmount(raw: string | undefined): number | null {
 		 * `35070.710000`), quindi la coda non è mai di tre cifre.
 		 */
 		/*
-		 * ⚠️ E uno ZERO davanti non è mai un gruppo di migliaia (#155): nessuno
-		 * scrive "zero mila", e `0,125` letto come migliaia diventava **125** —
-		 * di nuovo un fattore mille, muto. `lib/amount.ts` aveva già questa
-		 * eccezione dalla #119; qui mancava, ed è stato un test a dirlo.
+		 * ⚠️ E uno ZERO davanti non è mai un gruppo di migliaia (#155): `0,125`
+		 * letto come migliaia diventava **125** — di nuovo un fattore mille,
+		 * muto. La regola è in `couldBeThousandsGroup()`, la stessa del campo.
 		 */
 		const sep = dots > 0 ? "." : ",";
 		const head = cleaned.slice(0, cleaned.lastIndexOf(sep));
 		const tail = cleaned.slice(cleaned.lastIndexOf(sep) + 1);
-		const isThousands =
-			dots + commas > 1 || (/^\d{3}$/.test(tail) && /^[-+]?[1-9]/.test(head));
+		const isThousands = dots + commas > 1 || couldBeThousandsGroup(head, tail);
 		normalized = isThousands ? cleaned.split(sep).join("") : cleaned.replace(sep, ".");
 	}
 
@@ -244,17 +243,16 @@ export function parseDate(raw: string | undefined): string | null {
 	if (value === "") return null;
 
 	// ISO, con o senza parte oraria: `2026-07-31`, `2026-07-31T16:37:36Z`.
+	// Europeo: `31/07/2026`, `31-07-2026`, `31.07.2026`.
 	const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
-	if (iso) return existing(`${iso[1]}-${iso[2]}-${iso[3]}`);
-
-	// Europeo: `31/07/2026`, `31-07-2026`, `31.07.2026`. Un mese oltre il 12
-	// (il formato americano, `12/31/2026`) cade qui come ogni data impossibile.
 	const eu = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/.exec(value);
-	if (eu) return existing(`${eu[3]}-${eu[2].padStart(2, "0")}-${eu[1].padStart(2, "0")}`);
+	const date = iso
+		? `${iso[1]}-${iso[2]}-${iso[3]}`
+		: eu
+			? `${eu[3]}-${eu[2].padStart(2, "0")}-${eu[1].padStart(2, "0")}`
+			: null;
 
-	return null;
-}
-
-function existing(iso: string): string | null {
-	return isISODate(iso) ? iso : null;
+	// Un punto solo per la validazione: un mese oltre il 12 (il formato
+	// americano, `12/31/2026`) cade qui come ogni data che non esiste.
+	return date !== null && isISODate(date) ? date : null;
 }
