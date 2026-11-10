@@ -356,6 +356,8 @@ create policy "Users can delete own transactions" on public.transactions for del
 -- negata. È difesa singola, non doppia. Un `revoke` su `anon` sarebbe difesa in
 -- profondità, ma toccare i grant di default di Supabase può rompere cose in modi
 -- difficili da attribuire: la decisione è registrata qui e non presa.
+-- (Presa dalla `20260822_revoke_anon.sql`, issue #154, dopo aver letto il
+-- catalogo: questo file resta la fotografia dello stato di allora.)
 --
 -- Nessuno dei ruoli può comunque scavalcare la RLS: `TRUNCATE` la ignorerebbe,
 -- ma PostgREST non espone alcun endpoint che lo esegua.

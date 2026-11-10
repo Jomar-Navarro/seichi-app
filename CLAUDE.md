@@ -390,10 +390,12 @@ database**, non rileggendo i file, con un ruolo di sola lettura. Tutto confermat
   `w` — più un grant di colonna `authenticated=w` sulla sola `read`. Il
   meccanismo "la RLS decide le RIGHE, il grant le COLONNE" funziona come scritto.
 
-⚠️ **`anon` ha ancora `arwdDxtm` su TUTTE le tabelle**, `imports` e `job_runs`
+~~⚠️ **`anon` ha ancora `arwdDxtm` su TUTTE le tabelle**, `imports` e `job_runs`
 comprese: il debito è vivo e si è esteso alle tabelle nuove da solo, perché
 arriva dai default di Supabase e non da una scelta. Resta innocuo per la sola
-RLS — difesa singola. ⚠️ Non si verifica con `information_schema.role_table_grants`,
+RLS — difesa singola.~~ — **chiuso dalla #154** (2026-11-10), anche per le
+tabelle future: vedi «Database — anon senza privilegi».
+⚠️ Non si verifica con `information_schema.role_table_grants`,
 che mostra soltanto i grant in cui il ruolo corrente è concedente o beneficiario:
 da un ruolo terzo risulta **vuota**, e sembra che nessuno abbia privilegi. Si
 legge `pg_class.relacl`.
@@ -414,6 +416,9 @@ coppia: il controllo di integrità cerca per `account_id`, e quell'indice c'è.
 `ensure_rls` è un event trigger **della piattaforma**, non nostro: Supabase abilita
 la RLS da sé su ogni tabella nuova. Comoda rete di sicurezza, ma non sostituisce
 il `enable row level security` esplicito nelle migration — quello dice l'intenzione.
+⚠️ La sua funzione, `rls_auto_enable()`, sta però in `public` e appartiene a
+`postgres`: è comparsa nel catalogo della #154, che le ha tolto l'`execute` di
+PUBLIC e `anon`. Scatta ancora (prova c7 della `20260822`).
 
 #### ⚠️ Le guardie: i file superati non vanno più rieseguiti
 
@@ -463,8 +468,9 @@ sostituisca una funzione o una struttura definita in un file precedente.
   job copiava il nome nella notifica), non la causa: la chiusura sono FK
   composite `(category_id, user_id)` come per i conti, e quelle vogliono
   `categories.user_id` NOT NULL.
-- **`anon` ha DML su tutte e tre**, per default di Supabase. Innocuo *solo*
-  grazie alla RLS — ogni policy è `to authenticated` — quindi è difesa singola.
+- ~~**`anon` ha DML su tutte e tre**, per default di Supabase. Innocuo *solo*
+  grazie alla RLS — ogni policy è `to authenticated` — quindi è difesa singola.~~
+  — **chiuso dalla #154**: `anon` non ha più privilegi in `public`.
 
 ### Storage & funzioni (Fase 16)
 
@@ -6131,6 +6137,75 @@ Collaudo del 2026-10-05, migration eseguita e verificata:
 - `20260804` rieseguita: STOP. `20260818` rieseguita: Success. Il pannello dice
   `Rinnovo "Palestra" l'altro ieri` · *Erano previsti € 40*.
 
+### Database — anon senza privilegi (issue #154)
+
+Migration `20260822_revoke_anon.sql`, eseguita il 2026-11-10. Nessuna modifica
+al codice. `anon` aveva `arwdDxtm` su tutte e dieci le tabelle di `public` e
+`rwU` su `job_runs_id_seq`: il default di Supabase, che le tabelle nuove
+ereditavano da sole. Lo proteggeva la sola RLS. Ora una richiesta senza
+sessione si ferma al grant, prima della RLS.
+
+- **Scritta interrogando il catalogo** (`pg_class.relacl`, `pg_proc.proacl`,
+  `pg_default_acl`). Ha detto che tutto è di `postgres` e che ogni grant ad
+  `anon` l'ha concesso `postgres`, quindi dal SQL Editor si revoca tutto. La
+  guardia in testa si ferma se non è più vero, o se il file non gira come
+  `postgres`: in entrambi i casi un `revoke` darebbe solo un WARNING, e il file
+  finirebbe con "Success" lasciando `anon` al suo posto.
+- **Cinque funzioni erano eseguibili da `anon`**, tutte per due strade: PUBLIC
+  (il default di Postgres) e un grant esplicito arrivato dal default di
+  `postgres`. Erano le tre funzioni dei budget, `handle_new_user()` e
+  `rls_auto_enable()`. Ora non lo sono più. `authenticated` e `service_role`
+  restano con i loro grant espliciti: `budget_period_start` sta nel CHECK di
+  `budgets`, e `set_budget()` è `security invoker`.
+- ⚠️ **I default si chiudono, o il debito si riforma.** Le tabelle, sequenze e
+  funzioni nuove di `public` nascono senza `anon`. In più c'è una riga
+  **globale**, la sola possibile, che toglie PUBLIC dalle funzioni nuove create
+  da `postgres`: un default per schema può solo aggiungere privilegi.
+  Il prezzo: una funzione che `postgres` crea fuori da `public` e `storage`
+  nasce eseguibile solo dal proprietario. Se un giorno servisse uno schema
+  `private` per le funzioni delle policy, l'`execute` ad `authenticated` va
+  concesso a mano. È un errore che si vede subito, contro una funzione
+  `security definer` chiamabile con la chiave pubblicabile.
+  ⚠️ La convenzione di ogni migration resta (`revoke all on function … from
+  public, anon` + `grant execute … to authenticated`): il default è la rete
+  sotto, non la regola.
+- ⚠️ **I default di `supabase_admin` su `public` concedono ancora tutto ad
+  `anon`**, e `postgres` non può toccarli (non ne è membro). Oggi in `public`
+  non c'è un solo oggetto di `supabase_admin`. Se la piattaforma ne creasse uno,
+  lo direbbero le prove c1 e c2 della controprova in fondo alla `20260822`, che
+  si possono rieseguire in qualunque momento.
+- ⚠️⚠️ **L'insert dava già `42501` prima della migration**, ma per la RLS
+  ("new row violates row-level security policy"). Ora dice "permission denied
+  for table". **La prova si fa sul messaggio, non sul codice**: sul solo
+  codice, il secondo criterio della issue sarebbe passato anche senza la
+  migration.
+- **Un trigger scatta anche se chi scrive non ha `execute` sulla sua funzione**:
+  Postgres lo controlla quando il trigger si crea. È ciò su cui conta
+  `handle_new_user()`, che `supabase_auth_admin` aveva solo tramite PUBLIC.
+  Provato due volte: con un trigger di prova (c8) e con una registrazione vera.
+- **La diagnostica era sbagliata al primo giro**: `relkind` ha il tipo interno
+  `"char"`, e `text || "char"` è un operatore ambiguo (`42725`). Serve
+  `relkind::text`.
+
+Collaudo del 2026-11-10:
+
+- **Controprova SQL c1-c8** tutta verde: nessun privilegio di `anon` su
+  relazioni e funzioni, `authenticated` intatto, lettura e scrittura come
+  `anon` rifiutate dal grant, tabella e funzione nuove senza `anon` (e la RLS
+  accesa da `rls_auto_enable()`), il trigger senza `execute`.
+- **Sonda REST con la sola chiave pubblicabile**: prima `200 []` su dieci
+  tabelle, `204` su PATCH e DELETE, `200` su due funzioni helper dei budget;
+  dopo, tutto `401 42501 permission denied`.
+- **29/29 in produzione** su un account usa e getta, registrato ed eliminato
+  dall'app (il login successivo risponde `invalid_credentials`). Il giro ha
+  coperto la registrazione (il `full_name` lo scrive solo il trigger),
+  l'onboarding dalle tre pagine, `set_budget`, `budgets_at`, un insert, nove
+  pagine, il logout, il login col gate dell'onboarding e la richiesta di
+  recupero password.
+- **L'OAuth non si prova da un browser headless.** Dal codice: `/callback`
+  legge `profiles` dopo `exchangeCodeForSession`, sullo stesso client, quindi
+  come `authenticated`.
+
 ### Errori nascosti — messaggi grezzi, letture fallite, rete (issue #124)
 
 Dalla review completa del 2026-09-28 (#128). Nessuna migration. La classe è una
@@ -7626,6 +7701,11 @@ bisogno SOLO dell'anello, non della separazione in livelli.
   per i registri che nessun ruolo del client deve toccare (`job_runs`). Va scritto
   nella migration *perché* è voluto, o alla rilettura è indistinguibile da una
   dimenticanza — che è il caso che la regola esiste per intercettare
+- **`anon` non ha privilegi in `public`** (#154): né sulle tabelle né sulle
+  funzioni, e i default di `postgres` fanno nascere così anche gli oggetti
+  nuovi. Nessuna richiesta senza sessione legge una tabella. Se un giorno una
+  pagina pubblica ne avesse bisogno, si concede quella tabella e quel
+  privilegio in una migration che dica perché, mai un grant generale
 - Usare `DECIMAL(10,2)` per tutti i valori monetari, mai float
 - UUID per tutti gli ID, mai INT sequenziali
 - Variabili Supabase sempre in `.env.local`, mai hardcoded
