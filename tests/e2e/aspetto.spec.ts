@@ -85,11 +85,21 @@ test("@firefox nessun bordo traslucido sugli angoli arrotondati", async ({ page,
 /** Gli elementi visibili con un bordo traslucido (né opaco né trasparente) e un raggio. */
 function translucentRoundedBorders(page: Page) {
 	return page.evaluate(() => {
+		/*
+		 * L'opacità di un colore CALCOLATO, in qualunque sintassi: `rgba(r, g, b,
+		 * a)`, `rgb(r g b / a)`, e `oklab(… / a)` o `color(srgb … / a)`, che è
+		 * ciò che diventa un `color-mix()` o una classe come `border-subtle/50`
+		 * (code review della #156: leggendo solo `rgba()`, quei bordi passavano
+		 * per opachi). Senza una componente d'opacità il colore è opaco.
+		 */
 		const alpha = (c: string) => {
-			const m = c.match(/rgba?\(([^)]+)\)/);
-			if (!m) return 1;
-			const parts = m[1].split(/[\s,/]+/).filter(Boolean);
-			return parts.length === 4 ? Number(parts[3]) : 1;
+			const inner = c.match(/\(([^()]*)\)\s*$/)?.[1];
+			if (!inner) return c === "transparent" ? 0 : 1;
+			const slash = inner.split("/");
+			const commas = inner.split(",");
+			const raw = slash.length === 2 ? slash[1].trim() : commas.length === 4 ? commas[3].trim() : undefined;
+			if (raw === undefined) return 1;
+			return raw.endsWith("%") ? parseFloat(raw) / 100 : parseFloat(raw);
 		};
 		const found: string[] = [];
 		for (const el of document.querySelectorAll<HTMLElement>("body *")) {
@@ -97,8 +107,11 @@ function translucentRoundedBorders(page: Page) {
 			if (cs.display === "none" || cs.visibility === "hidden") continue;
 			const rect = el.getBoundingClientRect();
 			if (rect.width === 0 || rect.height === 0) continue;
-			const radius = parseFloat(cs.borderTopLeftRadius) || parseFloat(cs.borderBottomRightRadius);
-			if (!radius) continue;
+			// Basta un angolo arrotondato: anche `rounded-tr-*` da solo lascia il quadratino.
+			const rounded = [cs.borderTopLeftRadius, cs.borderTopRightRadius, cs.borderBottomRightRadius, cs.borderBottomLeftRadius].some(
+				(r) => parseFloat(r) > 0,
+			);
+			if (!rounded) continue;
 			for (const side of ["Top", "Right", "Bottom", "Left"] as const) {
 				const width = parseFloat(cs.getPropertyValue(`border-${side.toLowerCase()}-width`));
 				const style = cs.getPropertyValue(`border-${side.toLowerCase()}-style`);

@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { BASE_URL, E2E_PORT, localSupabase } from "./tests/e2e/support/env";
+import { BASE_URL, localSupabase } from "./tests/e2e/support/env";
 
 /*
  * Il collaudo end-to-end (#156) — vedi «Collaudo end-to-end» in CLAUDE.md.
@@ -8,11 +8,14 @@ import { BASE_URL, E2E_PORT, localSupabase } from "./tests/e2e/support/env";
  *   npm run e2e:build    l'app costruita CONTRO quel database
  *   npm run test:e2e     questa suite, su `next start -p 3200`
  *
- * ⚠️ Mai sul database di produzione: `global-setup.ts` si rifiuta di partire
- * se l'ultima build non è quella dei test, e ogni chiamata dei test al
- * database passa da `assertLocal()`.
+ * ⚠️ Mai sul database di produzione: il server lo avvia `e2e.mjs serve`, che
+ * si rifiuta se l'ultima build non è quella dei test, e ogni chiamata dei test
+ * al database passa da `assertLocal()`.
+ *
+ * Le chiavi del database locale si leggono qui, una volta, e arrivano ai
+ * worker per ambiente. Con lo stack spento ci si ferma qui, e lo si dice.
  */
-const sb = localSupabase();
+localSupabase();
 
 export default defineConfig({
 	testDir: "tests/e2e",
@@ -62,7 +65,9 @@ export default defineConfig({
 		},
 	],
 	webServer: {
-		command: `npx next start -p ${E2E_PORT}`,
+		// ⚠️ Il controllo del marcatore sta nel COMANDO e non nel globalSetup:
+		// Playwright avvia il webServer prima del globalSetup.
+		command: "node scripts/e2e.mjs serve",
 		url: `${BASE_URL}/welcome`,
 		// ⚠️ Mai riusare un server già acceso: su un'altra porta potrebbe girare
 		// una build di produzione (collauda-app usa la 3100), e su questa una
@@ -70,13 +75,5 @@ export default defineConfig({
 		// sta servendo un processo partito prima.
 		reuseExistingServer: false,
 		timeout: 120_000,
-		env: {
-			// Le NEXT_PUBLIC_* sono già nella build; queste coprono ciò che il
-			// server legge a runtime, e battono `.env.local`.
-			NEXT_PUBLIC_SUPABASE_URL: sb.url,
-			NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb.publishableKey,
-			NEXT_PUBLIC_SITE_URL: BASE_URL,
-			NEXT_TELEMETRY_DISABLED: "1",
-		},
 	},
 });

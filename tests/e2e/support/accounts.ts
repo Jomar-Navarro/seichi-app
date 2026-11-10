@@ -80,6 +80,12 @@ export async function createTestAccount(fullName = "Prova Collaudo"): Promise<Te
 	});
 	if (!res.ok) throw new Error(`creazione di ${email}: ${res.status} ${await res.text()}`);
 	const { access_token, user } = await passwordToken(email, password);
+	// Il token dev'essere firmato come in produzione (ES256): col segreto HS256
+	// di default `getClaims()` ripiega su `getUser()` senza dirlo.
+	const header = JSON.parse(Buffer.from(access_token.split(".")[0], "base64url").toString("utf8")) as { alg: string };
+	if (header.alg !== "ES256") {
+		throw new Error(`il token è ${header.alg}, non ES256: \`npx supabase stop --no-backup\` e di nuovo \`npm run e2e:db\``);
+	}
 	return { id: user.id, email, password, token: access_token, rest: restAs(access_token) };
 }
 
@@ -89,19 +95,29 @@ export async function deleteUser(id: string) {
 	if (!res.ok && res.status !== 404) throw new Error(`eliminazione di ${id}: ${res.status} ${await res.text()}`);
 }
 
-export async function findUserByEmail(email: string) {
-	return (await listTestUsers()).find((u) => u.email === email) ?? null;
+/**
+ * L'id di un account di cui si conosce la password: un login, non l'elenco di
+ * tutti gli utenti. `null` se l'account non è mai nato.
+ */
+export async function userIdOf(email: string, password: string) {
+	return passwordToken(email, password)
+		.then((r) => r.user.id)
+		.catch(() => null);
 }
 
-/** Tutti gli utenti col dominio dei test, a pagine (l'API ne dà 50 per volta). */
+/**
+ * Tutti gli utenti col dominio dei test. Si sfoglia finché una pagina torna
+ * VUOTA: fermarsi a una pagina «corta» presumerebbe che il server rispetti
+ * `per_page`, e con un tetto più basso le pagine dopo la prima si perderebbero.
+ */
 export async function listTestUsers() {
 	const found: { id: string; email: string }[] = [];
-	for (let page = 1; page < 100; page++) {
+	for (let page = 1; page <= 100; page++) {
 		const res = await admin(`users?page=${page}&per_page=200`);
 		if (!res.ok) throw new Error(`elenco utenti: ${res.status} ${await res.text()}`);
 		const { users } = (await res.json()) as { users: { id: string; email: string }[] };
+		if (users.length === 0) return found;
 		found.push(...users.filter((u) => u.email?.endsWith(`@${TEST_EMAIL_DOMAIN}`)));
-		if (users.length < 200) break;
 	}
-	return found;
+	throw new Error("più di 100 pagine di utenti nel database locale: qualcosa non viene mai pulito");
 }

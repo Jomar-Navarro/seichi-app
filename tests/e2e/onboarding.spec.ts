@@ -1,5 +1,5 @@
-import { deleteUser, findUserByEmail, passwordToken, restAs, testEmail, testPassword } from "./support/accounts";
-import { expect, login, open, test } from "./support/fixtures";
+import { deleteUser, passwordToken, restAs, testEmail, testPassword, userIdOf } from "./support/accounts";
+import { expect, leave, login, open, test } from "./support/fixtures";
 import { insertMovements } from "./support/seed";
 
 /**
@@ -60,8 +60,11 @@ test("registrazione, abbandono dopo le preferenze, poi fine dell'onboarding", as
 		const cats = await rest<{ name: string; type: string }[]>("GET", "categories?select=name,type");
 		expect(cats).toEqual([{ name: "Alimentari", type: "spesa" }]);
 	} finally {
-		const u = await findUserByEmail(email);
-		if (u) await deleteUser(u.id);
+		// Nato dal form, non dalla fixture: lo si elimina qui. Se la registrazione
+		// non è arrivata in fondo, l'account non c'è e il login lo dice.
+		await leave(page);
+		const id = await userIdOf(email, password);
+		if (id) await deleteUser(id);
 	}
 });
 

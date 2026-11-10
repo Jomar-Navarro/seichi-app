@@ -11,11 +11,12 @@ import { BASE_URL } from "./env";
 // ⚠️ `provide` e non `use`, il nome dei documenti di Playwright: il lint di
 // React prende ogni `use(...)` per l'hook omonimo e lo vieta in un try.
 export const test = base.extend<{ account: TestAccount; pageErrors: void }>({
-	account: async ({}, provide) => {
+	account: async ({ page }, provide) => {
 		const account = await createTestAccount();
 		try {
 			await provide(account);
 		} finally {
+			await leave(page);
 			await deleteUser(account.id);
 		}
 	},
@@ -31,6 +32,17 @@ export const test = base.extend<{ account: TestAccount; pageErrors: void }>({
 });
 
 export { expect };
+
+/**
+ * La pagina lascia l'app PRIMA che l'utente venga eliminato (code review
+ * della #156): una richiesta ancora in volo — un refresh, una revalidazione —
+ * troverebbe l'utente sparito, e un'eccezione nella pagina farebbe fallire per
+ * `pageErrors` un test il cui corpo era verde. Lo scatto di un fallimento è già
+ * stato preso: Playwright lo fa appena finisce il corpo del test.
+ */
+export async function leave(page: Page) {
+	await page.goto("about:blank").catch(() => {});
+}
 
 /** Il login dal form vero, come un utente. */
 export async function login(page: Page, account: Pick<TestAccount, "email" | "password">) {

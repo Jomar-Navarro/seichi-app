@@ -7448,12 +7448,18 @@ npx supabase stop --no-backup   # spegne e butta il database locale
   decide la build, non le variabili del momento: una `.next` costruita con
   `.env.local` e servita ai test creerebbe account sul database vero.
   `e2e:build` lascia `.next/e2e-supabase.json`, `next build` svuota `.next`
-  all'inizio, e `global-setup.ts` si rifiuta di partire se il marcatore manca o
-  non punta a `127.0.0.1`. In più ogni chiamata dei test al database passa da
-  `assertLocal()`, e il webServer non riusa MAI un server già acceso (sulla
-  3100 può girare una build di produzione di `collauda-app`).
-  Verificato dopo la prima build: l'host di produzione non compare in nessun
-  file di `.next`.
+  all'inizio, e il server dei test lo avvia `e2e.mjs serve`, che si rifiuta se
+  il marcatore manca o non punta a `127.0.0.1`. ⚠️ **Nel comando del server,
+  non nel `globalSetup`**: Playwright avvia il `webServer` PRIMA del
+  `globalSetup` (letto nel sorgente del runner, code review), quindi un
+  controllo là arriverebbe a build già servita. Provato togliendo il
+  marcatore: la suite si ferma con la frase giusta e la porta resta libera.
+  In più ogni chiamata dei test al database passa da `assertLocal()`, e il
+  webServer non riusa MAI un server già acceso (sulla 3100 può girare una
+  build di produzione di `collauda-app`). Verificato dopo la prima build:
+  l'host di produzione non compare in nessun file di `.next`.
+  Porta, marcatore e lettura delle chiavi stanno in `scripts/e2e-local.mjs`,
+  importato dallo script e dalla suite: un modulo, non due copie.
 - ⚠️ `e2e:build` e `npm run build` **si sostituiscono a vicenda** in `.next`:
   dopo un collaudo end-to-end, `audit:tokens` e `collauda-app` vogliono una
   build normale, e viceversa.
@@ -7461,10 +7467,13 @@ npx supabase stop --no-backup   # spegne e butta il database locale
   `supabase/signing_keys.json` (ignorato da git) alla prima esecuzione. Col
   segreto HS256 di default `getClaims()` ripiegherebbe in silenzio su
   `getUser()`, e i test proverebbero un percorso d'autenticazione che la
-  produzione non usa.
+  produzione non usa. ⚠️ `supabase start` su uno stack già acceso **non
+  ricarica la configurazione**: `e2e:db` e il `globalSetup` controllano che il
+  JWKS esponga la chiave del file, e ogni account di prova che il suo token
+  sia ES256.
 - `config.toml` accende solo ciò che l'app usa (niente realtime, edge
-  functions, analytics) e alza i limiti di accesso per IP: i test entrano tutti
-  dallo stesso indirizzo. ⚠️ **Non descrive la produzione**, e l'avvertenza in
+  functions, analytics, email locale, S3, vettori) e alza i limiti di accesso
+  per IP: i test entrano tutti dallo stesso indirizzo. ⚠️ **Non descrive la produzione**, e l'avvertenza in
   testa al file dice perché non deve mai farlo (sotto).
 - **Il primo frutto: la ricostruzione da zero non reggeva.** Mancava `pg_cron`
   (vedi «Ricostruita da zero per davvero» nella sezione della #43).
@@ -7560,6 +7569,32 @@ restano verdi.
 - **Un'assenza è vera anche un istante prima**: «nessun messaggio d'errore»
   dopo «Importa» passava prima che l'errore arrivasse. Si aspetta la schermata
   finale, non l'assenza dell'errore.
+
+#### Emerso dalla code review (10 rilievi, 9 applicati)
+
+- ⚠️⚠️ **Il marcatore si controllava DOPO l'avvio del server** (vedi sopra):
+  la difesa principale della suite era nel posto sbagliato, e lo diceva un
+  commento che descriveva un ordine che Playwright non ha.
+- ⚠️ **Uno stack già acceso tiene la configurazione vecchia**: la chiave ES256
+  scritta dopo l'avvio non arrivava ad Auth, e niente se ne accorgeva. Ora lo
+  controllano tre punti (vedi sopra).
+- ⚠️ **Il rilevatore della #81 leggeva l'opacità solo da `rgba()`**: un
+  `color-mix()` o una classe come `border-subtle/50` diventano `oklab(… / a)`,
+  e passavano per opachi. E guardava due angoli su quattro.
+- **L'utente si eliminava a pagina ancora aperta**: una richiesta in volo
+  poteva sollevare un errore e far fallire per `pageErrors` un test verde. Ora
+  la pagina va su `about:blank` prima (`leave()`); lo scatto di un fallimento
+  è già stato preso, Playwright lo fa appena finisce il corpo del test.
+- L'elenco degli utenti si fermava alla prima pagina «corta»: ora alla prima
+  VUOTA. La pulizia dell'onboarding trova il suo utente con un login, non
+  sfogliando tutti gli utenti.
+- Porta, marcatore e lettura di `supabase status` erano scritti due volte.
+- Con lo stack spento il caricamento della configurazione falliva con un
+  errore muto: ora dice di avviarlo.
+- Email locale, S3 e vettori accesi per niente.
+
+Non applicato: la cache dei browser di Playwright in CI. Il job dura tre
+minuti e mezzo, e `--with-deps` installa comunque i pacchetti di sistema.
 
 #### Cosa resta fuori
 
