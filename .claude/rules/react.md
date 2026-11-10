@@ -52,10 +52,12 @@ Storia: `docs/storia/issue-122-form-movimento`, `issue-148-movimenti`,
 3. **Una richiesta superata si scarta con un contatore** (`requestId`). Oggi Next
    spedisce le action una alla volta, ma la documentazione lo chiama un dettaglio
    d'implementazione.
-4. **Le letture dell'apertura di una pagina stanno in una sola action**, che le
-   compone in parallelo sul server (`getMovimentiData`): più action si
-   metterebbero in coda. Il server component di una pagina non legge niente
-   dalla rete, perché ritarderebbe ogni tocco sulla nav.
+4. **Le letture che un client component fa all'apertura stanno in una sola
+   action**, che le compone in parallelo sul server (`getMovimentiData`): più
+   action si metterebbero in coda. Dove la pagina è un server component sottile
+   che passa il lavoro al client (Movimenti), quel server component non legge
+   niente dalla rete: si rende a ogni navigazione, e ritarderebbe il tocco sulla
+   nav.
 5. **Per navigare dopo aver chiuso un pannello, aspetta `whenModalEntryGone()`**:
    il cleanup di `useCloseOnBack` fa `history.back()`, e un `router.push` in volo
    verrebbe scartato.

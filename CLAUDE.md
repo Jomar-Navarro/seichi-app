@@ -311,8 +311,7 @@ Ogni tabella ha anche `created_at`.
 
 - `transactions.date` è senza fuso, e regge perché Supabase è in UTC;
 - `categories.user_id` è nullable, quindi le chiavi verso `categories` sono a
-  colonna singola e una riga può puntare alla categoria di un altro utente;
-- tre chiavi esterne non hanno indice.
+  colonna singola e una riga può puntare alla categoria di un altro utente.
 
 ## Accesso e onboarding
 

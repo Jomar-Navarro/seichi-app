@@ -41,7 +41,8 @@ Storia: `docs/storia/fase-26a-pin`, `fase-26b-biometrico`, `issue-125-pin`.
    una connessione sicura», non «non disponibile su questo dispositivo».
 10. **Il tastierino**:
     - i tasti funzionano anche da tastiera (`onClick`);
-    - i tocchi doppi entro 80 ms si scartano;
+    - la stessa cifra ripetuta entro 80 ms si scarta, perché è il doppione di
+      un tocco;
     - il click fantasma dell'ultima cifra si assorbe;
     - durante l'errore (900 ms) non accetta niente.
 11. **Si collauda con un autenticatore WebAuthn virtuale via CDP**; il Face ID
