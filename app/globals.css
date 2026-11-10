@@ -17,9 +17,11 @@
 @source not "../.claude";
 @source not "../scripts";
 @source not "../supabase";
-/* I test (#155) sono pieni di stringhe d'esempio: anche loro non sono interfaccia. */
+/* I test (#155, #156) sono pieni di stringhe d'esempio: anche loro non sono interfaccia. */
 @source not "../**/*.test.ts";
 @source not "../vitest.config.mts";
+@source not "../tests";
+@source not "../playwright.config.ts";
 
 /* ============================================================
    SEICHI — ZEN GLASS DESIGN TOKENS

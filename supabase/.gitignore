@@ -1,0 +1,12 @@
+# Supabase
+.branches
+.temp
+
+# dotenvx
+.env.keys
+.env.local
+.env.*.local
+
+# Seichi (#156): la chiave privata ES256 del database locale, generata da
+# `scripts/e2e.mjs db`. Usa e getta, ma resta una chiave privata.
+signing_keys.json
