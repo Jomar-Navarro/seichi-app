@@ -23,8 +23,9 @@ Storia: `docs/storia/issue-151-dipendenze`, `issue-152-ci`,
      dell'avviso cambia fra le versioni di npm.
 3. **`overrides["@serwist/turbopack"].zod`** forza la patch di `zod` solo nel ramo
    di Serwist; si toglie quando Serwist la porta da sé (`npm ls zod`). Gli avvisi
-   moderati di `glob` e `minimatch` dentro `@serwist/build` sono accettati:
-   girano solo in build, sui nostri file.
+   moderati di `glob` e `minimatch` sono accettati: arrivano da `@serwist/build`,
+   da ESLint 10 e da typescript-eslint, e girano solo in build e nel lint, sui
+   nostri file.
 4. **ESLint 10 convive con plugin che dichiarano fino al 9.**
    - Sei regole vanno in crash (`import/order` e cinque di spaziatura JSX di
      react) e non vanno accese.
@@ -33,7 +34,7 @@ Storia: `docs/storia/issue-151-dipendenze`, `issue-152-ci`,
      `EXPECTED`.
    - `strict-peer-deps` resta spento.
 5. **TypeScript resta sotto la 6.1** finché typescript-eslint non la supporta
-   (regola `ignore` in `dependabot.yml`).
+   (regola `ignore` in `dependabot.yml`). La 6.0 è adottata (#186, 2026-11-10).
 6. **Node viene da `engines.node`** (24.x), letto da CI e Vercel. `@types/node`
    segue la stessa maggiore, alzata a mano.
 7. **`npm audit --audit-level=high` gira sull'intero albero**: esbuild, Tailwind
