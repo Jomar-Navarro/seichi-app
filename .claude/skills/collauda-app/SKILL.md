@@ -143,6 +143,10 @@ Nel giro del 2026-11-09 il driver dava 12 KO: uno era un difetto vero
 dell'app, gli altri erano il driver rimasto indietro rispetto all'app. E "la
 categoria NON deve esserci" passava su un form che non si era nemmeno aperto.
 
+**Prima di scrivere uno script nuovo leggi `metodo.md`**, qui accanto:
+selettori, attese, misure e guasti che hanno già prodotto falsi KO e falsi
+verdi.
+
 ## 5 · Trappole di questo progetto
 
 - ⚠️ **Il primo tocco su "Archivia" NON scrive**: arma la conferma nello stato
