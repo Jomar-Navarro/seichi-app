@@ -45,6 +45,11 @@ driver Playwright stanno in `.claude/skills/collauda-app/metodo.md`.
    - `major_version` segue la produzione (Postgres 17): se Supabase la porta a
      una maggiore nuova, si alza insieme.
    - Uno stack già acceso non ricarica la configurazione.
+   - Non dare a una variabile di `.env.local` un nome `SUPABASE_*` che sia una
+     chiave della configurazione (`SUPABASE_AUTH_SITE_URL`…). Perché: la CLI v3
+     legge `.env.local` e quei nomi vincono su `config.toml`. `SUPABASE_DB_URL`
+     non lo è: misurato, i comandi restano su `Target: local stack` (storia:
+     `issue-151-dipendenze`, CLI 3.0.0).
 4. **Ogni test crea il suo account e lo elimina alla fine, anche se fallisce**
    (fixture `account`, indirizzi `@e2e.seichi.test`). Nessuno stato condiviso.
    L'utente nasce dall'API admin locale; i dati si scrivono col suo token, sotto
@@ -63,7 +68,11 @@ driver Playwright stanno in `.claude/skills/collauda-app/metodo.md`.
      diverse;
    - il passo dell'importo legge la tastiera fisica;
    - un'assenza è vera anche un istante prima: aspetta la schermata finale;
-   - nelle fixture il parametro si chiama `provide`, non `use`.
+   - nelle fixture il parametro si chiama `provide`, non `use`;
+   - dopo un aggiornamento di Playwright, `npx playwright install chromium
+     firefox` (la CI aggiunge `--with-deps`, che porta le librerie di sistema
+     di Linux): senza, ogni test cade su `Executable doesn't exist` prima di
+     aprire una pagina, e il rosso non dice niente dell'app.
 
 ## Collaudo nell'app vera
 
