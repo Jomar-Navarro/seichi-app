@@ -50,22 +50,29 @@ locale invece che leggendo i numeri di versione:
 **La CLI v3 legge `.env.local` della radice** (e quello di `supabase/`), e le
 sue variabili `SUPABASE_*` vincono su `config.toml`. Il nostro `.env.local`
 porta `SUPABASE_DB_URL` di produzione, che la guida di migrazione non nomina
-mai: misurato il 2026-11-13, `start` e `status` restano su `127.0.0.1` (API e
-database) e non stampano nessuna riga `Target`. In più, nella v3 i comandi
-`db`/`migration` senza `--remote` vanno sul locale, e quelli verso un progetto
-ospitato chiedono conferma: il bersaglio predefinito è diventato più sicuro, non
-meno.
+mai. Misurato il 2026-11-13: `start` e `status` restano su `127.0.0.1` (API e
+database). E con un `.env.local` di prova che puntava `SUPABASE_DB_URL` a un
+indirizzo finto (203.0.113.1), `migration list` stampa comunque
+`Target: local stack (127.0.0.1:54322)`, come senza. Nel binario quel nome
+compare solo fra le variabili che la CLI passa alle Edge Functions. Il rischio
+vero è un nome `SUPABASE_*` che sia una chiave della configurazione: vince su
+`config.toml` in silenzio.
 
-**`enable_signup` in `[auth.email]` e `[auth.sms]` è deprecata, ma `enabled`
-non è un sinonimo**: accende il *provider*, quindi con `false` non entra più
-nemmeno chi è registrato. Le registrazioni nuove restano governate da
-`enable_signup` in `[auth]`. Controprova sullo stack locale: con
-`[auth.email] enabled = false` Auth risponde `external.email: false` e i due
-test dell'onboarding cadono su `email_provider_disabled`; con `true` tornano
-12 su 12. ⚠️ La prima controprova era verde per sbaglio: un `sed` aveva
-cambiato il primo `enabled = true` del file, quello di `[auth]`, non quello di
-`[auth.email]`. L'ha smascherata leggere `/auth/v1/settings` prima di credere
-al test.
+**`enable_signup` in `[auth.email]` e `[auth.sms]` è deprecata a favore di
+`enabled`, ed è un sinonimo**: nel binario della 3.0.0 c'è una tabella che
+rinomina la chiave vecchia in quella nuova, e la vecchia alimentava già
+`GOTRUE_EXTERNAL_EMAIL_ENABLED`. Ingannava il commento di serie («Allow/disallow
+new user signups via email»): l'interruttore spegne il *provider*, quindi con
+`false` non entra nemmeno chi è registrato. Le registrazioni nuove le governa
+`enable_signup` in `[auth]`. ⚠️ La prima versione della #198 sosteneva che il
+significato fosse cambiato, con una controprova che non poteva distinguere le
+due tesi: l'ha smentita la code review, verificata sul binario. Controprova
+(vale per entrambe le chiavi): con `[auth.email] enabled = false` Auth risponde
+`external.email: false` e i due test dell'onboarding cadono su
+`email_provider_disabled`; con `true` tornano 12 su 12. ⚠️ Il primo tentativo
+di controprova era verde per sbaglio: un `sed` aveva cambiato il primo
+`enabled = true` del file, quello di `[auth]`. L'ha smascherato leggere
+`/auth/v1/settings` prima di credere al test.
 
 ⚠️ **Il primo giro locale della suite era 12 rossi su 12**, tutti su
 `browserType.launch: Executable doesn't exist`: sulla macchina c'erano i

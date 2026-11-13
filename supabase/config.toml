@@ -240,8 +240,9 @@ web3 = 30
 [auth.email]
 # Accende o spegne il provider email: con `false` non entra più nemmeno chi è
 # già registrato. Le registrazioni nuove le governa `enable_signup` in [auth].
-# Era `enable_signup` qui, deprecata dalla CLI v3 e tolta nella v4: il
-# significato è cambiato, il nome non è un semplice sinonimo.
+# Fino alla CLI v2 si chiamava `enable_signup` anche qui, con un commento di
+# serie che parlava di registrazioni: era lo stesso interruttore
+# (GOTRUE_EXTERNAL_EMAIL_ENABLED), solo col nome sbagliato.
 enabled = true
 # If enabled, a user will be required to confirm any email change on both the old, and new email
 # addresses. If disabled, only the new email is required to confirm.
