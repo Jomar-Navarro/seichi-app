@@ -45,6 +45,13 @@ driver Playwright stanno in `.claude/skills/collauda-app/metodo.md`.
    - `major_version` segue la produzione (Postgres 17): se Supabase la porta a
      una maggiore nuova, si alza insieme.
    - Uno stack già acceso non ricarica la configurazione.
+   - In `[auth.email]` e `[auth.sms]` la chiave è `enabled`, e accende il
+     provider, non le registrazioni: con `false` non entra nemmeno chi è
+     registrato. Le registrazioni le governa `enable_signup` in `[auth]`.
+   - ⚠️ La CLI (v3) legge anche `.env.local`, e le sue `SUPABASE_*` vincono su
+     `config.toml`: lì c'è `SUPABASE_DB_URL` di produzione. Prima di usare a
+     mano un comando della CLI che non sia `start`, `status` o `stop`, leggi la
+     riga `Target:` che stampa (storia: `issue-151-dipendenze`, CLI 3.0.0).
 4. **Ogni test crea il suo account e lo elimina alla fine, anche se fallisce**
    (fixture `account`, indirizzi `@e2e.seichi.test`). Nessuno stato condiviso.
    L'utente nasce dall'API admin locale; i dati si scrivono col suo token, sotto
@@ -63,7 +70,10 @@ driver Playwright stanno in `.claude/skills/collauda-app/metodo.md`.
      diverse;
    - il passo dell'importo legge la tastiera fisica;
    - un'assenza è vera anche un istante prima: aspetta la schermata finale;
-   - nelle fixture il parametro si chiama `provide`, non `use`.
+   - nelle fixture il parametro si chiama `provide`, non `use`;
+   - dopo un aggiornamento di Playwright, `npx playwright install chromium
+     firefox` (come la CI): senza, ogni test cade su `Executable doesn't exist`
+     prima di aprire una pagina, e il rosso non dice niente dell'app.
 
 ## Collaudo nell'app vera
 

@@ -45,6 +45,31 @@ locale invece che leggendo i numeri di versione:
 | ESLint 10 | **adottata, con un limite** | un file con una violazione per famiglia (react, react-hooks, jsx-a11y, import, @next, typescript-eslint): **8 regole e 8 messaggi identici** a ESLint 9. ESLint 9 è già segnalato da npm come non più supportato |
 | TypeScript 7 | **rimandata** | `npm run lint` si ferma su «typescript-eslint does not support TS 7.0»; regola `ignore` in `dependabot.yml` da `>=6.1`, il limite del peer di typescript-eslint. La 6.0 ci rientra ~~ma **non è stata provata**: arriverà come PR da provare come ogni maggiore~~ — provata e adottata, riga sotto |
 | TypeScript 6.0.3 | **adottata** il 2026-11-10 (#186) | la PR di Dependabot, aggiornata sulla `master` col collaudo end-to-end: `verifica` (tipi, lint, `audit:eslint-rules`, build) ed `e2e` verdi; typescript-eslint 8.72 dichiara `typescript <6.1.0`, quindi nessun peer forzato; nessun avviso di opzioni deprecate |
+| CLI di Supabase 3.0.0 | **adottata** il 2026-11-13 (#196) | serve solo al database del collaudo (`e2e:db`). CI verde, e provata anche su Windows: 20 migration, chiave ES256, **12 test su 12**. Due cose che la CI non vede, sotto |
+
+**La CLI v3 legge `.env.local` della radice** (e quello di `supabase/`), e le
+sue variabili `SUPABASE_*` vincono su `config.toml`. Il nostro `.env.local`
+porta `SUPABASE_DB_URL` di produzione, che la guida di migrazione non nomina
+mai: misurato il 2026-11-13, `start` e `status` restano su `127.0.0.1` (API e
+database) e non stampano nessuna riga `Target`. In più, nella v3 i comandi
+`db`/`migration` senza `--remote` vanno sul locale, e quelli verso un progetto
+ospitato chiedono conferma: il bersaglio predefinito è diventato più sicuro, non
+meno.
+
+**`enable_signup` in `[auth.email]` e `[auth.sms]` è deprecata, ma `enabled`
+non è un sinonimo**: accende il *provider*, quindi con `false` non entra più
+nemmeno chi è registrato. Le registrazioni nuove restano governate da
+`enable_signup` in `[auth]`. Controprova sullo stack locale: con
+`[auth.email] enabled = false` Auth risponde `external.email: false` e i due
+test dell'onboarding cadono su `email_provider_disabled`; con `true` tornano
+12 su 12. ⚠️ La prima controprova era verde per sbaglio: un `sed` aveva
+cambiato il primo `enabled = true` del file, quello di `[auth]`, non quello di
+`[auth.email]`. L'ha smascherata leggere `/auth/v1/settings` prima di credere
+al test.
+
+⚠️ **Il primo giro locale della suite era 12 rossi su 12**, tutti su
+`browserType.launch: Executable doesn't exist`: sulla macchina c'erano i
+browser di un Playwright vecchio. Nessun test aveva aperto una pagina.
 
 ⚠️⚠️ **Il limite di ESLint 10 sta nei plugin col peer forzato.**
 `eslint-plugin-react`, `-import` e `-jsx-a11y` arrivano con
