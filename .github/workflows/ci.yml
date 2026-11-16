@@ -141,6 +141,19 @@ jobs:
       - name: Supabase locale
         run: npm run e2e:db
 
+      # Le prove del database (#157): pgTAP su `supabase/tests/`, contro lo
+      # schema appena ricostruito. Erano le controprove commentate in fondo
+      # alle migration, da copiare a mano nel SQL Editor; ogni file gira in una
+      # transazione che finisce in rollback, quindi i test end-to-end che
+      # seguono trovano il database com'era.
+      - name: Prove del database
+        run: npx supabase test db
+
+      # `types/database.ts` coincide con lo schema delle migration (#157): una
+      # migration che cambia il database senza rigenerare i tipi si ferma qui.
+      - name: Tipi del database
+        run: npm run db:types:check
+
       - name: Build contro il database locale
         run: npm run e2e:build
 

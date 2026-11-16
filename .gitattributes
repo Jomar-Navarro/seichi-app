@@ -1,0 +1,9 @@
+# I file SQL hanno sempre LF, anche nelle copie di lavoro su Windows (#157).
+#
+# Perché: il corpo di una funzione Postgres è il testo del file così com'è,
+# fine riga compresi. Con `core.autocrlf=true` (il default di Git per Windows)
+# la stessa migration diventava CRLF sul PC e LF in CI, e `supabase db diff`
+# dava risultati diversi a seconda della macchina: cinque funzioni «diverse» dalla
+# produzione con il codice identico byte per byte, a parte il CR. Ora il
+# database ombra, quello locale e un `db push` da Windows mandano lo stesso testo.
+*.sql text eol=lf

@@ -45,6 +45,8 @@ npm run audit:pwa-cache     # cosa mette in cache il service worker; vuole una b
 npm run e2e:db              # avvia il database locale, ricostruito dalle migration
 npm run e2e:build           # costruisce l'app contro quel database (sovrascrive .next)
 npm run test:e2e            # la suite Playwright su `next start -p 3200`
+npx supabase test db        # le prove pgTAP di supabase/tests/, sullo stesso database
+npm run db:types            # rigenera types/database.ts dopo una migration (`:check` in CI)
 ```
 
 La CI (`.github/workflows/ci.yml`) esegue tutto su ogni PR e su master nei job
@@ -240,6 +242,7 @@ lib/                   meccanica senza testo: auth, account, totals, dates, amou
                        export/, i18n/, supabase/ (client, server, proxy)…
 store/useUIStore.ts    stato UI condiviso (modale, refresh, conto guardato)
 supabase/migrations/   SQL eseguito a mano · supabase/config.toml: SOLO il locale
+supabase/tests/        prove pgTAP · types/database.ts: generato, mai a mano
 tests/e2e/             scenari Playwright, uno per difetto storico
 scripts/               audit, e2e, generatori di icone e splash
 docs/storia/           la storia delle fasi e delle issue
@@ -249,7 +252,8 @@ docs/storia/           la storia delle fasi e delle issue
 ## Database
 
 Le migration stanno in `supabase/migrations/` e le esegue Jomar dal SQL Editor;
-la CI prova a ogni PR che ricostruiscano il database da zero. Come scriverle:
+la CI prova a ogni PR che ricostruiscano il database da zero, ci esegue le prove
+pgTAP e controlla che `types/database.ts` (generato) coincida. Come scriverle:
 `.claude/rules/database.md`. Colonne in inglese, id UUID (eccezione:
 `job_runs.id`), denaro `numeric(10,2)`.
 
@@ -325,6 +329,8 @@ Flusso, recupero password, cambio email e trappole: `.claude/rules/auth.md`.
 - **`npm test`**: le funzioni pure di `lib/`.
 - **`npm run test:e2e`**: scenari Playwright su un Supabase locale. Ogni scenario
   custodisce un difetto storico, con la sua controprova (`.claude/rules/test.md`).
+- **`npx supabase test db`**: le prove pgTAP dei vincoli e dei privilegi, sullo
+  stesso database locale.
 - **Lo skill `collauda-app`**: per guardare l'app vera, con un account di prova
   usa e getta registrato ed eliminato dall'app.
   - Non chiedere cookie o password a Jomar.
@@ -342,7 +348,7 @@ Flow»: quei titoli sono rimasti identici nei file, quindi li trovi con
 
 | area | file in `docs/storia/` |
 |---|---|
-| database, migration, schema | `schema-annotato`, `issue-043-ricostruzione-schema`, `issue-123-database-integrita`, `issue-154-anon` |
+| database, migration, schema | `schema-annotato`, `issue-043-ricostruzione-schema`, `issue-123-database-integrita`, `issue-154-anon`, `issue-157-supabase-cli` |
 | job notturno, ricorrenti, notifiche | `issue-047-job-giornaliero`, `fase-17-budget-notifiche`, `issue-117-ricorrenti-obiettivi` |
 | budget e disponibile | `fase-17-budget-notifiche`, `fase-24a-disponibile` |
 | conti, saldi, trasferimenti, conto ricordato | `fase-20a-conti`, `fase-20b-trasferimenti`, `issue-112-conto-guardato`, `issue-062-conti-swipe` |
