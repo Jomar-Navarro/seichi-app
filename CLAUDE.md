@@ -253,8 +253,9 @@ docs/storia/           la storia delle fasi e delle issue
 
 Le migration stanno in `supabase/migrations/` e le esegue Jomar dal SQL Editor;
 la CI prova a ogni PR che ricostruiscano il database da zero, ci esegue le prove
-pgTAP e controlla che `types/database.ts` (generato) coincida. Come scriverle:
-`.claude/rules/database.md`. Colonne in inglese, id UUID (eccezione:
+pgTAP e controlla che `types/database.ts` (generato) coincida. I client Supabase
+sono tipizzati con `AppDatabase` (`types/database-app.ts`): i generati più ciò
+che il catalogo non dichiara. Come scriverle: `.claude/rules/database.md`. Colonne in inglese, id UUID (eccezione:
 `job_runs.id`), denaro `numeric(10,2)`.
 
 ```
@@ -314,8 +315,9 @@ Ogni tabella ha anche `created_at`.
 **Debiti aperti, deliberati**:
 
 - `transactions.date` è senza fuso, e regge perché Supabase è in UTC;
-- `categories.user_id` è nullable, quindi le chiavi verso `categories` sono a
-  colonna singola e una riga può puntare alla categoria di un altro utente.
+- le chiavi verso `categories` sono a colonna singola, quindi una riga può
+  puntare alla categoria di un altro utente (#158). `categories.user_id` è NOT
+  NULL dalla `20261116`: le FK composite si possono costruire.
 
 ## Accesso e onboarding
 

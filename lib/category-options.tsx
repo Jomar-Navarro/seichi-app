@@ -3,6 +3,9 @@ import { GOAL_ICON_MAP } from "@/lib/goal-icons";
 import type { Category } from "@/types";
 import type { Option } from "@/components/UI/Select";
 
+/** Ciò che serve a mostrare una categoria in un `Select`, e niente di più. */
+export type CategoryOptionSource = Pick<Category, "id" | "name" | "icon" | "color">;
+
 /**
  * Mappa le categorie in opzioni per il Select (icona colorata o pallino di fallback).
  *
@@ -15,7 +18,7 @@ import type { Option } from "@/components/UI/Select";
  * dal server — e passargliela è più semplice che dargli accesso alla lingua.
  */
 export function buildCategoryOptions(
-	categories: Category[],
+	categories: CategoryOptionSource[],
 	noneLabel?: string,
 ): Option[] {
 	const options: Option[] = categories.map((c) => {

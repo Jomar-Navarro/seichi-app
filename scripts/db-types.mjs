@@ -32,10 +32,10 @@ const HEADER = `/**
  * stack fermato col backup riparte dal backup, SENZA le migration nuove.)
  * La CI lo rigenera e fallisce se questo file non coincide.
  *
- * ⚠️ Le colonne restituite da una funzione \`RETURNS TABLE\` risultano sempre
- * non nulle: Postgres non dichiara la nullabilità dei risultati di una
- * funzione. Dove la funzione può restituire NULL, vale il tipo scritto a mano
- * in \`types/index.ts\`.
+ * ⚠️ Il generatore non sa tutto: i CHECK che restringono un testo, gli
+ * argomenti di una funzione che possono essere NULL, le colonne di un
+ * \`RETURNS TABLE\` che possono esserlo. Quelle stanno in
+ * \`types/database-app.ts\`, ed è \`AppDatabase\` il tipo dei client.
  */
 `;
 

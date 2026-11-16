@@ -1,4 +1,5 @@
 import type { ElementType } from "react";
+import type { Row } from "@/types/database-app";
 import {
 	WalletIcon,
 	ShoppingBagIcon,
@@ -82,18 +83,11 @@ export const ACCOUNT_TYPES: AccountTypeId[] = [
 	"investimento",
 ];
 
-export interface Account {
-	id: string;
-	user_id: string;
-	name: string;
-	/** null = nessun tipo scelto; l'app ripiega su icona ed etichetta generiche */
-	type: AccountTypeId | null;
-	icon: string | null;
-	color: string | null;
-	initial_balance: number;
-	archived: boolean;
-	created_at: string;
-}
+/**
+ * Una riga di `accounts`, dai tipi generati (#157). `type` NULL = nessun tipo
+ * scelto: l'app ripiega su icona ed etichetta generiche.
+ */
+export type Account = Row<"accounts">;
 
 /**
  * Un conto col saldo, dalla vista `account_balances`.
@@ -104,20 +98,15 @@ export interface Account {
  * somma in TypeScript vorrebbe dire scaricare ogni transazione di ogni conto a
  * ogni vista, cioè rifare l'errore che la `20260808` ha corretto per la home.
  */
-export interface AccountWithBalance extends Account {
-	balance: number;
-}
+export type AccountWithBalance = Row<"account_balances">;
 
-export interface Category {
-	id: string;
-	user_id: string;
-	name: string;
-	icon: string;
-	color: string;
-	type: string;
-	target_amount?: number | null;
-	target_date?: string | null;
-}
+/**
+ * Una riga di `categories`, dai tipi generati (#157). Fino alla #157 era
+ * scritta a mano e diceva `name: string` mentre la colonna accettava NULL: ora
+ * le colonne che l'app scrive sempre sono NOT NULL nel database
+ * (`20261116_categories_not_null`), e il tipo lo dice perché è vero.
+ */
+export type Category = Row<"categories">;
 
 export interface GoalWithProgress extends Category {
 	saved_amount: number;
