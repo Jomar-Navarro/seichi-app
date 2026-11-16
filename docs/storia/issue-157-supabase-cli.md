@@ -244,7 +244,7 @@ future; nessun oggetto posseduto; `postgres` ne è membro.
 1. Supabase → *Project Settings* → *Integrations* → GitHub: **spegnere
    *Deploy to production*.** PRIMA di tutto il resto: dopo il punto 5 il merge
    successivo applicherebbe le migration da solo.
-2. Unire le tre PR (#201, #202, poi questa). Il codice regge con e senza le due
+2. Unire le tre PR (#201, #204, #203). Il codice regge con e senza le due
    migration nuove.
 3. Da `master` aggiornato: `npx supabase migration list --remote` → 22 locali,
    cronologia remota vuota.
@@ -258,3 +258,10 @@ future; nessun oggetto posseduto; `postgres` ne è membro.
 8. Verifiche: `migration list --remote` con 22 allineate; `db diff --remote`
    con il solo rumore noto, senza `seichi_ro` e senza differenze su
    `categories`.
+
+⚠️ **Le PR in pila e lo squash**: unendo la #201 con `--delete-branch`, GitHub
+ha CHIUSO la #202 invece di spostarla su `master` (il suo ramo base non
+esisteva più), e non si poteva riaprire. La parte 2 è diventata la #204, stesso
+ramo ribasato. Con uno squash, ogni PR della pila va poi ribasata su `master`
+togliendo i commit già uniti (`git rebase --onto origin/master <ultimo commit
+unito>`), e il ramo base si cancella solo dopo aver spostato la PR successiva.
