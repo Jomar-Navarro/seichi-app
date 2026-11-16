@@ -31,7 +31,7 @@ export async function getCategories(): Promise<{ data: Category[] } | { error: s
 		.eq("user_id", user.id)
 		.order("created_at", { ascending: true });
 
-	return error ? { error: genericError("categorie: lettura", error, t) } : { data: data as Category[] };
+	return error ? { error: genericError("categorie: lettura", error, t) } : { data };
 }
 
 export async function createCategory(input: { name: string; icon: string; type: string }) {

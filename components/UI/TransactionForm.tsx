@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { TransactionType, Category, Transaction, Frequency, Account } from "@/types";
+import { TransactionType, Transaction, Frequency, Account } from "@/types";
 import {
 	optionsLoad,
 	rowsOf,
@@ -16,7 +16,7 @@ import { categoryTypeFor, TIPO_INK } from "@/lib/transaction-utils";
 import AttachmentPicker, {
 	type AttachmentPickerHandle,
 } from "@/components/features/AttachmentPicker";
-import { buildCategoryOptions } from "@/lib/category-options";
+import { buildCategoryOptions, type CategoryOptionSource } from "@/lib/category-options";
 import {
 	saveTransaction,
 	updateTransaction,
@@ -474,18 +474,18 @@ export default function TransactionForm({
 		}
 	}
 
-	const effectiveCategoryList: Category[] =
+	// Solo ciò che il `Select` mostra: la categoria del movimento non si spaccia
+	// per una riga intera di `categories`, con un `user_id` inventato (#157).
+	const effectiveCategoryList: CategoryOptionSource[] =
 		categoryList.length > 0
 			? categoryList
 			: isEditing && transaction.categories && transaction.category_id
 				? [
 						{
 							id: transaction.category_id,
-							user_id: "",
 							name: transaction.categories.name,
 							icon: transaction.categories.icon,
 							color: transaction.categories.color,
-							type: selectedType.id,
 						},
 					]
 				: [];

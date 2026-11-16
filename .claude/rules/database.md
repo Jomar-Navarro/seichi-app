@@ -70,6 +70,11 @@ budget. Il perché sta in `docs/storia/`: `issue-043-ricostruzione-schema`,
     si committa `types/database.ts`. Perché: i tipi descrivono lo schema, e la
     CI (`db:types:check`) ferma la PR che cambia l'uno senza l'altro. ⚠️ Uno
     stack fermato col backup riparte dal backup, senza le migration nuove.
+    Se la migration tocca un CHECK che restringe un testo, gli argomenti
+    nullabili di una funzione o le colonne nullabili di un `RETURNS TABLE`,
+    rileggi `types/database-app.ts`: il generatore non li conosce, e quel file
+    non si aggiorna da solo. ⚠️ Lì non si dichiara mai non nulla una colonna che
+    il database lascia NULL: se l'app ci conta, serve una migration.
 14. **I file `.sql` sono LF anche su Windows** (`.gitattributes`). Il corpo di
     una funzione è il testo del file, fine riga compresi: con CRLF, `db diff`
     dava risultati diversi per macchina (#157).
