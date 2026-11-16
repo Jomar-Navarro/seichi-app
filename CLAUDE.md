@@ -138,8 +138,11 @@ perché. Le regole di dettaglio sono nei file di `.claude/rules/`.
 
 1. **Una dipendenza si aggiunge quando serve, non quando è comoda**: ognuna è
    codice altrui da tenere allineato e un avviso di sicurezza in più.
-2. **Le migration le esegue Jomar a mano dal SQL Editor**; la PR dice in che
-   ordine rispetto al deploy del codice.
+2. **Le migration le rilascia Jomar con `npx supabase db push --remote`**, mai
+   dal SQL Editor, e mai l'integrazione GitHub al merge; la PR dice in che
+   ordine rispetto al deploy del codice. Perché: la cronologia della CLI sa
+   cosa è già stato applicato, e l'ordine resta una scelta. Procedura:
+   `.claude/rules/rilascio.md`.
 3. **Fasi grandi: prima il progetto** (e il mockup su Claude Design quando c'è
    interfaccia), poi il codice; una PR per ogni pezzo che sia un prodotto finito
    da solo.
@@ -241,7 +244,7 @@ lib/                   meccanica senza testo: auth, account, totals, dates, amou
                        read-all, errors, attachments, storage-files, import/,
                        export/, i18n/, supabase/ (client, server, proxy)…
 store/useUIStore.ts    stato UI condiviso (modale, refresh, conto guardato)
-supabase/migrations/   SQL eseguito a mano · supabase/config.toml: SOLO il locale
+supabase/migrations/   rilasciate con `db push` · supabase/config.toml: SOLO il locale
 supabase/tests/        prove pgTAP · types/database.ts: generato, mai a mano
 tests/e2e/             scenari Playwright, uno per difetto storico
 scripts/               audit, e2e, generatori di icone e splash
@@ -251,7 +254,7 @@ docs/storia/           la storia delle fasi e delle issue
 
 ## Database
 
-Le migration stanno in `supabase/migrations/` e le esegue Jomar dal SQL Editor;
+Le migration stanno in `supabase/migrations/` e le rilascia Jomar con `db push`;
 la CI prova a ogni PR che ricostruiscano il database da zero, ci esegue le prove
 pgTAP e controlla che `types/database.ts` (generato) coincida. I client Supabase
 sono tipizzati con `AppDatabase` (`types/database-app.ts`): i generati più ciò
