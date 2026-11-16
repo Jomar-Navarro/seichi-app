@@ -12,7 +12,7 @@ paths:
 Si carica quando apri un file di `supabase/` o i moduli di job, notifiche e
 budget. Il perché sta in `docs/storia/`: `issue-043-ricostruzione-schema`,
 `issue-123-database-integrita`, `issue-154-anon`, `issue-047-job-giornaliero`,
-`fase-17-budget-notifiche`, `schema-annotato`.
+`fase-17-budget-notifiche`, `schema-annotato`, `issue-157-supabase-cli`.
 
 ## Scrivere una migration
 
@@ -53,25 +53,35 @@ budget. Il perché sta in `docs/storia/`: `issue-043-ricostruzione-schema`,
      proprietario (#154): l'`execute` si concede nella stessa migration.
 8. **Viste con `security_invoker = true`.** Una vista normale gira coi privilegi
    del proprietario e scavalca la RLS.
-9. **La controprova sta in fondo al file, COMMENTATA.** ⚠️ Il SQL Editor esegue
-   lo script come una sola transazione: un `raise exception` di collaudo lasciato
-   eseguibile annulla anche la migration, e stampa proprio il messaggio di
-   successo previsto. Si copia in una query nuova e si esegue a parte.
-10. **Una prova RLS cambia ruolo** (`set local role authenticated`, dentro un
-    blocco). Il ruolo `postgres` del SQL Editor ha `BYPASSRLS` e vede tutto anche
-    se la policy manca.
+9. **La controprova è una suite pgTAP in `supabase/tests/`**, non un blocco in
+   fondo alla migration: gira a ogni PR (`npx supabase test db`) su un database
+   ricostruito, con i suoi utenti. Come scriverla: `test.md`. ⚠️ Mai un
+   `raise exception` di collaudo eseguibile dentro la migration: una migration
+   gira in una transazione, e quell'eccezione la annulla stampando proprio il
+   messaggio di successo previsto (21b).
+10. **Una prova RLS cambia ruolo** (`set local role authenticated`). Il ruolo
+    `postgres` ha `BYPASSRLS` e vede tutto anche se la policy manca.
 11. **Le policy si cercano con `~*`, mai con `like`.** Postgres ristampa il testo:
     `(select auth.uid())` diventa `( SELECT auth.uid() AS uid)`.
-12. **Ogni vincolo nuovo ha una prova che deve fallire.** Una prova che richiede un
-    secondo utente e non lo trova dice `SALTATA`: non passa in silenzio.
-13. **L'ordine di deploy si dichiara nella PR.** Di solito la migration va prima
+12. **Ogni vincolo nuovo ha una prova che deve fallire**, e il suo gemello che
+    deve passare. Una prova sui DATI della produzione (non sullo schema) non va
+    in pgTAP: su un database vuoto passerebbe senza aver visto niente.
+13. **Dopo una migration, `npx supabase migration up` e `npm run db:types`**, e
+    si committa `types/database.ts`. Perché: i tipi descrivono lo schema, e la
+    CI (`db:types:check`) ferma la PR che cambia l'uno senza l'altro. ⚠️ Uno
+    stack fermato col backup riparte dal backup, senza le migration nuove.
+14. **I file `.sql` sono LF anche su Windows** (`.gitattributes`). Il corpo di
+    una funzione è il testo del file, fine riga compresi: con CRLF, `db diff`
+    dava risultati diversi per macchina (#157).
+15. **L'ordine di deploy si dichiara nella PR.** Di solito la migration va prima
     del codice, o la RPC nuova risponde 404. A volte è il contrario: nella #123
     il codice nuovo reggeva entrambi i payload, quello vecchio no.
-14. ⚠️ **L'integrazione GitHub di Supabase prova ad applicare le migration a ogni
-    commit su master**, e oggi si ferma sulla guardia della `20260727`.
-    `supabase/config.toml` descrive solo il database LOCALE dei test: mai un
-    blocco `[remotes]`, mai bucket o funzioni. Allineare la cronologia farebbe
-    applicare le migration al merge: decisione aperta (#157).
+16. ⚠️ **L'integrazione GitHub di Supabase prova ad applicare le migration a ogni
+    commit su master**, e si ferma sulla guardia della `20260727` finché la
+    cronologia è vuota. `supabase/config.toml` descrive solo il database LOCALE
+    dei test: mai un blocco `[remotes]`, mai bucket o funzioni. Deciso con la
+    #157: l'integrazione si spegne PRIMA di allineare la cronologia, o il merge
+    applicherebbe le migration da solo.
 
 ## Lo schema
 
@@ -99,7 +109,11 @@ budget. Il perché sta in `docs/storia/`: `issue-043-ricostruzione-schema`,
    `DELETE` su `storage.objects`. Li toglie l'app, vedi `storage.md`.
 9. **`anon` resta a zero privilegi** (#154). I default di `supabase_admin`
    concedono ancora tutto ad `anon`: se la piattaforma creasse un oggetto in
-   `public`, lo direbbero le prove c1 e c2 della `20260822`.
+   `public`, lo direbbero le query c1 e c2 (le viste in testa a
+   `supabase/tests/anon.test.sql`) eseguite sulla produzione con `db query
+   --remote --read-only`. Il locale non ha gli oggetti della piattaforma: la CI
+   non può vederlo. ⚠️ Mai `supabase test db --remote`: le suite scrivono, se
+   pure in una transazione annullata.
 
 ## Job notturno e notifiche
 

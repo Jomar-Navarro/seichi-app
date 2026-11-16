@@ -22,6 +22,8 @@
 @source not "../vitest.config.mts";
 @source not "../tests";
 @source not "../playwright.config.ts";
+/* I tipi generati dallo schema (#157): nomi di colonne e funzioni, non interfaccia. */
+@source not "../types/database.ts";
 
 /* ============================================================
    SEICHI — ZEN GLASS DESIGN TOKENS
