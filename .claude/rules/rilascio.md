@@ -31,4 +31,6 @@ sta in `docs/storia/issue-157-supabase-cli`. Come SCRIVERE una migration:
    --remote`.** Il rumore noto: gli oggetti della piattaforma
    (`rls_auto_enable`, `ensure_rls`), `profiles_language_check` ristampato, e i
    fine riga delle funzioni incollate dal SQL Editor prima della #157. Ogni
-   altra riga è da capire, prima di crederci.
+   altra riga è da capire, prima di crederci. ⚠️ Rediretto su file, scrive
+   JSON su una riga sola (il SQL sta in `"diff"`): letto per righe, sembra
+   vuoto.
