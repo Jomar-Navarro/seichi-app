@@ -8,7 +8,8 @@ import { countActiveAccounts } from "@/lib/account";
 import { isStorableAmount } from "@/lib/amount";
 import { genericError } from "@/lib/errors";
 import type { Dictionary } from "@/lib/i18n/dictionaries/it";
-import { ACCOUNT_TYPES, type Account, type AccountWithBalance } from "@/types";
+import { ACCOUNT_TYPES, type Account, type AccountTypeId, type AccountWithBalance } from "@/types";
+import type { RowUpdate } from "@/types/database-app";
 import type { SupabaseServerClient } from "@/lib/supabase/server";
 
 /** Il limite è quello della colonna (`varchar(50)`): tagliarlo qui dà un messaggio. */
@@ -51,7 +52,7 @@ function validate(input: AccountInput, t: Awaited<ReturnType<typeof requireUser>
 	const name = input.name.trim();
 	if (!name) return { error: t.accounts.errors.nameRequired };
 	if (name.length > NAME_MAX) return { error: t.accounts.errors.nameTooLong };
-	if (input.type !== null && !ACCOUNT_TYPES.includes(input.type as never)) {
+	if (input.type !== null && !isAccountType(input.type)) {
 		return { error: t.errors.invalidType };
 	}
 	/*
@@ -72,7 +73,13 @@ function validate(input: AccountInput, t: Awaited<ReturnType<typeof requireUser>
 	if (!isStorableAmount(input.initialBalance, { allowNegative: true, allowZero: true })) {
 		return { error: t.errors.amountInvalid };
 	}
-	return { name };
+	// Il tipo esce RISTRETTO: chi scrive usa questo, non il valore grezzo arrivato
+	// dal client, e il compilatore lo verifica contro `accounts_type_check` (#157).
+	return { name, type: input.type };
+}
+
+function isAccountType(value: string): value is AccountTypeId {
+	return (ACCOUNT_TYPES as readonly string[]).includes(value);
 }
 
 /**
@@ -153,7 +160,7 @@ export async function createAccount(input: AccountInput) {
 		.insert({
 			user_id: user.id,
 			name: checked.name,
-			type: input.type,
+			type: checked.type,
 			icon: input.icon ?? null,
 			color: input.color ?? null,
 			initial_balance: input.initialBalance,
@@ -200,9 +207,9 @@ export async function updateAccount(id: string, input: AccountInput) {
 	 * rinominare un conto la cancellerebbe. Omesso significa "non toccare", non
 	 * "metti a NULL".
 	 */
-	const patch: Record<string, unknown> = {
+	const patch: RowUpdate<"accounts"> = {
 		name: checked.name,
-		type: input.type,
+		type: checked.type,
 		color: input.color ?? null,
 		initial_balance: input.initialBalance,
 	};

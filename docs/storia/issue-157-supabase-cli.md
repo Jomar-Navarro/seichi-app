@@ -160,3 +160,44 @@ insert restava e il saldo diventava 1230 «prima» del trasferimento. Una
 regressione sui vincoli avrebbe fatto cadere anche le prove del saldo, mandando
 a cercare il guasto nella vista — due cause, un solo sintomo. Ora il saldo ha
 due conti suoi.
+
+### PR 2 — il client tipizzato, e cosa ha trovato (2026-11-16)
+
+`createClient<AppDatabase>()` in client, server e proxy. Il client ricava il
+tipo delle righe dalle stringhe di `select()`, quindi delle 106 query in 22
+file ne sono emerse **14** che non compilavano, e ciascuna era un'affermazione
+dei tipi scritti a mano che il database non faceva:
+
+| errori | causa | chiusa con |
+|---|---|---|
+| 5 | `categories.name`, `.type`, `.user_id`, `.created_at` (e `icon`, `color`) **nullable nel database**, non nulle in `Category` | migration `20261116_categories_not_null` |
+| 3 | `accounts.type` per il generatore è un testo qualsiasi; `accounts_type_check` lo limita a quattro valori | `types/database-app.ts` |
+| 5 | argomenti RPC NULL di proposito (`p_account_id` = tutti i conti, `p_category_id` = il globale, `p_amount` = la lapide), che il generatore vuole non nulli | `types/database-app.ts` |
+| 1 | la patch di `updateAccount` era un `Record<string, unknown>` | `RowUpdate<"accounts">`, e `validate()` restituisce il tipo ristretto |
+
+- ⚠️ **Le categorie: la verità nel database, non nel tipo.** Contate in
+  produzione (`db query --remote --read-only`): 61 righe, zero NULL in ognuna
+  delle sei colonne. Ogni scrittore dell'app le valorizza tutte, e la policy di
+  insert pretendeva già `user_id = auth.uid()`. Quindi NOT NULL, con la sua
+  suite (`categorie.test.sql`, rossa senza la migration e verde con). È anche il
+  prerequisito della #158: le FK composite vogliono `user_id` NOT NULL. Scartato
+  il ponte «dichiararle non nulle in `database-app.ts`»: sarebbe stata la stessa
+  affermazione falsa, solo spostata in un file nuovo.
+- **`types/database-app.ts` contiene solo ciò che il catalogo non dichiara**, e
+  ogni voce dice da quale fatto viene: `accounts_type_check`, il `coalesce` che
+  rende `balance` mai nullo, gli argomenti nullabili, i `max`/`min` di
+  `daily_job_health()` (letti dalla funzione: `had_error` e `failed_steps`
+  hanno un `coalesce`, le tre date no), il globale e la lapide di `budgets_at()`.
+- `Account`, `AccountWithBalance` e `Category` in `types/index.ts` sono derivati
+  (`Row<"accounts">`…), non più ripetuti a mano. Gli altri tipi di riga restano
+  scritti a mano: portano relazioni incorporate (`Transaction.categories`) o
+  restringimenti (`BudgetPeriod`) che il generatore non conosce, e i loro cast
+  sono già onesti.
+- `TransactionForm` fabbricava una `Category` con `user_id: ""` per mostrare la
+  categoria di un movimento prima che arrivasse la lista: `buildCategoryOptions`
+  chiede ora solo ciò che mostra (`CategoryOptionSource`).
+- Tolto il cast `data as Category[]` di `getCategories()`: con il client
+  tipizzato non serviva più, e lasciato avrebbe nascosto la prossima divergenza.
+
+Collaudo: `tsc`, lint, 421 test unitari, 51 prove pgTAP, `db:types:check`, e la
+suite end-to-end (12 su 12) sul database con la migration.

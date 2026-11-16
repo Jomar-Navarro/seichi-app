@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { cache } from "react";
+import type { AppDatabase } from "@/types/database-app";
 
 /**
  * Il client Supabase di QUESTA richiesta.
@@ -19,7 +20,7 @@ import { cache } from "react";
 export const createClient = cache(async () => {
 	const cookieStore = await cookies();
 
-	return createServerClient(
+	return createServerClient<AppDatabase>(
 		process.env.NEXT_PUBLIC_SUPABASE_URL!,
 		process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
 		{
