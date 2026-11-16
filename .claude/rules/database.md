@@ -58,7 +58,10 @@ budget. Il perché sta in `docs/storia/`: `issue-043-ricostruzione-schema`,
    ricostruito, con i suoi utenti. Come scriverla: `test.md`. ⚠️ Mai un
    `raise exception` di collaudo eseguibile dentro la migration: una migration
    gira in una transazione, e quell'eccezione la annulla stampando proprio il
-   messaggio di successo previsto (21b).
+   messaggio di successo previsto (21b). Ciò che dipende dalla produzione (un
+   ruolo che esiste solo lì) si prova in locale ricreandone una copia, e la
+   prova si guarda: un preparativo fallito e annullato rende verde qualunque
+   guardia (#157).
 10. **Una prova RLS cambia ruolo** (`set local role authenticated`). Il ruolo
     `postgres` ha `BYPASSRLS` e vede tutto anche se la policy manca.
 11. **Le policy si cercano con `~*`, mai con `like`.** Postgres ristampa il testo:
@@ -81,12 +84,16 @@ budget. Il perché sta in `docs/storia/`: `issue-043-ricostruzione-schema`,
 15. **L'ordine di deploy si dichiara nella PR.** Di solito la migration va prima
     del codice, o la RPC nuova risponde 404. A volte è il contrario: nella #123
     il codice nuovo reggeva entrambi i payload, quello vecchio no.
-16. ⚠️ **L'integrazione GitHub di Supabase prova ad applicare le migration a ogni
-    commit su master**, e si ferma sulla guardia della `20260727` finché la
-    cronologia è vuota. `supabase/config.toml` descrive solo il database LOCALE
-    dei test: mai un blocco `[remotes]`, mai bucket o funzioni. Deciso con la
-    #157: l'integrazione si spegne PRIMA di allineare la cronologia, o il merge
-    applicherebbe le migration da solo.
+16. **Il numero di una migration è la sua versione nella cronologia**: unico e
+    crescente. Si usa il numero dopo l'ultimo (`YYYYMMDD`), anche se non è la
+    data vera: è un ordine, non una data (#43). Due file con lo stesso numero
+    collidono in `supabase_migrations.schema_migrations`.
+17. `supabase/config.toml` descrive solo il database LOCALE dei test: mai un
+    blocco `[remotes]`, mai bucket o funzioni.
+
+## Rilasciare una migration
+
+Con `db push`, mai dal SQL Editor: la procedura sta in `rilascio.md`.
 
 ## Lo schema
 

@@ -201,3 +201,60 @@ dei tipi scritti a mano che il database non faceva:
 
 Collaudo: `tsc`, lint, 421 test unitari, 51 prove pgTAP, `db:types:check`, e la
 suite end-to-end (12 su 12) sul database con la migration.
+
+### Parte 3 — il rilascio con `db push`, e via `seichi_ro` (2026-11-16)
+
+La procedura di regime sta in `.claude/rules/rilascio.md`. Prima di scriverla
+sono state misurate le due cose su cui poggia:
+
+- **`db push` / `migration up` applicano ogni file in una transazione.** Una
+  migration finta con un `create table` seguito da un `raise exception`: la
+  tabella non resta, e la versione non entra nella cronologia.
+- **`db push` non spinge segreti**: il blocco `[db.vault]` di `config.toml` è
+  commentato.
+
+⚠️ **Il numero è la versione, e la vuole unica.** La migration di `seichi_ro`
+era nata `20261116` come quella delle categorie: due file con la stessa
+versione collidono nella cronologia. È diventata `20261117`.
+
+#### `20261117_drop_seichi_ro.sql`
+
+Jomar ha confermato che il ruolo non serve più. Le sue dipendenze, lette da
+`pg_shdepend` in produzione (sola lettura): `SELECT` su 11 relazioni, `USAGE`
+su `public`, `CONNECT` sul database, un default di `postgres` sulle tabelle
+future; nessun oggetto posseduto; `postgres` ne è membro.
+
+- ⚠️ **La prima stesura usava `drop owned by`, e la prova in locale l'ha
+  fermata**: vuole i PRIVILEGI del ruolo, non basta amministrarlo (da Postgres
+  16 chi crea un ruolo ne riceve l'ADMIN, non l'ereditarietà). Ora revoche
+  esplicite, fatte da chi le aveva concesse, e `drop role`: se la produzione
+  avesse una dipendenza in più, `drop role` fallirebbe e annullerebbe il file.
+- **Provata in locale su una copia del ruolo** con gli stessi privilegi della
+  produzione: ruolo, default e grant sul database spariscono; la seconda
+  esecuzione non fa niente; con un oggetto posseduto si ferma col suo messaggio
+  e non scrive niente.
+- ⚠️ **La prima prova della guardia era un verde che non guardava**: il
+  preparativo (una tabella data in proprietà al ruolo) falliva per un permesso
+  sullo schema, veniva annullato per intero, e la migration trovava il ruolo
+  assente. Rifatto il preparativo, la guardia scatta. Lezione 2 di CLAUDE.md,
+  ancora una volta.
+
+#### La prima volta, nell'ordine (Jomar)
+
+1. Supabase → *Project Settings* → *Integrations* → GitHub: **spegnere
+   *Deploy to production*.** PRIMA di tutto il resto: dopo il punto 5 il merge
+   successivo applicherebbe le migration da solo.
+2. Unire le tre PR (#201, #202, poi questa). Il codice regge con e senza le due
+   migration nuove.
+3. Da `master` aggiornato: `npx supabase migration list --remote` → 22 locali,
+   cronologia remota vuota.
+4. ⚠️ Solo le 20 già eseguite dal SQL Editor, non le due nuove:
+   `npx supabase migration repair --remote --status applied 20260727 20260728 20260729 20260803 20260804 20260807 20260808 20260809 20260810 20260811 20260813 20260814 20260815 20260816 20260817 20260818 20260819 20260820 20260821 20260822`
+5. `npx supabase migration list --remote` → 20 allineate, `20261116` e
+   `20261117` solo locali.
+6. `npx supabase db push --remote --dry-run` → deve elencare esattamente quelle
+   due.
+7. `npx supabase db push --remote`.
+8. Verifiche: `migration list --remote` con 22 allineate; `db diff --remote`
+   con il solo rumore noto, senza `seichi_ro` e senza differenze su
+   `categories`.
