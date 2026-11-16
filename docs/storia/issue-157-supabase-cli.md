@@ -265,3 +265,36 @@ esisteva più), e non si poteva riaprire. La parte 2 è diventata la #204, stess
 ramo ribasato. Con uno squash, ogni PR della pila va poi ribasata su `master`
 togliendo i commit già uniti (`git rebase --onto origin/master <ultimo commit
 unito>`), e il ramo base si cancella solo dopo aver spostato la PR successiva.
+
+### Il rilascio, fatto (2026-11-16)
+
+Jomar ha spento *Deploy to production*, poi ha chiesto di unire e completare.
+Che lo spegnimento fosse davvero salvato (nello screenshot «Save changes» era
+ancora acceso) l'ha detto un fatto, non la schermata: il controllo «Supabase
+Preview» sui commit di `master` era `failure` su `0f61598`, prima, e `skipped`
+su `81ecb79` (la #201), dopo.
+
+- ⚠️⚠️ **La cronologia remota NON era vuota**, come dicevano la storia della
+  #156 e questa: aveva 6 righe, `20260728`…`20260808`, con nome e istruzioni
+  (13, 34, 37…). Non segnate a mano: APPLICATE dall'integrazione GitHub nei
+  primi giorni, quando *Deploy to production* era acceso e le guardie non
+  esistevano ancora. Poi è nata la baseline `20260727`, numerata PRIMA di
+  versioni già registrate, e l'integrazione si è fermata lì per sempre. Il
+  piano diceva «repair delle 20»: le righe sono state lette prima di scrivere,
+  e il repair ha segnato solo le **14** che mancavano (`20260727` e
+  `20260809`…`20260822`). Lezione: «vuota» era un'affermazione su un database
+  che nessuno aveva interrogato.
+- `migration list --remote` dopo il repair: 20 allineate, `20261116` e
+  `20261117` solo locali. `db push --dry-run`: esattamente quelle due, nessun
+  seed, nessun ruolo. `db push`: applicate entrambe, nessun errore.
+- Verifiche in sola lettura: 22 su 22 allineate; in `categories` nullabili solo
+  `target_amount` e `target_date`; `seichi_ro`, il suo default e il grant sul
+  database spariti; le query c1 e c2 dell'anon vuote sulla produzione.
+- `db diff --remote` dopo: solo il rumore noto — `profiles_language_check`,
+  `rls_auto_enable`/`ensure_rls`, e 7 funzioni che in produzione hanno i CRLF
+  del SQL Editor (prima del `.gitattributes` coincidevano perché anche il
+  locale era CRLF: il rumore si è invertito, come previsto). ⚠️ Rediretto su
+  file, `db diff` scrive JSON su una riga sola: un `grep` per righe che
+  iniziano con `CREATE` lo dà per vuoto. Il primo esito «vuoto» era del
+  controllo, non del diff.
+
