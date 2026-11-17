@@ -53,6 +53,10 @@ rollback;`: niente resta, e la suite end-to-end trova il database com'era.
    cadere, si applica il difetto al database locale, e devono cadere quelle e
    nessun'altra. Poi `npx supabase stop --no-backup` e `npm run e2e:db`: il
    database si ricostruisce da zero (uno stack riavviato riparte dal backup).
+   ⚠️ La mutazione si applica con `psql` nel container (`docker exec -i
+   supabase_db_seichi-app psql -U postgres -v ON_ERROR_STOP=1`), e si stampa lo
+   stato mutato prima delle prove: `supabase db query -f` rifiuta un file con
+   più istruzioni, e le prove girate sullo schema giusto sono verdi (#158).
 
 ## End-to-end (Playwright)
 

@@ -128,7 +128,7 @@ const categoryKey = (type: string, name: string) => `${type}\u0000${name.trim().
  *
  * ⚠️⚠️ Fino alla #116 cancellava prima tutte le categorie dell'utente di ogni
  * tipo e poi reinseriva le scelte, per poter "rifare" l'onboarding senza
- * doppioni. Ma `transactions_category_id_fkey` è `on delete cascade`: tornare
+ * doppioni. Ma `transactions_category_owner_fkey` è `on delete cascade`: tornare
  * su `/category` dopo mesi d'uso (cronologia, tasto indietro, segnalibro) e
  * toccare "Completa" cancellava ogni movimento tranne i trasferimenti, e con
  * loro budget, obiettivi e le righe delle ricevute. Senza conferma.

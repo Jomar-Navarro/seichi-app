@@ -526,7 +526,7 @@ export async function deleteGoal(id: string): Promise<{ error?: string }> {
 
 	/*
 	 * ⚠️ E le regole ricorrenti che lo alimentano (#117). La FK
-	 * `recurring_rules_category_id_fkey` è `on delete set null`: cancellata la
+	 * `recurring_rules_category_owner_fkey` è `on delete set null (category_id)`: cancellata la
 	 * categoria, la regola restava ATTIVA con `category_id` NULL, e dal mese dopo
 	 * il job inseriva ogni mese un `risparmio` senza obiettivo — abbassa il saldo
 	 * del conto e non va da nessuna parte. È lo stesso "orphaned outflow" che le

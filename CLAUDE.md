@@ -309,18 +309,15 @@ Ogni tabella ha anche `created_at`.
   cancella i suoi movimenti: ci poggia l'eliminazione di un obiettivo);
   `account_id` non ha azione (un conto si archivia, e si elimina solo a zero
   movimenti); `import_id` è in cascata (annulla l'import). Le chiavi composite
-  `(account_id, user_id)` e `(transaction_id, user_id)` legano i dati al
-  proprietario.
+  `(account_id, user_id)`, `(category_id, user_id)` e `(transaction_id,
+  user_id)` legano i dati al proprietario; sulle regole la categoria si
+  annulla con `set null (category_id)`, che lascia `user_id`.
 - **Deduplica**: `transactions` è unica su `(user_id, import_key)`, con i NULL
   distinti; `budgets` è unica con `NULLS NOT DISTINCT`. Le notifiche non si
   cancellano mai: la riga è la prova che l'evento è già stato emesso.
 
-**Debiti aperti, deliberati**:
-
-- `transactions.date` è senza fuso, e regge perché Supabase è in UTC;
-- le chiavi verso `categories` sono a colonna singola, quindi una riga può
-  puntare alla categoria di un altro utente (#158). `categories.user_id` è NOT
-  NULL dalla `20261116`: le FK composite si possono costruire.
+**Debito aperto, deliberato**: `transactions.date` è senza fuso, e regge
+perché Supabase è in UTC.
 
 ## Accesso e onboarding
 
@@ -353,7 +350,7 @@ Flow»: quei titoli sono rimasti identici nei file, quindi li trovi con
 
 | area | file in `docs/storia/` |
 |---|---|
-| database, migration, schema | `schema-annotato`, `issue-043-ricostruzione-schema`, `issue-123-database-integrita`, `issue-154-anon`, `issue-157-supabase-cli` |
+| database, migration, schema | `schema-annotato`, `issue-043-ricostruzione-schema`, `issue-123-database-integrita`, `issue-154-anon`, `issue-157-supabase-cli`, `issue-158-categorie-proprietario` |
 | job notturno, ricorrenti, notifiche | `issue-047-job-giornaliero`, `fase-17-budget-notifiche`, `issue-117-ricorrenti-obiettivi` |
 | budget e disponibile | `fase-17-budget-notifiche`, `fase-24a-disponibile` |
 | conti, saldi, trasferimenti, conto ricordato | `fase-20a-conti`, `fase-20b-trasferimenti`, `issue-112-conto-guardato`, `issue-062-conti-swipe` |
@@ -374,10 +371,9 @@ Flow»: quei titoli sono rimasti identici nei file, quindi li trovi con
 | dipendenze, CI, test | `issue-151-dipendenze`, `issue-152-ci`, `issue-155-test-unitari`, `issue-156-e2e` |
 | l'ordine delle fasi com'era | `ordine-delle-fasi` |
 
-## Stato, al 2026-11-16
+## Stato, al 2026-11-17
 
-- **Fatto**: fasi 1-28, eccetto 24c e 29, e le issue fino alla #157 (la #158
-  ha già `categories.user_id` NOT NULL; restano le FK composite).
+- **Fatto**: fasi 1-28, eccetto 24c e 29, e le issue fino alla #158.
 - **Aperte**:
   - 24c, la chat del coach (#74): ultima di proposito, non proporla prima;
   - 29, le animazioni (#71);
