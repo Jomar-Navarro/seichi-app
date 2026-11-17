@@ -411,6 +411,19 @@ export const it = {
 			one: "Questa categoria ha {n} regola ricorrente, quindi il tipo non si può cambiare. Crea una categoria nuova del tipo che ti serve.",
 			other: "Questa categoria ha {n} regole ricorrenti, quindi il tipo non si può cambiare. Crea una categoria nuova del tipo che ti serve.",
 		},
+		/**
+		 * Limiti di frequenza (#161). `{when}` è `formatRetryIn()`: "tra 12
+		 * minuti", "tra 3 ore". Ogni frase dice la FINESTRA vera — scorre, quindi
+		 * «nelle ultime 24 ore» e non «oggi», che sarebbe falso alle 00:05 — e
+		 * non il tetto: il numero vive nel database, e qui diventerebbe falso al
+		 * primo ritocco.
+		 */
+		rateLimit: {
+			receipt: "Hai caricato molte ricevute nell'ultima ora. Potrai caricarne altre {when}.",
+			import: "Hai importato molti file nelle ultime 24 ore. Potrai importare di nuovo {when}.",
+			export: "Hai scaricato molti file CSV nell'ultima ora. Potrai scaricarne un altro {when}.",
+			avatar: "Hai cambiato la foto profilo molte volte nell'ultima ora. Potrai cambiarla di nuovo {when}.",
+		},
 	},
 
 	/**

@@ -10,6 +10,8 @@ import {
 	receiptPath,
 } from "@/lib/attachments";
 import { fill } from "@/lib/i18n/format";
+import { genericError } from "@/lib/errors";
+import { consumeRateLimit, rateLimitMessage } from "@/lib/rate-limit";
 import type { Attachment } from "@/types";
 
 /**
@@ -167,7 +169,7 @@ export async function getAttachmentCountsChecked(
 export async function uploadAttachment(
 	formData: FormData,
 ): Promise<{ data: Attachment } | { error: string }> {
-	const { supabase, user, t } = await requireUser();
+	const { supabase, user, t, locale } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	const transactionId = String(formData.get("transactionId") ?? "");
@@ -200,6 +202,12 @@ export async function uploadAttachment(
 
 	const ext = ATTACHMENT_MIME[file.type];
 	if (!ext) return { error: t.errors.unsupportedFormat };
+
+	// #161 · il tetto, dopo i controlli gratuiti e prima del caricamento: un file
+	// rifiutato per la dimensione o il formato non consuma un posto.
+	const limit = await consumeRateLimit(supabase, "receipt");
+	if ("error" in limit) return { error: genericError("ricevute: limite", limit.error, t) };
+	if (limit.wait > 0) return { error: rateLimitMessage(t, locale, "receipt", limit.wait) };
 
 	const path = receiptPath(user.id, ext);
 

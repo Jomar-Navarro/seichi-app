@@ -5,6 +5,7 @@ import {
 	capitalize,
 	fill,
 	formatMoney,
+	formatRetryIn,
 	lookup,
 	plural,
 	relativePastLabel,
@@ -72,6 +73,22 @@ describe("relativePastLabel (#123)", () => {
 		[400, "it", "1 anno fa"],
 	] as const)("%d giorni (%s) → %j", (days, locale, text) => {
 		expect(relativePastLabel(days, locale)).toBe(text);
+	});
+});
+
+describe("formatRetryIn (#161)", () => {
+	it("arrotonda per eccesso, mai sotto il minuto", () => {
+		expect(formatRetryIn(1, "it")).toBe("tra 1 minuto");
+		expect(formatRetryIn(60, "it")).toBe("tra 1 minuto");
+		expect(formatRetryIn(61, "it")).toBe("tra 2 minuti");
+		expect(formatRetryIn(600, "en")).toBe("in 10 minutes");
+	});
+
+	it("oltre l'ora passa alle ore, sempre per eccesso", () => {
+		expect(formatRetryIn(59 * 60, "it")).toBe("tra 59 minuti");
+		expect(formatRetryIn(3600, "it")).toBe("tra 1 ora");
+		expect(formatRetryIn(3601, "it")).toBe("tra 2 ore");
+		expect(formatRetryIn(86_400, "en")).toBe("in 24 hours");
 	});
 });
 

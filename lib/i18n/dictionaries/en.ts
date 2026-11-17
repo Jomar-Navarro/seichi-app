@@ -221,6 +221,12 @@ export const en: Dictionary = {
 			one: "This category has {n} recurring rule, so its type can't change. Create a new category of the type you need.",
 			other: "This category has {n} recurring rules, so its type can't change. Create a new category of the type you need.",
 		},
+		rateLimit: {
+			receipt: "You've uploaded a lot of receipts in the last hour. You can upload more {when}.",
+			import: "You've imported a lot of files in the last 24 hours. You can import again {when}.",
+			export: "You've downloaded a lot of CSV files in the last hour. You can download another {when}.",
+			avatar: "You've changed your profile photo many times in the last hour. You can change it again {when}.",
+		},
 	},
 
 	auth: {

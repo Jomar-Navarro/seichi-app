@@ -6,7 +6,8 @@ import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { createClient, type SupabaseServerClient } from "@/lib/supabase/server";
 import { authErrorMessage, genericError } from "@/lib/errors";
 import { PASSWORD_MIN_LENGTH, validateNewPassword } from "@/lib/password";
-import { getDictionary } from "@/lib/i18n/server";
+import { getI18n } from "@/lib/i18n/server";
+import { consumeRateLimit, rateLimitMessage } from "@/lib/rate-limit";
 import type { Dictionary } from "@/lib/i18n/dictionaries/it";
 import { fill } from "@/lib/i18n/format";
 import { SITE_URL } from "@/lib/site-url";
@@ -59,13 +60,13 @@ async function requireLiveUser() {
 			data: { user },
 			error,
 		},
-		t,
-	] = await Promise.all([supabase.auth.getUser(), getDictionary()]);
+		{ t, locale },
+	] = await Promise.all([supabase.auth.getUser(), getI18n()]);
 	const denied =
 		!user && error && isAuthRetryableFetchError(error)
 			? authErrorMessage("account", error, t)
 			: t.errors.notAuthenticated;
-	return { supabase, user, t, denied };
+	return { supabase, user, t, locale, denied };
 }
 
 /**
@@ -166,7 +167,7 @@ function purgeAvatarFiles(
 }
 
 export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
-	const { supabase, user, t, denied } = await requireLiveUser();
+	const { supabase, user, t, locale, denied } = await requireLiveUser();
 	if (!user) return { error: denied };
 
 	const file = formData.get("avatar");
@@ -184,6 +185,11 @@ export async function uploadAvatar(formData: FormData): Promise<ActionResult> {
 
 	const ext = AVATAR_MIME[file.type];
 	if (!ext) return { error: t.errors.unsupportedFormat };
+
+	// #161 · il tetto, dopo i controlli gratuiti e prima del caricamento.
+	const limit = await consumeRateLimit(supabase, "avatar");
+	if ("error" in limit) return { error: genericError("account: limite avatar", limit.error, t) };
+	if (limit.wait > 0) return { error: rateLimitMessage(t, locale, "avatar", limit.wait) };
 
 	// Nome casuale: il bucket è pubblico in lettura, quindi il path non deve
 	// essere ricostruibile conoscendo solo lo user_id.
