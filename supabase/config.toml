@@ -3,12 +3,13 @@
 # gira il collaudo end-to-end (`npm run e2e:db`). Non descrive la produzione:
 # site_url su localhost:3200, conferma email spenta, limiti di frequenza alti.
 #
-# ⚠️⚠️ L'integrazione GitHub di Supabase legge questa cartella, e ha «Deploy to
-# production» acceso: a ogni merge su master applica alla produzione le
-# MIGRATION nuove, più le Edge Functions e i bucket DICHIARATI qui. Il resto —
-# [auth], [api], [db], il seed — la produzione lo ignora finché un blocco
-# `[remotes]` non nomina il suo progetto (docs: branching/github-integration,
-# letta il 2026-11-10). Quindi:
+# ⚠️⚠️ L'integrazione GitHub di Supabase legge questa cartella. Il suo «Deploy
+# to production» è spento (#157, `.claude/rules/rilascio.md`): acceso,
+# applicherebbe alla produzione a ogni merge su master le MIGRATION nuove, più
+# le Edge Functions e i bucket DICHIARATI qui. Il resto — [auth], [api], [db],
+# il seed — la produzione lo ignora finché un blocco `[remotes]` non nomina il
+# suo progetto (docs: branching/github-integration). Quindi, perché basta
+# riaccenderlo:
 #   · MAI un blocco [remotes] che nomini la produzione: porterebbe lì questo
 #     site_url e la conferma email spenta;
 #   · niente [storage.buckets.*] né [functions.*] qui: i bucket veri li creano

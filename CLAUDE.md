@@ -369,11 +369,12 @@ Flow»: quei titoli sono rimasti identici nei file, quindi li trovi con
 | telefono, tablet, desktop | `fase-27-mobile`, `fase-28-responsive`, `fase-28e-desktop` |
 | prestazioni, regione | `costo-richieste-supabase` |
 | dipendenze, CI, test | `issue-151-dipendenze`, `issue-152-ci`, `issue-155-test-unitari`, `issue-156-e2e` |
+| documentazione, README, memoria del progetto | `issue-159-documentazione` |
 | l'ordine delle fasi com'era | `ordine-delle-fasi` |
 
 ## Stato, al 2026-11-17
 
-- **Fatto**: fasi 1-28, eccetto 24c e 29, e le issue fino alla #158.
+- **Fatto**: fasi 1-28, eccetto 24c e 29, e le issue fino alla #159.
 - **Aperte**:
   - 24c, la chat del coach (#74): ultima di proposito, non proporla prima;
   - 29, le animazioni (#71);
