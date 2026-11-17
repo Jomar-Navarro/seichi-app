@@ -159,8 +159,8 @@ export async function deleteCategory(id: string) {
 	/*
 	 * ⚠️ E se ci sono regole ricorrenti (#117). Una regola non è un movimento,
 	 * quindi il conteggio sopra non la vede — tipicamente un abbonamento appena
-	 * creato con la prima occorrenza nel futuro. `recurring_rules_category_id_fkey`
-	 * è `on delete set null`: la regola restava ATTIVA senza categoria, e il job
+	 * creato con la prima occorrenza nel futuro. `recurring_rules_category_owner_fkey`
+	 * è `on delete set null (category_id)`: la regola restava ATTIVA senza categoria, e il job
 	 * scriveva ogni mese un movimento senza categoria che abbassa il saldo del
 	 * conto. Tutte le regole, non solo le attive: una in pausa, ripresa dopo,
 	 * farebbe lo stesso. La via d'uscita c'è — `RecurringSheet` cambia la

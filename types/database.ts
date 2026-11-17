@@ -132,14 +132,16 @@ export type Database = {
 				};
 				Relationships: [
 					{
-						foreignKeyName: "budgets_category_id_fkey";
+						foreignKeyName: "budgets_category_owner_fkey";
 						columns: [
-							"category_id"
+							"category_id",
+							"user_id"
 						];
 						isOneToOne: false;
 						referencedRelation: "categories";
 						referencedColumns: [
-							"id"
+							"id",
+							"user_id"
 						];
 					}
 				];
@@ -411,14 +413,16 @@ export type Database = {
 						];
 					},
 					{
-						foreignKeyName: "recurring_rules_category_id_fkey";
+						foreignKeyName: "recurring_rules_category_owner_fkey";
 						columns: [
-							"category_id"
+							"category_id",
+							"user_id"
 						];
 						isOneToOne: false;
 						referencedRelation: "categories";
 						referencedColumns: [
-							"id"
+							"id",
+							"user_id"
 						];
 					}
 				];
@@ -501,14 +505,16 @@ export type Database = {
 						];
 					},
 					{
-						foreignKeyName: "transactions_category_id_fkey";
+						foreignKeyName: "transactions_category_owner_fkey";
 						columns: [
-							"category_id"
+							"category_id",
+							"user_id"
 						];
 						isOneToOne: false;
 						referencedRelation: "categories";
 						referencedColumns: [
-							"id"
+							"id",
+							"user_id"
 						];
 					},
 					{

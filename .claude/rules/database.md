@@ -12,7 +12,8 @@ paths:
 Si carica quando apri un file di `supabase/` o i moduli di job, notifiche e
 budget. Il perché sta in `docs/storia/`: `issue-043-ricostruzione-schema`,
 `issue-123-database-integrita`, `issue-154-anon`, `issue-047-job-giornaliero`,
-`fase-17-budget-notifiche`, `schema-annotato`, `issue-157-supabase-cli`.
+`fase-17-budget-notifiche`, `schema-annotato`, `issue-157-supabase-cli`,
+`issue-158-categorie-proprietario`.
 
 ## Scrivere una migration
 
@@ -109,7 +110,10 @@ Con `db push`, mai dal SQL Editor: la procedura sta in `rilascio.md`.
    action quando nessun vincolo sa esprimerlo e lo stato illegale è innocuo (il
    budget solo su categorie `spesa`).
 5. **Una chiave composita `(…_id, user_id)` vuole `user_id` NOT NULL**: con
-   `MATCH SIMPLE` una colonna NULL disattiva l'intero vincolo.
+   `MATCH SIMPLE` una colonna NULL disattiva l'intero vincolo. ⚠️ E il suo
+   `on delete set null` si scrive con la colonna, `set null (category_id)`:
+   senza, Postgres annulla anche `user_id`, e la cancellazione fallisce con
+   `23502` (#158).
 6. **Unicità e NULL**: di default i NULL sono distinti. Dove NULL vuol dire «una
    cosa sola» (il budget globale) serve `NULLS NOT DISTINCT`.
 7. **Prima di aggiungere un tipo di movimento, fai l'audit di ogni consumatore di
@@ -151,8 +155,8 @@ Con `db push`, mai dal SQL Editor: la procedura sta in `rilascio.md`.
    - Il client aggiorna solo la colonna `read`: la RLS decide le righe, il grant
      di colonna decide le colonne.
    - Nessuna policy di INSERT.
-8. **Le join verso `categories` confrontano anche `user_id`**: le chiavi esterne
-   sono a colonna singola.
+8. **Le join verso `categories` confrontano anche `user_id`**: ridondante
+   dalle FK composite (#158), costa zero, e le prove c2 lo pretendono.
 9. **L'allarme «job fermo» si calcola alla lettura** (`daily_job_health()`,
    `lib/jobs.ts`, soglia di 36 ore in TypeScript). Mai da una notifica o da un
    secondo cron: un job morto non può annunciarsi.
