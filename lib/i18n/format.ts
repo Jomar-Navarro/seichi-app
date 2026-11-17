@@ -248,6 +248,24 @@ export function relativeDayLabel(days: number, locale: Locale): string {
 }
 
 /**
+ * "tra 12 minuti", "tra 3 ore" — quanto manca, dai secondi che restituisce
+ * `consume_rate_limit()` (#161).
+ *
+ * Arrotonda SEMPRE per eccesso: un'attesa detta più corta del vero manda a
+ * riprovare troppo presto, e il secondo rifiuto toglie credibilità al primo.
+ * Per lo stesso motivo sotto il minuto dice "tra 1 minuto", mai "adesso". Oltre
+ * l'ora passa alle ore: la finestra più lunga è di un giorno, quindi al massimo
+ * "tra 24 ore", e i giorni non servono. `numeric: "always"`: la frase resta un
+ * numero in ogni lingua, senza le parole speciali che `"auto"` sceglie per 0 e 1.
+ */
+export function formatRetryIn(seconds: number, locale: Locale): string {
+	const rtf = relativeFormat(locale, "always");
+	const minutes = Math.max(1, Math.ceil(seconds / 60));
+	if (minutes < 60) return rtf.format(minutes, "minute");
+	return rtf.format(Math.ceil(minutes / 60), "hour");
+}
+
+/**
  * "ieri", "3 giorni fa", "2 settimane fa", "4 mesi fa" — da quanti giorni fa.
  *
  * Nata per i rinnovi già passati (#123): una notifica non si cancella mai, quindi

@@ -62,8 +62,8 @@ perché. Le regole di dettaglio sono nei file di `.claude/rules/`.
 
 1. **Ogni tabella ha RLS**, una policy per operazione nella forma
    `(select auth.uid())`. L'unica eccezione è un registro che nessun client deve
-   toccare (`job_runs`): RLS accesa e zero policy, con la migration che dice
-   perché, o alla rilettura sembra una dimenticanza.
+   toccare (`job_runs`, `rate_events`): RLS accesa e zero policy, con la
+   migration che dice perché, o alla rilettura sembra una dimenticanza.
 2. **`anon` non ha privilegi in `public`** (#154), e i default di `postgres` fanno
    nascere così anche gli oggetti nuovi. Un grant ad `anon` si dà a una tabella e
    a un privilegio, in una migration che lo motiva.
@@ -93,6 +93,11 @@ perché. Le regole di dettaglio sono nei file di `.claude/rules/`.
    inlinizzate in compilazione, quindi i controlli stanno in `next.config.ts`.
 10. **Il proxy è una comodità di navigazione, non il perimetro**: ogni pagina e
     ogni action si autentica da sé, perché un'action si raggiunge con una POST.
+11. **Un'azione che costa (upload, import, export) consuma un posto del suo
+    tetto** con `consumeRateLimit()` (`lib/rate-limit.ts`), dopo i controlli
+    gratuiti e prima del lavoro. Le soglie stanno solo in `consume_rate_limit()`;
+    dove una RPC diretta salterebbe la action, il tetto sta nella funzione
+    (`import_transactions()`). Storia: `issue-161-limiti`.
 
 ### Numeri
 
@@ -281,6 +286,8 @@ notifications    id, user_id, type, payload jsonb (fatti, non frasi), dedup_key,
 imports          id, user_id, account_id (il conto del file), source, filename
 attachments      id, user_id, transaction_id, storage_path, mime_type, size_bytes
 job_runs         id (identity), job_name, run_at, step, status, details — RLS, zero policy
+rate_events      id, user_id, action (receipt|import|export|avatar) — RLS, zero policy:
+                 la scrive solo consume_rate_limit()
 ```
 
 Ogni tabella ha anche `created_at`.
@@ -294,7 +301,9 @@ Ogni tabella ha anche `created_at`.
 - `run_daily_jobs()`, lanciata da pg_cron alle 03:00 UTC: ricorrenti, poi
   notifiche;
 - `daily_job_health()`;
-- `import_transactions()` (`security invoker`);
+- `import_transactions()` (`security invoker`), con il tetto degli import:
+  oltre, `SR429` con i secondi nel `detail`;
+- `consume_rate_limit(action)`: 0 e registra, o i secondi da aspettare;
 - `delete_current_user(dry_run)`.
 
 **Invarianti che il database impone**, e su cui l'app conta:
@@ -369,12 +378,13 @@ Flow»: quei titoli sono rimasti identici nei file, quindi li trovi con
 | telefono, tablet, desktop | `fase-27-mobile`, `fase-28-responsive`, `fase-28e-desktop` |
 | prestazioni, regione | `costo-richieste-supabase` |
 | dipendenze, CI, test | `issue-151-dipendenze`, `issue-152-ci`, `issue-155-test-unitari`, `issue-156-e2e` |
+| limiti di frequenza | `issue-161-limiti` |
 | documentazione, README, memoria del progetto | `issue-159-documentazione` |
 | l'ordine delle fasi com'era | `ordine-delle-fasi` |
 
 ## Stato, al 2026-11-17
 
-- **Fatto**: fasi 1-28, eccetto 24c e 29, e le issue fino alla #159.
+- **Fatto**: fasi 1-28, eccetto 24c e 29, le issue fino alla #159, e la #161.
 - **Aperte**:
   - 24c, la chat del coach (#74): ultima di proposito, non proporla prima;
   - 29, le animazioni (#71);

@@ -6,6 +6,7 @@ import { toCsv, type CsvValue } from "@/lib/export/csv";
 import { TRANSACTION_PERIODS, amountSign } from "@/lib/transaction-utils";
 import { isAccountId, isUuid } from "@/lib/accounts";
 import { lookup } from "@/lib/i18n/format";
+import { consumeRateLimit, rateLimitMessage } from "@/lib/rate-limit";
 import { TRANSACTION_TYPES, type Transaction } from "@/types";
 
 /**
@@ -154,6 +155,20 @@ export async function GET(req: NextRequest) {
 			return fail(t.export.errors.failed, 500);
 		}
 		if (!categoryRes.data) return fail(t.export.errors.badFilter, 404);
+	}
+
+	// #161 · il tetto, dopo i filtri e prima di leggere i movimenti: una
+	// richiesta con un filtro sbagliato non consuma un posto. Il 429 porta la
+	// frase, come ogni altro errore di questa rotta, e `Retry-After`.
+	const limit = await consumeRateLimit(supabase, "export");
+	if ("error" in limit) {
+		console.error("[export] limite:", limit.error.code, limit.error.message);
+		return fail(t.export.errors.failed, 500);
+	}
+	if (limit.wait > 0) {
+		const res = fail(rateLimitMessage(t, locale, "export", limit.wait), 429);
+		res.headers.set("Retry-After", String(limit.wait));
+		return res;
 	}
 
 	const c = t.export.columns;

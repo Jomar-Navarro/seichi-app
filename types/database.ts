@@ -338,6 +338,29 @@ export type Database = {
 				Relationships: [
 				];
 			};
+			"rate_events": {
+				Row: {
+					"action": string;
+					"created_at": string;
+					"id": string;
+					"user_id": string;
+				};
+				ComputedFields: never;
+				Insert: {
+					"action": string;
+					"created_at"?: string;
+					"id"?: string;
+					"user_id": string;
+				};
+				Update: {
+					"action"?: string;
+					"created_at"?: string;
+					"id"?: string;
+					"user_id"?: string;
+				};
+				Relationships: [
+				];
+			};
 			"recurring_rules": {
 				Row: {
 					"account_id": string;
@@ -619,6 +642,12 @@ export type Database = {
 					"period_start": string;
 					"valid_from": string;
 				}[];
+			};
+			"consume_rate_limit": {
+				Args: {
+					"p_action": string;
+				};
+				Returns: number;
 			};
 			"daily_job_health": {
 				Args: Record<PropertyKey, never>;

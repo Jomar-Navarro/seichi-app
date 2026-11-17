@@ -5,6 +5,7 @@ import { RECEIPT_BUCKET } from "@/lib/attachments";
 import { removeStorageFiles } from "@/lib/storage-files";
 import { receiptPathsOf } from "@/lib/attachment-paths";
 import { requireUser } from "@/lib/auth";
+import { rateLimitMessage, retryAfterFromError } from "@/lib/rate-limit";
 import { analyze, importKeyFor, IMPORT_MAX_BYTES } from "@/lib/import";
 import { categoryTypeFor } from "@/lib/transaction-utils";
 import type {
@@ -108,7 +109,7 @@ function parseMapping(raw: FormDataEntryValue | null): GenericMapping | undefine
  * transazione sola con `on conflict do nothing` sulla chiave di deduplica.
  */
 export async function runImport(form: FormData): Promise<ImportResult> {
-	const { supabase, user, t } = await requireUser();
+	const { supabase, user, t, locale } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	const file = await readFile(form, t);
@@ -206,7 +207,12 @@ export async function runImport(form: FormData): Promise<ImportResult> {
 	 * `createAccount` e dai loader della home.
 	 */
 	if (error) {
-		console.error("[import] import_transactions:", error.message);
+		// #161 · il tetto vive dentro `import_transactions()`, così copre anche
+		// una RPC diretta: il rifiuto arriva come errore con un codice proprio,
+		// e si dice come tale, non come un guasto.
+		const wait = retryAfterFromError(error);
+		if (wait !== null) return { error: rateLimitMessage(t, locale, "import", wait) };
+		console.error("[import] import_transactions:", error.code, error.message);
 		return { error: t.common.genericError };
 	}
 
