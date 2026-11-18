@@ -9,7 +9,7 @@ paths:
 
 Storia: `docs/storia/issue-122-form-movimento`, `issue-148-movimenti`,
 `issue-150-form-tre-stati`, `issue-124-errori`, `fase-22-ricevute`,
-`fase-26a-pin`, `fase-28-responsive`.
+`fase-26a-pin`, `fase-28-responsive`, `issue-163-primi-passi`.
 
 ## Confini e stato
 
@@ -68,6 +68,10 @@ Storia: `docs/storia/issue-122-form-movimento`, `issue-148-movimenti`,
      duplica il movimento.
 7. **Il conto guardato lo dichiarano le pagine** (`<ViewedAccount>`,
    `useViewedAccount()`) e lo ritirano confrontando il turno, non l'id.
+8. **Un aiuto facoltativo che non si legge si nasconde**, e registra il motivo.
+   Non è un `LoadError`, perché non è il contenuto della pagina; e non mostra
+   le voci come «da fare», perché inviterebbe a rifare ciò che esiste già.
+   Perché: la card dei primi passi in home (#163).
 
 ## Tocco, tastiera, mouse
 

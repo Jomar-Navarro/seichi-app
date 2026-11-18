@@ -726,6 +726,57 @@ export const it = {
 		emptyDescription: "Aggiungi il primo movimento per iniziare.",
 	},
 
+	/**
+	 * La card «Primi passi» in home (#163, design B «pietre di passaggio»).
+	 *
+	 * ⚠️ «transazione» e non «movimento»: la card sta in home, accanto al
+	 * pulsante + («Aggiungi transazione») e a «Transazioni recenti». Il
+	 * pulsante della voce è la STESSA etichetta del +, perché fa la stessa cosa.
+	 *
+	 * ⚠️ `progress` è «2 su 4», non «2 di 4 fatti»: «1 di 4 fatti» non concorda.
+	 */
+	firstSteps: {
+		title: "Primi passi",
+		/** «2 su 4». */
+		progress: "{done} su {total}",
+		dismiss: "Ho capito",
+		/** Il nome della lista delle pietre, per lo screen reader. */
+		stepsLabel: "I quattro passi",
+		/** Il nome di una pietra: sul telefono la pietra non ha testo visibile. */
+		stepAria: "Passo {n}: {label}",
+		stepAriaDone: "Passo {n}: {label}, fatto",
+		stepAriaNext: "Passo {n}: {label}, il prossimo",
+		/** L'etichetta sopra il titolo quando si guarda una voce già fatta. */
+		done: "Fatto",
+		steps: {
+			balance: {
+				label: "Imposta il saldo iniziale del conto",
+				why: "I saldi della pagina Conti partono da questo numero.",
+				action: "Imposta il saldo",
+			},
+			transaction: {
+				label: "Registra la prima transazione",
+				why: "Anche una sola spesa di oggi: il Flusso del mese comincia da lì.",
+				action: "Aggiungi transazione",
+			},
+			budget: {
+				label: "Imposta un budget",
+				why: "Anche uno solo, sulle spese del mese.",
+				action: "Imposta un budget",
+			},
+			goal: {
+				label: "Dai un traguardo a un obiettivo",
+				why: "Scegli quanto vuoi mettere da parte, e per quando.",
+				action: "Scegli un traguardo",
+			},
+		},
+		/** Solo sulla voce della transazione, e solo finché non c'è un import. */
+		importLink: "Importa un estratto conto",
+		finishedTitle: "Primi passi completati",
+		finishedText: "Saldo, transazioni, budget e traguardo sono impostati.",
+		close: "Chiudi",
+	},
+
 	/** Conti multipli — Fase 20a. */
 	accounts: {
 		title: "Conti",

@@ -117,7 +117,8 @@ export async function getProfileHeader(): Promise<ProfileHeader> {
 
 /**
  * La lettura di `profiles` per l'intestazione — UNA per richiesta, chiunque la
- * chieda (issue #108).
+ * chieda (issue #108). Dalla #163 porta anche la chiusura della card «Primi
+ * passi», che la home legge così senza una richiesta in più.
  *
  * La chiedono in due: la home (`getProfileHeader`) e il footer della sidebar
  * (`getSidebarProfile`, dal layout di `(main)`). Al caricamento di `/` layout e
@@ -137,26 +138,69 @@ export async function getProfileHeader(): Promise<ProfileHeader> {
  * home lo lascia salire, come ha sempre fatto; `getSidebarProfile()` lo
  * assorbe.
  */
-const loadProfileHeader = cache(async (): Promise<ProfileHeader | null> => {
+const loadProfile = cache(async (): Promise<LoadedProfile | null> => {
 	const supabase = await createClient();
 	const user = await getSessionUser();
 
 	if (!user) return null;
 
-	const { data: profile } = await supabase
+	const { data: profile, error } = await supabase
 		.from("profiles")
-		.select("full_name, avatar_url")
+		.select("full_name, avatar_url, first_steps_dismissed_at")
 		.eq("id", user.id)
 		.single();
+
+	// L'intestazione degrada come ha sempre fatto (nome dall'email, nessun
+	// avatar); il motivo però si registra, non sparisce più.
+	if (error) console.error("[account] lettura del profilo:", error.message);
 
 	const fullName = profile?.full_name ?? null;
 
 	return {
-		avatarUrl: profile?.avatar_url ?? null,
-		displayName: getDisplayName(fullName, user.email),
-		initials: getInitials(fullName, user.email),
+		header: {
+			avatarUrl: profile?.avatar_url ?? null,
+			displayName: getDisplayName(fullName, user.email),
+			initials: getInitials(fullName, user.email),
+		},
+		firstSteps: !profile ? "unknown" : profile.first_steps_dismissed_at ? "dismissed" : "open",
 	};
 });
+
+/**
+ * La card «Primi passi» va mostrata? (#163)
+ *
+ * - `open`: profilo letto, card mai chiusa;
+ * - `dismissed`: chiusa, su questo o su un altro dispositivo;
+ * - `unknown`: profilo non letto. ⚠️ Non è `open`: la card si nasconde. Una
+ *   lettura fallita non può riaprire una card che l'utente ha già chiuso.
+ */
+export type FirstStepsVisibility = "open" | "dismissed" | "unknown";
+
+/**
+ * Il profilo letto UNA volta per richiesta: l'intestazione per home e
+ * sidebar, più lo stato della card dei primi passi.
+ *
+ * ⚠️ Lo stato della card sta ACCANTO a `ProfileHeader`, non dentro: quel tipo
+ * arriva al client della Sidebar, che della card non deve sapere niente.
+ */
+type LoadedProfile = { header: ProfileHeader; firstSteps: FirstStepsVisibility };
+
+const loadProfileHeader = async (): Promise<ProfileHeader | null> =>
+	(await loadProfile())?.header ?? null;
+
+/**
+ * Lo stato della card dalla STESSA lettura dell'intestazione (`cache()`): la
+ * home non paga una richiesta in più per saperlo. Non solleva mai: un guasto
+ * (anche di `getSessionUser()`) è `unknown`, cioè card nascosta.
+ */
+export async function getFirstStepsVisibility(): Promise<FirstStepsVisibility> {
+	try {
+		return (await loadProfile())?.firstSteps ?? "unknown";
+	} catch (error) {
+		console.error("[account] primi passi, lettura del profilo:", error);
+		return "unknown";
+	}
+}
 
 /**
  * Quanti conti ATTIVI ha l'utente — la query, UNA per l'intera app.

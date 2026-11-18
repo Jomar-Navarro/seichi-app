@@ -311,6 +311,7 @@ export type Database = {
 					"avatar_url": string | null;
 					"created_at": string | null;
 					"currency": string | null;
+					"first_steps_dismissed_at": string | null;
 					"full_name": string | null;
 					"id": string;
 					"language": string | null;
@@ -321,6 +322,7 @@ export type Database = {
 					"avatar_url"?: string | null;
 					"created_at"?: string | null;
 					"currency"?: string | null;
+					"first_steps_dismissed_at"?: string | null;
 					"full_name"?: string | null;
 					"id": string;
 					"language"?: string | null;
@@ -330,6 +332,7 @@ export type Database = {
 					"avatar_url"?: string | null;
 					"created_at"?: string | null;
 					"currency"?: string | null;
+					"first_steps_dismissed_at"?: string | null;
 					"full_name"?: string | null;
 					"id"?: string;
 					"language"?: string | null;
@@ -675,6 +678,16 @@ export type Database = {
 					"dry_run"?: boolean;
 				};
 				Returns: undefined;
+			};
+			"first_steps": {
+				Args: Record<PropertyKey, never>;
+				Returns: {
+					"has_balance": boolean;
+					"has_budget": boolean;
+					"has_goal": boolean;
+					"has_import": boolean;
+					"has_transaction": boolean;
+				}[];
 			};
 			"generate_notifications": {
 				Args: Record<PropertyKey, never>;
