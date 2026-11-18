@@ -721,9 +721,14 @@ export const it = {
 		analyticsSubtitle: "Grafici e statistiche",
 		recentTitle: "Transazioni recenti",
 		seeAll: "Vedi tutte →",
-		/** Lista vuota dentro la card della home, più stretta di quella a pagina piena. */
-		emptyTitle: "Ancora nessun movimento",
-		emptyDescription: "Aggiungi il primo movimento per iniziare.",
+		/**
+		 * Lista vuota dentro la card della home, più stretta di quella a pagina piena.
+		 * «Transazione» come il titolo della card («Transazioni recenti»), il
+		 * pulsante + e la card dei primi passi, che le sta sopra in un account
+		 * nuovo: con «movimento» la stessa schermata usava due parole.
+		 */
+		emptyTitle: "Ancora nessuna transazione",
+		emptyDescription: "Aggiungi la prima transazione per iniziare.",
 	},
 
 	/**
