@@ -5,6 +5,7 @@ paths:
   - ".github/**"
   - "eslint.config.mjs"
   - "scripts/audit-eslint-rules.mjs"
+  - "scripts/audit-security.mjs"
 ---
 
 # Dipendenze e CI
@@ -37,8 +38,17 @@ Storia: `docs/storia/issue-151-dipendenze`, `issue-152-ci`,
    (regola `ignore` in `dependabot.yml`). La 6.0 è adottata (#186, 2026-11-10).
 6. **Node viene da `engines.node`** (24.x), letto da CI e Vercel. `@types/node`
    segue la stessa maggiore, alzata a mano.
-7. **`npm audit --audit-level=high` gira sull'intero albero**: esbuild, Tailwind
-   e Serwist girano in build anche su Vercel.
+7. **Gli avvisi alti si controllano sull'intero albero** (`npm run
+   audit:security`): esbuild, Tailwind e Serwist girano in build anche su
+   Vercel.
+   - Un avviso alto SENZA una versione corretta entra nelle eccezioni di
+     `scripts/audit-security.mjs`, con il perché è accettato qui e una
+     scadenza. Perché: `verifica` è richiesto dalla protezione di `master`,
+     e senza una via dichiarata un avviso che nessun aggiornamento può togliere
+     blocca ogni PR (picomatch, 2026-11-18, storia in `issue-152-ci`).
+   - Mai un'eccezione per un avviso che un aggiornamento chiude: si aggiorna.
+   - La CI cade anche su un'eccezione scaduta o che non serve più: l'elenco non
+     invecchia in silenzio.
 8. **I job `verifica` ed `e2e` sono richiesti dalla protezione di `master`**:
    rinominarli vuol dire aggiornare la regola. Le `NEXT_PUBLIC_*` della CI sono
    fittizie, quindi la sua build non è pubblicabile.

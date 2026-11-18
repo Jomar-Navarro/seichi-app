@@ -106,9 +106,11 @@ jobs:
       # ⚠️ Non `--omit=dev`: esbuild, Tailwind e Serwist girano durante
       # `next build`, anche su Vercel, e un avviso alto lì passerebbe senza una
       # parola (code review #183). I moderati restano fuori: quelli di
-      # glob/minimatch dentro Serwist sono accettati e spiegati in CLAUDE.md.
+      # glob/minimatch dentro Serwist sono accettati (ci-dipendenze.md, regola 3).
+      # Lo script è `npm audit` più le eccezioni DICHIARATE: avvisi alti senza
+      # una versione corretta, con motivo e scadenza (dal 2026-11-18, picomatch).
       - name: Avvisi di sicurezza
-        run: npm audit --audit-level=high
+        run: npm run audit:security
 
   # Il collaudo end-to-end (#156): l'app vera in un browser vero, contro un
   # Supabase LOCALE che `supabase start` ricostruisce dalle migration del repo.

@@ -38,3 +38,31 @@ build, `audit:tokens`, `audit:pwa-cache`, `npm audit --audit-level=high`.
 - Il job si chiama `verifica`, ed è il nome che la protezione di `master`
   richiede verde: rinominarlo vuol dire aggiornare la regola.
 
+
+### Le eccezioni degli avvisi alti (2026-11-18, deciso con Jomar)
+
+Il 2026-11-18 `npm audit` ha cominciato a segnalare **picomatch**
+(GHSA-fc5q-39xc-vjpf, ReDoS su pattern extglob), alto, fino alla 4.0.7: cioè
+ogni versione pubblicata. Il passo «Avvisi di sicurezza» è diventato rosso su
+ogni PR, anche su quelle che non toccavano le dipendenze (#209, #210), e
+`verifica` è richiesto dalla protezione di `master`: nessun merge possibile.
+
+Tre strade, scelta la prima:
+
+- **un'eccezione dichiarata**: `scripts/audit-security.mjs` prende il posto di
+  `npm audit --audit-level=high`, con lo stesso perimetro e la stessa soglia,
+  più un elenco di avvisi accettati, ciascuno col motivo e una scadenza;
+- aspettare la correzione: il rilascio di #162 e #163 fermo per un tempo che
+  nessuno conosce;
+- scavalcare la protezione da amministratore: scartata, smette di proteggere
+  proprio quando serve, e ogni PR successiva resta rossa.
+
+Perché picomatch si può accettare **qui**: `npm audit --omit=dev` non lo vede,
+quindi non arriva in produzione; lo usano vitest, ESLint e fast-glob in build e
+nei test, su pattern scritti da noi e mai su testo degli utenti. Scadenza
+2026-12-18: quel giorno la CI cade, e si rivaluta.
+
+Lo script cade anche quando un'eccezione **non serve più** (l'avviso sparito):
+la PR che aggiorna picomatch alla versione corretta deve togliere la voce, o
+resterebbe a coprire il prossimo avviso con lo stesso id. Nessuna dipendenza
+nuova: `audit-ci` e simili avrebbero fatto lo stesso con un pacchetto in più.

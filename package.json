@@ -20,6 +20,7 @@
     "audit:eslint-rules": "node scripts/audit-eslint-rules.mjs",
     "audit:tokens": "node scripts/audit-tokens.mjs",
     "audit:pwa-cache": "node scripts/audit-pwa-cache.mjs",
+    "audit:security": "node scripts/audit-security.mjs",
     "generate:pwa-icons": "node scripts/generate-pwa-icons.mjs",
     "generate:pwa-splash": "node scripts/generate-pwa-splash.mjs"
   },
