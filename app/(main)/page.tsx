@@ -19,7 +19,9 @@ import ProfileMenu from "@/components/features/ProfileMenu";
 import NotificationBell from "@/components/features/NotificationBell";
 import { getUnreadCount } from "@/app/(main)/notification-actions";
 import Sparkline from "@/components/UI/Sparkline";
-import { getProfileHeader } from "@/lib/account";
+import { getFirstStepsVisibility, getProfileHeader } from "@/lib/account";
+import { loadFirstSteps } from "@/lib/first-steps-server";
+import FirstSteps, { FirstStepsSkeleton } from "@/components/features/FirstSteps";
 import { getSelectedAccount } from "@/lib/accounts-server";
 import { getI18n } from "@/lib/i18n/server";
 import { fill, formatDate } from "@/lib/i18n/format";
@@ -67,6 +69,16 @@ async function DashboardContent({
 	accountId: string | null;
 	fromUrl: boolean;
 }) {
+	/*
+	 * La card «Primi passi» (#163) parte PRIMA delle letture della pagina e non
+	 * viene aspettata qui: la attende `<FirstSteps>` sotto il suo Suspense.
+	 * Aspetta solo la lettura del profilo (la stessa di `getProfileHeader`,
+	 * `cache()`), e se la card è chiusa si ferma lì: la RPC parte solo a card
+	 * aperta, quindi la home resta a sette richieste dopo «Ho capito».
+	 * Non rifiuta mai (vedi `loadFirstSteps`): può restare senza nessuno che la
+	 * aspetti, se più giù la pagina si ferma su un errore o un redirect.
+	 */
+	const firstStepsPromise = loadFirstSteps();
 	const [result, transaction, goalsResult, profile, unreadResult, accountsResult] =
 		await Promise.all([
 			getDashboardTotals(accountId),
@@ -85,6 +97,8 @@ async function DashboardContent({
 			getAccounts(),
 		]);
 	const { t, locale } = await getI18n();
+	// Già risolta: è la lettura del profilo che `getProfileHeader()` ha appena fatto.
+	const firstStepsVisibility = await getFirstStepsVisibility();
 
 	// Il conteggio arriva già risolto dal server così il badge non lampeggia da
 	// zero al numero vero. Su errore si mostra 0: un badge sbagliato in eccesso
@@ -306,6 +320,19 @@ async function DashboardContent({
 					</div>
 				)}
 			</div>
+
+			{/*
+				La card «Primi passi» (#163): sopra il Flusso, perché per un utente
+				nuovo è la cosa da fare prima di avere numeri da guardare. Il
+				Suspense si apre solo a card aperta: chiusa, o con il profilo non
+				letto, non c'è nemmeno lo scheletro che sparirebbe un attimo dopo.
+				Non dipende dal conto guardato: le voci contano su tutti i conti.
+			*/}
+			{firstStepsVisibility === "open" && (
+				<Suspense fallback={<FirstStepsSkeleton />}>
+					<FirstSteps promise={firstStepsPromise} />
+				</Suspense>
+			)}
 
 			{/*
 				⚠️ `monthLabel` si calcola QUI, nel server component, non nella card.

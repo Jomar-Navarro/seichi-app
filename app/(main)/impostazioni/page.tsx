@@ -161,8 +161,17 @@ export default async function ImpostazioniPage() {
 					</div>
 
 					{/* Budget — da `lg:` chiude la colonna, quindi il suo margine lì
-					    sarebbe solo spazio in più sotto la pagina. */}
-					<div className="mb-6 lg:mb-0">
+					    sarebbe solo spazio in più sotto la pagina.
+
+					    `id="budget"`: ci porta il passo «Imposta un budget» della card
+					    dei primi passi (#163), con `/impostazioni#budget`. Lo scroll lo
+					    fa Next da sé (Link con hash), istantaneo: nessuna animazione da
+					    dichiarare. ⚠️ `scroll-mt`: nessuna pagina ha un header fisso
+					    (#86), ma la safe-area in alto è un padding del contenitore che
+					    scorre via; senza margine il titolo finirebbe a y=0, sotto la
+					    barra di stato della PWA su iOS. Safe-area più il `pt-7` con cui
+					    si apre ogni pagina. */}
+					<div id="budget" className="mb-6 lg:mb-0 scroll-mt-[calc(env(safe-area-inset-top)+1.75rem)]">
 						<p className="text-[11.5px] font-semibold tracking-[1.6px] uppercase text-disabled mb-2.5 ml-0.5">
 							{t.settings.groups.budget}
 						</p>

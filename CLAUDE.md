@@ -381,6 +381,7 @@ Flow»: quei titoli sono rimasti identici nei file, quindi li trovi con
 | prestazioni, regione | `costo-richieste-supabase` |
 | dipendenze, CI, test | `issue-151-dipendenze`, `issue-152-ci`, `issue-155-test-unitari`, `issue-156-e2e` |
 | limiti di frequenza | `issue-161-limiti` |
+| primi passi, la card in home | `issue-163-primi-passi` |
 | documentazione, README, memoria del progetto | `issue-159-documentazione` |
 | l'ordine delle fasi com'era | `ordine-delle-fasi` |
 

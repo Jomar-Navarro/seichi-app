@@ -435,6 +435,43 @@ export const en: Dictionary = {
 		emptyDescription: "Add your first one to get started.",
 	},
 
+	firstSteps: {
+		title: "First steps",
+		progress: "{done} of {total}",
+		dismiss: "Got it",
+		stepsLabel: "The four steps",
+		stepAria: "Step {n}: {label}",
+		stepAriaDone: "Step {n}: {label}, done",
+		stepAriaNext: "Step {n}: {label}, next",
+		done: "Done",
+		steps: {
+			balance: {
+				label: "Set your account's starting balance",
+				why: "Balances on the Accounts page start from this number.",
+				action: "Set the balance",
+			},
+			transaction: {
+				label: "Record your first transaction",
+				why: "Even one purchase from today: the month's Flow starts there.",
+				action: "Add transaction",
+			},
+			budget: {
+				label: "Set a budget",
+				why: "Even just one, on the month's expenses.",
+				action: "Set a budget",
+			},
+			goal: {
+				label: "Give a goal a target",
+				why: "Choose how much you want to put aside, and by when.",
+				action: "Choose a target",
+			},
+		},
+		importLink: "Import a bank statement",
+		finishedTitle: "First steps done",
+		finishedText: "Balance, transactions, budget and target are set.",
+		close: "Close",
+	},
+
 	accounts: {
 		title: "Accounts",
 		loadError: "Could not load your accounts.",
