@@ -40,6 +40,7 @@ npm test                    # Vitest, le funzioni pure di lib/ (`test:watch` in 
 npm run audit:eslint-rules  # le regole di eslint scattano ancora (sentinella, #151)
 npm run audit:tokens        # token e classi di colore; il controllo B vuole una build
 npm run audit:pwa-cache     # cosa mette in cache il service worker; vuole una build
+npm run audit:security      # avvisi di sicurezza alti, con le eccezioni dichiarate
 
 # collaudo end-to-end — su un Supabase LOCALE in Docker, mai la produzione
 npm run e2e:db              # avvia il database locale, ricostruito dalle migration
@@ -50,7 +51,7 @@ npm run db:types            # rigenera types/database.ts dopo una migration (`:c
 ```
 
 La CI (`.github/workflows/ci.yml`) esegue tutto su ogni PR e su master nei job
-`verifica` ed `e2e`, più `npm audit --audit-level=high`. Node viene da
+`verifica` ed `e2e`, più gli avvisi alti (`audit:security`). Node viene da
 `engines.node` in `package.json` (24.x), lo stesso per locale, CI e Vercel.
 
 ## Regole che valgono ovunque
