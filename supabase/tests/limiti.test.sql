@@ -10,7 +10,7 @@
 -- Storia: docs/storia/issue-161-limiti.md.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(21);
+select plan(25);
 
 insert into auth.users (id, email) values
 	('00000000-0000-4000-a000-000000000001', 'uno@pgtap.seichi.test'),
@@ -107,6 +107,27 @@ select is(
 	 where user_id = '00000000-0000-4000-a000-000000000002' and action = 'receipt'),
 	1::bigint,
 	'receipt · e il registro li ha cancellati'
+);
+
+-- ---------------------------------------------------------------------------
+-- L'archivio completo (#162, `20261120_rate_limit_archive`): 3 al giorno, con
+-- un'azione propria. Utente due, dati propri: nessun evento `archive` prima.
+-- ---------------------------------------------------------------------------
+select lives_ok(
+	$$ set local role authenticated; select public.consume_rate_limit('archive') $$,
+	'archive · authenticated la chiama, e il vincolo di rate_events la accetta'
+);
+reset role;
+select is(public.consume_rate_limit('archive') + public.consume_rate_limit('archive'), 0,
+	'archive · la seconda e la terza della giornata sono concesse');
+select ok(
+	public.consume_rate_limit('archive') between 82800 and 86400,
+	'archive · la quarta è rifiutata, con un''attesa entro le 24 ore e non entro l''ora'
+);
+select throws_ok(
+	$$ insert into public.rate_events (user_id, action) values ('00000000-0000-4000-a000-000000000002', 'stampa') $$,
+	'23514', 'new row for relation "rate_events" violates check constraint "rate_events_action_check"',
+	'il vincolo allargato resta un vincolo: un''azione sconosciuta non entra'
 );
 
 -- ---------------------------------------------------------------------------

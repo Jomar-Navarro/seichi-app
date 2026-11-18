@@ -2,11 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { createClient, type SupabaseServerClient } from "@/lib/supabase/server";
 import { authErrorMessage, genericError } from "@/lib/errors";
 import { PASSWORD_MIN_LENGTH, validateNewPassword } from "@/lib/password";
-import { getI18n } from "@/lib/i18n/server";
+import { requireLiveUser } from "@/lib/auth";
 import { consumeRateLimit, rateLimitMessage } from "@/lib/rate-limit";
 import type { Dictionary } from "@/lib/i18n/dictionaries/it";
 import { fill } from "@/lib/i18n/format";
@@ -29,45 +28,15 @@ export type ActionResult = { error: string } | { success: true };
 /* Helper                                                              */
 /* ------------------------------------------------------------------ */
 
-/**
+/*
  * Ogni server action è raggiungibile con una POST diretta, non solo dalla UI:
- * l'autenticazione va verificata qui dentro, sempre.
- *
- * Restituisce anche il dizionario (Fase 19): ogni action di questo file comincia
- * di qui, quindi è il punto in cui la lingua arriva senza che nessuna funzione
- * debba ricordarsi di chiederla. I messaggi d'errore sono testo rivolto
- * all'utente come qualsiasi altro.
- *
- * ⚠️ **`LIVE` nel nome non è decorativo: distingue da `requireUser()` di
- * `lib/auth.ts`**, che legge le claims del JWT. Quella è una fotografia; questa
- * interroga GoTrue e torna l'utente di ADESSO — `email` e `identities`
- * compresi. Le action di questo file lo esigono: dopo un cambio email
- * confermato le claims restano indietro fino alla scadenza del token, e
- * `deleteAccount()` confronta proprio l'indirizzo. Con i due nomi uguali, un
- * domani basterebbe un import distratto per riaprire il difetto.
- *
- * ⚠️ `denied` è la frase da restituire quando `user` manca, e NON è sempre
- * "non autenticato" (#124). `getUser()` è una chiamata di rete, e un guasto di
- * GoTrue lasciava `user` a `null` esattamente come una sessione scaduta: chi
- * cambiava la password con un servizio lento leggeva "Non autenticato" da
- * loggato. È il difetto già chiuso in `getSessionUser()` e nel proxy — "non lo
- * so" non è "non sei autenticato".
+ * l'autenticazione va verificata qui dentro, sempre. Le action di questo file
+ * cominciano da `requireLiveUser()` (`lib/auth.ts`), che interroga GoTrue: dopo
+ * un cambio email le claims restano indietro, e `deleteAccount()` confronta
+ * proprio l'indirizzo. Spostata in `lib/` dalla #162, perché serve anche
+ * all'archivio completo: esportata da questo file `"use server"` sarebbe
+ * diventata una server action, raggiungibile da chiunque con una POST.
  */
-async function requireLiveUser() {
-	const supabase = await createClient();
-	const [
-		{
-			data: { user },
-			error,
-		},
-		{ t, locale },
-	] = await Promise.all([supabase.auth.getUser(), getI18n()]);
-	const denied =
-		!user && error && isAuthRetryableFetchError(error)
-			? authErrorMessage("account", error, t)
-			: t.errors.notAuthenticated;
-	return { supabase, user, t, locale, denied };
-}
 
 /**
  * Riautenticazione: Supabase permette di cambiare password ed email senza

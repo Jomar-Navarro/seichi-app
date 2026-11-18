@@ -75,7 +75,8 @@ perché. Le regole di dettaglio sono nei file di `.claude/rules/`.
 4. **L'utente si legge con `requireUser()`** (`lib/auth.ts`): claims del JWT
    verificate in locale, zero rete. `auth.getUser()`, `requireLiveUser()` e
    `getAccountContext()` solo dove serve il dato vivo — cambio email e password,
-   eliminazione, impostazioni dell'account, recupero password, `/callback`.
+   eliminazione, impostazioni dell'account, recupero password, `/callback`,
+   l'archivio completo dell'export (scrive l'email in un file).
    Perché: `getUser()` è una chiamata di rete a ogni invocazione, e le claims
    sono una fotografia (dopo un cambio email portano l'indirizzo vecchio per
    un'ora).
@@ -287,7 +288,7 @@ notifications    id, user_id, type, payload jsonb (fatti, non frasi), dedup_key,
 imports          id, user_id, account_id (il conto del file), source, filename
 attachments      id, user_id, transaction_id, storage_path, mime_type, size_bytes
 job_runs         id (identity), job_name, run_at, step, status, details — RLS, zero policy
-rate_events      id, user_id, action (receipt|import|export|avatar) — RLS, zero policy:
+rate_events      id, user_id, action (receipt|import|export|avatar|archive) — RLS, zero policy:
                  la scrive solo consume_rate_limit()
 ```
 
@@ -366,7 +367,7 @@ Flow»: quei titoli sono rimasti identici nei file, quindi li trovi con
 | conti, saldi, trasferimenti, conto ricordato | `fase-20a-conti`, `fase-20b-trasferimenti`, `issue-112-conto-guardato`, `issue-062-conti-swipe` |
 | movimenti: lista, form, importi | `issue-009-lista-movimenti`, `issue-148-movimenti`, `issue-150-form-tre-stati`, `issue-122-form-movimento`, `issue-119-importi` |
 | home, /analisi, report: i numeri | `fase-20a-conti`, `issue-121-numeri`, `fase-23-export-report` |
-| import ed export | `fase-21-import`, `issue-118-import`, `fase-23-export-report` |
+| import ed export | `fase-21-import`, `issue-118-import`, `fase-23-export-report`, `issue-162-archivio` |
 | investimenti | `fase-21b-disinvestimento`, `issue-061-investimenti-tipologie` |
 | ricevute, avatar, Storage | `fase-22-ricevute`, `issue-120-ricevute-orfane`, `fase-16-storage` |
 | coach | `fase-24a-disponibile`, `fase-24b-coach`, `fase-24c-chat-progetto` |

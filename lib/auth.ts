@@ -2,6 +2,7 @@ import { cache } from "react";
 import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { getI18n } from "@/lib/i18n/server";
+import { authErrorMessage } from "@/lib/errors";
 
 /**
  * L'identità dell'utente per questa richiesta, letta dalle CLAIMS del JWT.
@@ -158,4 +159,42 @@ export async function requireUser() {
 	// chiamata a `getI18n()` per un valore che era già stato risolto.
 	const [user, { locale, t }] = await Promise.all([getSessionUser(), getI18n()]);
 	return { supabase, user, t, locale };
+}
+
+/**
+ * L'utente VIVO: interroga GoTrue (`auth.getUser()`) e torna l'account di
+ * ADESSO, `email` e `identities` compresi. Nata nelle action dell'account
+ * (Fase 16), spostata qui dalla #162 perché la usa anche l'archivio completo,
+ * che scrive l'email in un file salvato.
+ *
+ * ⚠️ **`LIVE` nel nome non è decorativo: distingue da `requireUser()`**, che
+ * legge le claims del JWT. Quella è una fotografia; questa no. Dopo un cambio
+ * email confermato le claims restano indietro fino alla scadenza del token, e
+ * `deleteAccount()` confronta proprio l'indirizzo. Con i due nomi uguali, un
+ * domani basterebbe un import distratto per riaprire il difetto.
+ *
+ * ⚠️ `denied` è la frase da mostrare quando `user` manca, e NON è sempre
+ * "non autenticato" (#124). `getUser()` è una chiamata di rete, e un guasto di
+ * GoTrue lasciava `user` a `null` esattamente come una sessione scaduta: chi
+ * cambiava la password con un servizio lento leggeva "Non autenticato" da
+ * loggato. È il difetto già chiuso in `getSessionUser()` e nel proxy — "non lo
+ * so" non è "non sei autenticato". `unreachable` dice al chiamante quale dei
+ * due casi è, per chi deve scegliere fra un errore e un rinvio a /sign.
+ *
+ * `logLabel` finisce nel log dell'errore, per sapere da dove veniva.
+ *
+ * Fuori da `"use server"`: là ogni funzione esportata diventerebbe una POST.
+ */
+export async function requireLiveUser(logLabel = "account") {
+	const supabase = await createClient();
+	const [
+		{
+			data: { user },
+			error,
+		},
+		{ t, locale },
+	] = await Promise.all([supabase.auth.getUser(), getI18n()]);
+	const unreachable = !user && !!error && isAuthRetryableFetchError(error);
+	const denied = unreachable && error ? authErrorMessage(logLabel, error, t) : t.errors.notAuthenticated;
+	return { supabase, user, t, locale, denied, unreachable };
 }

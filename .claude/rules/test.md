@@ -99,6 +99,9 @@ rollback;`: niente resta, e la suite end-to-end trova il database com'era.
      diverse;
    - il passo dell'importo legge la tastiera fisica;
    - un'assenza è vera anche un istante prima: aspetta la schermata finale;
+   - `toBeVisible()` guarda il DOM, non lo schermo: un avviso che l'utente deve
+     leggere si controlla anche con `toBeInViewport()` (l'avviso del tetto
+     dell'archivio era «visibile» sotto la BottomNav, `issue-162-archivio`);
    - nelle fixture il parametro si chiama `provide`, non `use`;
    - dopo un aggiornamento di Playwright, `npx playwright install chromium
      firefox` (la CI aggiunge `--with-deps`, che porta le librerie di sistema

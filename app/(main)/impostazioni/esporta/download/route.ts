@@ -3,10 +3,13 @@ import { requireUser } from "@/lib/auth";
 import { getTransactions } from "@/app/(main)/action";
 import { getAttachmentCountsChecked } from "@/app/(main)/attachment-actions";
 import { toCsv, type CsvValue } from "@/lib/export/csv";
-import { TRANSACTION_PERIODS, amountSign } from "@/lib/transaction-utils";
+import { TRANSACTION_PERIODS } from "@/lib/transaction-utils";
+import { transactionCsvHeader, transactionCsvRows } from "@/lib/export/transactions-csv";
 import { isAccountId, isUuid } from "@/lib/accounts";
 import { lookup } from "@/lib/i18n/format";
-import { consumeRateLimit, rateLimitMessage } from "@/lib/rate-limit";
+import { consumeRateLimit } from "@/lib/rate-limit";
+import { exportErrorRedirect } from "@/lib/export/download-response";
+import type { ExportError } from "@/lib/export/download-error";
 import { TRANSACTION_TYPES, type Transaction } from "@/types";
 
 /**
@@ -60,13 +63,12 @@ const MAX_CHUNKS = 200;
 /** I tipi di movimento ammessi nel filtro, dalla stessa fonte del form. */
 const TYPE_IDS: string[] = TRANSACTION_TYPES.map((type) => type.id);
 
-/** La risposta di errore: testo semplice, già tradotto dal dizionario. */
-function fail(message: string, status: number) {
-	return new NextResponse(message, {
-		status,
-		headers: { "Content-Type": "text/plain; charset=utf-8" },
-	});
-}
+/**
+ * ⚠️ Ogni errore torna alla pagina dell'export con un codice (#162), mai con
+ * un testo: il comando è un `<a>` nudo, e un testo sarebbe una pagina bianca
+ * senza tasto indietro nella PWA installata. Vedi `lib/export/download-error.ts`.
+ */
+const fail = (req: NextRequest, error: ExportError) => exportErrorRedirect(req, error);
 
 /**
  * Il nome del conto, ridotto a qualcosa che stia in un nome di file.
@@ -113,7 +115,7 @@ export async function GET(req: NextRequest) {
 		(conto !== "" && !isAccountId(conto)) ||
 		(categoria !== "" && !isUuid(categoria));
 
-	if (badFilter) return fail(t.export.errors.badFilter, 400);
+	if (badFilter) return fail(req, { target: "csv", code: "filtro" });
 
 	// I nomi dei conti si risolvono da una mappa e non con una join: la relazione
 	// embedded di PostgREST si chiama come il VINCOLO
@@ -131,7 +133,7 @@ export async function GET(req: NextRequest) {
 
 	if (accountsError) {
 		console.error("[export] conti:", accountsError.message);
-		return fail(t.export.errors.failed, 500);
+		return fail(req, { target: "csv", code: "lettura" });
 	}
 
 	const accountName = new Map((accounts ?? []).map((a) => [a.id, a.name]));
@@ -147,34 +149,27 @@ export async function GET(req: NextRequest) {
 	 * Il conto si verifica sulla mappa che serve comunque per i nomi; la
 	 * categoria con una query sua, minuscola, solo quando il filtro c'è.
 	 */
-	if (conto !== "" && !accountName.has(conto)) return fail(t.export.errors.badFilter, 404);
+	if (conto !== "" && !accountName.has(conto)) return fail(req, { target: "csv", code: "filtro" });
 
 	if (categoryRes) {
 		if (categoryRes.error) {
 			console.error("[export] categoria:", categoryRes.error.message);
-			return fail(t.export.errors.failed, 500);
+			return fail(req, { target: "csv", code: "lettura" });
 		}
-		if (!categoryRes.data) return fail(t.export.errors.badFilter, 404);
+		if (!categoryRes.data) return fail(req, { target: "csv", code: "filtro" });
 	}
 
 	// #161 · il tetto, dopo i filtri e prima di leggere i movimenti: una
-	// richiesta con un filtro sbagliato non consuma un posto. Il 429 porta la
-	// frase, come ogni altro errore di questa rotta, e `Retry-After`.
+	// richiesta con un filtro sbagliato non consuma un posto. Oltre il tetto si
+	// torna alla pagina con l'attesa, che compone la frase (#162).
 	const limit = await consumeRateLimit(supabase, "export");
 	if ("error" in limit) {
 		console.error("[export] limite:", limit.error.code, limit.error.message);
-		return fail(t.export.errors.failed, 500);
+		return fail(req, { target: "csv", code: "lettura" });
 	}
-	if (limit.wait > 0) {
-		const res = fail(rateLimitMessage(t, locale, "export", limit.wait), 429);
-		res.headers.set("Retry-After", String(limit.wait));
-		return res;
-	}
+	if (limit.wait > 0) return fail(req, { target: "csv", code: "limite", wait: limit.wait });
 
-	const c = t.export.columns;
-	const rows: CsvValue[][] = [
-		[c.date, c.type, c.category, c.account, c.toAccount, c.amount, c.notes, c.attachments],
-	];
+	const rows: CsvValue[][] = [transactionCsvHeader(t)];
 
 	for (let chunk = 0; chunk < MAX_CHUNKS; chunk++) {
 		const result = await getTransactions({
@@ -188,7 +183,7 @@ export async function GET(req: NextRequest) {
 
 		if ("error" in result) {
 			console.error("[export] movimenti:", result.error);
-			return fail(t.export.errors.failed, 500);
+			return fail(req, { target: "csv", code: "lettura" });
 		}
 
 		const page = (result.data as Transaction[]) ?? [];
@@ -206,58 +201,17 @@ export async function GET(req: NextRequest) {
 		const { counts, complete } = await getAttachmentCountsChecked(page.map((tx) => tx.id));
 		if (!complete) {
 			console.error("[export] conteggio ricevute incompleto");
-			return fail(t.export.errors.failed, 500);
+			return fail(req, { target: "csv", code: "lettura" });
 		}
 
-		for (const tx of page) {
-			/*
-			 * ⚠️ Il segno è quello che l'app MOSTRA, non uno inventato per il file:
-			 * `amountSign()` guarda il conto filtrato, quindi un trasferimento è `−`
-			 * sull'origine e `+` sulla destinazione. Senza conto selezionato resta
-			 * senza segno, ed è positivo — la colonna "Tipo" accanto dice che è un
-			 * trasferimento. Il file e la lista devono dire la stessa cosa, o
-			 * diventano due risposte alla stessa domanda.
-			 *
-			 * ⚠️ Conseguenza dichiarata: SENZA un conto scelto, sommare la colonna
-			 * Importo in un foglio di calcolo **sovrastima**, perché i trasferimenti
-			 * vi entrano col segno più pur non essendo né entrate né uscite. Non è
-			 * un difetto risolvibile in questa colonna: senza un punto di vista il
-			 * segno di un trasferimento non esiste (è la stessa ragione per cui la
-			 * lista lo lascia neutro), e azzerarlo o svuotare la cella perderebbe un
-			 * dato vero. Chi vuole un totale sommabile esporta un conto per volta —
-			 * là ogni riga ha un segno, e la somma riconcilia col saldo.
-			 */
-			const sign = amountSign(tx, conto || null);
-
-			rows.push([
-				// ⚠️ Solo la data, senza orario: `transactions.date` è un `timestamp
-				// without time zone`, quindi tagliare i primi dieci caratteri è
-				// leggerlo come è scritto, senza conversioni di fuso. È anche l'unica
-				// parte che l'app mostra.
-				tx.date.slice(0, 10),
-				/*
-				 * ⚠️ `t.transactionTypes[…].label` e NON `t.typesSingular`.
-				 *
-				 * Il secondo serve alla UI delle categorie e **non contiene**
-				 * `trasferimento` né `disinvestimento` — deliberatamente, perché nessuno
-				 * dei due può avere una categoria propria. Usandolo qui, `lookup()`
-				 * ripiegava sull'id del database: la colonna Tipo diceva "Spesa" per
-				 * cinque tipi e `trasferimento` minuscolo per il sesto — e in un file
-				 * INGLESE sarebbe comparsa la parola italiana.
-				 *
-				 * `t.transactionTypes` descrive i tipi di MOVIMENTO, li ha tutti e sette,
-				 * ed è la stessa etichetta che l'utente legge sulle card del modale.
-				 * Il ripiego resta comunque, perché il tipo arriva dal database.
-				 */
-				lookup(t.transactionTypes, tx.type, (entry) => entry.label, tx.type),
-				tx.categories?.name ?? "",
-				accountName.get(tx.account_id) ?? "",
-				tx.to_account_id ? (accountName.get(tx.to_account_id) ?? "") : "",
-				sign === "−" ? -tx.amount : tx.amount,
-				tx.notes ?? "",
-				counts[tx.id] ?? 0,
-			]);
-		}
+		// Le righe le scrive `transactionCsvRows()`, la stessa funzione del CSV
+		// dentro l'archivio completo (#162).
+		rows.push(
+			...transactionCsvRows(
+				page.map((tx) => ({ ...tx, categoryName: tx.categories?.name ?? null })),
+				{ accountName, attachmentCounts: counts, conto: conto || null, t },
+			),
+		);
 
 		if (!result.hasMore) {
 			const contoSlug = conto ? slug(accountName.get(conto) ?? "") : "";
@@ -298,5 +252,5 @@ export async function GET(req: NextRequest) {
 	// Ci si arriva solo se `hasMore` resta vero per centomila righe: è un difetto
 	// nostro, non un archivio grande. Meglio un errore di un file monco.
 	console.error("[export] troppi giri: hasMore non si è mai chiuso");
-	return fail(t.export.errors.failed, 500);
+	return fail(req, { target: "csv", code: "lettura" });
 }

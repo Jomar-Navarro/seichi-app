@@ -2,9 +2,16 @@ import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import PageHeader from "@/components/UI/PageHeader";
 import ExportPanel from "@/components/features/ExportPanel";
+import ArchiveDownload from "@/components/features/ArchiveDownload";
+import ForgetExportError from "@/components/features/ForgetExportError";
+import { parseExportError, type ExportError } from "@/lib/export/download-error";
+import { rateLimitMessage } from "@/lib/rate-limit";
+import type { Dictionary } from "@/lib/i18n/dictionaries/it";
+import type { Locale } from "@/lib/i18n/config";
 
 /**
- * L'export dei movimenti in CSV (Fase 23a, issue #37).
+ * L'export dei movimenti in CSV (Fase 23a, issue #37) e, sotto, l'archivio
+ * completo di tutti i dati (#162).
  *
  * ⚠️ Conti e categorie si caricano QUI, come nella pagina di import: servono ai
  * selettori, e un client component che li caricasse da sé li richiederebbe a
@@ -19,11 +26,43 @@ import ExportPanel from "@/components/features/ExportPanel";
  * no. (Fino alla #148 questo commento citava `/transazioni` come precedente;
  * la ragione dell'export è sua, e resta anche ora che Movimenti ricorda.)
  */
-export default async function EsportaPage() {
-	const { supabase, user, t } = await requireUser();
+/**
+ * La frase di un errore di download (#162), dal dizionario: l'URL porta solo
+ * il codice. Il limite compone l'attesa con la frase del suo tetto.
+ */
+function exportErrorMessage(t: Dictionary, locale: Locale, error: ExportError): string {
+	switch (error.code) {
+		case "filtro":
+			return t.export.errors.badFilter;
+		case "lettura":
+			return t.export.errors.failed;
+		case "limite":
+			return rateLimitMessage(t, locale, error.target === "csv" ? "export" : "archive", error.wait);
+		case "troppo-grande":
+			return t.export.archive.errors.tooLarge;
+		case "rete":
+			return t.errors.authUnavailable;
+	}
+}
+
+export default async function EsportaPage({
+	searchParams,
+}: {
+	searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+	const { supabase, user, t, locale } = await requireUser();
 	if (!user) redirect("/sign");
 
-	const [accountsRes, categoriesRes, countRes] = await Promise.all([
+	/*
+	 * ⚠️ L'errore di un download (#162). Le rotte rispondono a un errore con un
+	 * rinvio qui e un CODICE, mai con un testo: i comandi sono `<a>` nudi, e un
+	 * testo sarebbe una pagina bianca senza tasto indietro nella PWA installata.
+	 * Un codice sconosciuto si ignora (`parseExportError`).
+	 */
+	const downloadError = parseExportError(await searchParams);
+	const errorMessage = downloadError ? exportErrorMessage(t, locale, downloadError) : null;
+
+	const [accountsRes, categoriesRes, countRes, receiptsRes] = await Promise.all([
 		/*
 		 * ⚠️ Anche gli ARCHIVIATI, al contrario dell'import.
 		 *
@@ -55,6 +94,11 @@ export default async function EsportaPage() {
 			.from("transactions")
 			.select("id", { count: "exact", head: true })
 			.eq("user_id", user.id),
+		// #162 · quante ricevute entreranno nell'archivio: dice quanto aspettare.
+		supabase
+			.from("attachments")
+			.select("id", { count: "exact", head: true })
+			.eq("user_id", user.id),
 	]);
 
 	if (accountsRes.error) console.error("[export] conti:", accountsRes.error.message);
@@ -76,6 +120,10 @@ export default async function EsportaPage() {
 	if (countRes.error) console.error("[export] conteggio movimenti:", countRes.error.message);
 	const hasTransactions = countRes.error !== null || (countRes.count ?? 0) > 0;
 
+	// Un conteggio non letto NON è «nessuna ricevuta» (#124): la riga si omette.
+	if (receiptsRes.error) console.error("[export] conteggio ricevute:", receiptsRes.error.message);
+	const receiptCount = receiptsRes.error ? null : (receiptsRes.count ?? 0);
+
 	// `pb-34` come ogni altra pagina di impostazioni: la `BottomNav` è `fixed`, e
 	// con un padding più corto l'ultimo elemento finisce sotto la barra.
 	return (
@@ -85,7 +133,15 @@ export default async function EsportaPage() {
 				accounts={accountsRes.data ?? []}
 				categories={categoriesRes.data ?? []}
 				hasTransactions={hasTransactions}
+				error={downloadError?.target === "csv" ? errorMessage : null}
 			/>
+			<ArchiveDownload
+				t={t}
+				locale={locale}
+				receiptCount={receiptCount}
+				error={downloadError?.target === "archivio" ? errorMessage : null}
+			/>
+			{downloadError && <ForgetExportError target={downloadError.target} />}
 		</div>
 	);
 }

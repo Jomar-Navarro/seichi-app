@@ -423,6 +423,7 @@ export const it = {
 			import: "Hai importato molti file nelle ultime 24 ore. Potrai importare di nuovo {when}.",
 			export: "Hai scaricato molti file CSV nell'ultima ora. Potrai scaricarne un altro {when}.",
 			avatar: "Hai cambiato la foto profilo molte volte nell'ultima ora. Potrai cambiarla di nuovo {when}.",
+			archive: "Hai scaricato molti archivi nelle ultime 24 ore. Potrai scaricarne un altro {when}.",
 		},
 	},
 
@@ -1925,7 +1926,8 @@ export const it = {
 		},
 
 		importData: "Importa transazioni",
-		exportData: "Esporta transazioni",
+		/** Dalla #162 la pagina esporta anche l'archivio completo, non solo i movimenti. */
+		exportData: "Esporta dati",
 		/** Al posto di un conteggio che non si è potuto leggere: mai "0" (#124). */
 		countUnavailable: "non disponibile",
 		manageCategories: "Gestisci categorie",
@@ -2142,7 +2144,7 @@ export const it = {
 	 * sopra. Le due sezioni si chiamano come le due direzioni che descrivono.
 	 */
 	export: {
-		title: "Esporta transazioni",
+		title: "Esporta dati",
 		/**
 		 * ⚠️ Due frasi, e la seconda è la più importante: dice cosa il file NON è.
 		 * Un CSV con le colonne che l'import si aspetta *invita* a reimportarlo, e
@@ -2151,7 +2153,7 @@ export const it = {
 		 */
 		intro: "Scarica i tuoi movimenti in un file CSV, da aprire in Excel o in un foglio di calcolo.",
 		notBackup:
-			"Non è un backup: le ricevute restano fuori, e per rimettere dei dati dentro Seichi si passa da Importa transazioni.",
+			"Non è un backup: le ricevute restano fuori (sono nell'archivio completo, più in basso), e per rimettere dei dati dentro Seichi si passa da Importa transazioni.",
 		filters: "Cosa esportare",
 		/**
 		 * Le etichette dei quattro selettori.
@@ -2200,9 +2202,116 @@ export const it = {
 			 * Là il chip resta a schermo a dire cosa si sta guardando; un file
 			 * scaricato non ha un'interfaccia che lo corregga, e un CSV vuoto si
 			 * legge come "non hai movimenti".
+			 *
+			 * Dalla #162 si legge sulla pagina dell'export, dopo il rinvio della
+			 * rotta: i filtri sono tornati ai valori iniziali, quindi la frase
+			 * chiede di sceglierli di nuovo, non di «tornare indietro».
 			 */
-			badFilter: "Filtro non valido: torna indietro e riprova.",
+			badFilter: "Un filtro non era valido: scegli di nuovo i filtri e riprova.",
 			failed: "Non è stato possibile preparare il file. Riprova.",
+		},
+
+		/**
+		 * L'archivio completo (#162): tutti i dati dell'utente in uno ZIP, per la
+		 * portabilità (art. 20 GDPR, #135). Storia: `docs/storia/issue-162-archivio`.
+		 *
+		 * ⚠️ Come il CSV, NON è un backup da reimportare, e lo dice accanto al
+		 * comando: le ragioni sono quelle della 23a (nomi e id che su un altro
+		 * account non risolvono, righe a mano senza `import_key`).
+		 */
+		archive: {
+			title: "Archivio completo",
+			intro:
+				"Tutti i tuoi dati in un file ZIP: profilo, conti, categorie, movimenti, budget con la loro storia, ricorrenti, notifiche, import e le foto delle ricevute.",
+			notBackup: "Serve a conservarli o a portarli altrove: Seichi non lo può reimportare.",
+			/** Il conteggio delle ricevute che l'archivio includerà, sotto il testo. */
+			receipts: {
+				zero: "Non ci sono ricevute da includere.",
+				one: "Include {n} ricevuta: può volerci qualche secondo.",
+				other: "Include {n} ricevute: con molte foto può volerci un po'.",
+			},
+			download: "Scarica l'archivio",
+			errors: {
+				/**
+				 * Oltre i limiti di uno ZIP senza ZIP64 (65.535 file o 4 GB). Una causa
+				 * diversa da un guasto, quindi un messaggio diverso: «riprova» qui non
+				 * servirebbe a niente.
+				 */
+				tooLarge: "I tuoi dati superano la dimensione massima di un archivio ZIP: non è possibile prepararlo.",
+			},
+
+			/**
+			 * I nomi dei file per la PERSONA, nella sua lingua. Quelli per i
+			 * programmi (`manifest.json`, `data/*.json`) restano fissi, come le
+			 * colonne del database: un programma non deve cambiare a seconda della
+			 * lingua di chi ha scaricato.
+			 */
+			files: {
+				readme: "LEGGIMI.txt",
+				transactionsCsv: "movimenti.csv",
+				receipts: "ricevute",
+				avatar: "foto-profilo",
+			},
+
+			/**
+			 * Il file `LEGGIMI.txt` dentro l'archivio, composto da
+			 * `archiveReadme()` in questo ordine. Testo semplice: si apre ovunque,
+			 * anche sul telefono.
+			 */
+			readme: {
+				title: "Seichi — l'archivio dei tuoi dati",
+				generated: "Creato il {date} alle {time} (UTC).",
+				intro:
+					"Contiene tutti i dati che hai inserito in Seichi. Serve a conservarli o a portarli in un'altra app: non è un backup, e Seichi non lo può reimportare.",
+				filesHeading: "I file",
+				files: {
+					readme: "{file} — questo file.",
+					manifest:
+						"manifest.json — l'indice per i programmi: quando è stato creato, quante righe ha ogni tabella, quali ricevute ci sono e quali mancano.",
+					csv: "{file} — i movimenti in forma di tabella, da aprire in Excel o in un foglio di calcolo. È lo stesso file di «Esporta», su tutto il periodo.",
+					data: "data/*.json — una tabella per file, per i programmi. I campi hanno il nome che hanno nel database, in inglese, e ogni riga ha il suo id: i legami fra le tabelle (account_id, category_id, transaction_id…) si ricostruiscono da lì.",
+					receipts:
+						"{folder}/ — le foto delle ricevute, una per file, con la data del movimento nel nome. Il campo «file» di data/attachments.json dice di quale movimento è ciascuna.",
+					avatar: "{file} — la tua foto profilo.",
+				},
+				tablesHeading: "Le tabelle",
+				tables: {
+					profile:
+						"data/profile.json — il profilo: le tue scelte (nome, valuta, lingua, tema…), l'indirizzo email e i metodi di accesso (email, Google…).",
+					accounts:
+						"data/accounts.json — i conti, anche archiviati, con il saldo iniziale (initial_balance).",
+					categories:
+						"data/categories.json — le categorie. Quelle di tipo «risparmio» con target_amount sono gli obiettivi.",
+					transactions:
+						"data/transactions.json — i movimenti: tipo, importo, data, conto, conto di arrivo (to_account_id), categoria, note, la regola ricorrente o l'import da cui vengono.",
+					recurring_rules: "data/recurring_rules.json — le transazioni ricorrenti e la loro frequenza.",
+					budgets:
+						"data/budgets.json — i budget con la loro storia: ogni riga vale da valid_from in poi. category_id vuoto è il budget globale.",
+					notifications: "data/notifications.json — le notifiche, con i fatti che le hanno generate (payload).",
+					imports: "data/imports.json — gli import fatti: il file, la fonte e il conto.",
+					attachments:
+						"data/attachments.json — le ricevute: a quale movimento appartengono, il formato e il file nell'archivio.",
+				},
+				notesHeading: "Come leggere i numeri",
+				notes: {
+					amounts:
+						"Gli importi sono sempre positivi: la direzione la dice il campo «type» (spesa, entrata, trasferimento…). La valuta è quella del profilo.",
+					dates:
+						"La data dei movimenti (date) è scritta senza fuso orario, così com'è salvata: va letta com'è. I campi created_at sono in UTC.",
+					balance:
+						"Il saldo di un conto non è salvato: è il saldo iniziale, più entrate e disinvestimenti, meno ogni altro movimento. Un movimento con un conto di arrivo aggiunge il suo importo a quel conto.",
+					budgets:
+						"Una riga di budget con amount vuoto (null) vuol dire «da quel periodo, nessun budget».",
+				},
+				missingHeading: "Cosa manca",
+				missing: {
+					one: "{n} ricevuta non si è potuta scaricare e non è nell'archivio. Il suo id è qui sotto e in manifest.json: riprova a scaricare l'archivio più tardi.",
+					other:
+						"{n} ricevute non si sono potute scaricare e non sono nell'archivio. I loro id sono qui sotto e in manifest.json: riprova a scaricare l'archivio più tardi.",
+				},
+				avatarMissing:
+					"La foto profilo non si è potuta scaricare e non è nell'archivio: riprova a scaricare l'archivio più tardi.",
+			},
 		},
 	},
 };
