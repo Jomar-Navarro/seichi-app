@@ -14,15 +14,24 @@ import { BASE_URL, expect, login, open, test } from "./support/fixtures";
  *
  * Controprova: togliere `consumeRateLimit` dalla rotta dell'export. Il primo
  * download non consuma, l'undicesima richiesta è solo la decima, e il test cade
- * su «atteso 429, ricevuto 200».
+ * su «atteso 303, ricevuto 200». Dalla #162 il rifiuto è un rinvio alla pagina
+ * con un codice, e la frase la compone la pagina.
  */
 const PNG_1X1 = Buffer.from(
 	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
 	"base64",
 );
 
-const consume = (account: { rest: (m: string, p: string, b?: unknown) => Promise<unknown> }, action: string, times: number) =>
-	Promise.all(Array.from({ length: times }, () => account.rest("POST", "rpc/consume_rate_limit", { p_action: action })));
+/**
+ * Una chiamata dopo l'altra, non in `Promise.all`: per lo stesso utente le
+ * chiamate si mettono comunque in fila sul lock di `consume_rate_limit()`, e
+ * lanciate insieme tengono occupate le connessioni del database mentre
+ * aspettano. Con otto processi in parallelo una è andata in `statement
+ * timeout` (57014) prima di arrivare alla prova (#162).
+ */
+async function consume(account: { rest: (m: string, p: string, b?: unknown) => Promise<unknown> }, action: string, times: number) {
+	for (let i = 0; i < times; i++) await account.rest("POST", "rpc/consume_rate_limit", { p_action: action });
+}
 
 test("superato il tetto, export e avatar lo dicono nella lingua dell'utente", async ({ page, account }) => {
 	await login(page, account);
@@ -35,19 +44,31 @@ test("superato il tetto, export e avatar lo dicono nella lingua dell'utente", as
 	// Altri nove: con quello sopra fanno dieci, il tetto dell'ora.
 	await consume(account, "export", 9);
 
-	const inItaliano = await page.request.get(download);
-	expect(inItaliano.status()).toBe(429);
-	expect(Number(inItaliano.headers()["retry-after"])).toBeGreaterThan(3500);
-	expect(await inItaliano.text()).toMatch(
+	// Oltre il tetto la rotta NON risponde con un testo (#162): il comando è un
+	// `<a>` nudo, e il testo sarebbe una pagina bianca senza tasto indietro
+	// nella PWA installata. Rinvia alla pagina con un codice e l'attesa.
+	const over = await page.request.get(download, { maxRedirects: 0 });
+	expect(over.status()).toBe(303);
+	const back = new URL(over.headers()["location"], BASE_URL);
+	expect(back.pathname).toBe("/impostazioni/esporta");
+	expect(back.searchParams.get("errore")).toBe("limite");
+	expect(back.searchParams.get("per")).toBe("csv");
+	expect(Number(back.searchParams.get("attesa"))).toBeGreaterThan(3500);
+	expect(back.hash).toBe("#csv");
+
+	// La pagina compone la frase, nella lingua dell'utente, e sullo schermo.
+	await open(page, back.pathname + back.search + back.hash);
+	const notice = page.getByText(
 		/^Hai scaricato molti file CSV nell'ultima ora\. Potrai scaricarne un altro tra (1 ora|59 minuti)\.$/,
 	);
+	await expect(notice).toBeVisible();
+	await expect(notice).toBeInViewport({ ratio: 1 });
 
 	await page.context().addCookies([{ name: "seichi-lang", value: "en", url: BASE_URL }]);
-	const en = await page.request.get(download);
-	expect(en.status()).toBe(429);
-	expect(await en.text()).toMatch(
+	await open(page, back.pathname + back.search);
+	await expect(page.getByText(
 		/^You've downloaded a lot of CSV files in the last hour\. You can download another in (1 hour|59 minutes)\.$/,
-	);
+	)).toBeVisible();
 
 	// L'avatar, dalla pagina: la frase arriva dalla action fino allo schermo.
 	await page.context().addCookies([{ name: "seichi-lang", value: "it", url: BASE_URL }]);

@@ -11,6 +11,8 @@ interface ExportPanelProps {
 	categories: Pick<Category, "id" | "name" | "type">[];
 	/** Con zero movimenti il comando non compare: vedi `t.export.nothing`. */
 	hasTransactions: boolean;
+	/** La frase dell'ultimo download fallito (#162), già composta dal server. */
+	error: string | null;
 }
 
 /**
@@ -31,6 +33,7 @@ export default function ExportPanel({
 	accounts,
 	categories,
 	hasTransactions,
+	error,
 }: ExportPanelProps) {
 	const { t } = useI18n();
 	const [periodo, setPeriodo] = useState("30d");
@@ -117,7 +120,11 @@ export default function ExportPanel({
 			*/}
 			<p className="text-[12.5px] text-muted leading-relaxed mt-2">{t.export.notBackup}</p>
 
-			<p className="text-[11.5px] font-semibold tracking-[1.6px] uppercase text-disabled mt-7 mb-3 ml-0.5">
+			{/* `id="csv"`: l'ancora del rinvio di un errore, come `#archivio` (#162). */}
+			<p
+				id="csv"
+				className="text-[11.5px] font-semibold tracking-[1.6px] uppercase text-disabled mt-7 mb-3 ml-0.5 scroll-mt-[calc(env(safe-area-inset-top)+1.75rem)]"
+			>
 				{t.export.filters}
 			</p>
 
@@ -156,6 +163,16 @@ export default function ExportPanel({
 					/>
 				)}
 			</div>
+
+			{/*
+				Accanto al comando che l'ha prodotto (#162): la rotta è tornata qui
+				invece di mostrare un testo su una pagina bianca.
+			*/}
+			{error && (
+				<p role="alert" className="mt-7 text-[13px] leading-relaxed text-aka-ink">
+					{error}
+				</p>
+			)}
 
 			{hasTransactions ? (
 				/*

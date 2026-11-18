@@ -56,8 +56,8 @@ Storia: `docs/storia/auth-flusso` (il flusso completo e il collaudo della #116),
 1. **Due fonti, due tipi.**
    - `getProfileHeader()` legge le claims: è una fotografia, non espone né email
      né provider, e serve solo a disegnare.
-   - `getAccountContext()` e `requireLiveUser()` interrogano GoTrue: sono vivi, e
-     servono a decidere.
+   - `getAccountContext()` e `requireLiveUser()` (`lib/auth.ts`) interrogano
+     GoTrue: sono vivi, e servono a decidere.
    - `hasPasswordIdentity`, per la UI e per il server, viene dalla stessa fonte
      viva.
 2. **`requireUser()` (claims) e `requireLiveUser()` (vivo) non sono

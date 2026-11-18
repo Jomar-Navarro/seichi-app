@@ -14,7 +14,7 @@ import type { SupabaseServerClient } from "@/lib/supabase/server";
  * nella sua rotta, l'import DENTRO `import_transactions()` — che una RPC diretta
  * salterebbe la action. Storia: `docs/storia/issue-161-limiti.md`.
  */
-export type RateLimitAction = "receipt" | "import" | "export" | "avatar";
+export type RateLimitAction = "receipt" | "import" | "export" | "avatar" | "archive";
 
 /**
  * Il codice con cui `import_transactions()` rifiuta un import oltre il tetto,

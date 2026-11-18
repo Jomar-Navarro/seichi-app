@@ -226,6 +226,7 @@ export const en: Dictionary = {
 			import: "You've imported a lot of files in the last 24 hours. You can import again {when}.",
 			export: "You've downloaded a lot of CSV files in the last hour. You can download another {when}.",
 			avatar: "You've changed your profile photo many times in the last hour. You can change it again {when}.",
+			archive: "You've downloaded a lot of archives in the last 24 hours. You can download another {when}.",
 		},
 	},
 
@@ -1104,7 +1105,7 @@ export const en: Dictionary = {
 		},
 
 		importData: "Import transactions",
-		exportData: "Export transactions",
+		exportData: "Export data",
 		countUnavailable: "unavailable",
 		manageCategories: "Manage categories",
 		recurringTransactions: "Recurring transactions",
@@ -1256,10 +1257,10 @@ export const en: Dictionary = {
 	},
 
 	export: {
-		title: "Export transactions",
+		title: "Export data",
 		intro: "Download your movements as a CSV file, to open in Excel or a spreadsheet.",
 		notBackup:
-			"This is not a backup: receipts are left out, and to put data back into Seichi you go through Import transactions.",
+			"This is not a backup: receipts are left out (they are in the complete archive, further down), and to put data back into Seichi you go through Import transactions.",
 		filters: "What to export",
 		fields: {
 			period: "Period",
@@ -1282,8 +1283,82 @@ export const en: Dictionary = {
 		},
 
 		errors: {
-			badFilter: "Invalid filter: go back and try again.",
+			badFilter: "A filter wasn't valid: choose the filters again and try again.",
 			failed: "The file could not be prepared. Please try again.",
+		},
+
+		archive: {
+			title: "Complete archive",
+			intro:
+				"All your data in a ZIP file: profile, accounts, categories, movements, budgets with their history, recurring transactions, notifications, imports and the photos of your receipts.",
+			notBackup: "It's for keeping them or taking them elsewhere: Seichi can't import it back.",
+			receipts: {
+				zero: "There are no receipts to include.",
+				one: "Includes {n} receipt: it may take a few seconds.",
+				other: "Includes {n} receipts: with many photos it may take a while.",
+			},
+			download: "Download the archive",
+			errors: {
+				tooLarge: "Your data exceeds the maximum size of a ZIP archive: it can't be prepared.",
+			},
+			files: {
+				readme: "README.txt",
+				transactionsCsv: "transactions.csv",
+				receipts: "receipts",
+				avatar: "profile-photo",
+			},
+			readme: {
+				title: "Seichi — the archive of your data",
+				generated: "Created on {date} at {time} (UTC).",
+				intro:
+					"It contains all the data you entered in Seichi. It's for keeping them or taking them to another app: it isn't a backup, and Seichi can't import it back.",
+				filesHeading: "The files",
+				files: {
+					readme: "{file} — this file.",
+					manifest:
+						"manifest.json — the index for programs: when it was created, how many rows each table has, which receipts are included and which are missing.",
+					csv: "{file} — your movements as a table, to open in Excel or a spreadsheet. It's the same file as «Export», over the whole period.",
+					data: "data/*.json — one table per file, for programs. Fields keep their database names, in English, and every row has its id: the links between tables (account_id, category_id, transaction_id…) are rebuilt from there.",
+					receipts:
+						"{folder}/ — the photos of your receipts, one per file, with the date of the movement in the name. The «file» field of data/attachments.json says which movement each belongs to.",
+					avatar: "{file} — your profile photo.",
+				},
+				tablesHeading: "The tables",
+				tables: {
+					profile:
+						"data/profile.json — the profile: your choices (name, currency, language, theme…), the email address and the sign-in methods (email, Google…).",
+					accounts: "data/accounts.json — the accounts, archived ones too, with the opening balance (initial_balance).",
+					categories:
+						"data/categories.json — the categories. Those of type «risparmio» (savings) with a target_amount are the goals.",
+					transactions:
+						"data/transactions.json — the movements: type, amount, date, account, destination account (to_account_id), category, notes, and the recurring rule or import they come from.",
+					recurring_rules: "data/recurring_rules.json — the recurring transactions and their frequency.",
+					budgets:
+						"data/budgets.json — the budgets with their history: each row applies from valid_from onwards. An empty category_id is the overall budget.",
+					notifications: "data/notifications.json — the notifications, with the facts that generated them (payload).",
+					imports: "data/imports.json — the imports you made: the file, the source and the account.",
+					attachments:
+						"data/attachments.json — the receipts: which movement they belong to, the format and the file in the archive.",
+				},
+				notesHeading: "How to read the numbers",
+				notes: {
+					amounts:
+						"Amounts are always positive: the direction is given by the «type» field (spesa = expense, entrata = income, trasferimento = transfer…). The currency is the profile's.",
+					dates:
+						"The date of movements (date) is written without a time zone, as it is stored: read it as it is. created_at fields are in UTC.",
+					balance:
+						"An account's balance isn't stored: it's the opening balance, plus income and divestments, minus every other movement. A movement with a destination account adds its amount to that account.",
+					budgets: "A budget row with an empty amount (null) means «from that period on, no budget».",
+				},
+				missingHeading: "What's missing",
+				missing: {
+					one: "{n} receipt couldn't be downloaded and isn't in the archive. Its id is below and in manifest.json: try downloading the archive again later.",
+					other:
+						"{n} receipts couldn't be downloaded and aren't in the archive. Their ids are below and in manifest.json: try downloading the archive again later.",
+				},
+				avatarMissing:
+					"The profile photo couldn't be downloaded and isn't in the archive: try downloading the archive again later.",
+			},
 		},
 	},
 };
