@@ -30,18 +30,12 @@ import { spawnSync } from "node:child_process";
  * Le eccezioni. Ogni voce: l'id dell'avviso, il pacchetto, perché è accettato
  * QUI (non in generale), e fino a quando. La scadenza è una data di
  * rivalutazione, non di rinnovo automatico.
+ *
+ * Vuoto dal 2026-11-19: l'unica voce, picomatch (GHSA-fc5q-39xc-vjpf), è
+ * uscita perché GitHub ha RITIRATO l'avviso il 2026-11-18, senza una versione
+ * corretta. Storia in `docs/storia/issue-152-ci`.
  */
-const EXCEPTIONS = [
-	{
-		id: "GHSA-fc5q-39xc-vjpf",
-		pkg: "picomatch",
-		why:
-			"ReDoS su pattern extglob. Nessuna versione corretta pubblicata (l'avviso copre fino alla 4.0.7, l'ultima). " +
-			"Non è nelle dipendenze di produzione (`npm audit --omit=dev` non lo vede): lo usano vitest, ESLint e fast-glob " +
-			"in build e nei test, su pattern scritti da noi, non su testo degli utenti.",
-		until: "2026-12-18",
-	},
-];
+const EXCEPTIONS = [];
 
 const SEVERE = new Set(["high", "critical"]);
 
