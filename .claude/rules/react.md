@@ -105,3 +105,8 @@ Storia: `docs/storia/issue-122-form-movimento`, `issue-148-movimenti`,
      del PIN.
 
    Perché: #165 (`issue-165-dialog`).
+5. **Un pannello che si chiude dopo una scrittura riuscita lo annuncia** con
+   `announce(t.announce.…)` (`components/UI/Announcer.tsx`), prima di
+   chiudere: il suo testo se ne va con lui. Un errore nel pannello aperto ha
+   `role="alert"` sul suo paragrafo, separato dal testo che non è un avviso.
+   Perché: chi usa uno screen reader non vede la riga nuova nella lista (#165).

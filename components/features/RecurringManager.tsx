@@ -9,6 +9,7 @@ import { TIPO_COLOR, TIPO_INK, formatDate } from "@/lib/transaction-utils";
 import { RepeatIcon } from "@/lib/seichi-icons";
 import ConfirmDialog from "@/components/UI/ConfirmDialog";
 import EmptyState from "@/components/UI/EmptyState";
+import { announce } from "@/components/UI/Announcer";
 import RecurringSheet from "./RecurringSheet";
 import { useI18n } from "./I18nProvider";
 import { DISPLAY_CURRENCY, formatMoney, lookup, plural } from "@/lib/i18n/format";
@@ -69,6 +70,7 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 			if (result.error) {
 				setDeleteError(result.error);
 			} else {
+				announce(t.announce.recurringDeleted);
 				router.refresh();
 				setPending(null);
 			}

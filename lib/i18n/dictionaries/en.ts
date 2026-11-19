@@ -46,6 +46,21 @@ export const en: Dictionary = {
 		uncategorized: "Uncategorized",
 	},
 
+	announce: {
+		transactionSaved: "Transaction saved.",
+		transactionDeleted: "Transaction deleted.",
+		recurringCreated: "Recurring rule created.",
+		recurringSaved: "Recurring rule saved.",
+		recurringDeleted: "Recurring rule deleted.",
+		accountSaved: "Account saved.",
+		accountArchived: "Account archived.",
+		accountRestored: "Account restored.",
+		accountDeleted: "Account deleted.",
+		categorySaved: "Category saved.",
+		categoryDeleted: "Category deleted.",
+		goalSaved: "Goal saved.",
+		goalDeleted: "Goal deleted.",
+	},
 	amountInput: {
 		invalid: "This amount can't be read: use digits only, for example {example}",
 		decimals: "At most two decimal places",

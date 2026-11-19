@@ -52,11 +52,24 @@ interface UIStore {
 	 * della nuova. Si confronta il turno, non il valore.
 	 */
 	viewAccount: (id: string) => () => void;
+	/**
+	 * L'ultimo esito da leggere agli screen reader (#165), con un numero che
+	 * cambia a ogni annuncio: la stessa frase due volte di fila deve essere letta
+	 * due volte, e la regione la rilegge solo se il nodo cambia. La legge solo
+	 * `Announcer`; si scrive con `announce()`.
+	 */
+	announcement: { text: string; id: number } | null;
+	announce: (text: string) => void;
 }
+
+/** Quanto resta nella regione un annuncio: abbastanza per essere letto in coda ad altro. */
+const ANNOUNCEMENT_MS = 7000;
 
 export const useUIStore = create<UIStore>((set) => {
 	// Il turno dell'ultima dichiarazione del conto guardato (vedi `viewAccount`).
 	let viewTurn = 0;
+	// Il numero dell'ultimo annuncio (vedi `announce`).
+	let announceTurn = 0;
 
 	return {
 		isTransactionModalOpen: false,
@@ -66,6 +79,7 @@ export const useUIStore = create<UIStore>((set) => {
 		transactionSavedAt: 0,
 		fullScreenActive: false,
 		viewedAccountId: null,
+		announcement: null,
 		// ⚠️ `=== true`, non il valore così com'è (#117). Passata come handler
 		// nudo (`onClick={openTransactionModal}`) la funzione riceve il MouseEvent
 		// come `recurring`: un oggetto, cioè vero, e "Ripeti" partiva acceso — il
@@ -86,6 +100,19 @@ export const useUIStore = create<UIStore>((set) => {
 			set({ isTransactionModalOpen: true, editingTransaction: transaction, recurringDefault: false }),
 		notifyTransactionSaved: () => set({ transactionSavedAt: Date.now() }),
 		setFullScreenActive: (active) => set({ fullScreenActive: active }),
+		/*
+		 * Dopo qualche secondo la frase si toglie: lasciata lì, chi rilegge la
+		 * pagina col lettore di schermo la ritroverebbe in fondo, fuori contesto
+		 * («Conto salvato.» ore dopo). Si toglie solo se nel frattempo non ne è
+		 * arrivata un'altra.
+		 */
+		announce: (text) => {
+			const id = ++announceTurn;
+			set({ announcement: { text, id } });
+			setTimeout(() => {
+				if (announceTurn === id) set({ announcement: null });
+			}, ANNOUNCEMENT_MS);
+		},
 		viewAccount: (id) => {
 			const turn = ++viewTurn;
 			set({ viewedAccountId: id });

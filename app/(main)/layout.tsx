@@ -4,6 +4,7 @@ import Sidebar from "@/components/UI/Sidebar";
 import MainContentShell from "@/components/UI/MainContentShell";
 import TransactionModal from "@/components/UI/TransactionModal";
 import AppLockProvider from "@/components/features/AppLockProvider";
+import Announcer from "@/components/UI/Announcer";
 import PwaStatus from "@/components/features/PwaStatus";
 import { getSidebarProfile } from "@/lib/account";
 import { SIDEBAR_COOKIE, sidebarVisibleFromCookie } from "@/lib/sidebar";
@@ -106,6 +107,9 @@ export default async function RootLayout({
 				<BottomNav />
 				<TransactionModal />
 			</AppLockProvider>
+			{/* #165 — la regione degli annunci: una sola, sempre montata, fuori dal
+			    contenuto che il velo del PIN rende inerte. Vedi Announcer. */}
+			<Announcer />
 		</div>
 	);
 }

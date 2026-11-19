@@ -5,6 +5,7 @@ import { Archive, Pencil, Plus, RotateCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import AccountSheet from "./AccountSheet";
 import EmptyState from "@/components/UI/EmptyState";
+import { announce } from "@/components/UI/Announcer";
 import DashedAddButton from "@/components/UI/DashedAddButton";
 import { useI18n } from "./I18nProvider";
 import {
@@ -89,6 +90,9 @@ export default function AccountsPageClient({ accounts }: AccountsPageClientProps
 			setRowError(result.error);
 			return;
 		}
+		// #165 — la riga cambia sezione senza dire niente: lo dice l'annuncio, come
+		// quando si archivia dal foglio.
+		announce(t.announce.accountRestored);
 		router.refresh();
 	}
 
@@ -107,6 +111,7 @@ export default function AccountsPageClient({ accounts }: AccountsPageClientProps
 			setRowError(result.error);
 			return;
 		}
+		announce(t.announce.accountArchived);
 		router.refresh();
 	}
 
@@ -232,7 +237,7 @@ export default function AccountsPageClient({ accounts }: AccountsPageClientProps
 					*/}
 					<div className="flex flex-col gap-3 min-w-0 lg:overflow-x-clip lg:-mx-3 lg:px-3">
 						{rowError && (
-							<p className="text-xs ml-1" style={{ color: "var(--ink-aka)" }}>
+							<p role="alert" className="text-xs ml-1" style={{ color: "var(--ink-aka)" }}>
 								{rowError}
 							</p>
 						)}

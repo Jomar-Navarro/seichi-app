@@ -7,6 +7,7 @@ import { ICON_MAP } from "@/lib/icon-map";
 import { GOAL_ICON_MAP } from "@/lib/goal-icons";
 import { TIPO_COLOR, TIPO_INK } from "@/lib/transaction-utils";
 import ConfirmDialog from "@/components/UI/ConfirmDialog";
+import { announce } from "@/components/UI/Announcer";
 import CategorySheet from "./CategorySheet";
 import { useI18n } from "./I18nProvider";
 import { deleteCategory } from "@/app/(main)/impostazioni/actions";
@@ -57,6 +58,7 @@ export default function CategoryManager({ categories }: { categories: Category[]
 				setDialogError(result.error);
 				return;
 			}
+			announce(t.announce.categoryDeleted);
 			router.refresh();
 			setPending(null);
 		} finally {
@@ -178,15 +180,20 @@ export default function CategoryManager({ categories }: { categories: Category[]
 			{/* Dialog conferma eliminazione */}
 			{pending && (
 				<ConfirmDialog title={t.categories.deleteTitle} onClose={closeDialog}>
-					<p className="text-[13px] text-muted leading-relaxed mb-5">
-						{dialogError ?? (
-							<>
-								{t.categories.deleteQuestionBefore}
-								<span className="font-medium text-foreground">{pending.name}</span>
-								{t.categories.deleteQuestionAfter}
-							</>
-						)}
-					</p>
+					{/* #165 — due elementi e non uno: l'errore è un avviso da leggere
+					    subito (`role="alert"`), la domanda no. Sullo stesso paragrafo
+					    l'avviso avrebbe letto anche la domanda, all'apertura. */}
+					{dialogError ? (
+						<p role="alert" className="text-[13px] text-muted leading-relaxed mb-5">
+							{dialogError}
+						</p>
+					) : (
+						<p className="text-[13px] text-muted leading-relaxed mb-5">
+							{t.categories.deleteQuestionBefore}
+							<span className="font-medium text-foreground">{pending.name}</span>
+							{t.categories.deleteQuestionAfter}
+						</p>
+					)}
 
 					<div className="flex gap-2.5">
 						<button

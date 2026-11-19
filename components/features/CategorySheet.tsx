@@ -4,6 +4,7 @@ import { useState, useEffect, useId } from "react";
 import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import BottomSheetShell from "@/components/UI/BottomSheetShell";
+import { announce } from "@/components/UI/Announcer";
 import { ICON_MAP } from "@/lib/icon-map";
 import { GOAL_ICON_MAP } from "@/lib/goal-icons";
 import { CATEGORY_LIBRARY } from "@/lib/category-icons";
@@ -222,6 +223,7 @@ export default function CategorySheet({
 				}
 			}
 
+			announce(t.announce.categorySaved);
 			router.refresh();
 			onClose();
 		} finally {
@@ -507,6 +509,7 @@ export default function CategorySheet({
 
 				{serverError && (
 					<p
+						role="alert"
 						className="mt-5 text-xs text-center"
 						style={{ color: "var(--ink-aka)" }}
 					>

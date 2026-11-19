@@ -63,6 +63,14 @@ function pushLayer(layer: Layer): () => void {
 	};
 }
 
+/**
+ * Chi porta questo attributo non diventa mai `inert` sotto un pannello: la
+ * regione degli annunci (`Announcer`). Un elemento inerte è muto anche per lo
+ * screen reader, e l'esito di un salvataggio si annuncia proprio mentre il
+ * pannello si chiude.
+ */
+export const KEEP_ALIVE_ATTR = "data-dialog-keep-alive";
+
 /*
  * Quanti pannelli aperti hanno chiesto `inert` su ciascun elemento.
  *
@@ -79,7 +87,7 @@ function claim(el: Element): boolean {
 		// ⚠️ Un `inert` che c'era già non è nostro (oggi: il contenuto sotto il
 		// velo del PIN, che lo scrive React in `AppLockProvider`). Non si conta e
 		// non si tocca: toglierlo alla chiusura sveglierebbe ciò che il velo copre.
-		if (el.hasAttribute("inert")) return false;
+		if (el.hasAttribute("inert") || el.hasAttribute(KEEP_ALIVE_ATTR)) return false;
 		el.setAttribute("inert", "");
 	}
 	claims.set(el, n + 1);

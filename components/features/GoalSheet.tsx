@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import BottomSheetShell from "@/components/UI/BottomSheetShell";
+import { announce } from "@/components/UI/Announcer";
 import { GOAL_ICONS } from "@/lib/goal-icons";
 import { createGoal, updateGoal, deleteGoal, getGoalDeletionImpact } from "@/app/(main)/risparmi/actions";
 import { useI18n } from "./I18nProvider";
@@ -110,6 +111,7 @@ export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 				setServerError(result.error);
 				return;
 			}
+			announce(t.announce.goalSaved);
 			router.refresh();
 			onClose();
 		} finally {
@@ -143,6 +145,7 @@ export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 			// #148 — l'obiettivo porta con sé i suoi versamenti (cascata): la lista
 			// ricordata di Movimenti va buttata, o li mostrerebbe ancora rientrando.
 			notifyTransactionSaved();
+			announce(t.announce.goalDeleted);
 			router.refresh();
 			onClose();
 		} finally {
@@ -268,7 +271,7 @@ export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 				</div>
 
 				{serverError && (
-					<p className="mt-5 text-xs text-center" style={{ color: "var(--ink-aka)" }}>
+					<p role="alert" className="mt-5 text-xs text-center" style={{ color: "var(--ink-aka)" }}>
 						{serverError}
 					</p>
 				)}

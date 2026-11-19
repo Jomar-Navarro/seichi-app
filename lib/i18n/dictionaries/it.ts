@@ -82,6 +82,27 @@ export const it = {
 	 * `{example}` è 12,50 scritto nella lingua dell'app, `{max}` il massimo di
 	 * una colonna `DECIMAL(10,2)`. Vedi `lib/amount.ts`.
 	 */
+	/**
+	 * Gli esiti letti dagli screen reader quando un pannello si chiude da solo
+	 * dopo un salvataggio (#165, `Announcer`). Chi vede capisce dalla lista; chi
+	 * non vede sente queste. Frasi intere e non «{nome} salvato»: in italiano il
+	 * participio si accorda col nome.
+	 */
+	announce: {
+		transactionSaved: "Movimento salvato.",
+		transactionDeleted: "Movimento eliminato.",
+		recurringCreated: "Ricorrenza creata.",
+		recurringSaved: "Ricorrenza salvata.",
+		recurringDeleted: "Ricorrenza eliminata.",
+		accountSaved: "Conto salvato.",
+		accountArchived: "Conto archiviato.",
+		accountRestored: "Conto riattivato.",
+		accountDeleted: "Conto eliminato.",
+		categorySaved: "Categoria salvata.",
+		categoryDeleted: "Categoria eliminata.",
+		goalSaved: "Obiettivo salvato.",
+		goalDeleted: "Obiettivo eliminato.",
+	},
 	amountInput: {
 		invalid: "Importo non leggibile: scrivi solo cifre, per esempio {example}",
 		decimals: "Al massimo due cifre decimali",
