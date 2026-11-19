@@ -66,3 +66,17 @@ Lo script cade anche quando un'eccezione **non serve più** (l'avviso sparito):
 la PR che aggiorna picomatch alla versione corretta deve togliere la voce, o
 resterebbe a coprire il prossimo avviso con lo stesso id. Nessuna dipendenza
 nuova: `audit-ci` e simili avrebbero fatto lo stesso con un pacchetto in più.
+
+#### L'eccezione di picomatch esce (2026-11-19)
+
+Il giorno dopo, la CI di #165 è caduta su «l'eccezione GHSA-fc5q-39xc-vjpf
+(picomatch) non serve più». Non c'era stato un aggiornamento: GitHub aveva
+**ritirato** l'avviso (`withdrawn_at` 2026-11-18 15:38, ancora senza una
+versione corretta), e `npm audit` aveva smesso di riportarlo. La voce è uscita
+dall'elenco, che resta vuoto; lo script è rimasto com'era. È il caso per cui
+esiste il controllo: lasciata lì, la voce avrebbe coperto in silenzio un
+avviso futuro con lo stesso id.
+
+Prima di togliere un'eccezione si guarda **perché** l'avviso è sparito
+(`gh api advisories/<id>`): ritirato, o chiuso da una versione che il lock
+ha già preso. Le due storie si scrivono in modo diverso.
