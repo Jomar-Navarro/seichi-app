@@ -12,6 +12,7 @@ import { todayLocalISO } from "@/lib/dates";
 import { plural } from "@/lib/i18n/format";
 import { BADGE_MAX, notificationMeta, relativeTime } from "@/lib/notifications";
 import type { RenderedNotification } from "@/types";
+import { useDismissLayer } from "@/components/UI/useDialog";
 import { useI18n } from "./I18nProvider";
 
 interface NotificationBellProps {
@@ -58,6 +59,12 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 	const bellRef = useRef<HTMLButtonElement>(null);
 	const [panelTop, setPanelTop] = useState<number | null>(null);
 	const [panelRight, setPanelRight] = useState<number | null>(null);
+
+	// #165 — Esc chiude il pannello e riporta il fuoco sulla campanella.
+	useDismissLayer(open, () => {
+		setOpen(false);
+		bellRef.current?.focus();
+	});
 
 	async function toggle() {
 		if (open) {

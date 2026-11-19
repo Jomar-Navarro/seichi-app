@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useId } from "react";
 import Link from "next/link";
 import { Settings, LogOut, ChevronDown } from "lucide-react";
 import Avatar from "@/components/UI/Avatar";
+import { useDismissLayer } from "@/components/UI/useDialog";
 import ThemeToggle from "./ThemeToggle";
 import { signOut } from "@/app/(main)/impostazioni/actions";
 import { useI18n } from "./I18nProvider";
@@ -54,29 +55,27 @@ export default function ProfileMenu({
 	const panelId = useId();
 	const sidebar = variant === "sidebar";
 
-	// Gli ascoltatori esistono SOLO a menu aperto: chiuso non c'è niente da
-	// intercettare, e un `keydown` globale sempre acceso ruberebbe l'Esc a chi
-	// ne ha davvero bisogno.
+	// L'ascoltatore esiste SOLO a menu aperto: chiuso non c'è niente da
+	// intercettare.
 	useEffect(() => {
 		if (!open) return;
 		function onClick(e: MouseEvent) {
 			if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
 		}
-		// Esc chiude e riporta il fuoco sul bottone che l'ha aperto: senza, chi
-		// naviga da tastiera resterebbe con il fuoco su una voce appena smontata,
-		// cioè sul `<body>`, a ricominciare il giro dall'inizio della pagina.
-		function onKey(e: KeyboardEvent) {
-			if (e.key !== "Escape") return;
-			setOpen(false);
-			triggerRef.current?.focus();
-		}
 		document.addEventListener("mousedown", onClick);
-		document.addEventListener("keydown", onKey);
-		return () => {
-			document.removeEventListener("mousedown", onClick);
-			document.removeEventListener("keydown", onKey);
-		};
+		return () => document.removeEventListener("mousedown", onClick);
 	}, [open]);
+
+	// Esc chiude e riporta il fuoco sul bottone che l'ha aperto: senza, chi
+	// naviga da tastiera resterebbe con il fuoco su una voce appena smontata,
+	// cioè sul `<body>`, a ricominciare il giro dall'inizio della pagina.
+	// Dalla #165 passa dalla pila comune degli strati, come ogni altro menu: con
+	// i pannelli che ora ascoltano Esc anche loro, due ascoltatori separati
+	// chiuderebbero tutto ciò che è aperto con un tasto solo.
+	useDismissLayer(open, () => {
+		setOpen(false);
+		triggerRef.current?.focus();
+	});
 
 	// Il passaggio del mouse evidenzia le voci solo nella rail, che esiste solo
 	// da `lg:` in su, dove il puntatore è quasi sempre un mouse. La variante

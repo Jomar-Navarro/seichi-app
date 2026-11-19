@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import BottomSheetShell from "@/components/UI/BottomSheetShell";
@@ -67,6 +67,7 @@ export default function CategorySheet({
 }: CategorySheetProps) {
 	const router = useRouter();
 	const { locale, t } = useI18n();
+	const titleId = useId();
 
 	// Valori di partenza derivati dalle prop. Vengono ricalcolati a ogni render ma
 	// consumati solo al montaggio — sono due letture e un accesso a un oggetto.
@@ -272,9 +273,9 @@ export default function CategorySheet({
 	}
 
 	return (
-		<BottomSheetShell onClose={onClose}>
+		<BottomSheetShell onClose={onClose} titleId={titleId}>
 				<div className="flex items-center justify-between mt-4 mb-6 shrink-0">
-					<h2 className="text-xl font-semibold">
+					<h2 id={titleId} className="text-xl font-semibold">
 						{category ? t.categories.editTitle : t.categories.newTitle}
 					</h2>
 					<button
@@ -282,6 +283,7 @@ export default function CategorySheet({
 							// issue #69 — w-11 h-11 (44px): area toccabile minima, isolata
 						// nell'angolo dell'header, l'icona resta 15px.
 						className="w-11 h-11 flex items-center justify-center rounded-xl bg-control ring-border"
+						aria-label={t.common.close}
 					>
 						<X size={15} />
 					</button>

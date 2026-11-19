@@ -11,6 +11,7 @@ import TransactionForm, {
 } from "./TransactionForm";
 import { useI18n } from "@/components/features/I18nProvider";
 import { useCloseOnBack } from "./useCloseOnBack";
+import { useDialog } from "./useDialog";
 import { DISPLAY_CURRENCY, currencySymbol, formatMoney } from "@/lib/i18n/format";
 import {
 	applyAmountKey,
@@ -241,8 +242,13 @@ function TransactionModalContent() {
 	// il caso esplicitamente segnalato dall'issue: aggiungere un movimento.
 	useCloseOnBack(handleClose);
 
+	// #165 — ruolo, nome dal titolo, fuoco, sfondo inerte, Esc. Vedi useDialog.
+	// Il passo dell'importo ascolta la tastiera fisica, ma solo cifre, virgola
+	// e Backspace: Esc non lo tocca, e arriva qui.
+	const { rootRef, dialogProps, titleId } = useDialog(handleClose);
+
 	return (
-		<div className="fixed inset-0 z-50 flex items-end lg:items-center lg:justify-center lg:p-6">
+		<div ref={rootRef} className="fixed inset-0 z-50 flex items-end lg:items-center lg:justify-center lg:p-6">
 			{/* Backdrop */}
 			<div
 				className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -279,7 +285,11 @@ function TransactionModalContent() {
 				vincolante: il tastierino resta un rettangolo moderato, non
 				schiacciato).
 			*/}
-			<div className="relative w-full h-dvh lg:h-[min(760px,85dvh)] lg:max-w-md overflow-hidden lg:rounded-4xl modal-shadow lg:box-shadow-ring">
+			{/* `outline-none`: il fuoco arriva sul pannello all'apertura (#165). */}
+			<div
+				{...dialogProps}
+				className="relative w-full h-dvh lg:h-[min(760px,85dvh)] lg:max-w-md overflow-hidden lg:rounded-4xl modal-shadow lg:box-shadow-ring outline-none"
+			>
 				<div className="absolute inset-0 bg-modal backdrop-blur-2xl" />
 				<div
 					className="relative w-full h-full flex flex-col px-6"
@@ -323,6 +333,7 @@ function TransactionModalContent() {
 						{((step === "amount" && !editingTransaction && !createdId) || step === "form") && (
 							<button
 								onClick={() => setStep(step === "form" ? "amount" : "type")}
+								aria-label={t.common.back}
 								className="w-11 h-11 flex items-center justify-center rounded-xl shrink-0 bg-control ring-border"
 							>
 								<ChevronLeft size={19} />
@@ -339,7 +350,7 @@ function TransactionModalContent() {
 									{t.transactionTypes[selectedType.id].label}
 								</p>
 							)}
-							<h2 className="text-xl font-semibold">
+							<h2 id={titleId} className="text-xl font-semibold">
 								{editingTransaction ? t.transactions.modalEdit : t.transactions.modalNew}
 							</h2>
 							{step === "type" && (
@@ -351,6 +362,7 @@ function TransactionModalContent() {
 					</div>
 					<button
 						onClick={handleClose}
+						aria-label={t.common.close}
 						className="w-11 h-11 flex items-center justify-center rounded-xl shrink-0 bg-control ring-border"
 					>
 						<X size={18} />

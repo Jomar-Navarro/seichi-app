@@ -371,7 +371,7 @@ Flow»: quei titoli sono rimasti identici nei file, quindi li trovi con
 | investimenti | `fase-21b-disinvestimento`, `issue-061-investimenti-tipologie` |
 | ricevute, avatar, Storage | `fase-22-ricevute`, `issue-120-ricevute-orfane`, `fase-16-storage` |
 | coach | `fase-24a-disponibile`, `fase-24b-coach`, `fase-24c-chat-progetto` |
-| tema, stili, accessibilità | `fase-18-tema`, `issue-081-firefox-bordi`, `issue-126-contrasto`, `issue-153-movimento-ridotto` |
+| tema, stili, accessibilità | `fase-18-tema`, `issue-081-firefox-bordi`, `issue-126-contrasto`, `issue-153-movimento-ridotto`, `issue-165-dialog` |
 | lingua | `fase-19-lingua` |
 | accesso, onboarding, sessione | `auth-flusso`, `costo-richieste-supabase` |
 | errori e letture fallite | `issue-124-errori` |

@@ -45,6 +45,9 @@ export const it = {
 		edit: "Modifica",
 		close: "Chiudi",
 		back: "Indietro",
+		/** Le frecce del calendario di `DatePicker`. */
+		previousMonth: "Mese precedente",
+		nextMonth: "Mese successivo",
 		continue: "Continua",
 		confirm: "Conferma",
 		done: "Fatto",
@@ -1348,6 +1351,8 @@ export const it = {
 		count: { one: "{n} ricevuta", other: "{n} ricevute" },
 		remove: "Rimuovi",
 		open: "Apri a schermo intero",
+		/** Il nome del visore a schermo intero (#165), e l'`alt` della sua immagine. */
+		viewer: "Ricevuta",
 		uploading: "Caricamento…",
 		/** Mostrato al posto dell'anteprima quando il file non è più nel bucket. */
 		missing: "File non disponibile",

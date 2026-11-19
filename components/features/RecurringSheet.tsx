@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import BottomSheetShell from "@/components/UI/BottomSheetShell";
@@ -41,6 +41,7 @@ interface RecurringSheetProps {
 export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 	const router = useRouter();
 	const { locale, t } = useI18n();
+	const titleId = useId();
 	const [amount, setAmount] = useState(() => formatAmountInput(rule.amount, locale));
 	const [categoryId, setCategoryId] = useState<string | null>(rule.category_id);
 	const [notes, setNotes] = useState(rule.notes ?? "");
@@ -125,14 +126,15 @@ export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 	}
 
 	return (
-		<BottomSheetShell onClose={onClose}>
+		<BottomSheetShell onClose={onClose} titleId={titleId}>
 				<div className="flex items-center justify-between mt-4 mb-6 shrink-0">
-					<h2 className="text-xl font-semibold">{t.recurring.editTitle}</h2>
+					<h2 id={titleId} className="text-xl font-semibold">{t.recurring.editTitle}</h2>
 					<button
 						onClick={onClose}
 							// issue #69 — w-11 h-11 (44px): area toccabile minima, isolata
 						// nell'angolo dell'header, l'icona resta 15px.
 						className="w-11 h-11 flex items-center justify-center rounded-xl bg-control ring-border"
+						aria-label={t.common.close}
 					>
 						<X size={15} />
 					</button>

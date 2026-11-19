@@ -16,6 +16,7 @@ import {
 	uploadAttachment,
 } from "@/app/(main)/attachment-actions";
 import { useI18n } from "@/components/features/I18nProvider";
+import { useDialog } from "@/components/UI/useDialog";
 import { fill, plural } from "@/lib/i18n/format";
 import type { Attachment } from "@/types";
 
@@ -605,38 +606,58 @@ export default function AttachmentPicker({
 			{error && <p className="mt-1.5 text-[11.5px] text-aka-ink">{error}</p>}
 
 			{/* Schermo intero: uno scontrino a 80px non si legge. */}
-			{zoomed?.url && (
-				<div
-					className="fixed inset-0 z-50 flex items-center justify-center p-4"
-					style={{ background: "var(--modal-bg)" }}
-					onClick={() => setZoomed(null)}
-				>
-					<button
-						type="button"
-						onClick={() => setZoomed(null)}
-						// issue #69 — w-11 h-11 (44px): isolato nell'angolo dello schermo
-						// intero, molto spazio libero.
-						className="absolute top-4 right-4 w-11 h-11 rounded-xl bg-control ring-border flex items-center justify-center"
-						aria-label={t.common.close}
-					>
-						<X size={16} />
-					</button>
-					{/*
-						⚠️ `<img>` e non `next/image`, al contrario delle miniature caricate.
-						Qui la sorgente può essere DUE cose — un URL firmato oppure un
-						`blob:` locale di una foto non ancora caricata — e
-						l'ottimizzatore un blob non sa né scaricarlo né validarlo contro
-						`remotePatterns`. Un componente che deve reggere entrambe le
-						sorgenti non può usare quello che ne accetta una sola.
-					*/}
-					{/* eslint-disable-next-line @next/next/no-img-element */}
-					<img
-						src={zoomed.url}
-						alt=""
-						className="max-w-full max-h-full w-auto h-auto object-contain rounded-xl"
-					/>
-				</div>
-			)}
+			{zoomed?.url && <ReceiptViewer url={zoomed.url} onClose={() => setZoomed(null)} />}
+		</div>
+	);
+}
+
+/**
+ * Il visore a schermo intero di una ricevuta (#165): un dialog annidato dentro
+ * il wizard del movimento, montato all'apertura come ogni pannello.
+ *
+ * ⚠️ È il motivo per cui la 28d aveva scartato Esc: un ascoltatore sul wizard
+ * avrebbe chiuso tutto, form compreso, mentre si guarda una ricevuta. Con la
+ * pila di `useDialog` il visore si apre dopo il wizard, sta in cima, ed Esc
+ * chiude solo lui.
+ *
+ * Senza titolo visibile: il nome è `label`, e lo stesso testo fa da `alt`
+ * all'immagine, che qui è contenuto e non decorazione (#135, §10).
+ */
+function ReceiptViewer({ url, onClose }: { url: string; onClose: () => void }) {
+	const { t } = useI18n();
+	const { dialogProps } = useDialog(onClose, { label: t.attachments.viewer });
+
+	return (
+		<div
+			{...dialogProps}
+			className="fixed inset-0 z-50 flex items-center justify-center p-4 outline-none"
+			style={{ background: "var(--modal-bg)" }}
+			onClick={onClose}
+		>
+			<button
+				type="button"
+				onClick={onClose}
+				// issue #69 — w-11 h-11 (44px): isolato nell'angolo dello schermo
+				// intero, molto spazio libero.
+				className="absolute top-4 right-4 w-11 h-11 rounded-xl bg-control ring-border flex items-center justify-center"
+				aria-label={t.common.close}
+			>
+				<X size={16} />
+			</button>
+			{/*
+				⚠️ `<img>` e non `next/image`, al contrario delle miniature caricate.
+				Qui la sorgente può essere DUE cose — un URL firmato oppure un
+				`blob:` locale di una foto non ancora caricata — e
+				l'ottimizzatore un blob non sa né scaricarlo né validarlo contro
+				`remotePatterns`. Un componente che deve reggere entrambe le
+				sorgenti non può usare quello che ne accetta una sola.
+			*/}
+			{/* eslint-disable-next-line @next/next/no-img-element */}
+			<img
+				src={url}
+				alt={t.attachments.viewer}
+				className="max-w-full max-h-full w-auto h-auto object-contain rounded-xl"
+			/>
 		</div>
 	);
 }

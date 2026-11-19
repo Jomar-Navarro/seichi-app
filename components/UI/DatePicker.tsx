@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { useI18n } from "@/components/features/I18nProvider";
 import { formatDate, weekdayInitials } from "@/lib/i18n/format";
+import { useDismissLayer } from "./useDialog";
 
 /**
  * Selettore di data custom.
@@ -65,10 +66,18 @@ export default function DatePicker({
 	placeholder,
 	className = "rounded-2xl px-4 py-3 bg-card ring-border",
 }: DatePickerProps) {
-	const { locale } = useI18n();
+	const { locale, t } = useI18n();
 	const selected = value ? new Date(`${value}T12:00:00`) : null;
 	const [open, setOpen] = useState(false);
 	const [viewDate, setViewDate] = useState(() => selected ?? new Date());
+	const triggerRef = useRef<HTMLButtonElement>(null);
+
+	// #165 — Esc chiude il calendario e basta (il foglio o il wizard sotto
+	// restano), e il fuoco torna al campo.
+	useDismissLayer(open, () => {
+		setOpen(false);
+		triggerRef.current?.focus();
+	});
 
 	const year = viewDate.getFullYear();
 	const month = viewDate.getMonth();
@@ -95,7 +104,9 @@ export default function DatePicker({
 	return (
 		<div className="relative">
 			<button
+				ref={triggerRef}
 				type="button"
+				aria-expanded={open}
 				onClick={() => {
 					setViewDate(selected ?? new Date());
 					setOpen((p) => !p);
@@ -126,6 +137,7 @@ export default function DatePicker({
 						<button
 							type="button"
 							onClick={() => navigateMonth(-1)}
+							aria-label={t.common.previousMonth}
 							className="w-11 h-11 -m-2 flex items-center justify-center rounded-xl bg-card ring-border"
 						>
 							<ChevronLeft size={14} />
@@ -136,6 +148,7 @@ export default function DatePicker({
 						<button
 							type="button"
 							onClick={() => navigateMonth(1)}
+							aria-label={t.common.nextMonth}
 							className="w-11 h-11 -m-2 flex items-center justify-center rounded-xl bg-card ring-border"
 						>
 							<ChevronRight size={14} />

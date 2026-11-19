@@ -4,6 +4,7 @@ import { ChevronDown, Check } from "lucide-react";
 import { useI18n } from "@/components/features/I18nProvider";
 import { fill } from "@/lib/i18n/format";
 import LoadError from "@/components/UI/LoadError";
+import { useDismissLayer } from "./useDialog";
 
 export interface Option {
 	icon: React.ReactNode;
@@ -111,6 +112,14 @@ export default function Select({
 		[],
 	);
 
+	// #165 — Esc chiude la tendina e basta: dentro un foglio o nel wizard, il
+	// pannello sotto resta aperto. Il fuoco torna al campo.
+	useDismissLayer(isOpen, () => {
+		setIsOpen(false);
+		onOpenChange?.(false);
+		triggerRef.current?.focus();
+	});
+
 	function toggle() {
 		const next = !isOpen;
 		if (next && triggerRef.current) {
@@ -149,6 +158,7 @@ export default function Select({
 				<button
 					ref={triggerRef}
 					onClick={toggle}
+					aria-expanded={isOpen}
 					className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-card ring-border"
 				>
 					{selectedOption?.icon && (
@@ -226,6 +236,7 @@ export default function Select({
 			<button
 				ref={triggerRef}
 				onClick={toggle}
+				aria-expanded={isOpen}
 				className="relative w-full rounded-[20px] cursor-pointer text-inherit overflow-hidden box-shadow-ring"
 			>
 				<span className="absolute inset-0 bg-input backdrop-blur-[20px]" />

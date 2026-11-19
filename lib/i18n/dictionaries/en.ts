@@ -28,6 +28,8 @@ export const en: Dictionary = {
 		edit: "Edit",
 		close: "Close",
 		back: "Back",
+		previousMonth: "Previous month",
+		nextMonth: "Next month",
 		continue: "Continue",
 		confirm: "Confirm",
 		done: "Done",
@@ -738,6 +740,7 @@ export const en: Dictionary = {
 		count: { one: "{n} receipt", other: "{n} receipts" },
 		remove: "Remove",
 		open: "Open full screen",
+		viewer: "Receipt",
 		uploading: "Uploading…",
 		missing: "File unavailable",
 		errors: {

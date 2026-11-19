@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Check, ArrowRight } from "lucide-react";
 import { useI18n } from "@/components/features/I18nProvider";
+import { useDismissLayer } from "@/components/UI/useDialog";
 import { DISPLAY_CURRENCY, formatMoney, plural } from "@/lib/i18n/format";
 import { accountTypeLabel, rememberAccount } from "@/lib/accounts";
 import type { AccountWithBalance } from "@/types";
@@ -64,6 +65,13 @@ export default function AccountSelector({
 	const { locale, t } = useI18n();
 	const router = useRouter();
 	const [open, setOpen] = useState(false);
+	const triggerRef = useRef<HTMLButtonElement>(null);
+
+	// #165 — Esc chiude l'elenco e riporta il fuoco sul chip.
+	useDismissLayer(open, () => {
+		setOpen(false);
+		triggerRef.current?.focus();
+	});
 
 	// Gli archiviati restano fuori dal selettore: sono conti che non ricevono più
 	// movimenti, e proporli come filtro suggerirebbe il contrario. Restano
@@ -110,7 +118,9 @@ export default function AccountSelector({
 		<div className="relative">
 			{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
 			<button
+				ref={triggerRef}
 				onClick={() => setOpen((o) => !o)}
+				aria-expanded={open}
 				className={`relative rounded-2xl overflow-hidden ring-border ${open ? "z-50" : ""}`}
 			>
 				<span className="absolute inset-0 bg-surface backdrop-blur-md" />
