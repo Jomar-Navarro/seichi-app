@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import BottomSheetShell from "@/components/UI/BottomSheetShell";
+import { announce } from "@/components/UI/Announcer";
 import Select, { type Option } from "@/components/UI/Select";
 import {
 	optionsLoad,
@@ -118,6 +119,7 @@ export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 				setServerError(result.error);
 				return;
 			}
+			announce(t.announce.recurringSaved);
 			router.refresh();
 			onClose();
 		} finally {
@@ -221,7 +223,7 @@ export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 				</div>
 
 				{serverError && (
-					<p className="mt-4 text-xs text-center" style={{ color: "var(--ink-aka)" }}>
+					<p role="alert" className="mt-4 text-xs text-center" style={{ color: "var(--ink-aka)" }}>
 						{serverError}
 					</p>
 				)}

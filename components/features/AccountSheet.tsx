@@ -12,6 +12,7 @@ import {
 } from "@/app/(main)/conti/actions";
 import { useI18n } from "./I18nProvider";
 import BottomSheetShell from "@/components/UI/BottomSheetShell";
+import { announce } from "@/components/UI/Announcer";
 import { whenModalEntryGone } from "@/components/UI/useCloseOnBack";
 import { DISPLAY_CURRENCY, currencySymbol } from "@/lib/i18n/format";
 import {
@@ -140,6 +141,7 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 				setServerError(result.error);
 				return;
 			}
+			announce(t.announce.accountSaved);
 			router.refresh();
 			onClose();
 		} finally {
@@ -170,6 +172,7 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 				setConfirmArchive(false);
 				return;
 			}
+			announce(t.announce.accountArchived);
 			router.refresh();
 			onClose();
 		} finally {
@@ -208,6 +211,7 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 				setConfirmDelete(false);
 				return;
 			}
+			announce(t.announce.accountDeleted);
 			onClose();
 			await whenModalEntryGone();
 			router.replace("/conti");
@@ -394,7 +398,7 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 					</div>
 
 					{serverError && (
-						<p className="text-xs" style={{ color: "var(--ink-aka)" }}>
+						<p role="alert" className="text-xs" style={{ color: "var(--ink-aka)" }}>
 							{serverError}
 						</p>
 					)}

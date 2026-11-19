@@ -25,6 +25,7 @@ import {
 } from "@/app/(main)/action";
 import { useUIStore } from "@/store/useUIStore";
 import DatePicker from "@/components/UI/DatePicker";
+import { announce } from "@/components/UI/Announcer";
 import { useI18n } from "@/components/features/I18nProvider";
 import { useScrollFocusedIntoView } from "@/components/UI/useScrollFocusedIntoView";
 import { parseAmountInput } from "@/lib/amount";
@@ -434,6 +435,11 @@ export default function TransactionForm({
 				return;
 			}
 
+			// #165 — il modale si chiude: l'esito lo dice l'annuncio. Con «Ripeti»
+			// acceso su un movimento nuovo si è scritta una regola, non un movimento.
+			announce(
+				!effectiveId && recurring ? t.announce.recurringCreated : t.announce.transactionSaved,
+			);
 			notifyTransactionSaved();
 			closeTransactionModal();
 		} catch (e) {
@@ -464,6 +470,7 @@ export default function TransactionForm({
 				setSaveError(result.error);
 				return;
 			}
+			announce(t.announce.transactionDeleted);
 			notifyTransactionSaved();
 			closeTransactionModal();
 		} catch (e) {
@@ -705,6 +712,7 @@ export default function TransactionForm({
 					<button
 						type="button"
 						onClick={() => setIsRecurring((v) => !v)}
+						aria-pressed={isRecurring}
 						className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-card ring-border"
 					>
 						<Repeat size={14} className="text-muted shrink-0" />
@@ -775,7 +783,9 @@ export default function TransactionForm({
 						</p>
 					)}
 					{attachmentError && (
-						<p className="mt-1.5 text-[11.5px] text-aka-ink">{attachmentError}</p>
+						<p role="alert" className="mt-1.5 text-[11.5px] text-aka-ink">
+							{attachmentError}
+						</p>
 					)}
 				</>
 			)}
@@ -805,7 +815,7 @@ export default function TransactionForm({
 			)}
 
 			{saveError && (
-				<p ref={saveErrorRef} className="mt-2 text-[11.5px] text-center leading-relaxed text-aka-ink">
+				<p ref={saveErrorRef} role="alert" className="mt-2 text-[11.5px] text-center leading-relaxed text-aka-ink">
 					{saveError}
 				</p>
 			)}
