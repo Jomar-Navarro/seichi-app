@@ -9,7 +9,8 @@ paths:
 
 Storia: `docs/storia/issue-122-form-movimento`, `issue-148-movimenti`,
 `issue-150-form-tre-stati`, `issue-124-errori`, `fase-22-ricevute`,
-`fase-26a-pin`, `fase-28-responsive`, `issue-163-primi-passi`.
+`fase-26a-pin`, `fase-28-responsive`, `issue-163-primi-passi`,
+`issue-165-dialog`.
 
 ## Confini e stato
 
@@ -92,3 +93,15 @@ Storia: `docs/storia/issue-122-form-movimento`, `issue-148-movimenti`,
    il fuoco della tastiera.
 3. **Niente `capitalize` sul testo italiano**: maiuscolizza ogni parola. La
    maiuscola sta nel dizionario.
+4. **Un pannello modale passa da `useDialog`, uno strato ancorato a un comando
+   da `useDismissLayer`** (`components/UI/useDialog.ts`).
+   - `useDialog` dà ruolo, nome dal titolo visibile (`aria-labelledby`), fuoco
+     sul pannello, sfondo `inert` ed Esc, e restituisce il fuoco alla chiusura.
+     `rootRef` va sull'elemento più esterno, sfondo compreso, o il tocco fuori
+     smette di chiudere.
+   - Mai un ascoltatore di Esc proprio: Esc chiude solo lo strato in cima alla
+     pila, e due ascoltatori chiuderebbero il menu e il pannello sotto.
+   - Niente `<dialog>` con `showModal()`: il top layer starebbe sopra il velo
+     del PIN.
+
+   Perché: #165 (`issue-165-dialog`).

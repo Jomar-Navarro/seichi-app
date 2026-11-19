@@ -6,6 +6,7 @@ import { Pencil, Trash2, Plus } from "lucide-react";
 import { ICON_MAP } from "@/lib/icon-map";
 import { GOAL_ICON_MAP } from "@/lib/goal-icons";
 import { TIPO_COLOR, TIPO_INK } from "@/lib/transaction-utils";
+import ConfirmDialog from "@/components/UI/ConfirmDialog";
 import CategorySheet from "./CategorySheet";
 import { useI18n } from "./I18nProvider";
 import { deleteCategory } from "@/app/(main)/impostazioni/actions";
@@ -176,49 +177,40 @@ export default function CategoryManager({ categories }: { categories: Category[]
 
 			{/* Dialog conferma eliminazione */}
 			{pending && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center px-8">
-					<div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={closeDialog} />
+				<ConfirmDialog title={t.categories.deleteTitle} onClose={closeDialog}>
+					<p className="text-[13px] text-muted leading-relaxed mb-5">
+						{dialogError ?? (
+							<>
+								{t.categories.deleteQuestionBefore}
+								<span className="font-medium text-foreground">{pending.name}</span>
+								{t.categories.deleteQuestionAfter}
+							</>
+						)}
+					</p>
 
-					{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
-					<div className="relative w-full max-w-xs rounded-3xl overflow-hidden modal-shadow-ring">
-						<div className="absolute inset-0 bg-modal backdrop-blur-2xl" />
-						<div className="relative p-6">
-						<h3 className="text-[17px] font-semibold mb-2">{t.categories.deleteTitle}</h3>
-						<p className="text-[13px] text-muted leading-relaxed mb-5">
-							{dialogError ?? (
-								<>
-									{t.categories.deleteQuestionBefore}
-									<span className="font-medium text-foreground">{pending.name}</span>
-									{t.categories.deleteQuestionAfter}
-								</>
-							)}
-						</p>
-
-						<div className="flex gap-2.5">
+					<div className="flex gap-2.5">
+						<button
+							onClick={closeDialog}
+							className="flex-1 py-3 rounded-2xl text-sm font-semibold bg-control ring-border active:opacity-80"
+						>
+							{t.common.cancel}
+						</button>
+						{!dialogError && (
 							<button
-								onClick={closeDialog}
-								className="flex-1 py-3 rounded-2xl text-sm font-semibold bg-control ring-border active:opacity-80"
+								onClick={confirmDelete}
+								disabled={deleting}
+								className="flex-1 py-3 rounded-2xl text-sm font-semibold disabled:opacity-50 active:opacity-80"
+								// ⚠️ Era `color: "#fff"`. Sopra un riempimento d'accento va
+								// `--on-accent`: gli accenti invertono la luminosità fra i
+								// temi, quindi un bianco cablato è il tema scuro dato per
+								// scontato, e in chiaro sta a 2,8:1 (CLAUDE.md, Fase 18).
+								style={{ background: "var(--color-aka)", color: "var(--on-accent)" }}
 							>
-								{t.common.cancel}
+								{deleting ? t.common.deleting : t.common.delete}
 							</button>
-							{!dialogError && (
-								<button
-									onClick={confirmDelete}
-									disabled={deleting}
-									className="flex-1 py-3 rounded-2xl text-sm font-semibold disabled:opacity-50 active:opacity-80"
-									// ⚠️ Era `color: "#fff"`. Sopra un riempimento d'accento va
-									// `--on-accent`: gli accenti invertono la luminosità fra i
-									// temi, quindi un bianco cablato è il tema scuro dato per
-									// scontato, e in chiaro sta a 2,8:1 (CLAUDE.md, Fase 18).
-									style={{ background: "var(--color-aka)", color: "var(--on-accent)" }}
-								>
-									{deleting ? t.common.deleting : t.common.delete}
-								</button>
-							)}
-						</div>
-						</div>
+						)}
 					</div>
-				</div>
+				</ConfirmDialog>
 			)}
 		</>
 	);

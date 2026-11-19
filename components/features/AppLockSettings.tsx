@@ -6,6 +6,7 @@ import PinPad from "@/components/UI/PinPad";
 import SubmitButton from "@/components/UI/SubmitButton";
 import { SwitchVisual } from "@/components/UI/Switch";
 import SettingsRow, { SettingsGroup } from "@/components/UI/SettingsRow";
+import { useDismissLayer } from "@/components/UI/useDialog";
 import { useI18n } from "@/components/features/I18nProvider";
 import { fill, plural } from "@/lib/i18n/format";
 import { useUIStore } from "@/store/useUIStore";
@@ -167,6 +168,13 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 		if (rect) setGraceMenuRect({ top: rect.bottom + 6, left: rect.left, width: rect.width });
 		setGraceOpen(true);
 	}
+
+	// #165 — Esc chiude il menu e riporta il fuoco al suo bottone.
+	useDismissLayer(graceOpen, () => {
+		closeGraceMenu();
+		graceTriggerRef.current?.focus();
+	});
+
 	function closeGraceMenu() {
 		setGraceOpen(false);
 	}
@@ -520,6 +528,7 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 							ref={graceTriggerRef}
 							type="button"
 							onClick={() => (graceOpen ? closeGraceMenu() : openGraceMenu())}
+							aria-expanded={graceOpen}
 							className="flex items-center gap-3 h-15.5 px-4 w-full text-left active:opacity-80"
 						>
 							<span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-control">

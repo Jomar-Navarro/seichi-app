@@ -7,6 +7,7 @@ import { ICON_MAP } from "@/lib/icon-map";
 import { GOAL_ICON_MAP } from "@/lib/goal-icons";
 import { TIPO_COLOR, TIPO_INK, formatDate } from "@/lib/transaction-utils";
 import { RepeatIcon } from "@/lib/seichi-icons";
+import ConfirmDialog from "@/components/UI/ConfirmDialog";
 import EmptyState from "@/components/UI/EmptyState";
 import RecurringSheet from "./RecurringSheet";
 import { useI18n } from "./I18nProvider";
@@ -206,41 +207,33 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 			)}
 
 			{pending && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center px-8">
-					<div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={() => setPending(null)} />
-					{/* ⚠️ TRE livelli — issue #81. Guscio → vetro → contenuto. */}
-					<div className="relative w-full max-w-xs rounded-3xl overflow-hidden modal-shadow-ring">
-						<div className="absolute inset-0 bg-modal backdrop-blur-2xl" />
-						<div className="relative p-6">
-						<h3 className="text-[17px] font-semibold mb-2">{t.recurring.deleteTitle}</h3>
-						<p className="text-[13px] text-muted leading-relaxed mb-5">
-							{t.recurring.deleteBody}
+				<ConfirmDialog title={t.recurring.deleteTitle} onClose={() => setPending(null)}>
+					<p className="text-[13px] text-muted leading-relaxed mb-5">
+						{t.recurring.deleteBody}
+					</p>
+					{deleteError && (
+						<p role="alert" className="-mt-2 mb-4 text-[12.5px] leading-snug text-aka-ink">
+							{deleteError}
 						</p>
-						{deleteError && (
-							<p role="alert" className="-mt-2 mb-4 text-[12.5px] leading-snug text-aka-ink">
-								{deleteError}
-							</p>
-						)}
-						<div className="flex gap-2.5">
-							<button
-								onClick={() => setPending(null)}
-								className="flex-1 py-3 rounded-2xl text-sm font-semibold bg-control ring-border active:opacity-80"
-							>
-								{t.common.cancel}
-							</button>
-							<button
-								onClick={confirmDelete}
-								disabled={deleting}
-								className="flex-1 py-3 rounded-2xl text-sm font-semibold disabled:opacity-50 active:opacity-80"
-								// `--on-accent`, non "#fff": vedi CLAUDE.md, Fase 18.
-								style={{ background: "var(--color-aka)", color: "var(--on-accent)" }}
-							>
-								{deleting ? t.common.deleting : t.common.delete}
-							</button>
-						</div>
-						</div>
+					)}
+					<div className="flex gap-2.5">
+						<button
+							onClick={() => setPending(null)}
+							className="flex-1 py-3 rounded-2xl text-sm font-semibold bg-control ring-border active:opacity-80"
+						>
+							{t.common.cancel}
+						</button>
+						<button
+							onClick={confirmDelete}
+							disabled={deleting}
+							className="flex-1 py-3 rounded-2xl text-sm font-semibold disabled:opacity-50 active:opacity-80"
+							// `--on-accent`, non "#fff": vedi CLAUDE.md, Fase 18.
+							style={{ background: "var(--color-aka)", color: "var(--on-accent)" }}
+						>
+							{deleting ? t.common.deleting : t.common.delete}
+						</button>
 					</div>
-				</div>
+				</ConfirmDialog>
 			)}
 		</div>
 	);

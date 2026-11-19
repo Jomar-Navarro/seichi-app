@@ -2,20 +2,21 @@
 
 import { useRef, type ReactNode } from "react";
 import { useCloseOnBack } from "./useCloseOnBack";
+import { useDialog } from "./useDialog";
 import { useScrollFocusedIntoView } from "./useScrollFocusedIntoView";
 
 interface BottomSheetShellProps {
 	onClose: () => void;
 	children: ReactNode;
 	/**
-	 * ⚠️ Opzionale, e non un dimenticanza da colmare per gli altri quattro
-	 * fogli: solo `CoachBubble` aveva già `role="dialog"` prima di questa
-	 * estrazione. Aggiungerlo agli altri quattro sarebbe una correzione di
-	 * accessibilità — legittima, ma un'altra fase, non un effetto collaterale
-	 * di una correzione di rendering. Quando presente, va sul pannello — è lì
-	 * che appartiene semanticamente il ruolo — non sul contenuto interno.
+	 * L'`id` del titolo visibile del foglio (#165), che dà il nome al dialog.
+	 *
+	 * ⚠️ Obbligatorio: fino alla #165 c'era un `ariaLabel` facoltativo, e lo
+	 * passava solo `CoachBubble` — gli altri quattro fogli erano testo qualunque
+	 * per uno screen reader. Il titolo lo disegna il foglio, quindi l'`id` nasce
+	 * lì (`useId()`) e il guscio lo collega al pannello.
 	 */
-	ariaLabel?: string;
+	titleId: string;
 }
 
 /**
@@ -79,10 +80,13 @@ interface BottomSheetShellProps {
  * variante `lg:` sulla stessa proprietà — già usato da `LoginForm.tsx` per lo
  * stesso issue #81.
  */
-export default function BottomSheetShell({ onClose, children, ariaLabel }: BottomSheetShellProps) {
+export default function BottomSheetShell({ onClose, children, titleId }: BottomSheetShellProps) {
 	// issue #86 — vedi useCloseOnBack: neutralizza l'edge-swipe di WKWebView
 	// che altrimenti naviga la pagina SOTTO invece di restare nel foglio.
 	useCloseOnBack(onClose);
+
+	// #165 — ruolo, nome, fuoco, sfondo inerte, Esc. Vedi useDialog.
+	const { rootRef, dialogProps } = useDialog(onClose, { labelledBy: titleId });
 
 	// issue #69 — il campo a fuoco dentro questo scroll annidato in un
 	// `fixed` non finisce da solo sopra la tastiera. Vedi useScrollFocusedIntoView.
@@ -90,12 +94,15 @@ export default function BottomSheetShell({ onClose, children, ariaLabel }: Botto
 	useScrollFocusedIntoView(scrollRef);
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-end lg:items-center lg:justify-center lg:p-6">
+		<div ref={rootRef} className="fixed inset-0 z-50 flex items-end lg:items-center lg:justify-center lg:p-6">
 			<div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={onClose} />
 
+			{/* `outline-none`: il fuoco arriva sul pannello all'apertura (#165), e
+			    un contorno attorno all'intero foglio non indica niente. I comandi
+			    dentro tengono il loro. */}
 			<div
-				{...(ariaLabel ? { role: "dialog", "aria-modal": true, "aria-label": ariaLabel } : {})}
-				className="relative w-full lg:max-w-md rounded-t-4xl lg:rounded-4xl overflow-hidden modal-shadow-ring lg:box-shadow-ring"
+				{...dialogProps}
+				className="relative w-full lg:max-w-md rounded-t-4xl lg:rounded-4xl overflow-hidden modal-shadow-ring lg:box-shadow-ring outline-none"
 			>
 				{/* Il vetro: riempie il guscio, non ha angoli propri da ritagliare. */}
 				<div className="absolute inset-0 bg-modal backdrop-blur-2xl" />

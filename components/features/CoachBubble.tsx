@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { Compass, X } from "lucide-react";
 import BottomSheetShell from "@/components/UI/BottomSheetShell";
 import { getCoachSnapshot } from "@/app/(main)/coach-actions";
@@ -88,6 +88,7 @@ function CoachPanel({
 	onClose: () => void;
 }) {
 	const { locale, t } = useI18n();
+	const titleId = useId();
 	const [snapshot, setSnapshot] = useState<CoachSnapshot | null>(null);
 	// Un booleano e non il testo (review della #124): il motivo grezzo non va a
 	// schermo, quindi non c'è ragione di tenerlo nello stato.
@@ -128,10 +129,10 @@ function CoachPanel({
 	const risposta = risposte.find((r) => r.topic === scelto) ?? null;
 
 	return (
-		<BottomSheetShell onClose={onClose} ariaLabel={t.coach.title}>
+		<BottomSheetShell onClose={onClose} titleId={titleId}>
 				<div className="flex items-start justify-between mt-4 mb-5 shrink-0">
 					<div className="min-w-0">
-						<h2 className="text-xl font-semibold">{t.coach.title}</h2>
+						<h2 id={titleId} className="text-xl font-semibold">{t.coach.title}</h2>
 						<p className="text-xs text-muted mt-0.5">{t.coach.subtitle}</p>
 					</div>
 					<button

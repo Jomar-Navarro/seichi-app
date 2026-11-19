@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { X, Check, Archive, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
@@ -54,6 +54,7 @@ const COLOR_CHOICES = [
 
 export default function AccountSheet({ account, canArchive, onClose }: AccountSheetProps) {
 	const { locale, t } = useI18n();
+	const titleId = useId();
 	const router = useRouter();
 
 	const [name, setName] = useState(() => account?.name ?? "");
@@ -216,9 +217,9 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 	}
 
 	return (
-		<BottomSheetShell onClose={onClose}>
+		<BottomSheetShell onClose={onClose} titleId={titleId}>
 				<div className="flex items-center justify-between mt-4 mb-6 shrink-0">
-					<h2 className="text-xl font-semibold">
+					<h2 id={titleId} className="text-xl font-semibold">
 						{account ? t.accounts.editTitle : t.accounts.newTitle}
 					</h2>
 					<button
@@ -226,6 +227,7 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 							// issue #69 — w-11 h-11 (44px): area toccabile minima, isolata
 						// nell'angolo dell'header, l'icona resta 15px.
 						className="w-11 h-11 flex items-center justify-center rounded-xl bg-control ring-border"
+						aria-label={t.common.close}
 					>
 						<X size={15} />
 					</button>
