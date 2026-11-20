@@ -53,12 +53,32 @@ export default async function MainPage({
 	const { id: accountId, fromUrl } = await getSelectedAccount(conto);
 
 	return (
-		// ⚠️ La `key` rimonta il contenuto quando cambia il conto selezionato.
-		// Senza, il Suspense non si riattiva sulla navigazione soft e si vedrebbero
-		// i totali del conto precedente finché non arrivano i nuovi.
-		<Suspense key={accountId ?? "all"} fallback={<HomeSkeleton />}>
-			<DashboardContent accountId={accountId} fromUrl={fromUrl} />
-		</Suspense>
+		<>
+			{/*
+				⚠️ Il conto guardato (#112) si dichiara QUI, accanto al Suspense e non
+				dentro (#217). In fondo a `DashboardContent` si montava solo all'arrivo
+				delle sei letture, e per tutto lo scheletro il + — che sta nel layout
+				ed è già attivo — apriva un form che non trovava nessuna dichiarazione:
+				ripiegava sul primo conto attivo, e la dichiarazione arrivata dopo non
+				lo correggeva, perché il form legge il conto una volta sola, apposta.
+
+				Qui il conto NON è ancora validato: il `redirect` per un conto che non
+				è dell'utente sta in `DashboardContent`, dopo la lettura dei conti, e
+				aspettarlo vorrebbe dire rimettere la dichiarazione dietro lo scheletro.
+				Non serve: il form propone il conto guardato solo se è fra i conti che
+				ha appena letto, sotto RLS, e non è archiviato. Un id che non è tuo
+				ricade sul primo attivo.
+			*/}
+			<ViewedAccount id={accountId} />
+			{/*
+				⚠️ La `key` rimonta il contenuto quando cambia il conto selezionato.
+				Senza, il Suspense non si riattiva sulla navigazione soft e si vedrebbero
+				i totali del conto precedente finché non arrivano i nuovi.
+			*/}
+			<Suspense key={accountId ?? "all"} fallback={<HomeSkeleton />}>
+				<DashboardContent accountId={accountId} fromUrl={fromUrl} />
+			</Suspense>
+		</>
 	);
 }
 
@@ -460,8 +480,6 @@ async function DashboardContent({
 				/>
 			</div>
 			<DashboardRefresher />
-			{/* #112 — dopo il `redirect` qui sopra: dichiara solo un conto già validato. */}
-			<ViewedAccount id={accountId} />
 			</div>
 		</div>
 	);
