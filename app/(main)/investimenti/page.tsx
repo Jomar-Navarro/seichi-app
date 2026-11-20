@@ -75,7 +75,8 @@ export default async function InvestimentiPage({
 		 * `pb-36` mobile esiste per la bottom nav, che da lg non c'è più.
 		 */
 		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-36 lg:px-10 lg:pt-9 lg:pb-12 lg:max-w-6xl lg:mx-auto lg:w-full">
-			{/* #112 — dopo il `redirect` qui sopra: dichiara solo un conto già validato. */}
+			{/* #112 — dopo il `redirect` qui sopra: dichiara solo un conto già validato.
+			    Nessun Suspense sopra di lei (#217): arriva insieme alla pagina. */}
 			<ViewedAccount id={accountId} />
 			{/*
 				Intestazione. Su mobile tre righe una sotto l'altra — titolo,

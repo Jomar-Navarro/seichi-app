@@ -69,6 +69,11 @@ Storia: `docs/storia/issue-122-form-movimento`, `issue-148-movimenti`,
      duplica il movimento.
 7. **Il conto guardato lo dichiarano le pagine** (`<ViewedAccount>`,
    `useViewedAccount()`) e lo ritirano confrontando il turno, non l'id.
+   - La dichiarazione sta fuori da ogni Suspense che aspetta dati. Perché:
+     dentro si monta solo all'arrivo dei dati, e per tutto lo scheletro il +
+     propone il primo conto attivo (#217).
+   - Chi la legge controlla che il conto sia fra quelli dell'utente: la home la
+     fa prima del suo `redirect`.
 8. **Un aiuto facoltativo che non si legge si nasconde**, e registra il motivo.
    Non è un `LoadError`, perché non è il contenuto della pagina; e non mostra
    le voci come «da fare», perché inviterebbe a rifare ciò che esiste già.

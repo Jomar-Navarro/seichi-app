@@ -107,6 +107,13 @@ rollback;`: niente resta, e la suite end-to-end trova il database com'era.
      firefox` (la CI aggiunge `--with-deps`, che porta le librerie di sistema
      di Linux): senza, ogni test cade su `Executable doesn't exist` prima di
      aprire una pagina, e il rosso non dice niente dell'app.
+   - un gesto «durante lo scheletro» si prova con `openHeld()`
+     (`support/hold.ts`), che trattiene lo streaming, non con un tocco fatto
+     presto: le letture dei server component non le raggiunge `page.route()`
+     (`issue-217-conto-durante-scheletro`);
+   - con più worker di quanti la macchina ne regga, cadono anche scenari
+     sani: richieste da 25 secondi, timeout ovunque. Prima di dare la colpa
+     al codice, riprova con meno worker e guarda la RAM libera (#217).
 
 ## Collaudo nell'app vera
 

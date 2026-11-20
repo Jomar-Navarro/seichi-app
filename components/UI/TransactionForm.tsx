@@ -160,11 +160,14 @@ export default function TransactionForm({
 		 * resta consultabile), ma proporlo significherebbe suggerire di
 		 * scriverci sopra. E deve essere fra i conti appena caricati, così un
 		 * id che non è (più) dell'utente ricade sul primo attivo invece di
-		 * lasciare il form senza conto.
+		 * lasciare il form senza conto. ⚠️ Per la home è l'UNICO controllo: la
+		 * dichiara prima del suo `redirect`, per non farla arrivare dopo lo
+		 * scheletro (#217).
 		 *
 		 * Letto con `getState()` e non sottoscritto: serve il valore al
 		 * momento dell'arrivo, non un form che cambia conto da solo se la
-		 * pagina sotto cambiasse mentre è aperto.
+		 * pagina sotto cambiasse mentre è aperto. Per questo la pagina deve
+		 * dichiararlo PRIMA che il + diventi toccabile (#217).
 		 */
 		const viewed = useUIStore.getState().viewedAccountId;
 		const proposed =

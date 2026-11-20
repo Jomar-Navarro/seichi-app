@@ -27,11 +27,15 @@ interface UIStore {
 	 * genitore e figlio — e stessa soluzione.
 	 *
 	 * ⚠️ Lo scrivono le PAGINE, e non lo ricalcola nessuno nel client: è la
-	 * scelta che il server ha già risolto e validato (URL = istruzione, cookie
-	 * = memoria, Fase 20b), oppure il filtro o il dettaglio che la pagina sta
-	 * mostrando. Si dichiara con `<ViewedAccount>` o `useViewedAccount()`, mai
-	 * con un `set` a mano: la dichiarazione va ritirata allo smontaggio, o
-	 * sopravvivrebbe alla pagina che l'ha fatta.
+	 * scelta che il server ha già risolto (URL = istruzione, cookie = memoria,
+	 * Fase 20b), oppure il filtro o il dettaglio che la pagina sta mostrando.
+	 * Si dichiara con `<ViewedAccount>` o `useViewedAccount()`, mai con un `set`
+	 * a mano: la dichiarazione va ritirata allo smontaggio, o sopravvivrebbe
+	 * alla pagina che l'ha fatta.
+	 *
+	 * ⚠️ Non è sempre già validata: la home la dichiara prima di aver letto i
+	 * conti, o arriverebbe dopo lo scheletro (#217). Chi la legge controlla che
+	 * sia fra i conti dell'utente, come fa il form.
 	 */
 	viewedAccountId: string | null;
 	openTransactionModal: (recurring?: boolean) => void;

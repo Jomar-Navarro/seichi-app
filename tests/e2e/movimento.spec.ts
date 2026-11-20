@@ -1,5 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { choose, field, newMovement } from "./support/app";
-import { expect, login, open, test } from "./support/fixtures";
+import { expect, leave, login, open, test } from "./support/fixtures";
+import { openHeld } from "./support/hold";
 import { insertMovements, seedBasic } from "./support/seed";
 
 /**
@@ -29,6 +31,57 @@ test("il nuovo movimento propone il conto guardato", async ({ page, account }) =
 	await open(page, "/?conto=");
 	await newMovement(page, "Uscita", "12");
 	await expect(field(page, "Conto")).toHaveText("Conto principale");
+});
+
+/**
+ * Il + toccato mentre si vede lo scheletro propone il conto guardato (#217).
+ *
+ * ⚠️ Il difetto che custodisce: la home dichiarava il conto in fondo al suo
+ * contenuto, dentro il Suspense. Per tutto lo scheletro il + apriva un form
+ * che non trovava la dichiarazione e proponeva il primo attivo, e quella
+ * arrivata dopo non lo correggeva. Lo scenario qui sopra lo prendeva solo col
+ * server carico (#165); qui lo scheletro lo tiene fermo `openHeld`, apposta.
+ *
+ * `/analisi` e `/investimenti` oggi arrivano intere: nessun Suspense né
+ * `loading.tsx` sopra la dichiarazione, che sta nell'involucro (il proxy al
+ * più trattiene il piede della sidebar, vedi `hold.ts`). Il controllo
+ * custodisce il giorno in cui uno dei due comparisse.
+ *
+ * Un id nell'URL che non è dell'utente: la home lo dichiara prima di
+ * scartarlo, e il form non deve proporlo mai.
+ *
+ * Controprove: (1) rimettere `<ViewedAccount>` in fondo a `DashboardContent`
+ * → la home propone «Conto principale»; (2) un `loading.tsx` in `/analisi`
+ * → lo stesso su `/analisi`; (3) nel form proporre `viewedAccountId` senza
+ * cercarlo fra i conti letti → l'id inventato lascia il campo senza un conto.
+ */
+test("il + durante lo scheletro propone il conto guardato", async ({ page, account }) => {
+	const s = await seedBasic(account);
+	await login(page, account);
+
+	const cases = [
+		{ path: `/?conto=${s.accounts.revolut}`, skeleton: true, expected: "Revolut" },
+		{ path: `/?conto=${randomUUID()}`, skeleton: true, expected: "Conto principale" },
+		{ path: `/analisi?conto=${s.accounts.revolut}`, skeleton: false, expected: "Revolut" },
+		{ path: `/investimenti?conto=${s.accounts.revolut}`, skeleton: false, expected: "Revolut" },
+	];
+	for (const c of cases) {
+		const held = await openHeld(page, c.path);
+		try {
+			if (c.skeleton) {
+				await held.holding;
+				// Lo scheletro della home, e niente ancora del contenuto vero.
+				await expect(page.locator(".zg-pulse").filter({ visible: true }).first()).toBeVisible();
+				await expect(page.getByText("Transazioni recenti")).toHaveCount(0);
+			}
+			await newMovement(page, "Uscita", "12");
+			// `soft`: un giro dice quali pagine sbagliano, non solo la prima.
+			await expect.soft(field(page, "Conto"), c.path).toHaveText(c.expected);
+		} finally {
+			await leave(page);
+			await held.close();
+		}
+	}
 });
 
 /**

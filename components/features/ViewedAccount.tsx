@@ -22,9 +22,16 @@ export function useViewedAccount(id: string | null) {
  * La stessa dichiarazione per i server component (home, `/analisi`,
  * `/investimenti`), che un hook non lo possono chiamare.
  *
- * ⚠️ Va resa DOPO il controllo che il conto sia fra quelli dell'utente —
- * quello che fa il `redirect` —, così dichiara solo scelte già validate.
- * Il form ricontrolla comunque che il conto esista e non sia archiviato.
+ * ⚠️ Va resa FUORI da ogni Suspense che aspetta dati (#217). Dentro, si monta
+ * solo quando i dati arrivano: per tutto lo scheletro il + — che sta nel
+ * layout ed è già attivo — apre un form che non trova la dichiarazione, e
+ * propone il primo conto attivo. In `/analisi` e `/investimenti` non c'è né un
+ * Suspense né un `loading.tsx` sopra di lei, la pagina arriva intera, e lì sta
+ * dopo il `redirect` che scarta un conto non tuo. La home invece la rende
+ * prima, perché il suo controllo arriva dietro lo scheletro.
+ *
+ * La garanzia vera sta nel form, non qui: propone il conto guardato solo se è
+ * fra i conti dell'utente e non è archiviato.
  */
 export default function ViewedAccount({ id }: { id: string | null }) {
 	useViewedAccount(id);
