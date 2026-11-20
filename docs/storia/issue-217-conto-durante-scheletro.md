@@ -91,3 +91,27 @@ Controprove, dichiarate prima di farle:
 |---|---|---|
 | `<ViewedAccount>` di nuovo in fondo a `DashboardContent` (master) + un `loading.tsx` in `/analisi` | home con Revolut, `/analisi` | gli stessi, entrambi su «Conto principale» |
 | il form propone `viewedAccountId` senza cercarlo fra i conti letti | home con l'id inventato | lo stesso, su «Seleziona conto» |
+
+### La review (2026-11-20)
+
+Nessun rilievo sul codice dell'app. Quattro, minori, sul proxy, tutti
+applicati:
+
+- il piede della sidebar ha un Suspense suo nel layout, quindi può far
+  trattenere anche una pagina che arriva intera: i commenti che dicevano il
+  contrario sono stati corretti (non fa danno, la dichiarazione sta
+  nell'involucro);
+- il socket verso Next si chiude quando il browser se ne va, e uno stream
+  interrotto senza il chunk finale fa cadere la risposta invece di lasciarla
+  appesa;
+- una riga di dimensione illeggibile ferma il proxy invece di farlo girare
+  all'infinito sugli stessi byte;
+- se lo splash manca, il rosso lo dice (`toBeAttached` con un messaggio)
+  invece di un timeout generico.
+
+Ripetendo lo scenario dopo le correzioni, un rosso su 24 a 4 worker: il +
+toccato prima che React lo idratasse, e il pannello non si apriva. Con la
+pagina trattenuta `load` non arriva mai, e lo splash da solo non lo
+garantisce. `openHeld` ora aspetta che il nodo del + porti le sue props di
+React (`__reactProps$…`). Dopo: 32 su 32, e la controprova sul codice di
+master di nuovo rossa dove deve.

@@ -1,7 +1,7 @@
 import http from "node:http";
 import net from "node:net";
 import type { AddressInfo } from "node:net";
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { BASE_URL } from "./env";
 
 /**
@@ -44,6 +44,12 @@ import { BASE_URL } from "./env";
  *   finché nel DOM il confine resta «in attesa», React non rende niente di ciò
  *   che sta dentro. Nessun effetto, nessuna dichiarazione. Ciò che sta fuori,
  *   il + del layout compreso, si idrata e risponde.
+ * - Il primo confine a chiudersi dopo l'involucro non è per forza quello della
+ *   pagina: il piede della sidebar ha un Suspense suo, nel layout, quindi su
+ *   ogni pagina (review della #217). Quando la sua lettura arriva tardi, il
+ *   proxy trattiene da lì, anche su una pagina che per il resto arriva intera
+ *   come `/analisi`. Non fa danno: tutto ciò che segue resta trattenuto, e la
+ *   dichiarazione del conto e il + stanno nell'involucro.
  *
  * ⚠️ I marcatori sono dettagli interni di React e di Next. Se un giorno
  * cambiano, il proxy non trattiene più: lo scenario se ne accorge perché
@@ -56,7 +62,11 @@ import { BASE_URL } from "./env";
  * qui.
  */
 export type HeldPage = {
-	/** Si risolve quando il proxy comincia a trattenere. Una pagina che arriva intera non lo risolve mai. */
+	/**
+	 * Si risolve quando il proxy comincia a trattenere: in home al più tardi
+	 * con la dashboard. Su una pagina che arriva intera può non risolversi mai,
+	 * o risolversi per il piede della sidebar.
+	 */
 	holding: Promise<void>;
 	/** Lascia passare il resto della pagina. */
 	release: () => void;
@@ -144,6 +154,14 @@ export async function openHeld(page: Page, path: string): Promise<HeldPage> {
 				const newline = buffer.indexOf("\r\n");
 				if (newline === -1) return;
 				const size = parseInt(buffer.subarray(0, newline).toString("latin1"), 16);
+				// ⚠️ Una riga che non è una dimensione: senza fermarsi qui, il ciclo
+				// rigirerebbe sugli stessi byte bloccando il worker, e il timeout di
+				// Playwright non scatterebbe mai (review della #217).
+				if (Number.isNaN(size)) {
+					socket.destroy();
+					res.destroy();
+					return;
+				}
 				if (size === 0) {
 					socket.destroy();
 					finish();
@@ -167,10 +185,16 @@ export async function openHeld(page: Page, path: string): Promise<HeldPage> {
 				forward(body);
 			}
 		});
-		socket.on("end", () => {
-			if (!chunked) finish();
+		// Il socket si chiude: senza il chunk finale la risposta è rotta, e il
+		// browser deve vederla cadere invece di aspettare per sempre.
+		socket.on("close", () => {
+			if (ended) return;
+			if (chunked) res.destroy();
+			else finish();
 		});
 		socket.on("error", () => res.destroy());
+		// Il browser se ne va (`leave`, `close`): niente più da leggere da Next.
+		res.on("close", () => socket.destroy());
 	}
 
 	const server = http.createServer((req, res) => {
@@ -203,9 +227,22 @@ export async function openHeld(page: Page, path: string): Promise<HeldPage> {
 	// ⚠️ `commit` e non `load`: trattenuta, la pagina non finisce mai di caricarsi.
 	await page.goto(`${target.protocol}//${target.hostname}:${port}${path}`, { waitUntil: "commit" });
 	// Lo splash copre la pagina per ~900ms, poi resta nel DOM trasparente (vedi `open`).
+	// ⚠️ Qui si pretende che ci sia, a differenza di `open`: dopo `commit` la
+	// pagina può essere ancora vuota, e «nessuno splash» passerebbe subito. Il
+	// controllo a parte dà un rosso che dice la causa (review della #217).
+	await expect(page.locator(".zg-boot-out"), "lo splash dell'involucro").toBeAttached();
 	await page.waitForFunction(() => {
 		const s = document.querySelector(".zg-boot-out");
 		return s !== null && getComputedStyle(s).opacity === "0";
+	});
+	// ⚠️ E il + deve essere idratato, o il tocco si perde: con la pagina
+	// trattenuta `load` non arriva mai, e lo splash da solo non basta. Misurato
+	// sotto carico (4 worker): una volta su 24 il tocco cadeva prima che React
+	// agganciasse i gestori, e il pannello non si apriva. Il segno è di React:
+	// un nodo idratato porta le sue props in una chiave `__reactProps$…`.
+	await page.waitForFunction(() => {
+		const fab = document.querySelector(".fab");
+		return fab !== null && Object.keys(fab).some((key) => key.startsWith("__reactProps$"));
 	});
 
 	return {

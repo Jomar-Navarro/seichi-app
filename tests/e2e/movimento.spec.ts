@@ -43,8 +43,9 @@ test("il nuovo movimento propone il conto guardato", async ({ page, account }) =
  * server carico (#165); qui lo scheletro lo tiene fermo `openHeld`, apposta.
  *
  * `/analisi` e `/investimenti` oggi arrivano intere: nessun Suspense né
- * `loading.tsx` sopra la dichiarazione, quindi il proxy non trattiene niente.
- * Il controllo custodisce il giorno in cui uno dei due comparisse.
+ * `loading.tsx` sopra la dichiarazione, che sta nell'involucro (il proxy al
+ * più trattiene il piede della sidebar, vedi `hold.ts`). Il controllo
+ * custodisce il giorno in cui uno dei due comparisse.
  *
  * Un id nell'URL che non è dell'utente: la home lo dichiara prima di
  * scartarlo, e il form non deve proporlo mai.
