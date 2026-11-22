@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { TransactionType, Transaction, Frequency, Account } from "@/types";
 import {
 	optionsLoad,
@@ -7,7 +7,8 @@ import {
 	useAccountRows,
 	useCategoryRows,
 } from "@/components/UI/useClientRows";
-import { Pencil, Check, Trash2, Repeat } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Pencil, Check, Trash2, Repeat, ChevronRight } from "lucide-react";
 import Select, { type Option } from "@/components/UI/Select";
 import { ACCOUNT_ICON_FALLBACK, ACCOUNT_TYPE_ICON, accountColor } from "@/lib/accounts";
 import FrequencySelector from "@/components/UI/FrequencySelector";
@@ -29,7 +30,8 @@ import { announce } from "@/components/UI/Announcer";
 import { useI18n } from "@/components/features/I18nProvider";
 import { useScrollFocusedIntoView } from "@/components/UI/useScrollFocusedIntoView";
 import { parseAmountInput } from "@/lib/amount";
-import { canRepeat } from "@/lib/recurring";
+import { canRepeat, recurringRuleHref } from "@/lib/recurring";
+import { whenModalEntryGone } from "@/components/UI/useCloseOnBack";
 import { scrollBehavior } from "@/lib/motion";
 
 /**
@@ -56,6 +58,24 @@ export const WIZARD_FOOTER_BUTTON_CLASS =
 	"fixed lg:absolute left-6 right-6 py-4 rounded-2xl btn-primary font-semibold flex items-center justify-center gap-2 disabled:opacity-40";
 export const WIZARD_FOOTER_BUTTON_STYLE = {
 	bottom: "max(1.625rem, env(safe-area-inset-bottom))",
+} as const;
+/*
+ * In modifica il fondo è una RIGA: il cestino accanto a «Salva modifiche»,
+ * nella stessa posizione e con lo stesso stile del bottone singolo. Prima
+ * «Elimina movimento» stava in fondo al contenuto che scorre, staccato dal
+ * gesto con cui si chiude il pannello.
+ */
+const WIZARD_FOOTER_ROW_CLASS = "fixed lg:absolute left-6 right-6 flex gap-2";
+const WIZARD_FOOTER_ROW_PRIMARY_CLASS =
+	"flex-1 py-4 rounded-2xl btn-primary font-semibold flex items-center justify-center gap-2 disabled:opacity-40";
+/*
+ * issue #81 — anello (box-shadow), non bordo: il colore è traslucido (40%).
+ * Fondo SOLIDO (`bg-deep`): il bottone galleggia sopra il contenuto che scorre,
+ * e su `bg-card`, traslucido, si leggerebbe il testo sotto.
+ */
+const DELETE_RING_STYLE = {
+	boxShadow: "color-mix(in srgb, var(--color-aka) 40%, transparent) 0px 0px 0px 1px inset",
+	color: "var(--ink-aka)",
 } as const;
 
 interface TransactionFormProps {
@@ -260,6 +280,8 @@ export default function TransactionForm({
 	}, [ruleSavedNotGenerated]);
 	const { closeTransactionModal, notifyTransactionSaved, recurringDefault } =
 		useUIStore();
+	const router = useRouter();
+	const ruleHintId = useId();
 	const [isRecurring, setIsRecurring] = useState(recurringDefault);
 	const [frequency, setFrequency] = useState<Frequency>("mensile");
 
@@ -483,6 +505,22 @@ export default function TransactionForm({
 			if (saved) onWrite(newId);
 			setIsSaving(false);
 		}
+	}
+
+	/*
+	 * #222 — da un movimento generato alla SUA regola. Chiude il pannello e porta
+	 * a `/impostazioni/ricorrenti`, dove il pannello della regola si apre da sé
+	 * (`?regola=`): lì vivono già pausa, eliminazione e il controllo del conto
+	 * archiviato, e non si impila una finestra sull'altra.
+	 *
+	 * ⚠️ `whenModalEntryGone()` prima di navigare: il pannello chiuso toglie la
+	 * propria voce dalla cronologia con un `history.back()`, e il ritorno alla
+	 * pagina sotto scarterebbe una navigazione già partita (#122).
+	 */
+	async function openRule(ruleId: string) {
+		closeTransactionModal();
+		await whenModalEntryGone();
+		router.push(recurringRuleHref(ruleId));
 	}
 
 	async function handleDelete() {
@@ -770,6 +808,35 @@ export default function TransactionForm({
 			)}
 
 			{/*
+				#222 — un movimento generato da una regola porta alla regola. Senza
+				regola (eliminata: la FK annulla `recurring_rule_id`) la riga non c'è.
+				Il titolo del pannello («Ricorrente») è il TIPO abbonamento, non dice
+				che il movimento viene da una regola: lo dice questa riga.
+			*/}
+			{transaction?.recurring_rule_id && (
+				<div className="mb-3">
+					<p className="text-xs text-muted mb-1.5">{t.transactions.form.recurringSection}</p>
+					<button
+						type="button"
+						onClick={() => openRule(transaction.recurring_rule_id!)}
+						disabled={isSaving}
+						// La riga sotto è parte del gesto: lo screen reader la legge col bottone.
+						aria-describedby={ruleHintId}
+						className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-card ring-border disabled:opacity-50"
+					>
+						<Repeat size={14} className="text-muted shrink-0" />
+						<span className="text-sm flex-1 text-left">{t.transactions.form.editRule}</span>
+						<ChevronRight size={16} className="text-muted shrink-0" />
+					</button>
+					{/* Chi cambia l'importo della regola si aspetterebbe di vederlo
+					    cambiare anche qui: la regola scrive solo i movimenti futuri. */}
+					<p id={ruleHintId} className="mt-1.5 text-[11px] text-muted leading-relaxed">
+						{t.transactions.form.editRuleHint}
+					</p>
+				</div>
+			)}
+
+			{/*
 				Ricevute (Fase 22, issue #36).
 
 				⚠️ Funziona anche in CREAZIONE, e la prima stesura no. La foto scelta
@@ -857,42 +924,6 @@ export default function TransactionForm({
 				</p>
 			)}
 
-			{isEditing && (
-				<div className="mt-2">
-					{isDeleteConfirm ? (
-						<div className="flex gap-2">
-							<button
-								onClick={() => setIsDeleteConfirm(false)}
-								className="flex-1 py-3.5 rounded-2xl bg-card ring-border text-sm font-semibold"
-							>
-								{t.common.cancel}
-							</button>
-							<button
-								onClick={handleDelete}
-								className="flex-1 py-3.5 rounded-2xl text-sm font-semibold"
-								// `--on-accent`, non "#fff": vedi CLAUDE.md, Fase 18.
-								style={{ background: "var(--color-aka)", color: "var(--on-accent)" }}
-							>
-								{t.transactions.form.deleteConfirm}
-							</button>
-						</div>
-					) : (
-						<button
-							onClick={() => setIsDeleteConfirm(true)}
-							className="w-full py-3.5 rounded-2xl text-sm font-semibold flex items-center justify-center gap-2"
-							// issue #81 — anello (box-shadow), non bordo: il colore è traslucido (40%).
-							style={{
-								boxShadow:
-									"color-mix(in srgb, var(--color-aka) 40%, transparent) 0px 0px 0px 1px inset",
-								color: "var(--ink-aka)",
-							}}
-						>
-							<Trash2 size={15} />
-							{t.transactions.form.delete}
-						</button>
-					)}
-				</div>
-			)}
 		</div>
 
 		{/*
@@ -912,6 +943,53 @@ export default function TransactionForm({
 				<Check size={18} />
 				{t.common.close}
 			</button>
+		) : isEditing ? (
+			<div className={WIZARD_FOOTER_ROW_CLASS} style={WIZARD_FOOTER_BUTTON_STYLE}>
+				{isDeleteConfirm ? (
+					<>
+						<button
+							onClick={() => setIsDeleteConfirm(false)}
+							className="flex-1 py-4 rounded-2xl bg-deep ring-border text-sm font-semibold whitespace-nowrap"
+						>
+							{t.common.cancel}
+						</button>
+						<button
+							onClick={handleDelete}
+							disabled={isSaving}
+							// Niente icona e una riga sola: con l'icona, sul telefono la frase andava
+							// a capo e la riga del fondo si alzava.
+							className="flex-1 py-4 rounded-2xl text-sm font-semibold whitespace-nowrap disabled:opacity-40"
+							// `--on-accent`, non "#fff": vedi CLAUDE.md, Fase 18.
+							style={{ background: "var(--color-aka)", color: "var(--on-accent)" }}
+						>
+							{t.transactions.form.deleteConfirm}
+						</button>
+					</>
+				) : (
+					<>
+						{/* Solo l'icona, accanto al gesto principale: il nome lo dice
+						    `aria-label`, e il secondo tocco chiede conferma. */}
+						<button
+							onClick={() => setIsDeleteConfirm(true)}
+							disabled={isSaving}
+							aria-label={t.transactions.form.delete}
+							title={t.transactions.form.delete}
+							className="shrink-0 w-14 rounded-2xl bg-deep flex items-center justify-center disabled:opacity-40"
+							style={DELETE_RING_STYLE}
+						>
+							<Trash2 size={18} />
+						</button>
+						<button
+							onClick={handleSave}
+							disabled={!isValid || isSaving}
+							className={WIZARD_FOOTER_ROW_PRIMARY_CLASS}
+						>
+							<Check size={18} />
+							{t.transactions.form.saveChanges}
+						</button>
+					</>
+				)}
+			</div>
 		) : (
 			<button
 				onClick={handleSave}

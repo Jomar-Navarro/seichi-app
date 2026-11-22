@@ -1,3 +1,4 @@
+import { isUuid } from "@/lib/accounts";
 import type { Frequency } from "@/types";
 
 /**
@@ -163,4 +164,29 @@ export function generationMissed({
 /** La regola che parte da `nextRun` ha un'occorrenza da generare adesso. */
 export function isDueNow(nextRun: string): boolean {
 	return nextRun <= toISODate(new Date());
+}
+
+/**
+ * Il parametro con cui un movimento generato porta alla SUA regola (#222):
+ * `/impostazioni/ricorrenti?regola=<id>` apre il pannello di quella regola.
+ */
+export const RULE_PARAM = "regola";
+
+/** Dove porta «Modifica la ricorrenza» dal pannello del movimento (#222). */
+export function recurringRuleHref(ruleId: string): string {
+	return `/impostazioni/ricorrenti?${RULE_PARAM}=${encodeURIComponent(ruleId)}`;
+}
+
+/**
+ * La regola da aprire all'arrivo su `/impostazioni/ricorrenti`, o nessuna (#222).
+ *
+ * ⚠️ Il parametro è un'ISTRUZIONE che arriva dall'URL, quindi da chiunque: si
+ * accetta solo un uuid singolo (Next dà un array se il parametro è ripetuto) e
+ * solo se è fra le regole che la pagina ha letto per l'utente, sotto RLS. Un
+ * id falso, la regola di un altro o una regola eliminata nel frattempo non
+ * aprono niente e non rompono la pagina: la lista resta com'è.
+ */
+export function ruleFromParam<R extends { id: string }>(param: unknown, rules: readonly R[]): R | null {
+	if (typeof param !== "string" || !isUuid(param)) return null;
+	return rules.find((r) => r.id === param) ?? null;
 }

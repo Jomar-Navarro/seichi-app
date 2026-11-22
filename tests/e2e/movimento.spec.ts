@@ -145,3 +145,54 @@ test("la ricerca ignora gli spazi in coda", async ({ page, account }) => {
 	await expect(page.getByText("caffè al banco").filter({ visible: true })).toBeVisible();
 	await expect(page.getByText("pane", { exact: true })).toHaveCount(0);
 });
+
+/**
+ * Eliminare un movimento si fa dal fondo del pannello, accanto a «Salva
+ * modifiche» (#224, chiesto da Jomar).
+ *
+ * ⚠️ Il difetto che custodisce: «Elimina movimento» stava in fondo al
+ * contenuto che scorre, staccato dal gesto con cui si chiude il pannello, e
+ * su un movimento con le ricevute andava cercato sotto la piega. Ora sta nella
+ * riga fissa del fondo, sempre sullo schermo; il primo tocco chiede conferma
+ * nella stessa riga, e «Annulla» la ritira senza toccare niente.
+ *
+ * Nessun altro scenario elimina un movimento: questo è anche il collaudo del
+ * gesto in sé.
+ *
+ * Controprova: rimettere il cestino in fondo al contenuto che scorre (fuori
+ * dalla riga fissa): cade «sta nella riga del fondo, accanto al salvataggio».
+ */
+test("il cestino sta accanto a «Salva modifiche», chiede conferma ed elimina", async ({ page, account }) => {
+	const s = await seedBasic(account);
+	await insertMovements(account, [
+		{ type: "spesa", amount: 23, account_id: s.accounts.principale, category_id: s.cat("Ristoranti") },
+		{ type: "spesa", amount: 7, account_id: s.accounts.principale, category_id: s.cat("Alimentari") },
+	]);
+	await login(page, account);
+	await open(page, "/?conto=");
+
+	await page.getByRole("button", { name: /Ristoranti/ }).first().click();
+	const movement = page.getByRole("dialog", { name: "Modifica movimento" });
+	await movement.getByRole("button", { name: "Continua" }).click();
+
+	const trash = movement.getByRole("button", { name: "Elimina movimento" });
+	const save = movement.getByRole("button", { name: "Salva modifiche" });
+	await expect(trash).toBeInViewport();
+	await expect(save).toBeInViewport();
+	// Sta nella riga del fondo, accanto al salvataggio: stesso genitore, stessa
+	// altezza sullo schermo.
+	const [t, v] = [await trash.boundingBox(), await save.boundingBox()];
+	expect(t && v && Math.abs(t.y - v.y) < 2 && t.x < v.x, "sta nella riga del fondo, accanto al salvataggio").toBe(true);
+
+	// «Annulla» ritira la conferma senza toccare niente.
+	await trash.click();
+	await movement.getByRole("button", { name: "Annulla" }).click();
+	await expect(save).toBeVisible();
+	expect(await account.rest<unknown[]>("GET", "transactions?select=id")).toHaveLength(2);
+
+	await trash.click();
+	await movement.getByRole("button", { name: "Conferma eliminazione" }).click();
+	await expect(movement).toHaveCount(0);
+	const left = await account.rest<{ amount: number }[]>("GET", "transactions?select=amount");
+	expect(left.map((r) => Number(r.amount))).toEqual([7]);
+});

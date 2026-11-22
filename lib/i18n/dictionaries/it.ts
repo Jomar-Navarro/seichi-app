@@ -995,6 +995,10 @@ export const it = {
 			destinationHint: "il denaro si sposta davvero su quel conto, e l'obiettivo avanza lo stesso",
 			recurringSection: "Ricorrenti",
 			repeat: "Ripeti",
+			/** #222 — dal pannello di un movimento generato alla sua regola. */
+			editRule: "Modifica la ricorrenza",
+			/** La regola scrive solo i movimenti futuri: chi ne cambia l'importo non lo vede cambiare qui. */
+			editRuleHint: "Le modifiche alla ricorrenza valgono per i prossimi movimenti: questo resta com'è.",
 			/**
 			 * Al posto delle ricevute con "Ripeti" acceso (#122): una regola non è un
 			 * movimento, e prima la foto scelta spariva al salvataggio senza dirlo.

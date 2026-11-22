@@ -5,9 +5,14 @@ import LoadError from "@/components/UI/LoadError";
 import JobHealthNotice from "@/components/features/JobHealthNotice";
 import { getI18n } from "@/lib/i18n/server";
 import { getDailyJobHealth } from "@/lib/jobs";
+import { RULE_PARAM } from "@/lib/recurring";
 import type { RecurringRule } from "@/types";
 
-export default async function RicorrentiPage() {
+export default async function RicorrentiPage({
+	searchParams,
+}: {
+	searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
 	// ⚠️ L'avviso sta QUI e non in home, ed è una scelta: questa è la pagina i cui
 	// dati sono sbagliati quando il job è fermo — le regole mostrano date passate
 	// che non hanno generato nulla. Metterlo in home sarebbe costato una richiesta
@@ -17,6 +22,10 @@ export default async function RicorrentiPage() {
 		getDailyJobHealth(),
 	]);
 	const { t } = await getI18n();
+	// #222 — `?regola=<id>` arriva da «Modifica la ricorrenza» nel pannello di un
+	// movimento generato. Si passa così com'è: lo valida `ruleFromParam()`
+	// contro le regole appena lette, che sono solo quelle dell'utente.
+	const openRuleParam = (await searchParams)[RULE_PARAM];
 
 	return (
 		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34 lg:max-w-2xl lg:mx-auto lg:w-full">
@@ -30,7 +39,10 @@ export default async function RicorrentiPage() {
 			{"error" in result ? (
 				<LoadError message={t.recurring.loadError} />
 			) : (
-				<RecurringManager rules={(result.data as RecurringRule[]) ?? []} />
+				<RecurringManager
+					rules={(result.data as RecurringRule[]) ?? []}
+					openRuleParam={openRuleParam}
+				/>
 			)}
 		</div>
 	);

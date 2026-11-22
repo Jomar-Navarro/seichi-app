@@ -2,13 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
 	FREQUENCIES,
+	RULE_PARAM,
 	advanceDate,
 	canRepeat,
 	firstRunForNewRule,
 	firstRunFrom,
 	generationMissed,
 	isDueNow,
+	recurringRuleHref,
 	rollForwardPastToday,
+	ruleFromParam,
 } from "./recurring";
 import { parseLocalDate, toLocalISODate } from "./dates";
 
@@ -165,5 +168,37 @@ describe("isDueNow — con lo stesso orologio di firstRunForNewRule", () => {
 	it("coerente con firstRunForNewRule", () => {
 		expect(isDueNow(firstRunForNewRule("2026-10-22", "mensile"))).toBe(true);
 		expect(isDueNow(firstRunForNewRule("2026-11-23", "mensile"))).toBe(false);
+	});
+});
+
+describe("ruleFromParam — l'istruzione dell'URL che apre una regola (#222)", () => {
+	const a = { id: "00000000-0000-4000-d000-000000000222" };
+	const b = { id: "00000000-0000-4000-d000-000000000223" };
+	const rules = [a, b];
+
+	it("apre la regola dell'utente indicata", () => {
+		expect(ruleFromParam(b.id, rules)).toBe(b);
+	});
+
+	// Il gemello che non apre: un uuid valido che non è fra le regole lette
+	// (eliminata nel frattempo, o di un altro utente: la RLS non l'ha data).
+	it("un uuid che non è fra le regole non apre niente", () => {
+		expect(ruleFromParam("00000000-0000-4000-d000-000000000999", rules)).toBeNull();
+	});
+
+	it.each([
+		["assente", undefined],
+		["vuoto", ""],
+		["non un uuid", "affitto"],
+		["ripetuto (Next dà un array)", [a.id, b.id]],
+		["un'iniezione", `${a.id},id.neq.0`],
+	])("%s: niente", (_, param) => {
+		expect(ruleFromParam(param, rules)).toBeNull();
+	});
+
+	it("il collegamento produce un parametro che si rilegge", () => {
+		const url = new URL(recurringRuleHref(a.id), "https://seichi.test");
+		expect(url.pathname).toBe("/impostazioni/ricorrenti");
+		expect(ruleFromParam(url.searchParams.get(RULE_PARAM), rules)).toBe(a);
 	});
 });

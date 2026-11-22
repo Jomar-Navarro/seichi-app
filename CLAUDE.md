@@ -365,7 +365,7 @@ Flow»: quei titoli sono rimasti identici nei file, quindi li trovi con
 | job notturno, ricorrenti, notifiche | `issue-047-job-giornaliero`, `fase-17-budget-notifiche`, `issue-117-ricorrenti-obiettivi`, `issue-173-ricorrenti-esito` |
 | budget e disponibile | `fase-17-budget-notifiche`, `fase-24a-disponibile` |
 | conti, saldi, trasferimenti, conto ricordato | `fase-20a-conti`, `fase-20b-trasferimenti`, `issue-112-conto-guardato`, `issue-217-conto-durante-scheletro`, `issue-062-conti-swipe` |
-| movimenti: lista, form, importi | `issue-009-lista-movimenti`, `issue-148-movimenti`, `issue-150-form-tre-stati`, `issue-122-form-movimento`, `issue-119-importi` |
+| movimenti: lista, form, importi | `issue-009-lista-movimenti`, `issue-148-movimenti`, `issue-150-form-tre-stati`, `issue-122-form-movimento`, `issue-119-importi`, `issue-222-ricorrenza-dal-movimento` |
 | home, /analisi, report: i numeri | `fase-20a-conti`, `issue-121-numeri`, `fase-23-export-report` |
 | import ed export | `fase-21-import`, `issue-118-import`, `fase-23-export-report`, `issue-162-archivio` |
 | investimenti | `fase-21b-disinvestimento`, `issue-061-investimenti-tipologie` |
