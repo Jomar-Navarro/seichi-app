@@ -68,6 +68,7 @@ const SAME_IN_BOTH = new Set<string>([
 	// Formati senza parole.
 	"categories.iconSet",
 	"import.file.recognised",
+	"common.notesCounter",
 ]);
 
 const IT = leaves(itDict);

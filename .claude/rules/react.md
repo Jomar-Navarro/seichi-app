@@ -78,6 +78,12 @@ Storia: `docs/storia/issue-122-form-movimento`, `issue-148-movimenti`,
    Non è un `LoadError`, perché non è il contenuto della pagina; e non mostra
    le voci come «da fare», perché inviterebbe a rifare ciò che esiste già.
    Perché: la card dei primi passi in home (#163).
+9. **Un campo di testo che finisce in una colonna limitata si ferma al limite
+   e lo dice**, contando come Postgres: per code point (`lib/notes.ts`,
+   `NotesCounter`), mai con `maxLength`, che conta le unità UTF-16. L'action
+   ripete il controllo, e ogni colonna che riceve quel testo ha lo stesso
+   limite. Perché: la descrizione senza limite faceva saltare ogni notte una
+   ricorrenza (#220, `issue-220-note-lunghe`).
 
 ## Tocco, tastiera, mouse
 

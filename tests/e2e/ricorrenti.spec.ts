@@ -1,5 +1,8 @@
+import type { Page } from "@playwright/test";
+import type { TestAccount } from "./support/accounts";
 import { choose, newMovement } from "./support/app";
 import { expect, login, open, test } from "./support/fixtures";
+import { localSql } from "./support/db";
 import { seedBasic } from "./support/seed";
 
 /**
@@ -11,11 +14,13 @@ import { seedBasic } from "./support/seed";
  * si generava, il form si chiudeva su «Ricorrenza creata.» e la regola veniva
  * saltata di nuovo ogni notte, senza che nessuno lo sapesse.
  *
- * Il guasto è VERO, non iniettato: una descrizione oltre i 255 caratteri.
- * `recurring_rules.notes` è `text` e la salva, `transactions.notes` è
- * `varchar(255)` e rifiuta il movimento generato. ⚠️ Quando la #220 chiuderà
- * quel buco (il form non accetterà più una nota così lunga), questo scenario
- * va spostato su un'altra iniezione.
+ * Il guasto è INIETTATO: un trigger di prova che rifiuta i movimenti con una
+ * nota-marcatore, creato dal test nel database locale e tolto in un `finally`.
+ * Fino alla #220 il guasto era vero — una descrizione oltre i 255 caratteri,
+ * che la regola salvava e il movimento rifiutava — ma ora il form, le action e
+ * un CHECK lo impediscono: l'app non sa più produrre una regola che fallisce,
+ * ed è proprio per questo che serve iniettarla. Il trigger guarda solo la nota
+ * di questo test: gli scenari che girano in parallelo non lo vedono.
  *
  * E il difetto che la correzione poteva introdurre: rispondere `{ error }`
  * terrebbe aperto il pannello su «Crea ricorrenza», e il secondo tocco
@@ -25,7 +30,6 @@ import { seedBasic } from "./support/seed";
  * `await supabase.rpc("generate_recurring_transactions")` senza leggerne
  * l'esito, e `return { success: true }`. Il primo test cade su «l'avviso si
  * legge»: il pannello si chiude su «Ricorrenza creata.».
-
  *
  * ⚠️ In locale, fra mezzanotte e l'una o le due, entrambi gli scenari possono
  * cadere: il server è in ora italiana e il database in UTC, e la regola che il
@@ -33,10 +37,37 @@ import { seedBasic } from "./support/seed";
  * In CI e in produzione sono entrambi UTC.
  */
 
-const LONG_NOTE = "Affitto del box in via Roma, ".repeat(11); // 319 caratteri
+/** La nota che il trigger di prova rifiuta: solo questo scenario la scrive. */
+const GUASTO = "Guasto di prova #173";
+
+const INSTALL_GUASTO = `
+create or replace function public.e2e_guasto_173() returns trigger language plpgsql as $$
+begin
+	if new.notes = '${GUASTO}' then
+		raise exception 'guasto di prova e2e (#173)';
+	end if;
+	return new;
+end $$;
+drop trigger if exists e2e_guasto_173 on public.transactions;
+create trigger e2e_guasto_173 before insert on public.transactions
+	for each row execute function public.e2e_guasto_173();
+`;
+
+const REMOVE_GUASTO = `
+drop trigger if exists e2e_guasto_173 on public.transactions;
+drop function if exists public.e2e_guasto_173();
+`;
 
 test("la ricorrenza salvata senza il suo movimento lo dice, e non si duplica", async ({ page, account }) => {
-	expect(LONG_NOTE.length).toBeGreaterThan(255);
+	localSql(INSTALL_GUASTO);
+	try {
+		await guastoNelForm(page, account);
+	} finally {
+		localSql(REMOVE_GUASTO);
+	}
+});
+
+async function guastoNelForm(page: Page, account: TestAccount) {
 	await seedBasic(account);
 	await login(page, account);
 	await open(page, "/?conto=");
@@ -44,7 +75,7 @@ test("la ricorrenza salvata senza il suo movimento lo dice, e non si duplica", a
 	await newMovement(page, "Uscita", "37");
 	const wizard = page.getByRole("dialog", { name: "Nuovo movimento" });
 	await choose(page, "Categoria", "Alimentari");
-	await wizard.getByPlaceholder("Es. Trenord, Esselunga...").fill(LONG_NOTE);
+	await wizard.getByPlaceholder("Es. Trenord, Esselunga...").fill(GUASTO);
 	await wizard.getByRole("button", { name: "Ripeti" }).click();
 	await wizard.getByRole("button", { name: "Crea ricorrenza" }).click();
 
@@ -59,7 +90,7 @@ test("la ricorrenza salvata senza il suo movimento lo dice, e non si duplica", a
 	await expect(wizard.getByRole("button", { name: "Crea ricorrenza" })).toHaveCount(0);
 	const rules = await account.rest<{ id: string; notes: string }[]>("GET", "recurring_rules?select=id,notes");
 	expect(rules).toHaveLength(1);
-	expect(rules[0].notes).toBe(LONG_NOTE);
+	expect(rules[0].notes).toBe(GUASTO);
 	const generated = await account.rest<unknown[]>("GET", `transactions?select=id&recurring_rule_id=eq.${rules[0].id}`);
 	expect(generated).toHaveLength(0);
 
@@ -68,7 +99,7 @@ test("la ricorrenza salvata senza il suo movimento lo dice, e non si duplica", a
 	await wizard.getByRole("button", { name: "Chiudi" }).filter({ hasText: "Chiudi" }).click();
 	await expect(wizard).toHaveCount(0);
 	expect(await account.rest<unknown[]>("GET", "recurring_rules?select=id")).toHaveLength(1);
-});
+}
 
 // Il gemello: la stessa ricorrenza con una descrizione normale si genera, e il
 // pannello si chiude come sempre. Senza, un form che mostrasse l'avviso a ogni
