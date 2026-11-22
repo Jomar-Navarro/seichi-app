@@ -60,8 +60,8 @@ Storia: `docs/storia/issue-122-form-movimento`, `issue-148-movimenti`,
    niente dalla rete: si rende a ogni navigazione, e ritarderebbe il tocco sulla
    nav.
 5. **Per navigare dopo aver chiuso un pannello, aspetta `whenModalEntryGone()`**:
-   il cleanup di `useCloseOnBack` fa `history.back()`, e un `router.push` in volo
-   verrebbe scartato.
+   lo smontaggio toglie la voce del pannello dalla cronologia (`history.go`), e
+   un `router.push` in volo verrebbe scartato.
 6. **Un form che resta montato fra un passo e l'altro fa sopravvivere ogni suo
    stato.**
    - Ciò che vale per un tipo (categoria, destinazione) si ricorda per tipo.
@@ -114,8 +114,12 @@ Storia: `docs/storia/issue-122-form-movimento`, `issue-148-movimenti`,
      pila, e due ascoltatori chiuderebbero il menu e il pannello sotto.
    - Niente `<dialog>` con `showModal()`: il top layer starebbe sopra il velo
      del PIN.
+   - `useDialog` dà anche la voce nella cronologia (`useCloseOnBack`): una per
+     pannello, con la sua profondità, così Indietro chiude il pannello in cima
+     e solo lui, anche annidato. Mai una chiamata a parte, che spingerebbe una
+     seconda voce per lo stesso pannello.
 
-   Perché: #165 (`issue-165-dialog`).
+   Perché: #165 (`issue-165-dialog`), #214 (`issue-214-indietro`).
 5. **Un pannello che si chiude dopo una scrittura riuscita lo annuncia** con
    `announce(t.announce.…)` (`components/UI/Announcer.tsx`), prima di
    chiudere: il suo testo se ne va con lui. Un errore nel pannello aperto ha

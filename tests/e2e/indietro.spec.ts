@@ -97,3 +97,49 @@ test("con una conferma aperta, Indietro la chiude e si resta sulla pagina", asyn
 	await back(page);
 	await expect(page).toHaveURL(/\/impostazioni$/);
 });
+
+/*
+ * Il rischio che la #214 poteva introdurre: ora anche la conferma ha una voce
+ * nella cronologia. Dopo un'eliminazione la lista chiede `router.refresh()` e
+ * chiude la conferma; la chiusura toglie la voce con `history.go()`, e il
+ * ritorno ripristina l'albero della pagina salvato in quella voce. Se vincesse
+ * sul refresh, la riga eliminata ricomparirebbe a schermo.
+ */
+test("eliminare dalla conferma toglie la riga, e non torna", async ({ page, account }) => {
+	const s = await seedBasic(account);
+	await account.rest("POST", "recurring_rules", {
+		user_id: account.id,
+		account_id: s.accounts.principale,
+		category_id: s.cat("Spotify"),
+		type: "abbonamento",
+		amount: 11.99,
+		frequency: "mensile",
+		start_date: "2099-01-01",
+		next_run: "2099-01-01",
+	});
+	await login(page, account);
+
+	await open(page, "/impostazioni/categorie");
+	const row = page.getByText("Ristoranti", { exact: true }).filter({ visible: true });
+	await row.first().locator("..").getByRole("button", { name: "Elimina" }).click();
+	const confirmCat = page.getByRole("dialog", { name: "Elimina categoria" });
+	await confirmCat.getByRole("button", { name: "Elimina" }).click();
+	await expect(confirmCat).toHaveCount(0);
+	await expect(row).toHaveCount(0);
+	await expect.poll(() => page.evaluate(() => Boolean(window.history.state?.seichiModal))).toBe(false);
+	await page.waitForTimeout(800);
+	await expect(row, "la categoria eliminata non ricompare").toHaveCount(0);
+
+	await open(page, "/impostazioni/ricorrenti");
+	const rule = page.getByText("Spotify", { exact: true }).filter({ visible: true });
+	await expect(rule.first()).toBeVisible();
+	// Nella lista delle ricorrenti il comando è «elimina», in minuscolo.
+	await page.getByRole("button", { name: "elimina", exact: true }).filter({ visible: true }).first().click();
+	const confirmRule = page.getByRole("dialog", { name: "Elimina ricorrenza" });
+	await confirmRule.getByRole("button", { name: "Elimina", exact: true }).click();
+	await expect(confirmRule).toHaveCount(0);
+	await expect(rule).toHaveCount(0);
+	await page.waitForTimeout(800);
+	await expect(rule, "la ricorrenza eliminata non ricompare").toHaveCount(0);
+	expect(await account.rest<unknown[]>("GET", "recurring_rules?select=id")).toHaveLength(0);
+});
