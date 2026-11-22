@@ -10,11 +10,13 @@ import { RepeatIcon } from "@/lib/seichi-icons";
 import ConfirmDialog from "@/components/UI/ConfirmDialog";
 import EmptyState from "@/components/UI/EmptyState";
 import { announce } from "@/components/UI/Announcer";
+import { whenModalEntryGone } from "@/components/UI/useCloseOnBack";
 import RecurringSheet from "./RecurringSheet";
 import { useI18n } from "./I18nProvider";
 import { DISPLAY_CURRENCY, formatMoney, lookup, plural } from "@/lib/i18n/format";
 import { deleteRecurringRule, setRecurringActive } from "@/app/(main)/action";
 import { useUIStore } from "@/store/useUIStore";
+import { RULE_PARAM, ruleFromParam } from "@/lib/recurring";
 import type { Locale } from "@/lib/i18n/config";
 import type { RecurringRule } from "@/types";
 
@@ -23,12 +25,28 @@ function formatRuleAmount(r: RecurringRule, locale: Locale) {
 	return `${sign}${formatMoney(r.amount, { locale, currency: DISPLAY_CURRENCY, decimals: 2 })}`;
 }
 
-export default function RecurringManager({ rules }: { rules: RecurringRule[] }) {
+export default function RecurringManager({
+	rules,
+	openRuleParam,
+}: {
+	rules: RecurringRule[];
+	/** #222 — `?regola=<id>`, così come arriva dall'URL: lo valida `ruleFromParam`. */
+	openRuleParam?: string | string[];
+}) {
 	const router = useRouter();
 	const { locale, t } = useI18n();
 	const { openTransactionModal, transactionSavedAt } = useUIStore();
 	const [pending, setPending] = useState<RecurringRule | null>(null);
-	const [editing, setEditing] = useState<RecurringRule | null>(null);
+	/*
+	 * #222 — si arriva qui da «Modifica la ricorrenza» nel pannello di un
+	 * movimento generato, con `?regola=<id>`: il pannello di quella regola è
+	 * già aperto. Nell'inizializzatore e non in un effetto: montare È aprire,
+	 * come per ogni pannello, e la pagina nasce già col pannello giusto. Un id
+	 * che non è fra le regole dell'utente non apre niente.
+	 */
+	const [editing, setEditing] = useState<RecurringRule | null>(() =>
+		ruleFromParam(openRuleParam, rules),
+	);
 	const [deleting, setDeleting] = useState(false);
 	const [busyId, setBusyId] = useState<string | null>(null);
 	// ⚠️ Gli errori ora si DICONO (#117). Prima un "riprendi" rifiutato — o
@@ -36,6 +54,34 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 	// fa niente e non dice niente. Legato alla regola, perché la lista ne ha molte.
 	const [toggleError, setToggleError] = useState<{ id: string; message: string } | null>(null);
 	const [deleteError, setDeleteError] = useState<string | null>(null);
+
+	/*
+	 * #222 — chiuso il pannello, l'istruzione `?regola=` è eseguita e si toglie
+	 * dall'URL: senza, ricaricare la pagina riaprirebbe la regola già chiusa.
+	 *
+	 * ⚠️ Dopo `whenModalEntryGone()`: il pannello toglie la propria voce con un
+	 * `history.back()`, e una navigazione chiesta prima verrebbe scartata dal
+	 * ritorno alla pagina sotto (react.md, «Per navigare dopo aver chiuso un
+	 * pannello»; lo schema di `AccountSheet`).
+	 *
+	 * `router.replace` e non `history.replaceState`, per due ragioni:
+	 * - dopo un salvataggio `RecurringSheet` chiede `router.refresh()` e chiude;
+	 *   la `replaceState` di Next fa un *restore* che potrebbe scavalcare quel
+	 *   refresh ancora in volo, e la lista mostrerebbe l'importo vecchio. Una
+	 *   navigazione vera rilegge la pagina comunque;
+	 * - a pagina caricata da zero Next sostituisce `replaceState` in un suo
+	 *   effetto: una chiamata nativa azzererebbe lo stato della voce (`__NA`).
+	 * Il costo è una lettura della pagina in più, solo quando si è arrivati
+	 * col parametro.
+	 */
+	async function closeEditing() {
+		setEditing(null);
+		if (!new URL(window.location.href).searchParams.has(RULE_PARAM)) return;
+		await whenModalEntryGone();
+		const url = new URL(window.location.href);
+		url.searchParams.delete(RULE_PARAM);
+		router.replace(url.pathname + url.search + url.hash, { scroll: false });
+	}
 
 	// Aggiorna la lista quando una ricorrenza viene creata dal modale transazione
 	useEffect(() => {
@@ -205,7 +251,7 @@ export default function RecurringManager({ rules }: { rules: RecurringRule[] }) 
 			    stato pulito, letto dalla regola stessa. La `key` copre il passaggio
 			    da una regola all'altra senza chiudere in mezzo. */}
 			{editing && (
-				<RecurringSheet key={editing.id} rule={editing} onClose={() => setEditing(null)} />
+				<RecurringSheet key={editing.id} rule={editing} onClose={closeEditing} />
 			)}
 
 			{pending && (

@@ -588,6 +588,8 @@ export const en: Dictionary = {
 			destinationHint: "the money really moves to that account, and the goal still moves forward",
 			recurringSection: "Recurring",
 			repeat: "Repeat",
+			editRule: "Edit the recurring rule",
+			editRuleHint: "Changes to the rule apply to upcoming transactions: this one stays as it is.",
 			receiptsNotOnRule:
 				"Receipts attach to individual transactions, not to a recurring rule: open them from the list once they are generated.",
 			receiptsNotOnTransfer:

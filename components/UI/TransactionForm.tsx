@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { TransactionType, Transaction, Frequency, Account } from "@/types";
 import {
 	optionsLoad,
@@ -7,7 +7,8 @@ import {
 	useAccountRows,
 	useCategoryRows,
 } from "@/components/UI/useClientRows";
-import { Pencil, Check, Trash2, Repeat } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Pencil, Check, Trash2, Repeat, ChevronRight } from "lucide-react";
 import Select, { type Option } from "@/components/UI/Select";
 import { ACCOUNT_ICON_FALLBACK, ACCOUNT_TYPE_ICON, accountColor } from "@/lib/accounts";
 import FrequencySelector from "@/components/UI/FrequencySelector";
@@ -29,7 +30,8 @@ import { announce } from "@/components/UI/Announcer";
 import { useI18n } from "@/components/features/I18nProvider";
 import { useScrollFocusedIntoView } from "@/components/UI/useScrollFocusedIntoView";
 import { parseAmountInput } from "@/lib/amount";
-import { canRepeat } from "@/lib/recurring";
+import { canRepeat, recurringRuleHref } from "@/lib/recurring";
+import { whenModalEntryGone } from "@/components/UI/useCloseOnBack";
 import { scrollBehavior } from "@/lib/motion";
 
 /**
@@ -260,6 +262,8 @@ export default function TransactionForm({
 	}, [ruleSavedNotGenerated]);
 	const { closeTransactionModal, notifyTransactionSaved, recurringDefault } =
 		useUIStore();
+	const router = useRouter();
+	const ruleHintId = useId();
 	const [isRecurring, setIsRecurring] = useState(recurringDefault);
 	const [frequency, setFrequency] = useState<Frequency>("mensile");
 
@@ -483,6 +487,22 @@ export default function TransactionForm({
 			if (saved) onWrite(newId);
 			setIsSaving(false);
 		}
+	}
+
+	/*
+	 * #222 — da un movimento generato alla SUA regola. Chiude il pannello e porta
+	 * a `/impostazioni/ricorrenti`, dove il pannello della regola si apre da sé
+	 * (`?regola=`): lì vivono già pausa, eliminazione e il controllo del conto
+	 * archiviato, e non si impila una finestra sull'altra.
+	 *
+	 * ⚠️ `whenModalEntryGone()` prima di navigare: il pannello chiuso toglie la
+	 * propria voce dalla cronologia con un `history.back()`, e il ritorno alla
+	 * pagina sotto scarterebbe una navigazione già partita (#122).
+	 */
+	async function openRule(ruleId: string) {
+		closeTransactionModal();
+		await whenModalEntryGone();
+		router.push(recurringRuleHref(ruleId));
 	}
 
 	async function handleDelete() {
@@ -766,6 +786,35 @@ export default function TransactionForm({
 							/>
 						</div>
 					)}
+				</div>
+			)}
+
+			{/*
+				#222 — un movimento generato da una regola porta alla regola. Senza
+				regola (eliminata: la FK annulla `recurring_rule_id`) la riga non c'è.
+				Il titolo del pannello («Ricorrente») è il TIPO abbonamento, non dice
+				che il movimento viene da una regola: lo dice questa riga.
+			*/}
+			{transaction?.recurring_rule_id && (
+				<div className="mb-3">
+					<p className="text-xs text-muted mb-1.5">{t.transactions.form.recurringSection}</p>
+					<button
+						type="button"
+						onClick={() => openRule(transaction.recurring_rule_id!)}
+						disabled={isSaving}
+						// La riga sotto è parte del gesto: lo screen reader la legge col bottone.
+						aria-describedby={ruleHintId}
+						className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-card ring-border disabled:opacity-50"
+					>
+						<Repeat size={14} className="text-muted shrink-0" />
+						<span className="text-sm flex-1 text-left">{t.transactions.form.editRule}</span>
+						<ChevronRight size={16} className="text-muted shrink-0" />
+					</button>
+					{/* Chi cambia l'importo della regola si aspetterebbe di vederlo
+					    cambiare anche qui: la regola scrive solo i movimenti futuri. */}
+					<p id={ruleHintId} className="mt-1.5 text-[11px] text-muted leading-relaxed">
+						{t.transactions.form.editRuleHint}
+					</p>
 				</div>
 			)}
 
