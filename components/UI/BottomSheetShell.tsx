@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, type ReactNode } from "react";
-import { useCloseOnBack } from "./useCloseOnBack";
 import { useDialog } from "./useDialog";
 import { useScrollFocusedIntoView } from "./useScrollFocusedIntoView";
 
@@ -81,11 +80,8 @@ interface BottomSheetShellProps {
  * stesso issue #81.
  */
 export default function BottomSheetShell({ onClose, children, titleId }: BottomSheetShellProps) {
-	// issue #86 — vedi useCloseOnBack: neutralizza l'edge-swipe di WKWebView
-	// che altrimenti naviga la pagina SOTTO invece di restare nel foglio.
-	useCloseOnBack(onClose);
-
-	// #165 — ruolo, nome, fuoco, sfondo inerte, Esc. Vedi useDialog.
+	// #165 — ruolo, nome, fuoco, sfondo inerte, Esc, e la voce nella
+	// cronologia che fa chiudere il foglio a Indietro (#86, #214). Vedi useDialog.
 	const { rootRef, dialogProps } = useDialog(onClose, { labelledBy: titleId });
 
 	// issue #69 — il campo a fuoco dentro questo scroll annidato in un

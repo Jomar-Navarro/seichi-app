@@ -8,133 +8,153 @@ import { useEffect, useRef } from "react";
  *
  * `overscroll-behavior-x: none` (globals.css) è la prima, a costo zero, ma è
  * un gesto NATIVO di WKWebView (edge-swipe-to-go-back): il web non ha una
- * leva certa per impedirlo, e infatti l'issue lo segnalava scattare anche
- * con un modale sopra. Questo hook non prova a impedire il gesto — ne
- * NEUTRALIZZA l'effetto, garantendo l'esito a prescindere da cosa decida il
- * WebView.
+ * leva certa per impedirlo. Questo hook non prova a impedire il gesto — ne
+ * NEUTRALIZZA l'effetto: al montaggio spinge una voce di cronologia SINTETICA
+ * (stessa URL), e "andare indietro" — dal gesto o dal pulsante — consuma
+ * quella voce invece di lasciare la pagina, e il `popstate` chiude il pannello.
  *
- * Al montaggio spinge una voce di history SINTETICA (stessa URL — il router
- * di Next non ha nulla da navigare). Finché quella voce resta in cima allo
- * stack, "andare indietro" — dal gesto o dal pulsante — la consuma PRIMA di
- * poter lasciare la pagina: il popstate risultante chiude il modale invece
- * di navigare via.
+ * ⚠️ UNA VOCE PER PANNELLO, ANCHE ANNIDATO (#214). Prima la voce era un
+ * booleano (`seichiModal`), e un pannello aperto dentro un altro — il visore
+ * di una ricevuta dentro il wizard — non ne spingeva una seconda: i due
+ * condividevano una voce, il `popstate` arrivava a entrambi, e Indietro col
+ * visore aperto chiudeva l'intero wizard, form compreso. Ora ogni voce porta
+ * la sua PROFONDITÀ (`seichiDepth`), e c'è un solo ascoltatore: al `popstate`
+ * legge la profondità della voce su cui si è arrivati e chiude, dall'alto,
+ * solo i pannelli che stavano più in su. Un Indietro, un pannello.
  *
- * ⚠️ Il montaggio DEVE coincidere con l'apertura, come ogni pannello di
- * questo progetto (vedi CLAUDE.md — "i pannelli si montano, non si
- * nascondono"): un `onClose` letto da un ref evita che l'effetto rigiri a
- * ogni render solo perché il chiamante passa una funzione inline nuova, che
- * spingerebbe una voce di history a ogni render invece che una sola volta.
+ * È lo stesso schema della pila di Esc in `useDialog` (#165), e per lo stesso
+ * motivo: due ascoltatori indipendenti chiuderebbero il pannello in cima e
+ * quello sotto. Lo chiama `useDialog`, così ogni pannello modale ha la sua
+ * voce — anche le conferme e il visore, che prima non ne avevano.
  *
- * ⚠️ Due strade di chiusura, due comportamenti diversi allo smontaggio:
- * - CHIUSURA PROGRAMMATICA (bottone, backdrop, salvataggio riuscito) →
- *   `onClose()` smonta il componente PRIMA che la history si muova: la
- *   nostra voce sintetica resta appesa in cima allo stack, e va tolta a
- *   mano (`history.back()`) nel cleanup, o un tocco indietro successivo la
- *   consumerebbe senza alcun effetto visibile invece di lasciare davvero la
- *   pagina.
- * - CHIUSURA DA GESTO/POPSTATE → la voce è già stata consumata dal browser
- *   quando il nostro handler scatta: il cleanup NON deve toglierne un'altra,
- *   o si navigherebbe indietro di un passo in più del dovuto. `poppedRef`
- *   distingue i due casi.
+ * ⚠️ Due strade di chiusura:
+ * - DAL GESTO (popstate) → la voce è già stata consumata dal browser: lo
+ *   smontaggio non deve toglierne un'altra (`popped`).
+ * - DAL CODICE (X, sfondo, Esc, salvataggio) → il pannello si smonta e la sua
+ *   voce resta appesa in cima: va tolta, o il prossimo Indietro la
+ *   consumerebbe senza effetto visibile. Le voci si tolgono in UN colpo solo
+ *   (`history.go(-n)`) in un microtask: chiudendo il wizard col visore aperto
+ *   si smontano due pannelli, e due `back()` di fila non sono affidabili.
+ *
+ * ⚠️⚠️ Il doppio montaggio di React in sviluppo (mount → cleanup → mount,
+ * sulla STESSA istanza). Il secondo giro trova la voce del primo già in
+ * cronologia alla sua profondità e non ne spinge un'altra; la sincronizzazione
+ * del cleanup gira in un microtask, DOPO il secondo giro, e trova cronologia e
+ * pila d'accordo: non toglie niente. Senza, il modale si chiudeva da solo un
+ * istante dopo l'apertura, in sviluppo soltanto.
+ *
+ * ⚠️ Memoria di modulo (react.md, «La memoria di modulo»): la pila esiste solo
+ * nel browser — la toccano solo gli effetti — e rispecchia i pannelli aperti
+ * adesso, non dati dell'utente.
  */
+
+type Entry = { depth: number; close: () => void; popped: boolean };
+
+/** I pannelli aperti con la loro voce, dal più basso al più alto. */
+const open: Entry[] = [];
+let syncQueued = false;
+
+/** La profondità della voce in cima alla cronologia: 0 se non è nostra. */
+function historyDepth(): number {
+	const state = window.history.state;
+	if (typeof state?.seichiDepth === "number") return state.seichiDepth;
+	// Una voce scritta prima della #214 (una scheda rimasta aperta durante il
+	// deploy): un pannello solo, come allora.
+	return state?.seichiModal ? 1 : 0;
+}
+
+/** La profondità che la cronologia DEVE avere: quella del pannello più in alto. */
+function wantedDepth(): number {
+	return open.length ? open[open.length - 1].depth : 0;
+}
+
+function onPopState() {
+	const now = historyDepth();
+	// Dall'alto: un Indietro chiude il pannello in cima, e solo lui. Un salto
+	// di più voci (il menu lungo del pulsante Indietro) li chiude tutti.
+	for (let i = open.length - 1; i >= 0 && open[i].depth > now; i--) {
+		open[i].popped = true;
+		open[i].close();
+	}
+}
+
+/** Toglie, in un colpo solo, le voci dei pannelli chiusi dal codice. */
+function scheduleSync() {
+	if (syncQueued) return;
+	syncQueued = true;
+	queueMicrotask(() => {
+		syncQueued = false;
+		const extra = historyDepth() - wantedDepth();
+		if (extra > 0) window.history.go(-extra);
+	});
+}
+
 export function useCloseOnBack(onClose: () => void) {
 	const onCloseRef = useRef(onClose);
-	const poppedRef = useRef(false);
-	/*
-	 * ⚠️⚠️ Sopravvive al DOPPIO invocare degli effetti che React fa in
-	 * sviluppo (mount → cleanup → mount, sulla STESSA istanza — non un vero
-	 * smontaggio, è la prova apposta per scovare effetti non sicuri da
-	 * rieseguire). Senza questo ref il modale si chiudeva da solo un istante
-	 * dopo l'apertura, in sviluppo soltanto: la cleanup "fantasma" del primo
-	 * giro chiamava `history.back()`, e quella pop — asincrona — arrivava al
-	 * listener del SECONDO giro (già montato) come se fosse un gesto reale.
-	 *
-	 * La cleanup non fa più la pop subito: la rimanda a un microtask, e la
-	 * marca con un token. Se un secondo giro dello stesso montaggio riprende
-	 * la voce PRIMA che quel microtask scatti — è esattamente cosa succede,
-	 * il doppio invocare di React è sincrono — il token viene marcato
-	 * `cancelled` e la pop non parte mai. Un vero smontaggio non ha un
-	 * secondo giro dietro a cancellarla: lì la pop scatta per davvero, solo
-	 * un istante più tardi di prima (impercettibile).
-	 */
-	const pendingPopRef = useRef<{ cancelled: boolean } | null>(null);
 
 	// Tiene `onCloseRef` allineata senza scrivere un ref durante il render
-	// (vietato dalla regola `react-hooks/refs`): gira a ogni render, come un
-	// normale effetto, ma non è QUESTO a dover montare/smontare una volta
-	// sola — è l'effetto sotto, che infatti ha un array di dipendenze vuoto.
+	// (vietato da `react-hooks/refs`): l'effetto sotto invece gira una volta.
 	useEffect(() => {
 		onCloseRef.current = onClose;
 	});
 
 	useEffect(() => {
-		// Un montaggio che riprende la voce cancella la pop lasciata in
-		// sospeso dal giro precedente — vedi il commento sul ref sopra.
-		if (pendingPopRef.current) {
-			pendingPopRef.current.cancelled = true;
-			pendingPopRef.current = null;
-		}
-
-		// Se la voce c'è già (il caso appena descritto) non se ne spinge una
-		// seconda: raddoppiare le voci per lo stesso modale sposterebbe la
-		// pop di un passo più in là del dovuto.
-		if (!window.history.state?.seichiModal) {
-			window.history.pushState({ seichiModal: true }, "");
-		}
-
-		function handlePopState() {
-			poppedRef.current = true;
-			onCloseRef.current();
-		}
-
-		window.addEventListener("popstate", handlePopState);
-		return () => {
-			window.removeEventListener("popstate", handlePopState);
-			// La voce è già stata consumata dal browser (gesto/pulsante
-			// indietro): niente da togliere, e chiamare `back()` andrebbe un
-			// passo oltre.
-			if (poppedRef.current) return;
-
-			const token = { cancelled: false };
-			pendingPopRef.current = token;
-			queueMicrotask(() => {
-				if (token.cancelled) return;
-				if (window.history.state?.seichiModal) {
-					window.history.back();
-				}
-			});
+		const entry: Entry = {
+			depth: wantedDepth() + 1,
+			close: () => onCloseRef.current(),
+			popped: false,
 		};
-		// Montaggio == apertura, smontaggio == chiusura (vedi CLAUDE.md — "i
-		// pannelli si montano, non si nascondono"): deve girare una volta sola
-		// per istanza di modale, non a ogni render.
+		open.push(entry);
+		if (open.length === 1) window.addEventListener("popstate", onPopState);
+
+		// La voce c'è già quando è il secondo giro del doppio montaggio: non
+		// se ne spinge un'altra, o la cronologia andrebbe un passo più in là.
+		if (historyDepth() < entry.depth) {
+			window.history.pushState({ seichiModal: true, seichiDepth: entry.depth }, "");
+		}
+
+		return () => {
+			const i = open.lastIndexOf(entry);
+			if (i !== -1) open.splice(i, 1);
+			if (open.length === 0) window.removeEventListener("popstate", onPopState);
+			// Chiuso dal gesto: la voce l'ha già consumata il browser.
+			if (!entry.popped) scheduleSync();
+		};
+		// Montaggio == apertura, smontaggio == chiusura (CLAUDE.md, «I pannelli
+		// si montano e si smontano»): una volta sola per pannello.
 	}, []);
 }
 
 /**
- * Si risolve quando la voce sintetica di un pannello appena chiuso è stata
- * TOLTA dalla cronologia (#122). Va chiamata DOPO `onClose()` e prima di
- * navigare.
+ * Si risolve quando le voci dei pannelli appena chiusi sono state TOLTE dalla
+ * cronologia (#122). Va chiamata DOPO `onClose()` e prima di navigare.
  *
  * ⚠️ Esiste perché chiudere e poi navigare non funziona, e non lo dice. Il
- * pannello smontato toglie la propria voce con `history.back()` (vedi il
- * cleanup sopra), e il `popstate` che ne nasce arriva al router di Next come
+ * pannello smontato toglie la propria voce con `history.go()` (vedi
+ * `scheduleSync`), e il `popstate` che ne nasce arriva al router di Next come
  * un "indietro" vero: un `ACTION_RESTORE` della pagina sotto, che scarta la
  * navigazione ancora in volo. Eliminando un conto da `/conti/[id]` il
- * `router.push("/conti")` veniva così annullato, e si restava sull'estratto
- * di un conto che non esisteva più.
+ * `router.push("/conti")` veniva così annullato.
  *
  * Il nostro ascoltatore è registrato DOPO quello di Next (che lo aggancia al
  * montaggio dell'app), quindi quando questa promessa si risolve il ritorno
  * alla pagina sotto è già stato messo in coda: una navigazione chiesta adesso
  * viene dopo, e vince.
  *
- * Se la voce non c'è — già consumata, o mai spinta — si risolve subito. Il
- * tetto di tempo è solo una rete: senza, un `popstate` che non arriva mai
- * terrebbe ferma la navigazione per sempre.
+ * Se in cima non c'è una voce nostra — già consumata, o mai spinta — si
+ * risolve subito. Il tetto di tempo è solo una rete: senza, un `popstate` che
+ * non arriva mai terrebbe ferma la navigazione.
+ *
+ * ⚠️ Guarda la CRONOLOGIA, non la pila dei pannelli: la si chiama subito dopo
+ * `onClose()`, quando React non ha ancora smontato il pannello, che quindi è
+ * ancora nella pila. Confrontare la cronologia con la pila direbbe «niente da
+ * togliere» e lascerebbe partire la navigazione che il ritorno scarterà.
+ * Serve ai pannelli di primo livello che chiudono e navigano: nessuno chiude
+ * un pannello annidato per navigare.
  */
 export function whenModalEntryGone(timeoutMs = 1000): Promise<void> {
 	return new Promise((resolve) => {
-		if (!window.history.state?.seichiModal) {
+		if (historyDepth() === 0) {
 			resolve();
 			return;
 		}
