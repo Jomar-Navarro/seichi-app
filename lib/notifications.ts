@@ -4,6 +4,7 @@ import {
 	capitalize,
 	currencySymbol,
 	fill,
+	formatDate,
 	formatNumber,
 	formatRelativeTime,
 	plural,
@@ -26,6 +27,8 @@ const META: Record<NotificationType, { icon: ElementType; color: string }> = {
 	obiettivo_soglia:    { icon: PiggyBank,     color: "var(--color-kin)" },
 	abbonamento_rinnovo: { icon: Repeat,        color: "var(--color-murasaki)" },
 	ricorrenti_generate: { icon: RefreshCw,     color: "var(--color-murasaki)" },
+	// Ambra e non rosso: il rosso in questa app vuol dire «uscite» (#47).
+	ricorrente_saltata:  { icon: AlertTriangle, color: "var(--color-kin)" },
 };
 
 /**
@@ -176,6 +179,23 @@ export function renderNotification(
 				// `type`, quindi sommare uno stipendio e un affitto darebbe un numero
 				// che non corrisponde a niente di trovabile nell'app.
 				body: null,
+			};
+		}
+
+		case "ricorrente_saltata": {
+			/*
+			 * #173 — il job notturno ha saltato la regola. La data è quella
+			 * dell'occorrenza bloccata, un fatto: si mostra com'è, non come
+			 * distanza da oggi. Senza nome (la regola ha perso la categoria) la
+			 * frase non ne inventa uno; senza data leggibile si dice l'importo.
+			 */
+			const name = p.name as string | null;
+			const amount = money(Number(p.amount));
+			return {
+				title: name ? fill(m.recurringSkipped, { name }) : m.recurringSkippedUnnamed,
+				body: isISODate(p.date)
+					? fill(m.recurringSkippedBody, { amount, date: formatDate(p.date, locale) })
+					: fill(m.recurringSkippedBodyUndated, { amount }),
 			};
 		}
 

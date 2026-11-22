@@ -226,9 +226,10 @@ Tre correzioni di testo, tutte della stessa famiglia:
 - La riga del job era l'**unica `href` senza `chevron`** della pagina: si leggeva
   come un'etichetta di stato invece che come l'ingresso alla spiegazione.
 
-Restano aperti, come commit separati: `createRecurringRule()` che scarta errore e
+Restano aperti, come commit separati: ~~`createRecurringRule()` che scarta errore e
 conteggio dell'RPC (`app/(main)/action.ts`), `details` che porta il conteggio ma
-non gli id delle regole, ~~`search_path to 'public'` in
+non gli id delle regole~~ (chiusi dalla `20261122`, #173, insieme alla notifica
+per l'utente della regola saltata), ~~`search_path to 'public'` in
 `generate_recurring_transactions()` dove tutte le altre usano `''`~~ (chiuso
 dalla `20260821`, #123), `logged_at` che nessuno legge, e il `Promise.all` di `/impostazioni` che affianca una
 funzione capace di `redirect()` a una promise che resterebbe non osservata.

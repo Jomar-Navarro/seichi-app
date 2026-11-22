@@ -32,6 +32,32 @@
 
 
 -- ----------------------------------------------------------------------------
+-- 0. Guardia: superata dalla 20261122 (#173)
+-- ----------------------------------------------------------------------------
+-- Aggiunta con la #173. Questo file per mesi è stato «quello da rieseguire per
+-- riagganciare il cron», e dopo la `20261122` non lo è più: il suo
+-- `run_daily_jobs()` assegna il risultato di `generate_recurring_transactions()`
+-- a un `int`, e la funzione ora restituisce `uuid[]`. Rieseguito, il passo
+-- delle ricorrenti esploderebbe ogni notte, annullando i movimenti generati
+-- per tutti. Il successore si riconosce dal tipo di ritorno.
+
+do $$
+begin
+	if exists (
+		select 1
+		from pg_proc p
+		join pg_namespace n on n.oid = p.pronamespace
+		where n.nspname = 'public'
+		  and p.proname = 'generate_recurring_transactions'
+		  and pg_get_function_result(p.oid) = 'uuid[]'
+	) then
+		raise exception
+			'STOP: la 20261122 è già stata eseguita. Rieseguire questo file riporterebbe run_daily_jobs() alla versione che legge un conteggio, e il job fallirebbe ogni notte. Per riagganciare il cron esegui la 20261122.';
+	end if;
+end $$;
+
+
+-- ----------------------------------------------------------------------------
 -- 1. Un terzo stato: `partial`
 -- ----------------------------------------------------------------------------
 -- `ok` e `error` non bastavano a dire due cose diverse:

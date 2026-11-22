@@ -299,7 +299,7 @@ Ogni tabella ha anche `created_at`.
 - `account_balances` (vista, `security_invoker`);
 - `dashboard_totals(bounds, account)`;
 - `budgets_at()` e `set_budget()`;
-- `generate_recurring_transactions()`, che restituisce le regole saltate;
+- `generate_recurring_transactions()`, che restituisce gli id delle regole saltate;
 - `run_daily_jobs()`, lanciata da pg_cron alle 03:00 UTC: ricorrenti, poi
   notifiche;
 - `daily_job_health()`;
@@ -362,7 +362,7 @@ Flow»: quei titoli sono rimasti identici nei file, quindi li trovi con
 | area | file in `docs/storia/` |
 |---|---|
 | database, migration, schema | `schema-annotato`, `issue-043-ricostruzione-schema`, `issue-123-database-integrita`, `issue-154-anon`, `issue-157-supabase-cli`, `issue-158-categorie-proprietario` |
-| job notturno, ricorrenti, notifiche | `issue-047-job-giornaliero`, `fase-17-budget-notifiche`, `issue-117-ricorrenti-obiettivi` |
+| job notturno, ricorrenti, notifiche | `issue-047-job-giornaliero`, `fase-17-budget-notifiche`, `issue-117-ricorrenti-obiettivi`, `issue-173-ricorrenti-esito` |
 | budget e disponibile | `fase-17-budget-notifiche`, `fase-24a-disponibile` |
 | conti, saldi, trasferimenti, conto ricordato | `fase-20a-conti`, `fase-20b-trasferimenti`, `issue-112-conto-guardato`, `issue-217-conto-durante-scheletro`, `issue-062-conti-swipe` |
 | movimenti: lista, form, importi | `issue-009-lista-movimenti`, `issue-148-movimenti`, `issue-150-form-tre-stati`, `issue-122-form-movimento`, `issue-119-importi` |

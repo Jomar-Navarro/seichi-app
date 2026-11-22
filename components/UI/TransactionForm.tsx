@@ -229,6 +229,14 @@ export default function TransactionForm({
 	const pickerRef = useRef<AttachmentPickerHandle | null>(null);
 	const [attachmentError, setAttachmentError] = useState<string | null>(null);
 	/*
+	 * #173 — la regola è salvata, ma il movimento già dovuto non è stato
+	 * generato. Il pannello resta aperto per DIRLO (chiuso, l'annuncio arriva
+	 * solo allo screen reader), e il bottone diventa «Chiudi»: «Crea
+	 * ricorrenza» una seconda volta creerebbe una seconda regola.
+	 */
+	const [ruleSavedNotGenerated, setRuleSavedNotGenerated] = useState(false);
+	const ruleNoticeRef = useRef<HTMLParagraphElement>(null);
+	/*
 	 * issue #69 — questo form vive dentro il foglio `fixed` di
 	 * `TransactionModal` (non `BottomSheetShell`: ha markup suo, vedi
 	 * quel file), e il suo scroll è quindi lo stesso caso — un campo a
@@ -245,6 +253,11 @@ export default function TransactionForm({
 	useEffect(() => {
 		if (saveError) saveErrorRef.current?.scrollIntoView({ block: "nearest", behavior: scrollBehavior() });
 	}, [saveError]);
+	useEffect(() => {
+		if (ruleSavedNotGenerated) {
+			ruleNoticeRef.current?.scrollIntoView({ block: "nearest", behavior: scrollBehavior() });
+		}
+	}, [ruleSavedNotGenerated]);
 	const { closeTransactionModal, notifyTransactionSaved, recurringDefault } =
 		useUIStore();
 	const [isRecurring, setIsRecurring] = useState(recurringDefault);
@@ -408,6 +421,15 @@ export default function TransactionForm({
 				return;
 			}
 			saved = true;
+
+			// #173 — regola salvata, movimento già dovuto non scritto: il
+			// pannello resta aperto con la frase e «Chiudi». Niente ricevute da
+			// caricare (una regola non ne ha, `receiptsOffered`).
+			if (!effectiveId && recurring && result && "notGenerated" in result && result.notGenerated) {
+				setRuleSavedNotGenerated(true);
+				notifyTransactionSaved();
+				return;
+			}
 
 			/*
 			 * Le ricevute scelte PRIMA del salvataggio si caricano adesso: solo ora
@@ -823,6 +845,18 @@ export default function TransactionForm({
 				</p>
 			)}
 
+			{/*
+				#173 — ambra, non rosso: non è un errore, la regola è salvata. Il
+				rosso in questa app vuol dire «uscite», e qui direbbe «non è
+				successo niente», che è falso. `role="status"`: il pannello resta
+				aperto, e la frase la legge anche lo screen reader.
+			*/}
+			{ruleSavedNotGenerated && (
+				<p ref={ruleNoticeRef} role="status" className="mt-2 text-[11.5px] text-center leading-relaxed text-kin-ink">
+					{t.transactions.form.ruleSavedNotGenerated}
+				</p>
+			)}
+
 			{isEditing && (
 				<div className="mt-2">
 					{isDeleteConfirm ? (
@@ -868,20 +902,32 @@ export default function TransactionForm({
 			la stessa safe-area. Classe e stile condivisi con quel bottone —
 			vedi `WIZARD_FOOTER_BUTTON_CLASS` qui sopra.
 		*/}
-		<button
-			onClick={handleSave}
-			disabled={!isValid || isSaving}
-			className={WIZARD_FOOTER_BUTTON_CLASS}
-			style={WIZARD_FOOTER_BUTTON_STYLE}
-		>
-			<Check size={18} />
-			{/* `exists` e non `isEditing`: creato il movimento, "Salva" lo aggiorna. */}
-			{exists
-				? t.transactions.form.saveChanges
-				: recurring
-					? t.transactions.form.createRecurring
-					: t.transactions.form.save}
-		</button>
+		{ruleSavedNotGenerated ? (
+			// #173 — la regola esiste: l'unico gesto rimasto è chiudere.
+			<button
+				onClick={closeTransactionModal}
+				className={WIZARD_FOOTER_BUTTON_CLASS}
+				style={WIZARD_FOOTER_BUTTON_STYLE}
+			>
+				<Check size={18} />
+				{t.common.close}
+			</button>
+		) : (
+			<button
+				onClick={handleSave}
+				disabled={!isValid || isSaving}
+				className={WIZARD_FOOTER_BUTTON_CLASS}
+				style={WIZARD_FOOTER_BUTTON_STYLE}
+			>
+				<Check size={18} />
+				{/* `exists` e non `isEditing`: creato il movimento, "Salva" lo aggiorna. */}
+				{exists
+					? t.transactions.form.saveChanges
+					: recurring
+						? t.transactions.form.createRecurring
+						: t.transactions.form.save}
+			</button>
+		)}
 	</>
 	);
 }
