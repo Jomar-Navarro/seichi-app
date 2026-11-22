@@ -114,3 +114,53 @@ export function rollForwardPastToday(nextRun: string, frequency: Frequency): str
 	while (d < today) d = advanceDate(d, frequency);
 	return toISODate(d);
 }
+
+/**
+ * La regola appena creata aveva un movimento già dovuto, e la RPC che lo genera
+ * subito non l'ha scritto? (#173)
+ *
+ * `createRecurringRule()` chiama `generate_recurring_transactions()` dopo
+ * l'insert, e prima ne scartava l'esito: se la generazione falliva, il form
+ * diceva «salvato» lo stesso. Due modi di non scrivere il movimento:
+ *
+ * - la RPC fallisce per intero (`rpcFailed`): il movimento manca solo se la
+ *   regola era GIÀ DOVUTA — con una partenza futura non c'era niente da
+ *   generare, e dirlo mancato sarebbe falso;
+ * - la RPC riesce ma restituisce l'id della regola fra le saltate. Conta solo
+ *   QUESTA regola: la RPC lavora su tutte le regole scadute dell'utente, e una
+ *   sua regola vecchia rotta non dice niente di quella appena salvata — a
+ *   quella pensa la notifica del job notturno.
+ *
+ * `dueNow` si calcola con lo stesso orologio di `firstRunForNewRule`, quello
+ * del server, che in produzione è quello di `current_date` nel database:
+ * entrambi UTC (Vercel e Supabase). In locale il server è in ora italiana, e fra
+ * mezzanotte e l'una o le due i due «oggi» differiscono: il debito dichiarato
+ * di `transactions.date`.
+ */
+export function generationMissed({
+	ruleId,
+	dueNow,
+	rpcFailed,
+	skipped,
+}: {
+	ruleId: string;
+	dueNow: boolean;
+	rpcFailed: boolean;
+	skipped: unknown;
+}): boolean {
+	if (!dueNow) return false;
+	if (rpcFailed) return true;
+	/*
+	 * Sul database di prima della `20261122` la funzione restituisce un NUMERO
+	 * (le regole saltate, di chiunque fra le sue). Succede solo se il codice
+	 * arriva prima della migration, contro l'ordine dichiarato: un numero
+	 * diverso da zero non dice quale regola, e la frase prudente è «mancato».
+	 */
+	if (!Array.isArray(skipped)) return typeof skipped === "number" && skipped > 0;
+	return skipped.includes(ruleId);
+}
+
+/** La regola che parte da `nextRun` ha un'occorrenza da generare adesso. */
+export function isDueNow(nextRun: string): boolean {
+	return nextRun <= toISODate(new Date());
+}

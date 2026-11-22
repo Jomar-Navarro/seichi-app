@@ -594,6 +594,8 @@ export const en: Dictionary = {
 				"A transfer has no receipts: the photos you picked won't be attached. Go back to another type to find them again.",
 			saveChanges: "Save changes",
 			createRecurring: "Create recurring rule",
+			ruleSavedNotGenerated:
+				"Recurring rule saved, but the transaction already due wasn't recorded. We'll try again tonight; if it fails, you'll get a notification.",
 			save: "Save transaction",
 			deleteConfirm: "Confirm deletion",
 			delete: "Delete transaction",
@@ -1131,6 +1133,11 @@ export const en: Dictionary = {
 			renewalFallbackName: "subscription",
 			renewalAmount: "{amount} due",
 			renewalAmountPast: "{amount} was due",
+
+			recurringSkipped: 'Recurring transaction "{name}" not recorded',
+			recurringSkippedUnnamed: "A recurring transaction wasn't recorded",
+			recurringSkippedBody: "{amount} on {date}: we'll retry every night. Check the rule.",
+			recurringSkippedBodyUndated: "{amount}: we'll retry every night. Check the rule.",
 
 			recurringGenerated: {
 				one: "{n} recurring transaction recorded",

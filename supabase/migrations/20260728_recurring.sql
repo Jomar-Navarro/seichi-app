@@ -39,7 +39,7 @@
 --
 -- Stessa guardia della `20260727` e della `20260809`, e stessa regola: **un file
 -- che descrive uno stato superato non deve poter tornare in vita di soppiatto.**
--- Per riagganciare il cron si esegue la `20260811`, che è autosufficiente.
+-- Per riagganciare il cron si esegue la `20261122`, l'ultima che ridefinisce il job (#173).
 
 do $$
 begin

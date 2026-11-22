@@ -1006,6 +1006,14 @@ export const it = {
 				"Un trasferimento non ha ricevute: le foto scelte non verranno allegate. Le ritrovi tornando a un altro tipo.",
 			saveChanges: "Salva modifiche",
 			createRecurring: "Crea ricorrenza",
+			/**
+			 * La regola è salvata, ma il movimento già dovuto non è stato generato
+			 * subito (#173). Non è un errore: «Qualcosa è andato storto» spingerebbe
+			 * a riprovare, e un secondo «Crea ricorrenza» creerebbe una seconda
+			 * regola. Il pannello resta aperto con questa frase e «Chiudi».
+			 */
+			ruleSavedNotGenerated:
+				"Ricorrenza salvata, ma il movimento già dovuto non è stato registrato. Ci riproviamo stanotte; se non riesce, riceverai una notifica.",
 			save: "Salva movimento",
 			deleteConfirm: "Conferma eliminazione",
 			delete: "Elimina movimento",
@@ -1972,6 +1980,19 @@ export const it = {
 			renewalAmount: "Sono previsti {amount}",
 			/** Rinnovo già passato: "sono previsti" lo direbbe ancora da venire. */
 			renewalAmountPast: "Erano previsti {amount}",
+
+			/**
+			 * Una regola che il job notturno ha saltato (#173). `{date}` è
+			 * l'occorrenza bloccata: la regola non avanza finché fallisce, e la
+			 * notifica è una sola per occorrenza, non una a notte. «Movimento» e non
+			 * «ricorrenza»: la regola esiste ed è salvata, è il movimento a mancare.
+			 */
+			recurringSkipped: 'Movimento ricorrente "{name}" non registrato',
+			/** La regola ha perso la categoria: niente nome inventato. */
+			recurringSkippedUnnamed: "Un movimento ricorrente non è stato registrato",
+			recurringSkippedBody: "{amount} del {date}: ci riproviamo ogni notte. Controlla la regola.",
+			/** Payload senza una data leggibile: si dice l'importo, non una data inventata. */
+			recurringSkippedBodyUndated: "{amount}: ci riproviamo ogni notte. Controlla la regola.",
 
 			recurringGenerated: {
 				one: "Registrato {n} movimento ricorrente",

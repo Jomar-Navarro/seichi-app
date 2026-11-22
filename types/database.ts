@@ -695,7 +695,7 @@ export type Database = {
 			};
 			"generate_recurring_transactions": {
 				Args: Record<PropertyKey, never>;
-				Returns: number;
+				Returns: (string)[];
 			};
 			"import_transactions": {
 				Args: {

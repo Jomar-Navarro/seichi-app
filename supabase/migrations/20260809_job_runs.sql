@@ -65,7 +65,7 @@ begin
 		  and pg_get_function_result(p.oid) <> 'void'
 	) then
 		raise exception
-			'STOP: la 20260810 è già stata eseguita. Rieseguire questo file sostituirebbe run_daily_jobs() con la versione che scarta il conteggio delle regole saltate. Per riagganciare il cron esegui la 20260811, che è autosufficiente.';
+			'STOP: la 20260810 è già stata eseguita. Rieseguire questo file sostituirebbe run_daily_jobs() con la versione che scarta il conteggio delle regole saltate. Per riagganciare il cron esegui la 20261122, l''ultima che ridefinisce il job.';
 	end if;
 end $$;
 

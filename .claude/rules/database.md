@@ -139,9 +139,14 @@ Con `db push`, mai dal SQL Editor: la procedura sta in `rilascio.md`.
 2. **Ogni passo ha il suo blocco `exception` e scrive l'esito in `job_runs`.**
    pg_cron esegue tutto come una transazione, e un guasto catturato senza
    registrarlo diventa invisibile: «succeeded» per cinque settimane (#47).
-3. **Una regola guasta non ferma le altre.** `generate_recurring_transactions()`
-   isola ogni regola e restituisce quante ne ha saltate. Dal cron `auth.uid()`
-   è NULL, e la funzione lavora per tutti gli utenti.
+3. **Una regola guasta non ferma le altre, e non tace.**
+   `generate_recurring_transactions()` isola ogni regola e restituisce gli id
+   delle saltate (`uuid[]`). Dal cron `auth.uid()` è NULL, e la funzione lavora
+   per tutti gli utenti. `run_daily_jobs()` scrive gli id in `details` e, nel
+   passo `notifications`, avvisa ogni proprietario (`ricorrente_saltata`, dedup
+   per regola e occorrenza, non per giorno: una regola guasta non avanza). La
+   action che crea una regola legge lo stesso array per la SUA regola, e lo
+   dice nel form (#173).
 4. **Il cursore delle ricorrenti è `for no key update`.** Non `skip locked`, che
    salterebbe in silenzio una regola in modifica; non `for update`, che
    bloccherebbe anche i controlli di FK.

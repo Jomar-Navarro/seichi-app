@@ -57,7 +57,7 @@
 --
 -- Su un database ricostruito da zero la tabella non c'è, e il file gira. La
 -- regola resta quella delle altre guardie: **il file più recente dev'essere
--- autosufficiente**. Per riagganciare il cron basta la `20260811`.
+-- autosufficiente**. Per riagganciare il cron basta la `20261122`, l'ultima che ridefinisce il job (#173).
 
 do $$
 begin
@@ -68,7 +68,7 @@ begin
 		  and column_name  = 'payload'
 	) then
 		raise exception
-			'STOP: questo file è già stato eseguito (public.notifications.payload esiste). Rieseguirlo CANCELLA tutte le notifiche (drop table) e riporta run_daily_jobs() e generate_notifications() a versioni superate. Per riagganciare il cron esegui la 20260811, che è autosufficiente.';
+			'STOP: questo file è già stato eseguito (public.notifications.payload esiste). Rieseguirlo CANCELLA tutte le notifiche (drop table) e riporta run_daily_jobs() e generate_notifications() a versioni superate. Per riagganciare il cron esegui la 20261122, l''ultima che ridefinisce il job.';
 	end if;
 end $$;
 

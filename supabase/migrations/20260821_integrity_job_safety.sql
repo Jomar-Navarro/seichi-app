@@ -63,6 +63,22 @@ begin
 		raise exception
 			'20260821 richiede 20260814_accounts.sql (recurring_rules.account_id non esiste). Eseguire prima quella.';
 	end if;
+
+	-- Aggiunta con la #173: la `20261122` ridefinisce la funzione del job con
+	-- un altro tipo di ritorno (`uuid[]`). Il `create or replace` della sezione
+	-- 3 fallirebbe comunque, ma a metà file e con un messaggio che non dice
+	-- perché.
+	if exists (
+		select 1
+		from pg_proc p
+		join pg_namespace n on n.oid = p.pronamespace
+		where n.nspname = 'public'
+		  and p.proname = 'generate_recurring_transactions'
+		  and pg_get_function_result(p.oid) = 'uuid[]'
+	) then
+		raise exception
+			'STOP: la 20261122 è già stata eseguita e ridefinisce generate_recurring_transactions(). Questo file non ha più niente da fare.';
+	end if;
 end $$;
 
 

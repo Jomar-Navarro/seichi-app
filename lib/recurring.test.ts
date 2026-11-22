@@ -6,6 +6,8 @@ import {
 	canRepeat,
 	firstRunForNewRule,
 	firstRunFrom,
+	generationMissed,
+	isDueNow,
 	rollForwardPastToday,
 } from "./recurring";
 import { parseLocalDate, toLocalISODate } from "./dates";
@@ -102,5 +104,66 @@ describe("prima esecuzione e ripresa (#117)", () => {
 	it("firstRunFrom: mai prima di oggi", () => {
 		expect(firstRunFrom("2026-08-01")).toBe("2026-09-02");
 		expect(firstRunFrom("2026-09-20")).toBe("2026-09-20");
+	});
+});
+
+describe("generationMissed — l'esito della RPC alla creazione di una regola (#173)", () => {
+	const ruleId = "00000000-0000-4000-d000-000000000173";
+	const altra = "00000000-0000-4000-d000-000000000999";
+
+	it("regola dovuta e saltata dalla RPC: mancato", () => {
+		expect(generationMissed({ ruleId, dueNow: true, rpcFailed: false, skipped: [ruleId] })).toBe(true);
+	});
+
+	// Il gemello che passa: la RPC riuscita senza la regola fra le saltate.
+	it("regola dovuta e generata: niente da dire", () => {
+		expect(generationMissed({ ruleId, dueNow: true, rpcFailed: false, skipped: [] })).toBe(false);
+	});
+
+	// La RPC lavora su tutte le regole scadute dell'utente: una sua regola
+	// vecchia rotta non dice niente di quella appena salvata.
+	it("saltata un'ALTRA regola dell'utente: non riguarda questa", () => {
+		expect(generationMissed({ ruleId, dueNow: true, rpcFailed: false, skipped: [altra] })).toBe(false);
+	});
+
+	it("RPC fallita su una regola dovuta: mancato", () => {
+		expect(generationMissed({ ruleId, dueNow: true, rpcFailed: true, skipped: null })).toBe(true);
+	});
+
+	// Con una partenza futura non c'era niente da generare: dirlo mancato
+	// sarebbe falso, anche se la RPC è caduta.
+	it("RPC fallita su una regola che parte nel futuro: niente da dire", () => {
+		expect(generationMissed({ ruleId, dueNow: false, rpcFailed: true, skipped: null })).toBe(false);
+	});
+
+	// Il database di prima della 20261122 restituisce un numero.
+	it.each([
+		[1, true],
+		[0, false],
+	])("database vecchio, %i regole saltate: %s", (n, atteso) => {
+		expect(generationMissed({ ruleId, dueNow: true, rpcFailed: false, skipped: n })).toBe(atteso);
+	});
+});
+
+describe("isDueNow — con lo stesso orologio di firstRunForNewRule", () => {
+	beforeEach(() => {
+		vi.useFakeTimers({ toFake: ["Date"] });
+		vi.setSystemTime(new Date(2026, 10, 22, 10, 0));
+	});
+	afterEach(() => vi.useRealTimers());
+
+	it.each([
+		["2026-11-21", true],
+		["2026-11-22", true],
+		["2026-11-23", false],
+	])("%s → %s", (nextRun, atteso) => {
+		expect(isDueNow(nextRun)).toBe(atteso);
+	});
+
+	// Il caso che lega le due funzioni: la regola che firstRunForNewRule fa
+	// partire OGGI è dovuta adesso, quella che fa partire domani no.
+	it("coerente con firstRunForNewRule", () => {
+		expect(isDueNow(firstRunForNewRule("2026-10-22", "mensile"))).toBe(true);
+		expect(isDueNow(firstRunForNewRule("2026-11-23", "mensile"))).toBe(false);
 	});
 });

@@ -280,7 +280,9 @@ export type NotificationType =
 	| "budget_sforato"
 	| "obiettivo_soglia"
 	| "abbonamento_rinnovo"
-	| "ricorrenti_generate";
+	| "ricorrenti_generate"
+	/** #173 — una regola che il job notturno ha saltato. */
+	| "ricorrente_saltata";
 
 /**
  * I fatti di una notifica, senza presentazione.
@@ -299,6 +301,10 @@ export type NotificationPayload =
 	 * perché una riga scritta prima della migration non ce l'ha.
 	 */
 	| { name: string | null; amount: number; date?: string }
+	/*
+	 * `ricorrente_saltata` ha la stessa forma: il nome della categoria (NULL se
+	 * la regola l'ha persa), l'importo e la data dell'occorrenza bloccata (#173).
+	 */
 	| { count: number };
 
 /**

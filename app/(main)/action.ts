@@ -4,7 +4,14 @@ import { getI18n } from "@/lib/i18n/server";
 import { formatDate, shortMonth } from "@/lib/i18n/format";
 import { requireUser } from "@/lib/auth";
 import { isAccountId, isUuid } from "@/lib/accounts";
-import { canRepeat, firstRunForNewRule, firstRunFrom, rollForwardPastToday } from "@/lib/recurring";
+import {
+	canRepeat,
+	firstRunForNewRule,
+	firstRunFrom,
+	generationMissed,
+	isDueNow,
+	rollForwardPastToday,
+} from "@/lib/recurring";
 import { flussoDaTotali } from "@/lib/totals";
 import { isStorableAmount } from "@/lib/amount";
 import { RECEIPT_BUCKET } from "@/lib/attachments";
@@ -407,7 +414,8 @@ export async function createRecurringRule(
 	// La stessa regola del CHECK, con una frase invece della violazione (#122).
 	if (!canRepeat(tipo)) return { error: t.errors.invalidType };
 
-	const { error } = await supabase.from("recurring_rules").insert({
+	const nextRun = firstRunForNewRule(start_date, frequency as Frequency);
+	const { data: rule, error } = await supabase.from("recurring_rules").insert({
 		user_id: user.id,
 		amount: importo,
 		type: tipo,
@@ -424,17 +432,39 @@ export async function createRecurringRule(
 		// Con una partenza passata: l'occorrenza più recente già dovuta, alla sua
 		// data vera — mai "oggi", che spostava la cadenza (#117), e mai la
 		// raffica di arretrati. Vedi `firstRunForNewRule`.
-		next_run: firstRunForNewRule(start_date, frequency as Frequency),
-	});
+		next_run: nextRun,
+	}).select("id").single();
 
 	if (error) return { error: contoError(error, t) };
 
-	// Materializza subito le occorrenze già dovute — best-effort:
-	// se l'RPC fallisce, la regola è comunque salvata e il cron genererà le occorrenze.
-	await supabase.rpc("generate_recurring_transactions");
+	/*
+	 * Materializza subito le occorrenze già dovute, e ne LEGGE l'esito (#173).
+	 * Prima lo scartava: se la generazione falliva il form diceva «salvato», e
+	 * con una regola che fallisce ogni volta (una nota oltre i 255 caratteri,
+	 * #220) la notte dopo veniva saltata di nuovo senza che nessuno lo sapesse.
+	 *
+	 * ⚠️ Non è un `{ error }`. La regola ESISTE: un errore terrebbe il pannello
+	 * aperto su «Crea ricorrenza», e il secondo tocco creerebbe una seconda
+	 * regola. È un successo con una riserva, e il form la dice con una frase
+	 * sua (`ruleSavedNotGenerated`): «Qualcosa è andato storto» manderebbe a
+	 * riprovare proprio il gesto sbagliato (lezione 8). Il motivo vero va nei
+	 * log, come fa `genericError()`.
+	 */
+	const { data: skipped, error: rpcError } = await supabase.rpc("generate_recurring_transactions");
+	if (rpcError) genericError("ricorrenti: generazione alla creazione", rpcError, t);
+
+	const notGenerated = generationMissed({
+		ruleId: rule.id,
+		dueNow: isDueNow(nextRun),
+		rpcFailed: !!rpcError,
+		skipped,
+	});
+	if (notGenerated && !rpcError) {
+		console.error("[ricorrenti: generazione alla creazione] regola saltata:", rule.id);
+	}
 
 	revalidatePath("/", "layout");
-	return { success: true };
+	return { success: true, notGenerated };
 }
 
 export async function getRecurringRules() {
