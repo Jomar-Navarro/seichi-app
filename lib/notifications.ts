@@ -2,10 +2,9 @@ import { AlertTriangle, Bell, PiggyBank, Repeat, RefreshCw } from "lucide-react"
 import type { ElementType } from "react";
 import {
 	capitalize,
-	currencySymbol,
 	fill,
 	formatDate,
-	formatNumber,
+	formatMoney,
 	formatRelativeTime,
 	plural,
 	relativeDayLabel,
@@ -94,12 +93,9 @@ export function renderNotification(
 	// transazioni, formatAmount in lib/transaction-utils.ts). Due formati
 	// diversi per la stessa cifra, uno accanto all'altro, sono una crepa
 	// visibile in un'app che parla di soldi.
-	// Il simbolo si ricava comunque da Intl, così una valuta diversa da EUR
-	// porta il proprio ($, £, ¥) senza bisogno di una mappa da mantenere.
-	const money = (v: number) =>
-		`${currencySymbol(currency, locale)} ${formatNumber(v, locale, {
-			maximumFractionDigits: 0,
-		})}`;
+	// È `formatMoney` all'unità (#171): prima la stessa cifra era ricomposta qui
+	// a mano, con lo stesso risultato e una regola in più da tenere allineata.
+	const money = (v: number) => formatMoney(v, { locale, currency });
 
 	const p = n.payload as Record<string, unknown>;
 

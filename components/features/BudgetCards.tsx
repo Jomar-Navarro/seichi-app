@@ -5,7 +5,7 @@ import { AlertTriangle } from "lucide-react";
 import { ICON_MAP } from "@/lib/icon-map";
 import { budgetColor, budgetInk } from "@/lib/budget";
 import { useI18n } from "./I18nProvider";
-import { DISPLAY_CURRENCY, fill, formatMoney, formatNumber, lookup } from "@/lib/i18n/format";
+import { currencySymbol, fill, formatMoney, formatNumber, lookup } from "@/lib/i18n/format";
 import type { BudgetOverview, BudgetWithSpending } from "@/types";
 
 /*
@@ -43,10 +43,10 @@ function BudgetCard({
 	 */
 	windowInHeader: boolean;
 }) {
-	const { locale, t } = useI18n();
+	const { locale, t, currency } = useI18n();
 	/** Importi arrotondati all'euro: nelle card i centesimi sono rumore. */
 	const money = (v: number) =>
-		formatMoney(v, { locale, currency: DISPLAY_CURRENCY });
+		formatMoney(v, { locale, currency });
 	/*
 	 * Lo stesso numero senza simbolo, per il denominatore della riga desktop
 	 * ("€ 365 / 400"). Le stesse opzioni che `formatMoney` passa a
@@ -105,8 +105,10 @@ function BudgetCard({
 				{Icon ? (
 					<Icon size={17} strokeWidth={1.5} style={{ color: baseColor }} />
 				) : (
+					// Il simbolo della valuta dell'utente (#171): era un «€» scritto a
+					// mano, sfuggito alla Fase 19 perché non passava da `formatMoney`.
 					<span className="text-[13px] font-semibold" style={{ color: baseColor }}>
-						€
+						{currencySymbol(currency, locale)}
 					</span>
 				)}
 			</span>
@@ -172,7 +174,7 @@ export default function BudgetCards({
 	 */
 	accountFiltered?: boolean;
 }) {
-	const { locale, t } = useI18n();
+	const { locale, t, currency } = useI18n();
 	const { global, perCategory, fixedOutflowsThisMonth } = overview;
 	const cards = [...(global ? [global] : []), ...perCategory];
 
@@ -229,7 +231,7 @@ export default function BudgetCards({
 								{fill(t.budget.fixedThisMonth, {
 									amount: formatMoney(fixedOutflowsThisMonth, {
 										locale,
-										currency: DISPLAY_CURRENCY,
+										currency,
 									}),
 								})}
 							</span>

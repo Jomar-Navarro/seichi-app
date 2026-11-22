@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
-import { getDictionary, syncLocaleFromProfile } from "@/lib/i18n/server";
+import { getDictionary, syncPreferencesFromProfile } from "@/lib/i18n/server";
 import { fill } from "@/lib/i18n/format";
 import { PASSWORD_MIN_LENGTH } from "@/lib/password";
 import { SITE_URL } from "@/lib/site-url";
@@ -59,7 +59,8 @@ export async function login(_prevState: { error: string }, formData: FormData) {
 		// (valuta NULL → /start; il layout di `(onboarding)` ne ha un altro, vedi lì):
 		// è il momento in cui la preferenza salvata sul profilo diventa la lingua di
 		// questa sessione, ed è ciò che la rende valida su un dispositivo nuovo.
-		await syncLocaleFromProfile(profile?.language);
+		// Lo stesso per la valuta (#171).
+		await syncPreferencesFromProfile(profile);
 		if (!profile?.currency) {
 			redirect("/start");
 		}

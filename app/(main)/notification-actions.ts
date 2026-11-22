@@ -32,7 +32,7 @@ export async function getNotifications(
 ): Promise<{ data: RenderedNotification[]; unread: number } | { error: string }> {
 	// `locale` oltre al dizionario: `renderNotification` formatta importi e date,
 	// non solo parole. Arriva da `requireUser()`, che lo risolve comunque.
-	const { supabase, user, t, locale } = await requireUser();
+	const { supabase, user, t, locale, currency } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	// ⚠️ La query del conteggio sta QUI, non dietro una chiamata a
@@ -42,7 +42,7 @@ export async function getNotifications(
 	// non dedursi dalle righe caricate — con più di `PANEL_LIMIT` notifiche
 	// sarebbe più basso di quello vero — ma la ragione era quella, non il
 	// riuso della funzione.
-	const [{ data, error }, { data: profile }, { count, error: countError }] =
+	const [{ data, error }, { count, error: countError }] =
 		await Promise.all([
 			supabase
 				.from("notifications")
@@ -50,16 +50,16 @@ export async function getNotifications(
 				.eq("user_id", user.id)
 				.order("created_at", { ascending: false })
 				.limit(PANEL_LIMIT),
-			supabase.from("profiles").select("currency").eq("id", user.id).single(),
 			unreadCountQuery(supabase, user.id),
 		]);
 
 	if (error) return { error: genericError("notifiche: lettura", error, t) };
 	if (countError) return { error: genericError("notifiche: conteggio", countError, t) };
 
-	// La valuta arriva dal profilo, non è cablata: è la stessa scelta
-	// nell'onboarding che governa ogni altro importo dell'app.
-	const currency = profile?.currency || "EUR";
+	// La valuta è quella di ogni altro importo dell'app: il cookie, via
+	// `requireUser()` (#171). Prima la leggeva dal profilo, con una query in
+	// più e una fonte in più: il campanello avrebbe potuto dire $ mentre la
+	// pagina sotto diceva €.
 	// Una server action è raggiungibile con una POST qualunque: una data
 	// malformata ripiega sull'oggi del server invece di arrivare a `Date.UTC`.
 	const today = isISODate(clientToday) ? clientToday : new Date().toISOString().slice(0, 10);

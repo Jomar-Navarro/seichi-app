@@ -182,8 +182,14 @@ export function archiveReadme(
 		avatarFile,
 		avatar,
 		missingReceipts,
+		currency,
 	}: {
 		now: Date;
+		/**
+		 * `profiles.currency` della riga esportata, la stessa di `profile.json`
+		 * (#171). NULL solo per un account senza profilo: allora la riga tace.
+		 */
+		currency: string | null;
 		avatarFile: string | null;
 		avatar: AvatarStatus;
 		missingReceipts: string[];
@@ -212,6 +218,7 @@ export function archiveReadme(
 		"",
 		r.notesHeading,
 		`- ${r.notes.amounts}`,
+		...(currency ? [`- ${fill(r.notes.currency, { currency })}`] : []),
 		`- ${r.notes.dates}`,
 		`- ${r.notes.balance}`,
 		`- ${r.notes.budgets}`,

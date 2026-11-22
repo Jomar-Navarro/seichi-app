@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
 	AMOUNT_MAX,
 	amountErrorMessage,
+	amountInputMode,
+	amountMax,
 	applyAmountKey,
 	decimalSeparator,
 	formatAmountInput,
@@ -25,7 +27,8 @@ import type { Locale } from "./i18n/config";
 const ok = (value: number): AmountInput => ({ status: "ok", value });
 const EMPTY: AmountInput = { status: "empty" };
 const INVALID: AmountInput = { status: "invalid" };
-const DECIMALS: AmountInput = { status: "decimals" };
+const DECIMALS: AmountInput = { status: "decimals", max: 2 };
+const NO_DECIMALS: AmountInput = { status: "decimals", max: 0 };
 const TOO_LARGE: AmountInput = { status: "tooLarge" };
 
 describe("decimalSeparator", () => {
@@ -97,7 +100,7 @@ describe("parseAmountInput — uguale nelle due lingue", () => {
 
 	for (const locale of ["it", "en"] as const) {
 		it.each(cases)(`${locale}: %j`, (raw, expected) => {
-			expect(parseAmountInput(raw, locale)).toEqual(expected);
+			expect(parseAmountInput(raw, locale, "EUR")).toEqual(expected);
 		});
 	}
 });
@@ -127,7 +130,7 @@ describe("parseAmountInput — l'ambiguo lo decide la lingua", () => {
 	];
 
 	it.each(cases)("%s: %j", (locale, raw, expected) => {
-		expect(parseAmountInput(raw, locale)).toEqual(expected);
+		expect(parseAmountInput(raw, locale, "EUR")).toEqual(expected);
 	});
 });
 
@@ -138,11 +141,11 @@ describe("parseAmountInput — negativi", () => {
 		["- 12,50", -12.5],
 		["-1.234,56", -1234.56],
 	])("%j con allowNegative", (raw, value) => {
-		expect(parseAmountInput(raw, "it", { allowNegative: true })).toEqual(ok(value));
+		expect(parseAmountInput(raw, "it", "EUR", { allowNegative: true })).toEqual(ok(value));
 	});
 
 	it("il segno da solo non è un numero", () => {
-		expect(parseAmountInput("-", "it", { allowNegative: true })).toEqual(INVALID);
+		expect(parseAmountInput("-", "it", "EUR", { allowNegative: true })).toEqual(INVALID);
 	});
 });
 
@@ -162,14 +165,14 @@ describe("formatAmountInput", () => {
 	// basterebbe aprire e salvare per cambiare un importo.
 	it.each(["it", "en"] as const)("%s: si rilegge identico", (locale) => {
 		for (const v of [0, 0.01, 0.5, 1, 12.5, 999.99, 1200, 1234.56, 99999999.99]) {
-			expect(parseAmountInput(formatAmountInput(v, locale), locale)).toEqual(ok(v));
+			expect(parseAmountInput(formatAmountInput(v, locale), locale, "EUR")).toEqual(ok(v));
 		}
 	});
 });
 
 describe("applyAmountKey — il tastierino è un campo vincolato", () => {
 	const type = (keys: string[], locale: Locale) =>
-		keys.reduce((text, key) => applyAmountKey(text, key, locale), "");
+		keys.reduce((text, key) => applyAmountKey(text, key, locale, "EUR"), "");
 
 	it.each([
 		["", "1", "it", "1"],
@@ -194,7 +197,7 @@ describe("applyAmountKey — il tastierino è un campo vincolato", () => {
 		["12", "x", "it", "12"],
 		["12", "10", "it", "12"],
 	] as const)("%j + %j (%s) → %j", (prev, key, locale, next) => {
-		expect(applyAmountKey(prev, key, locale)).toBe(next);
+		expect(applyAmountKey(prev, key, locale, "EUR")).toBe(next);
 	});
 
 	it("«1.250» col punto delle migliaia si ferma a 1,25: si salva ciò che si vede", () => {
@@ -210,9 +213,9 @@ describe("applyAmountKey — il tastierino è un campo vincolato", () => {
 			for (let run = 0; run < 300; run++) {
 				const sequence = Array.from({ length: 1 + Math.floor(next() * 16) }, () => keys[Math.floor(next() * keys.length)]);
 				const text = type(sequence, locale);
-				const parsed = parseAmountInput(text, locale);
+				const parsed = parseAmountInput(text, locale, "EUR");
 				expect(["ok", "empty"], `${locale}: ${sequence.join(" ")} → ${JSON.stringify(text)}`).toContain(parsed.status);
-				if (parsed.status === "ok") expect(isStorableAmount(parsed.value, { allowZero: true })).toBe(true);
+				if (parsed.status === "ok") expect(isStorableAmount(parsed.value, "EUR", { allowZero: true })).toBe(true);
 			}
 		}
 	});
@@ -238,20 +241,20 @@ describe("isStorableAmount — la stessa regola nelle server action", () => {
 		["12", {}, false],
 		[null, {}, false],
 	] as const)("%j %j → %s", (value, options, expected) => {
-		expect(isStorableAmount(value, options)).toBe(expected);
+		expect(isStorableAmount(value, "EUR", options)).toBe(expected);
 	});
 });
 
 describe("amountErrorMessage", () => {
 	it("dice cosa scrivere, nella lingua dell'esempio", () => {
-		expect(amountErrorMessage(INVALID, itDict, "it")).toContain("12,50");
-		expect(amountErrorMessage(DECIMALS, itDict, "it")).toBe(itDict.amountInput.decimals);
-		expect(amountErrorMessage(TOO_LARGE, itDict, "it")).toContain("99.999.999,99");
+		expect(amountErrorMessage(INVALID, itDict, "it", "EUR")).toContain("12,50");
+		expect(amountErrorMessage(DECIMALS, itDict, "it", "EUR")).toBe(itDict.amountInput.decimals);
+		expect(amountErrorMessage(TOO_LARGE, itDict, "it", "EUR")).toContain("99.999.999,99");
 	});
 
 	it("tace su un importo leggibile o vuoto: lo zero e il vuoto li decide il campo", () => {
-		expect(amountErrorMessage(ok(12), itDict, "it")).toBeNull();
-		expect(amountErrorMessage(EMPTY, itDict, "it")).toBeNull();
+		expect(amountErrorMessage(ok(12), itDict, "it", "EUR")).toBeNull();
+		expect(amountErrorMessage(EMPTY, itDict, "it", "EUR")).toBeNull();
 	});
 });
 
@@ -270,7 +273,7 @@ describe("toggleAmountSign — il comando ± del saldo iniziale (#175)", () => {
 	// Il punto della issue: il testo col segno messo dal comando si legge come
 	// −120,50, cioè ciò che il database deve ricevere.
 	it("il risultato si legge come importo negativo", () => {
-		const out = parseAmountInput(toggleAmountSign("120,50"), "it", { allowNegative: true });
+		const out = parseAmountInput(toggleAmountSign("120,50"), "it", "EUR", { allowNegative: true });
 		expect(out).toEqual({ status: "ok", value: -120.5 });
 	});
 
@@ -291,5 +294,67 @@ describe("toggleAmountSign — il comando ± del saldo iniziale (#175)", () => {
 		["", false],
 	])("hasMinusSign(%j) → %s", (raw, atteso) => {
 		expect(hasMinusSign(raw)).toBe(atteso);
+	});
+});
+
+/*
+ * #171 — la valuta dell'utente decide quanti decimali ha un importo. L'euro e
+ * le altre ne hanno due; lo yen nessuno, e «1.500,50» in yen non è un importo.
+ */
+describe("la valuta decide i decimali (#171)", () => {
+	it.each([
+		["1500", "it", ok(1500)],
+		["1.500", "it", ok(1500)],
+		["1,500", "en", ok(1500)],
+		["1500,5", "it", NO_DECIMALS],
+		["1.500,50", "it", NO_DECIMALS],
+		["1500.5", "en", NO_DECIMALS],
+		// Il separatore da solo in coda resta leggibile, come in euro «5,».
+		["1500,", "it", ok(1500)],
+		["99999999", "it", ok(99_999_999)],
+		["100000000", "it", TOO_LARGE],
+	] as const)("JPY %j (%s) → %j", (raw, locale, expected) => {
+		expect(parseAmountInput(raw, locale, "JPY")).toEqual(expected);
+	});
+
+	// Il gemello: le stesse cifre in euro, dollari e franchi passano.
+	it.each(["EUR", "USD", "GBP", "CHF"])("%s tiene i due decimali", (currency) => {
+		expect(parseAmountInput("1.500,50", "it", currency)).toEqual(ok(1500.5));
+		expect(parseAmountInput("1.500,505", "it", currency)).toEqual(DECIMALS);
+	});
+
+	it("il tastierino in yen non scrive il separatore", () => {
+		expect(applyAmountKey("12", "sep", "it", "JPY")).toBe("12");
+		expect(applyAmountKey("", "sep", "it", "JPY")).toBe("");
+		expect(applyAmountKey("12", "3", "it", "JPY")).toBe("123");
+		// Il gemello in euro.
+		expect(applyAmountKey("12", "sep", "it", "EUR")).toBe("12,");
+	});
+
+	it("le action rifiutano i decimali in yen, e il massimo è intero", () => {
+		expect(isStorableAmount(1500, "JPY")).toBe(true);
+		expect(isStorableAmount(1500.5, "JPY")).toBe(false);
+		expect(isStorableAmount(99_999_999, "JPY")).toBe(true);
+		expect(isStorableAmount(AMOUNT_MAX, "JPY")).toBe(false);
+		expect(isStorableAmount(1500.5, "USD")).toBe(true);
+		expect(amountMax("JPY")).toBe(99_999_999);
+		expect(amountMax("EUR")).toBe(AMOUNT_MAX);
+	});
+
+	it("i messaggi: niente decimali in yen, il massimo nella valuta", () => {
+		expect(amountErrorMessage(NO_DECIMALS, itDict, "it", "JPY")).toBe(itDict.amountInput.noDecimals);
+		expect(amountErrorMessage(DECIMALS, itDict, "it", "USD")).toBe(itDict.amountInput.decimals);
+		// Non «¥ 100.000.000»: l'arrotondamento di AMOUNT_MAX direbbe un massimo
+		// che il campo poi rifiuta.
+		// La frase intera: «¥ 99.999.999,99» CONTIENE «¥ 99.999.999», e un
+		// `toContain` restava verde con lo yen a due decimali.
+		expect(amountErrorMessage(TOO_LARGE, itDict, "it", "JPY")).toBe("L'importo massimo è ¥ 99.999.999");
+		expect(amountErrorMessage(TOO_LARGE, itDict, "it", "USD")).toContain("99.999.999,99");
+	});
+
+	it("il tastierino del telefono", () => {
+		expect(amountInputMode("JPY")).toBe("numeric");
+		expect(amountInputMode("EUR")).toBe("decimal");
+		expect(amountInputMode("CHF")).toBe("decimal");
 	});
 });

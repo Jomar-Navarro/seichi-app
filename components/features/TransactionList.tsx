@@ -133,7 +133,7 @@ export default function TransactionList({
 	viewedAccountId = null,
 }: TransactionListProps) {
 	const { openEditModal } = useUIStore();
-	const { locale, t } = useI18n();
+	const { locale, t, currency } = useI18n();
 
 	const accountName = new Map(accounts.map((a) => [a.id, a.name]));
 
@@ -249,7 +249,7 @@ export default function TransactionList({
 										</p>
 									</div>
 									<p className="text-sm font-semibold shrink-0 lg:text-[15px]" style={{ color: amountColor }}>
-										{formatAmount(tx.amount, amountSign(tx, viewedAccountId), locale)}
+										{formatAmount(tx.amount, amountSign(tx, viewedAccountId), locale, currency)}
 									</p>
 								</button>
 							);

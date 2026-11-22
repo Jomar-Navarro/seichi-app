@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import type { AppDatabase } from "@/types/database-app";
 import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
+import { CURRENCY_COOKIE, CURRENCY_COOKIE_OPTIONS, isCurrency } from "@/lib/i18n/config";
 
 /**
  * Percorsi raggiungibili senza sessione. Il recupero password ci deve stare:
@@ -162,6 +163,43 @@ export async function updateSession(request: NextRequest) {
 		});
 
 		return redirect;
+	}
+
+	/*
+	 * La valuta che manca (#171). Ogni importo la legge dal cookie, che scrivono
+	 * il login e le action delle preferenze; ma un utente può essere autenticato
+	 * senza averlo — chi era già dentro quando il cookie è nato, o chi l'ha
+	 * cancellato. Il ripiego di `getCurrency()` scriverebbe allora € a chi ha
+	 * scelto $: un numero col simbolo sbagliato è un'affermazione falsa.
+	 *
+	 * Qui la si ricava dal profilo, UNA volta per dispositivo: dalla richiesta
+	 * dopo il cookie c'è, e questo ramo non parte più. Si scrive anche sulla
+	 * richiesta, perché il render di QUESTA pagina la veda già.
+	 *
+	 * Un profilo senza valuta (onboarding da fare) o una lettura fallita non
+	 * scrivono niente: la richiesta passa com'è, e si riprova alla prossima.
+	 * Il costo dichiarato: durante l'onboarding ogni richiesta paga questa
+	 * lettura, finché \`savePreferences()\` non scrive il cookie — tre pagine e le
+	 * loro action, una volta nella vita dell'account.
+	 */
+	if (user && !isCurrency(request.cookies.get(CURRENCY_COOKIE)?.value)) {
+		const { data: profile, error: profileError } = await supabase
+			.from("profiles")
+			.select("currency")
+			.eq("id", user.sub)
+			.maybeSingle();
+		if (profileError) console.error("[proxy] valuta dal profilo:", profileError.message);
+		const currency = profile?.currency;
+		if (isCurrency(currency)) {
+			request.cookies.set(CURRENCY_COOKIE, currency);
+			// La risposta nuova segue le quattro regole qui sotto: la richiesta
+			// passata, i cookie di sessione ricopiati, le loro direttive di cache.
+			const healed = NextResponse.next({ request });
+			supabaseResponse.cookies.getAll().forEach((cookie) => healed.cookies.set(cookie));
+			Object.entries(authHeaders).forEach(([key, value]) => healed.headers.set(key, value));
+			healed.cookies.set(CURRENCY_COOKIE, currency, CURRENCY_COOKIE_OPTIONS);
+			return healed;
+		}
 	}
 
 	// IMPORTANT: You *must* return the supabaseResponse object as it is. If you're

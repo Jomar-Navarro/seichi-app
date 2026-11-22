@@ -47,13 +47,13 @@ export async function setBudget(input: {
 	amount: number | null;
 	clock: ClientClock;
 }): Promise<{ success: true } | { error: string }> {
-	const { supabase, user, t } = await requireUser();
+	const { supabase, user, t, currency } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	if (input.amount !== null && !(input.amount > 0)) {
 		return { error: t.errors.amountMustBePositive };
 	}
-	if (input.amount !== null && !isStorableAmount(input.amount)) {
+	if (input.amount !== null && !isStorableAmount(input.amount, currency)) {
 		return { error: t.errors.amountInvalid };
 	}
 

@@ -14,11 +14,16 @@
 
 import { cookies, headers } from "next/headers";
 import {
+	CURRENCY_COOKIE,
+	CURRENCY_COOKIE_OPTIONS,
 	DEFAULT_LOCALE,
+	FALLBACK_CURRENCY,
+	isCurrency,
 	LOCALE_COOKIE,
 	LOCALE_COOKIE_OPTIONS,
 	negotiateLocale,
 	normalizeLocale,
+	type Currency,
 	type Locale,
 } from "./config";
 import { it, type Dictionary } from "./dictionaries/it";
@@ -62,9 +67,21 @@ export async function getLocale(): Promise<Locale> {
  * Una chiave inesistente è un errore del compilatore, non una `undefined` che
  * finisce nella pagina.
  */
-export async function getI18n(): Promise<{ locale: Locale; t: Dictionary }> {
-	const locale = await getLocale();
-	return { locale, t: dictionaryFor(locale) };
+export async function getI18n(): Promise<{ locale: Locale; t: Dictionary; currency: Currency }> {
+	const [locale, currency] = await Promise.all([getLocale(), getCurrency()]);
+	return { locale, t: dictionaryFor(locale), currency };
+}
+
+/**
+ * La valuta di questa richiesta (#171): il cookie, o il ripiego.
+ *
+ * Il ripiego vale solo dove nessun importo dell'utente è a schermo: a un
+ * utente autenticato senza cookie lo scrive il proxy, prima del render. Vedi
+ * `CURRENCY_COOKIE` in `config.ts`.
+ */
+export async function getCurrency(): Promise<Currency> {
+	const value = (await cookies()).get(CURRENCY_COOKIE)?.value;
+	return isCurrency(value) ? value : FALLBACK_CURRENCY;
 }
 
 /** Scorciatoia per chi non ha bisogno del locale, ma solo delle parole. */
@@ -88,7 +105,8 @@ export async function setLocaleCookie(locale: Locale) {
 }
 
 /**
- * Riversa `profiles.language` nel cookie, se dice qualcosa di sensato.
+ * Riversa `profiles.language` e `profiles.currency` nei cookie, se dicono
+ * qualcosa di sensato.
  *
  * È il punto in cui la persistenza fra dispositivi diventa la lingua di questa
  * sessione: si chiama al login, dove il profilo è già stato interrogato per il
@@ -99,7 +117,19 @@ export async function setLocaleCookie(locale: Locale) {
  * `Accept-Language` già dicevano. Riscrivere l'italiano d'ufficio sopra una scelta
  * valida sarebbe peggio del non fare nulla.
  */
-export async function syncLocaleFromProfile(rawLanguage: unknown) {
-	const locale = normalizeLocale(rawLanguage);
+export async function syncPreferencesFromProfile(profile: { language?: unknown; currency?: unknown } | null) {
+	const locale = normalizeLocale(profile?.language);
 	if (locale) await setLocaleCookie(locale);
+	// La valuta segue la stessa strada (#171). NULL vuol dire onboarding da
+	// fare: il cookie si toglie, perché sullo stesso dispositivo può esserci
+	// quello di chi è uscito prima. La scelta dell'onboarding lo riscriverà.
+	const currency = profile?.currency;
+	if (isCurrency(currency)) await setCurrencyCookie(currency);
+	else (await cookies()).delete(CURRENCY_COOKIE);
+}
+
+/** Scrive il cookie della valuta. Stesse condizioni di `setLocaleCookie`. */
+export async function setCurrencyCookie(currency: Currency) {
+	const store = await cookies();
+	store.set(CURRENCY_COOKIE, currency, CURRENCY_COOKIE_OPTIONS);
 }

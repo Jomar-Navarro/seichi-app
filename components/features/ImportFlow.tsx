@@ -1072,7 +1072,7 @@ function GroupCard({
 	onCreated,
 	zIndex,
 }: GroupCardProps) {
-	const { t, locale } = useI18n();
+	const { t, locale, currency } = useI18n();
 	const [open, setOpen] = useState(false);
 
 	/*
@@ -1159,7 +1159,7 @@ function GroupCard({
 						<p className="text-[13px] font-semibold" style={{ color: ink }}>
 							{/* I gruppi senza cassa non hanno un totale da mostrare: sarebbe
 							    "€ 0,00", cioè un numero che sembra un importo e non lo è. */}
-							{group.locked ? "—" : formatAmount(group.total, sign, locale)}
+							{group.locked ? "—" : formatAmount(group.total, sign, locale, currency)}
 						</p>
 						<p className="text-[11.5px] text-muted mt-0.5">
 							{plural(t.import.preview.rows, group.count, locale)}
@@ -1274,7 +1274,7 @@ function GroupCard({
 							</span>
 							<span className="text-[12.5px] flex-1 min-w-0 truncate">{r.description}</span>
 							<span className="text-[12.5px] font-medium shrink-0" style={{ color: ink }}>
-								{formatAmount(r.amount, sign, locale)}
+								{formatAmount(r.amount, sign, locale, currency)}
 							</span>
 						</div>
 					))}

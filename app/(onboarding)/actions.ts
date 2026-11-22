@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { isCurrency, normalizeLocale } from "@/lib/i18n/config";
-import { dictionaryFor, setLocaleCookie } from "@/lib/i18n/server";
+import { dictionaryFor, setCurrencyCookie, setLocaleCookie } from "@/lib/i18n/server";
 import type { Dictionary } from "@/lib/i18n/dictionaries/it";
 import { genericError } from "@/lib/errors";
 
@@ -60,7 +60,9 @@ export async function savePreferences(currency: string, language: string) {
 
 	// Il cookie è ciò che il rendering legge: senza questa riga la scelta finirebbe
 	// nel database e la pagina successiva dell'onboarding resterebbe in italiano.
+	// La valuta allo stesso modo (#171): da qui in poi ogni importo la porta.
 	await setLocaleCookie(locale);
+	await setCurrencyCookie(currency);
 
 	// ⚠️ Scrivere il cookie NON basta: la pagina successiva si raggiunge con un
 	// `router.push`, cioè una navigazione soft, che riusa il root layout dalla

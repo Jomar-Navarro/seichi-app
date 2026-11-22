@@ -4,7 +4,7 @@ import { Check, Pencil } from "lucide-react";
 import { GOAL_ICON_MAP } from "@/lib/goal-icons";
 import { ICON_MAP } from "@/lib/icon-map";
 import { useI18n } from "./I18nProvider";
-import { DISPLAY_CURRENCY, fill, formatDate, formatMoney, plural } from "@/lib/i18n/format";
+import { fill, formatDate, formatMoney, plural } from "@/lib/i18n/format";
 import type { Locale } from "@/lib/i18n/config";
 import type { GoalWithProgress } from "@/types";
 
@@ -17,8 +17,8 @@ import type { GoalWithProgress } from "@/types";
  * e in inglese sarebbe diventato un terzo formato ancora ("€180"). Ora segue la
  * stessa convenzione di ogni altra cifra: simbolo davanti, spazio, numero.
  */
-function formatAmount(n: number, locale: Locale): string {
-	return formatMoney(n, { locale, currency: DISPLAY_CURRENCY });
+function formatAmount(n: number, locale: Locale, currency: string): string {
+	return formatMoney(n, { locale, currency });
 }
 
 function formatTargetDate(
@@ -69,7 +69,7 @@ interface GoalCardProps {
 }
 
 export default function GoalCard({ goal, onEdit }: GoalCardProps) {
-	const { locale, t } = useI18n();
+	const { locale, t, currency } = useI18n();
 	const hasTarget = goal.target_amount != null && goal.target_amount > 0;
 	/*
 	 * ⚠️ Completato sul valore ESATTO, come `GoalsPageClient` che divide attivi e
@@ -188,7 +188,7 @@ export default function GoalCard({ goal, onEdit }: GoalCardProps) {
 					className="lg:text-[27px] lg:font-semibold"
 					style={{ color: completed ? "var(--text-muted)" : "var(--color-foreground)" }}
 				>
-					{formatAmount(goal.saved_amount, locale)}
+					{formatAmount(goal.saved_amount, locale, currency)}
 				</span>
 				{hasTarget && (
 					// ⚠️ `text-muted` anche da `lg:`, contro il `text-disabled` del
@@ -196,7 +196,7 @@ export default function GoalCard({ goal, onEdit }: GoalCardProps) {
 					// "disabled" è per le etichette di sezione e gli hint.
 					<span className="text-muted font-normal lg:text-[13px]">
 						{" "}
-						{t.goals.of} {formatAmount(goal.target_amount!, locale)}
+						{t.goals.of} {formatAmount(goal.target_amount!, locale, currency)}
 					</span>
 				)}
 				{/* La percentuale che sotto `lg:` sta dentro l'anello — con lo stesso
@@ -241,7 +241,7 @@ export default function GoalCard({ goal, onEdit }: GoalCardProps) {
 			{hasTarget && !completed && missing >= 1 && (
 				<p className="hidden lg:block mt-3 text-xs text-disabled">
 					{fill(plural(t.goals.remaining, missing, locale), {
-						amount: formatAmount(missing, locale),
+						amount: formatAmount(missing, locale, currency),
 					})}
 				</p>
 			)}

@@ -1,7 +1,7 @@
 "use client";
 import { Eye, EyeOff } from "lucide-react";
 import { useI18n } from "@/components/features/I18nProvider";
-import { DISPLAY_CURRENCY, currencySymbol, splitAmount } from "@/lib/i18n/format";
+import { currencySymbol, splitAmount } from "@/lib/i18n/format";
 import Sparkline from "@/components/UI/Sparkline";
 
 interface FlowCardProps {
@@ -56,11 +56,11 @@ export default function FlowCard({
 	hidden,
 	onToggleHidden,
 }: FlowCardProps) {
-	const { locale, t } = useI18n();
+	const { locale, t, currency } = useI18n();
 	const isPositive = flussoMese >= 0;
 	// La divisione intero/decimali passa da `formatToParts`: cercare la virgola
 	// era corretto solo in italiano — vedi `splitAmount` in lib/i18n/format.ts.
-	const { sign, integer, decimal } = splitAmount(flussoMese, locale);
+	const { sign, integer, decimal } = splitAmount(flussoMese, { locale, currency });
 
 	/*
 	 * ⚠️ `h-full flex flex-col`: le due pagine del carosello hanno contenuti di
@@ -129,7 +129,7 @@ export default function FlowCard({
 				}`}
 			>
 				<span className="text-2xl font-semibold mr-1 lg:mr-2 lg:text-[42px] xl:text-[52px]">
-					{currencySymbol(DISPLAY_CURRENCY, locale)}
+					{currencySymbol(currency, locale)}
 				</span>
 				{hidden ? (
 					<span className="text-4xl lg:text-[42px] xl:text-[52px]">••••••</span>

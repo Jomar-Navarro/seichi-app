@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Globe, ChevronDown } from "lucide-react";
 import { updatePreferences } from "@/app/(main)/impostazioni/actions";
@@ -43,6 +43,7 @@ export default function PreferencesSection({ currency, language }: PreferencesSe
 	const [lang, setLang] = useState<string>(normalizeLocale(language) ?? DEFAULT_LOCALE);
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const currencyHintId = useId();
 
 	/*
 	 * ⚠️ La riga mostra la scelta PRIMA che il server la confermi, quindi un
@@ -77,41 +78,49 @@ export default function PreferencesSection({ currency, language }: PreferencesSe
 
 	return (
 		<div className="rounded-[22px] bg-card card-shadow-ring overflow-hidden" aria-busy={saving}>
-			{/* Valuta */}
-			<label className="relative flex items-center gap-3 h-15.5 px-4 border-b border-subtle cursor-pointer">
-				<span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-control">
-					<span className="text-[15px] font-semibold text-secondary">{currencySymbol(cur, locale)}</span>
-				</span>
-				<span className="flex-1 text-sm font-medium">{t.settings.preferences.currency}</span>
-				<span className="inline-flex items-center gap-1.5 text-[13px] text-muted">
-					{cur} — {currencies[cur]}
-					<ChevronDown size={12} />
-				</span>
-				<select
-					value={cur}
-					// ⚠️ Spente durante il salvataggio (review della #124): con due
-					// salvataggi sovrapposti il ripristino del primo cancellava la
-					// scelta del secondo, che intanto era andata a buon fine.
-					disabled={saving}
-					onChange={(e) => {
-						// La guardia stringe il `string` del DOM al codice tipizzato.
-						// Le opzioni le generiamo noi, quindi non può fallire — ma è
-						// il compilatore a saperlo, non un commento.
-						const next = e.target.value;
-						if (!isCurrency(next)) return;
-						setCur(next);
-						save(next, lang, { cur, lang });
-					}}
-					className="absolute inset-0 opacity-0 cursor-pointer"
-					aria-label={t.settings.preferences.currency}
-				>
-					{CURRENCIES.map((code) => (
-						<option key={code} value={code}>
-							{code} — {currencies[code]}
-						</option>
-					))}
-				</select>
-			</label>
+			{/* Valuta — con l'avviso sotto (#171): Seichi non converte, e chi
+			    cambia valuta deve saperlo PRIMA di vedere il saldo col simbolo
+			    nuovo. Il filo sta sotto l'avviso, che appartiene alla riga. */}
+			<div className="border-b border-subtle">
+				<label className="relative flex items-center gap-3 h-15.5 px-4 cursor-pointer">
+					<span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-control">
+						<span className="text-[15px] font-semibold text-secondary">{currencySymbol(cur, locale)}</span>
+					</span>
+					<span className="flex-1 text-sm font-medium">{t.settings.preferences.currency}</span>
+					<span className="inline-flex items-center gap-1.5 text-[13px] text-muted">
+						{cur} — {currencies[cur]}
+						<ChevronDown size={12} />
+					</span>
+					<select
+						value={cur}
+						// ⚠️ Spente durante il salvataggio (review della #124): con due
+						// salvataggi sovrapposti il ripristino del primo cancellava la
+						// scelta del secondo, che intanto era andata a buon fine.
+						disabled={saving}
+						onChange={(e) => {
+							// La guardia stringe il `string` del DOM al codice tipizzato.
+							// Le opzioni le generiamo noi, quindi non può fallire — ma è
+							// il compilatore a saperlo, non un commento.
+							const next = e.target.value;
+							if (!isCurrency(next)) return;
+							setCur(next);
+							save(next, lang, { cur, lang });
+						}}
+						className="absolute inset-0 opacity-0 cursor-pointer"
+						aria-label={t.settings.preferences.currency}
+						aria-describedby={currencyHintId}
+					>
+						{CURRENCIES.map((code) => (
+							<option key={code} value={code}>
+								{code} — {currencies[code]}
+							</option>
+						))}
+					</select>
+				</label>
+				<p id={currencyHintId} className="px-4 pb-3.5 -mt-1.5 text-[11.5px] leading-snug text-muted">
+					{t.settings.preferences.currencyHint}
+				</p>
+			</div>
 
 			{/* Lingua */}
 			<label className="relative flex items-center gap-3 h-15.5 px-4 cursor-pointer">

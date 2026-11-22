@@ -1,5 +1,5 @@
 import { INTL_LOCALE, type Locale } from "./i18n/config";
-import { DISPLAY_CURRENCY, fill, formatMoney } from "./i18n/format";
+import { currencyDecimals, fill, formatMoney } from "./i18n/format";
 import type { Dictionary } from "./i18n/dictionaries/it";
 import { couldBeThousandsGroup } from "./thousands";
 
@@ -29,13 +29,26 @@ export const AMOUNT_MAX_INTEGER_DIGITS = 8;
 export const AMOUNT_MAX = 99_999_999.99;
 const AMOUNT_MAX_DECIMALS = 2;
 
+/**
+ * Il massimo scrivibile in una valuta: `AMOUNT_MAX` troncato ai decimali che
+ * la valuta ha. In yen è 99.999.999 — e non 100.000.000, che è ciò che
+ * `formatMoney` scriverebbe arrotondando `AMOUNT_MAX` (#171).
+ */
+export function amountMax(currency: string): number {
+	const scale = 10 ** currencyDecimals(currency);
+	return Math.floor(AMOUNT_MAX * scale) / scale;
+}
+
 export type AmountInput =
 	| { status: "empty" }
 	| { status: "ok"; value: number }
 	/** caratteri che non sono cifre, separatori messi a caso */
 	| { status: "invalid" }
-	/** più di due cifre decimali: la colonna le arrotonderebbe in silenzio */
-	| { status: "decimals" }
+	/**
+	 * più decimali di quanti ne abbia la valuta: due per l'euro (la colonna li
+	 * arrotonderebbe in silenzio), nessuno per lo yen (#171). `max` li dice.
+	 */
+	| { status: "decimals"; max: number }
 	/** oltre `DECIMAL(10,2)` */
 	| { status: "tooLarge" };
 
@@ -84,6 +97,7 @@ export function decimalSeparator(locale: Locale): "," | "." {
 export function parseAmountInput(
 	raw: string,
 	locale: Locale,
+	currency: string,
 	{ allowNegative = false }: { allowNegative?: boolean } = {},
 ): AmountInput {
 	// Gli spazi non separabili arrivano incollando un importo formattato
@@ -138,7 +152,10 @@ export function parseAmountInput(
 		return { status: "invalid" };
 	}
 
-	if (decPart.length > AMOUNT_MAX_DECIMALS) return { status: "decimals" };
+	// I decimali della VALUTA, non della colonna (#171): «1.500,50» in yen non è
+	// un importo, e arrotondarlo sarebbe il terzo numero plausibile.
+	const maxDecimals = currencyDecimals(currency);
+	if (decPart.length > maxDecimals) return { status: "decimals", max: maxDecimals };
 	if (digits.replace(/^0+/, "").length > AMOUNT_MAX_INTEGER_DIGITS) {
 		return { status: "tooLarge" };
 	}
@@ -169,15 +186,16 @@ export function amountErrorMessage(
 	input: AmountInput,
 	t: Dictionary,
 	locale: Locale,
+	currency: string,
 ): string | null {
 	switch (input.status) {
 		case "invalid":
 			return fill(t.amountInput.invalid, { example: formatAmountInput(12.5, locale) });
 		case "decimals":
-			return t.amountInput.decimals;
+			return input.max === 0 ? t.amountInput.noDecimals : t.amountInput.decimals;
 		case "tooLarge":
 			return fill(t.amountInput.tooLarge, {
-				max: formatMoney(AMOUNT_MAX, { locale, currency: DISPLAY_CURRENCY, decimals: 2 }),
+				max: formatMoney(amountMax(currency), { locale, currency, decimals: 2 }),
 			});
 		default:
 			return null;
@@ -192,18 +210,21 @@ export function amountErrorMessage(
  * semplicemente non fa niente. `key` è una cifra, `"sep"` o `"⌫"`; il testo
  * porta il separatore decimale della lingua, lo stesso che il tasto mostra.
  */
-export function applyAmountKey(prev: string, key: string, locale: Locale): string {
+export function applyAmountKey(prev: string, key: string, locale: Locale, currency: string): string {
 	const sep = decimalSeparator(locale);
+	const maxDecimals = currencyDecimals(currency);
 	if (key === "⌫") return prev.slice(0, -1);
 	if (key === "sep") {
-		if (prev.includes(sep)) return prev;
+		// Una valuta senza decimali non ha un separatore da scrivere (#171): il
+		// tastierino nasconde il tasto, e questa riga lo rende innocuo comunque.
+		if (maxDecimals === 0 || prev.includes(sep)) return prev;
 		return (prev === "" ? "0" : prev) + sep;
 	}
 	if (!/^[0-9]$/.test(key)) return prev;
 
 	const at = prev.indexOf(sep);
 	if (at >= 0) {
-		return prev.length - at - 1 >= AMOUNT_MAX_DECIMALS ? prev : prev + key;
+		return prev.length - at - 1 >= maxDecimals ? prev : prev + key;
 	}
 	// "05" non è un importo: lo zero iniziale si sostituisce.
 	if (prev === "0") return key;
@@ -217,15 +238,17 @@ export function applyAmountKey(prev: string, key: string, locale: Locale): strin
  */
 export function isStorableAmount(
 	value: unknown,
+	currency: string,
 	{ allowNegative = false, allowZero = false }: { allowNegative?: boolean; allowZero?: boolean } = {},
 ): value is number {
 	if (typeof value !== "number" || !Number.isFinite(value)) return false;
-	if (Math.abs(value) > AMOUNT_MAX) return false;
+	if (Math.abs(value) > amountMax(currency)) return false;
 	if (!allowNegative && value < 0) return false;
 	if (!allowZero && value === 0) return false;
-	// Al centesimo: con i float `12.34 * 100` non è intero, quindi una tolleranza.
-	const cents = value * 100;
-	return Math.abs(cents - Math.round(cents)) < 1e-6;
+	// All'unità minore della valuta: il centesimo, o lo yen intero (#171). Con
+	// i float `12.34 * 100` non è intero, quindi una tolleranza.
+	const units = value * 10 ** currencyDecimals(currency);
+	return Math.abs(units - Math.round(units)) < 1e-6;
 }
 
 /**
@@ -248,4 +271,13 @@ export function toggleAmountSign(raw: string): string {
 /** Il testo comincia con un segno meno (per lo stato del comando ±). */
 export function hasMinusSign(raw: string): boolean {
 	return /^\s*[-−]/.test(raw);
+}
+
+/**
+ * Il tastierino del telefono per un campo importo (#171): quello con il
+ * separatore se la valuta ha decimali, quello delle sole cifre se non ne ha.
+ * In yen la virgola sarebbe un tasto che porta solo a un errore.
+ */
+export function amountInputMode(currency: string): "decimal" | "numeric" {
+	return currencyDecimals(currency) === 0 ? "numeric" : "decimal";
 }

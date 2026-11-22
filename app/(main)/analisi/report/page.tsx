@@ -6,7 +6,7 @@ import { getAccountOptions } from "@/app/(main)/conti/actions";
 import { getSelectedAccount } from "@/lib/accounts-server";
 import { getI18n } from "@/lib/i18n/server";
 import { isAnalyticsPeriod, periodoLabel } from "@/lib/analytics";
-import { DISPLAY_CURRENCY, fill, formatDate, formatMoney } from "@/lib/i18n/format";
+import { fill, formatDate, formatMoney } from "@/lib/i18n/format";
 import LoadError from "@/components/UI/LoadError";
 import MonthlyLineChart from "@/components/features/MonthlyLineChart";
 import SpendingPieChart from "@/components/features/SpendingPieChart";
@@ -77,7 +77,7 @@ export default async function ReportPage({
 		 */
 		getAccountOptions(),
 	]);
-	const { locale, t } = await getI18n();
+	const { locale, t, currency } = await getI18n();
 
 	if ("error" in analytics) return <LoadError message={t.common.pageLoadFailed} className="min-h-dvh justify-center" />;
 
@@ -112,7 +112,7 @@ export default async function ReportPage({
 
 	const nomeConto = accounts.find((a) => a.id === accountId)?.name ?? t.accounts.all;
 	const money = (v: number) =>
-		formatMoney(v, { locale, currency: DISPLAY_CURRENCY, decimals: 2 });
+		formatMoney(v, { locale, currency, decimals: 2 });
 	const positivo = analytics.saldoMese >= 0;
 
 	/*

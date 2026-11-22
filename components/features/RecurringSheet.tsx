@@ -18,11 +18,11 @@ import { ACCOUNT_ICON_FALLBACK, ACCOUNT_TYPE_ICON, accountColor } from "@/lib/ac
 import { TIPO_COLOR, TIPO_INK } from "@/lib/transaction-utils";
 import { updateRecurringRule } from "@/app/(main)/action";
 import { useI18n } from "./I18nProvider";
-import { DISPLAY_CURRENCY, currencySymbol } from "@/lib/i18n/format";
+import { currencySymbol } from "@/lib/i18n/format";
 import DatePicker from "@/components/UI/DatePicker";
 import NotesCounter from "@/components/UI/NotesCounter";
 import { limitNotesInput } from "@/lib/notes";
-import { amountErrorMessage, formatAmountInput, parseAmountInput } from "@/lib/amount";
+import { amountErrorMessage, formatAmountInput, parseAmountInput, amountInputMode } from "@/lib/amount";
 import type { RecurringRule, Frequency } from "@/types";
 
 /**
@@ -43,7 +43,7 @@ interface RecurringSheetProps {
 
 export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 	const router = useRouter();
-	const { locale, t } = useI18n();
+	const { locale, t, currency } = useI18n();
 	const titleId = useId();
 	const [amount, setAmount] = useState(() => formatAmountInput(rule.amount, locale));
 	const [categoryId, setCategoryId] = useState<string | null>(rule.category_id);
@@ -74,12 +74,12 @@ export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 	 * diventava "1250" sotto gli occhi di chi scriveva, e "Salva" registrava una
 	 * regola da € 1250 che il cron avrebbe replicato ogni mese (issue #119).
 	 */
-	const parsedAmount = parseAmountInput(amount, locale);
+	const parsedAmount = parseAmountInput(amount, locale, currency);
 	const importoValido = parsedAmount.status === "ok" && parsedAmount.value > 0;
 	// Un testo illeggibile lo si dice subito: il bottone è spento, e un bottone
 	// spento senza una ragione scritta è un gesto che non fa niente e non dice
 	// niente.
-	const amountError = amountErrorMessage(parsedAmount, t, locale);
+	const amountError = amountErrorMessage(parsedAmount, t, locale, currency);
 
 	const categoryOptions = buildCategoryOptions(categoryList, t.recurring.noCategory);
 
@@ -152,10 +152,10 @@ export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 							className={`flex items-center gap-2 rounded-2xl px-4 py-3 bg-card ${amountError ? "" : "ring-border"}`}
 							style={amountError ? { boxShadow: "var(--color-aka) 0px 0px 0px 1px inset" } : undefined}
 						>
-							<span className="text-sm text-muted">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
+							<span className="text-sm text-muted">{currencySymbol(currency, locale)}</span>
 							<input
 								type="text"
-								inputMode="decimal"
+								inputMode={amountInputMode(currency)}
 								value={amount}
 								onChange={(e) => setAmount(e.target.value)}
 								aria-invalid={amountError ? true : undefined}

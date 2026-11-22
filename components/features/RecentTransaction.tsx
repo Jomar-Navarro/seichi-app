@@ -65,7 +65,7 @@ export default function RecentTransaction({
 	className,
 }: RecentTransactionProps) {
 	const { openEditModal } = useUIStore();
-	const { locale, t } = useI18n();
+	const { locale, t, currency } = useI18n();
 
 	const accountName = new Map(accounts.map((a) => [a.id, a.name]));
 
@@ -164,7 +164,7 @@ export default function RecentTransaction({
 											className="text-sm font-semibold shrink-0 lg:text-[14.5px]"
 											style={{ color: amountColor }}
 										>
-											{formatAmount(tx.amount, amountSign(tx, viewedAccountId), locale)}
+											{formatAmount(tx.amount, amountSign(tx, viewedAccountId), locale, currency)}
 										</p>
 									</button>
 								);

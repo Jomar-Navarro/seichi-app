@@ -331,6 +331,7 @@ export async function GET(req: NextRequest) {
 					avatarFile: avatar === "included" ? avatarFile : null,
 					avatar,
 					missingReceipts: missing,
+					currency: profileRes.data?.currency ?? null,
 				}),
 			),
 			{ compress: true },

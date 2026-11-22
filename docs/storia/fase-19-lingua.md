@@ -148,6 +148,9 @@ identico dietro `DISPLAY_CURRENCY` in `lib/i18n/format.ts`: quando si affronter�
 basta seguirne i riferimenti invece di cercare "€" in tutto il codice. Per questo
 anche i cinque `€` decorativi nel markup passano da `currencySymbol()`.
 
+*Ripresa e chiusa dalla #171 (`issue-171-valuta`), che ha seguito proprio quei
+riferimenti — e trovato due «€» scritti a mano che non passavano di lì.*
+
 #### ⚠️ Come verificare, e cosa la verifica NON vede
 
 Quattro controlli, tutti ripetibili. I primi due sono **codice di verifica usa e

@@ -5,7 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { isCurrency, normalizeLocale } from "@/lib/i18n/config";
-import { setLocaleCookie } from "@/lib/i18n/server";
+import { setCurrencyCookie, setLocaleCookie } from "@/lib/i18n/server";
 import { plural } from "@/lib/i18n/format";
 import { genericError } from "@/lib/errors";
 import type { Category } from "@/types";
@@ -213,6 +213,9 @@ export async function updatePreferences(currency: string, language: string) {
 	// nuovo, altrimenti la pagina si ridisegna nella lingua vecchia e il cambio
 	// sembrerebbe non aver funzionato fino al caricamento successivo.
 	await setLocaleCookie(locale);
+	// La valuta allo stesso modo (#171): ogni importo dell'app la legge dal
+	// cookie, e senza questa riga il cambio si vedrebbe solo al prossimo accesso.
+	await setCurrencyCookie(currency);
 	revalidatePath("/", "layout");
 	return { success: true };
 }

@@ -17,9 +17,9 @@ import {
 import { getBudgetForCategory, setBudget } from "@/app/(main)/budget-actions";
 import { BUDGET_PERIODS } from "@/lib/budget";
 import { clientClock } from "@/lib/dates";
-import { amountErrorMessage, formatAmountInput, parseAmountInput } from "@/lib/amount";
+import { amountErrorMessage, formatAmountInput, parseAmountInput, amountInputMode } from "@/lib/amount";
 import { useI18n } from "./I18nProvider";
-import { DISPLAY_CURRENCY, currencySymbol, fill } from "@/lib/i18n/format";
+import { currencySymbol, fill } from "@/lib/i18n/format";
 import type { BudgetPeriod, Category } from "@/types";
 
 /** Solo l'ordine: le etichette abbreviate stanno in `t.typesShort`. */
@@ -67,7 +67,7 @@ export default function CategorySheet({
 	onClose,
 }: CategorySheetProps) {
 	const router = useRouter();
-	const { locale, t } = useI18n();
+	const { locale, t, currency } = useI18n();
 	const titleId = useId();
 
 	// Valori di partenza derivati dalle prop. Vengono ricalcolati a ogni render ma
@@ -164,14 +164,14 @@ export default function CategorySheet({
 	 * metà del form (issue #119). Ora un testo illeggibile ferma tutto, e il
 	 * messaggio sta sotto il campo invece che in fondo al foglio.
 	 */
-	const parsedBudget = parseAmountInput(budgetAmount, locale);
+	const parsedBudget = parseAmountInput(budgetAmount, locale, currency);
 	const budgetInvalid =
 		showBudget &&
 		parsedBudget.status !== "empty" &&
 		(parsedBudget.status !== "ok" || parsedBudget.value <= 0);
 	const budgetError = submitted && budgetInvalid;
 	const budgetErrorText =
-		amountErrorMessage(parsedBudget, t, locale) ?? t.categories.budgetMustBePositive;
+		amountErrorMessage(parsedBudget, t, locale, currency) ?? t.categories.budgetMustBePositive;
 
 	function selectType(nextType: string) {
 		setType(nextType);
@@ -405,10 +405,10 @@ export default function CategorySheet({
 								className={`flex items-center rounded-2xl px-4 py-3.5 bg-input ${budgetError ? "" : "ring-border"}`}
 								style={budgetError ? { boxShadow: "var(--color-aka) 0px 0px 0px 1px inset" } : undefined}
 							>
-								<span className="text-[14.5px] text-muted mr-1.5">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
+								<span className="text-[14.5px] text-muted mr-1.5">{currencySymbol(currency, locale)}</span>
 								<input
 									type="text"
-									inputMode="decimal"
+									inputMode={amountInputMode(currency)}
 									placeholder={
 										budgetLoad === "loading" ? t.common.loading : t.categories.budgetPlaceholder
 									}

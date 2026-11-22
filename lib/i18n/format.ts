@@ -43,20 +43,6 @@ function dateFormat(locale: Locale, options: Intl.DateTimeFormatOptions) {
 	return fmt;
 }
 
-/**
- * La valuta usata dove non ne arriva una dal profilo.
- *
- * ⚠️ È un SEGNAPOSTO, non una decisione. Prima della Fase 19 il simbolo "€" era
- * scritto a mano in una dozzina di componenti, mentre `profiles.currency` è
- * scelta dall'utente fin dall'onboarding e già letta da `getAccountContext()` e
- * dalle notifiche. Far arrivare la valuta fino a ogni foglia è un lavoro
- * indipendente dalla lingua — tocca gli stessi file ma per un'altra ragione —
- * quindi qui il comportamento resta identico a prima. Questo nome esiste perché
- * quando lo si farà basti seguirne i riferimenti, invece di cercare "€" in tutto
- * il codice e distinguerlo dai simboli legittimi.
- */
-export const DISPLAY_CURRENCY = "EUR";
-
 /* ---------------------------------------------------------------- numeri --- */
 
 export function formatNumber(
@@ -73,10 +59,17 @@ export function formatNumber(
  * Così una valuta diversa da EUR porta il proprio ($, £, ¥) senza che nessuno
  * debba mantenere un elenco. Il ripiego sul codice ISO copre le valute che il
  * runtime non conosce: meglio "CHF 100" di un simbolo mancante.
+ *
+ * ⚠️ `narrowSymbol`, non il `symbol` di default (#171). Il default scrive il
+ * simbolo nudo solo per le valute «di casa» del locale: in `it-IT` il dollaro
+ * è «USD» e lo yen «JPY», in `en-GB` «US$» e «JP¥». Servono a distinguere i
+ * dollari fra loro in un testo che ne nomina più d'uno; qui ogni utente ha una
+ * valuta sola, e l'ambiguità non esiste. Il franco resta «CHF»: `Intl` non ha
+ * un simbolo più stretto.
  */
 export function currencySymbol(currency: string, locale: Locale) {
 	return (
-		numberFormat(locale, { style: "currency", currency })
+		numberFormat(locale, { style: "currency", currency, currencyDisplay: "narrowSymbol" })
 			.formatToParts(0)
 			.find((part) => part.type === "currency")?.value ?? currency
 	);
@@ -103,11 +96,40 @@ export function formatMoney(
 		decimals = 0,
 	}: { locale: Locale; currency: string; decimals?: number },
 ) {
+	// `decimals` è ciò che la schermata vorrebbe: 0 dove arrotonda (le card dei
+	// budget), 2 dove vuole il centesimo. La valuta può averne meno: lo yen no.
+	const digits = Math.min(decimals, currencyDecimals(currency));
 	const amount = formatNumber(value, locale, {
-		minimumFractionDigits: decimals,
-		maximumFractionDigits: decimals,
+		minimumFractionDigits: digits,
+		maximumFractionDigits: digits,
 	});
 	return `${currencySymbol(currency, locale)} ${amount}`;
+}
+
+const minorUnits = new Map<string, number>();
+
+/**
+ * Quante cifre decimali ha una valuta: 2 per l'euro, 0 per lo yen (#171).
+ *
+ * Da `Intl`, che conosce le unità minori dello standard ISO 4217: nessuna
+ * tabella nostra da tenere allineata. Mai oltre 2, perché la colonna è
+ * `numeric(10,2)`: una valuta a tre decimali non saprebbe dove scriverli.
+ *
+ * La usano tutti quelli che mostrano o leggono un importo: `formatMoney` e
+ * `splitAmount` per non scrivere «¥ 1.500,00», i campi e le action
+ * (`lib/amount.ts`) per rifiutare «1.500,50» in yen.
+ */
+export function currencyDecimals(currency: string): number {
+	let digits = minorUnits.get(currency);
+	if (digits === undefined) {
+		digits = Math.min(
+			2,
+			new Intl.NumberFormat("en", { style: "currency", currency }).resolvedOptions()
+				.maximumFractionDigits ?? 2,
+		);
+		minorUnits.set(currency, digits);
+	}
+	return digits;
 }
 
 /**
@@ -124,9 +146,11 @@ export function formatMoney(
  */
 export function splitAmount(
 	value: number,
-	locale: Locale,
-	decimals = 2,
+	{ locale, currency }: { locale: Locale; currency: string },
 ): { sign: string; integer: string; decimal: string } {
+	// I decimali sono quelli della valuta (#171): in yen `decimal` resta vuoto,
+	// e la card mostra la sola parte intera.
+	const decimals = currencyDecimals(currency);
 	const parts = numberFormat(locale, {
 		minimumFractionDigits: decimals,
 		maximumFractionDigits: decimals,

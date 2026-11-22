@@ -14,7 +14,7 @@ import { useI18n } from "./I18nProvider";
 import BottomSheetShell from "@/components/UI/BottomSheetShell";
 import { announce } from "@/components/UI/Announcer";
 import { whenModalEntryGone } from "@/components/UI/useCloseOnBack";
-import { DISPLAY_CURRENCY, currencySymbol } from "@/lib/i18n/format";
+import { currencySymbol } from "@/lib/i18n/format";
 import {
 	ACCOUNT_ICON_FALLBACK,
 	ACCOUNT_TYPE_COLOR,
@@ -28,8 +28,7 @@ import {
 	formatAmountInput,
 	hasMinusSign,
 	parseAmountInput,
-	toggleAmountSign,
-} from "@/lib/amount";
+	toggleAmountSign, amountInputMode } from "@/lib/amount";
 
 /**
  * ⚠️ Nessuna prop `isOpen`: il pannello si MONTA, non si nasconde. È il
@@ -60,7 +59,7 @@ const COLOR_CHOICES = [
 ] as const;
 
 export default function AccountSheet({ account, canArchive, onClose }: AccountSheetProps) {
-	const { locale, t } = useI18n();
+	const { locale, t, currency } = useI18n();
 	const titleId = useId();
 	const router = useRouter();
 
@@ -116,11 +115,11 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 	// `type="number"` erano la stessa cosa: il browser consegnava "" per
 	// "2.400,50", e in modifica il saldo iniziale vero veniva sovrascritto con
 	// zero, spostando il saldo del conto di 2400 € senza un errore (issue #119).
-	const balanceInput = parseAmountInput(initialBalance, locale, { allowNegative: true });
+	const balanceInput = parseAmountInput(initialBalance, locale, currency, { allowNegative: true });
 	const parsedBalance =
 		balanceInput.status === "ok" ? balanceInput.value : balanceInput.status === "empty" ? 0 : null;
 	const balanceError = submitted && parsedBalance === null;
-	const balanceErrorText = amountErrorMessage(balanceInput, t, locale);
+	const balanceErrorText = amountErrorMessage(balanceInput, t, locale, currency);
 
 	// Lookup su mappa e non `accountIcon(type)`: vedi ACCOUNT_ICON_FALLBACK.
 	const Icon = (type && ACCOUNT_TYPE_ICON[type]) || ACCOUNT_ICON_FALLBACK;
@@ -373,11 +372,11 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 							style={balanceError ? { boxShadow: "var(--color-aka) 0px 0px 0px 1px inset" } : undefined}
 						>
 							<span className="text-[14.5px] text-muted">
-								{currencySymbol(DISPLAY_CURRENCY, locale)}
+								{currencySymbol(currency, locale)}
 							</span>
 							<input
 								type="text"
-								inputMode="decimal"
+								inputMode={amountInputMode(currency)}
 								placeholder="0"
 								value={initialBalance}
 								onChange={(e) => setInitialBalance(e.target.value)}

@@ -66,6 +66,7 @@ export const en: Dictionary = {
 	amountInput: {
 		invalid: "This amount can't be read: use digits only, for example {example}",
 		decimals: "At most two decimal places",
+		noDecimals: "This currency has no decimals: enter a whole number",
 		tooLarge: "The maximum amount is {max}",
 	},
 
@@ -1190,6 +1191,7 @@ export const en: Dictionary = {
 		preferences: {
 			currency: "Currency",
 			language: "Language",
+			currencyHint: "Only the symbol changes: your amounts stay as you entered them, with no conversion.",
 		},
 		currencies: {
 			EUR: "Euro",
@@ -1411,7 +1413,8 @@ export const en: Dictionary = {
 				notesHeading: "How to read the numbers",
 				notes: {
 					amounts:
-						"Amounts are always positive: the direction is given by the «type» field (spesa = expense, entrata = income, trasferimento = transfer…). The currency is the profile's.",
+						"Amounts are always positive: the direction is given by the «type» field (spesa = expense, entrata = income, trasferimento = transfer…).",
+					currency: "Amounts are in {currency}, the profile's currency. Seichi does not convert between currencies.",
 					dates:
 						"The date of movements (date) is written without a time zone, as it is stored: read it as it is. created_at fields are in UTC.",
 					balance:

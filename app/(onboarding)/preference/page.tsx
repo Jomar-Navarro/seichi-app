@@ -7,21 +7,28 @@ import {
 	DollarSign,
 	PoundSterling,
 	JapaneseYen,
+	SwissFranc,
 	Sprout,
 } from "lucide-react";
 import Button from "@/components/UI/Button";
 import Select from "@/components/UI/Select";
 import OnboardingProgress from "@/components/UI/OnboardingProgress";
-import { DEFAULT_LOCALE, LOCALE_LABELS } from "@/lib/i18n/config";
+import { CURRENCIES, DEFAULT_LOCALE, LOCALE_LABELS, type Currency } from "@/lib/i18n/config";
 import { useI18n } from "@/components/features/I18nProvider";
 
-/** Solo codice e icona: il nome viene da `t.settings.currencies`. */
-const CURRENCY_OPTIONS = [
-	{ value: "EUR", icon: <Euro size={18} /> },
-	{ value: "USD", icon: <DollarSign size={18} /> },
-	{ value: "GBP", icon: <PoundSterling size={18} /> },
-	{ value: "JPY", icon: <JapaneseYen size={18} /> },
-] as const;
+/**
+ * Solo l'icona: il nome viene da `t.settings.currencies`, l'elenco da
+ * `CURRENCIES` (#171). Era una lista sua, senza il franco che le Impostazioni
+ * offrivano: due elenchi della stessa cosa divergono. Il `Record` fa fallire
+ * la compilazione a una valuta aggiunta senza icona.
+ */
+const CURRENCY_ICONS: Record<Currency, React.ReactNode> = {
+	EUR: <Euro size={18} />,
+	USD: <DollarSign size={18} />,
+	GBP: <PoundSterling size={18} />,
+	CHF: <SwissFranc size={18} />,
+	JPY: <JapaneseYen size={18} />,
+};
 
 // I `value` sono i tag canonici minuscoli, gli stessi che finiscono in
 // `profiles.language` e nel cookie. Erano "IT"/"EN" e le impostazioni leggevano
@@ -44,9 +51,10 @@ const languages = [
 export default function PreferencePage() {
 	const router = useRouter();
 	const { t } = useI18n();
-	const currencies = CURRENCY_OPTIONS.map((c) => ({
-		...c,
-		label: t.settings.currencies[c.value],
+	const currencies = CURRENCIES.map((value) => ({
+		value,
+		icon: CURRENCY_ICONS[value],
+		label: t.settings.currencies[value],
 	}));
 	const [currency, setCurrency] = useState("EUR");
 	const [language, setLanguage] = useState<string>(DEFAULT_LOCALE);

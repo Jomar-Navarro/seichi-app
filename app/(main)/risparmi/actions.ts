@@ -389,9 +389,9 @@ export async function createGoal(payload: {
 	target_date: string | null;
 	icon: string;
 }): Promise<{ error?: string }> {
-	const { supabase, user, t } = await requireUser();
+	const { supabase, user, t, currency } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
-	if (payload.target_amount !== null && !isStorableAmount(payload.target_amount)) {
+	if (payload.target_amount !== null && !isStorableAmount(payload.target_amount, currency)) {
 		return { error: t.errors.amountInvalid };
 	}
 
@@ -419,9 +419,9 @@ export async function updateGoal(
 		icon: string;
 	},
 ): Promise<{ error?: string }> {
-	const { supabase, user, t } = await requireUser();
+	const { supabase, user, t, currency } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
-	if (payload.target_amount !== null && !isStorableAmount(payload.target_amount)) {
+	if (payload.target_amount !== null && !isStorableAmount(payload.target_amount, currency)) {
 		return { error: t.errors.amountInvalid };
 	}
 
