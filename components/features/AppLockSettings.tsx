@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { Check, ChevronDown, Clock, Fingerprint, Lock, TriangleAlert } from "lucide-react";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { Check, Clock, Fingerprint, Lock, TriangleAlert } from "lucide-react";
 import PinPad from "@/components/UI/PinPad";
 import SubmitButton from "@/components/UI/SubmitButton";
 import { SwitchVisual } from "@/components/UI/Switch";
 import SettingsRow, { SettingsGroup } from "@/components/UI/SettingsRow";
-import { useDismissLayer } from "@/components/UI/useDialog";
+import RowMenu from "@/components/UI/RowMenu";
 import { useI18n } from "@/components/features/I18nProvider";
 import { fill, plural } from "@/lib/i18n/format";
 import { useUIStore } from "@/store/useUIStore";
@@ -77,6 +77,8 @@ import { setAppLockCookie } from "@/app/(main)/app-lock-actions";
  * ne risente — esce dal flusso e si posiziona rispetto al VIEWPORT, non
  * rispetto a un antenato con `overflow-hidden` (a meno che quell'antenato
  * non abbia `transform`/`filter`, che `SettingsGroup` non ha).
+ * Dalla #171 quel menu è `RowMenu` (`components/UI/RowMenu.tsx`), lo stesso
+ * di valuta e lingua: anche loro hanno lasciato la `<select>` nativa.
  *
  * ⚠️ La barra di navigazione NON dipende dalla rotta ma da `step`: il
  * design la vuole assente durante il wizard (crea/conferma/done) e presente
@@ -155,29 +157,8 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 			: plural(t.appLock.graceMinutes, ms / 60_000, locale);
 	}
 
-	// Menu disegnato a mano per "richiedi il PIN dopo" — vedi il commento in
-	// testa al file sul perché non è una `<select>` nativa. La posizione si
-	// calcola al TOCCO, non al render: la riga sta dentro una card che può
-	// scorrere in pagina, stesso principio di `Select.tsx`.
-	const graceTriggerRef = useRef<HTMLButtonElement>(null);
-	const [graceOpen, setGraceOpen] = useState(false);
-	const [graceMenuRect, setGraceMenuRect] = useState<{ top: number; left: number; width: number } | null>(null);
-
-	function openGraceMenu() {
-		const rect = graceTriggerRef.current?.getBoundingClientRect();
-		if (rect) setGraceMenuRect({ top: rect.bottom + 6, left: rect.left, width: rect.width });
-		setGraceOpen(true);
-	}
-
-	// #165 — Esc chiude il menu e riporta il fuoco al suo bottone.
-	useDismissLayer(graceOpen, () => {
-		closeGraceMenu();
-		graceTriggerRef.current?.focus();
-	});
-
-	function closeGraceMenu() {
-		setGraceOpen(false);
-	}
+	// Il menu di "richiedi il PIN dopo" è `RowMenu`: vedi il commento in testa
+	// al file sul perché non è una `<select>` nativa.
 
 	const [step, setStep] = useState<Step>("idle");
 	const [afterVerify, setAfterVerify] = useState<"change" | "remove" | null>(null);
@@ -524,25 +505,14 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 								disabled={biometricAvailable === null || biometricBusy}
 							/>
 						)}
-						<button
-							ref={graceTriggerRef}
-							type="button"
-							onClick={() => (graceOpen ? closeGraceMenu() : openGraceMenu())}
-							aria-expanded={graceOpen}
-							className="flex items-center gap-3 h-15.5 px-4 w-full text-left active:opacity-80"
-						>
-							<span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-control">
-								<Clock size={17} className="text-secondary" />
-							</span>
-							<span className="flex-1 text-sm font-medium">{t.appLock.graceLabel}</span>
-							<span className="inline-flex items-center gap-1.5 text-[13px] text-muted">
-								{formatGrace(graceMs)}
-								<ChevronDown
-									size={12}
-									className={`transition-transform ${graceOpen ? "rotate-180" : ""}`}
-								/>
-							</span>
-						</button>
+						<RowMenu
+							label={t.appLock.graceLabel}
+							icon={<Clock size={17} className="text-secondary" />}
+							valueText={formatGrace(graceMs)}
+							options={APP_LOCK_GRACE_OPTIONS_MS.map((ms) => ({ value: String(ms), label: formatGrace(ms) }))}
+							selected={String(graceMs)}
+							onSelect={(value) => onGraceChange(Number(value))}
+						/>
 					</>
 				)}
 			</SettingsGroup>
@@ -560,41 +530,6 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 				<p className="text-xs mb-6 -mt-4" style={{ color: "var(--ink-aka)" }}>
 					{t.appLock.biometricEnableFailed}
 				</p>
-			)}
-
-			{graceOpen && graceMenuRect && (
-				<>
-					{/* Backdrop trasparente a schermo intero: chiude il menu al tap
-					    fuori, stesso meccanismo del pannello conti (Fase 20b). */}
-					<div className="fixed inset-0 z-45" onClick={closeGraceMenu} />
-					{/* issue #81 — anello (`box-shadow-ring`), mai un `border` vero su
-					    un elemento arrotondato. Guscio → vetro → contenuto: il guscio
-					    ritaglia e fa l'ombra, il vetro sfoca SENZA un proprio raggio. */}
-					<div
-						className="fixed z-46 rounded-2xl overflow-hidden box-shadow-ring"
-						style={{ top: graceMenuRect.top, left: graceMenuRect.left, width: graceMenuRect.width }}
-					>
-						<div className="absolute inset-0 bg-deep backdrop-blur-[30px]" />
-						<div className="relative p-1.5">
-							{APP_LOCK_GRACE_OPTIONS_MS.map((ms) => (
-								<button
-									key={ms}
-									type="button"
-									onClick={() => {
-										onGraceChange(ms);
-										closeGraceMenu();
-									}}
-									// issue #69 — py-3 (invece di py-2.5): righe impilate senza
-									// vicini laterali, 4px in più per lato bastano per i 44px.
-									className="w-full flex items-center justify-between gap-3 py-3 px-3 rounded-xl text-sm active:opacity-70"
-								>
-									<span>{formatGrace(ms)}</span>
-									{ms === graceMs && <Check size={15} className="text-midori" />}
-								</button>
-							))}
-						</div>
-					</div>
-				</>
 			)}
 
 			{!hasPin ? (

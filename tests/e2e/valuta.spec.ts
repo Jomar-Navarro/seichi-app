@@ -103,6 +103,15 @@ test("senza cookie, il proxy ricava la valuta dal profilo", async ({ page, accou
 	// E la scrive: dalla richiesta dopo non serve più leggerla.
 	const cookie = (await page.context().cookies()).find((c) => c.name === "seichi-currency");
 	expect(cookie?.value).toBe("USD");
+
+	// All'uscita se ne va: è un fatto dei dati di chi esce, e chi entra dopo
+	// per una strada che non lo riallinea vedrebbe il simbolo di un altro.
+	// Il proxy ripara un cookie che MANCA, non uno che appartiene a un altro.
+	await open(page, "/impostazioni");
+	await page.getByRole("button", { name: "Esci" }).filter({ visible: true }).first().click();
+	await page.waitForURL(/\/welcome$/);
+	const left = (await page.context().cookies()).find((c) => c.name === "seichi-currency");
+	expect(left, "all'uscita il cookie della valuta se ne va").toBeUndefined();
 });
 
 test("lo yen dalle impostazioni: niente decimali, né a schermo né nei campi", async ({ page, account }) => {
@@ -119,17 +128,33 @@ test("lo yen dalle impostazioni: niente decimali, né a schermo né nei campi", 
 	const keypadSep = page.getByRole("button", { name: ",", exact: true }).filter({ visible: true });
 	await expect(keypadSep).toHaveCount(1);
 
+	// La valuta si sceglie dal menu disegnato, non da una `<select>` nativa:
+	// la riga dichiara l'elenco, l'elenco ha le sue voci.
 	await open(page, "/impostazioni");
-	const select = page.getByRole("combobox", { name: "Valuta" });
-	await expect(select).toHaveAccessibleDescription(/Cambia solo il simbolo/);
-	await select.selectOption("JPY");
+	const row = page.getByRole("button", { name: /^Valuta/ });
+	await expect(row).toHaveAccessibleDescription(/Cambia solo il simbolo/);
+	await expect(page.locator("select")).toHaveCount(0);
+	await row.click();
+	const menu = page.getByRole("listbox", { name: "Valuta" });
+	await expect(menu.getByRole("option")).toHaveCount(5);
+	await expect(menu.getByRole("option", { name: "EUR — Euro" })).toHaveAttribute("aria-selected", "true");
+	// Da tastiera: il fuoco è sulla scelta attuale, Esc chiude e torna alla riga.
+	await expect(menu.getByRole("option", { name: "EUR — Euro" })).toBeFocused();
+	await page.keyboard.press("Escape");
+	await expect(menu).toHaveCount(0);
+	await expect(row).toBeFocused();
+	await row.click();
+	await menu.getByRole("option", { name: "JPY — Yen" }).click();
+	await expect(menu).toHaveCount(0);
 	// La riga cambia subito (la scelta si mostra prima della conferma): conta
 	// il profilo, e il salvataggio finito.
-	await expect(page.getByText("JPY — Yen").first()).toBeVisible();
+	await expect(row).toContainText("JPY — Yen");
 	await expect
 		.poll(async () => (await account.rest<{ currency: string }[]>("GET", `profiles?id=eq.${account.id}&select=currency`))[0].currency)
 		.toBe("JPY");
-	await expect(select).toBeEnabled();
+	await expect(row).toBeEnabled();
+	// In yen l'avviso dice anche dei centesimi arrotondati.
+	await expect(row).toHaveAccessibleDescription(/gli importi con i centesimi si vedono arrotondati/);
 
 	// A schermo: il simbolo, e nessun decimale. 1800 − 12,50 = 1787,50 → ¥ 1788.
 	await open(page, "/?conto=");
@@ -137,6 +162,22 @@ test("lo yen dalle impostazioni: niente decimali, né a schermo né nei campi", 
 	expect(home).toContain("¥1788");
 	expect(home).not.toContain("€");
 	expect(home, "nessun decimale in yen").not.toMatch(/¥[−-]?[\d.]+,\d/);
+
+	// Il movimento da 12,50, riaperto in yen: «Continua» resta spento, e la
+	// riga sotto la cifra dice perché. Tolti i decimali, si può proseguire.
+	await page.getByRole("button", { name: /^Ristoranti/ }).filter({ visible: true }).first().click();
+	const editing = page.getByRole("dialog").filter({ hasText: "Importo" });
+	await expect(editing).toContainText("¥12,50");
+	const why = editing.getByRole("alert");
+	await expect(why, "il passo dell'importo dice perché").toHaveText("Questa valuta non ha decimali: scrivi un numero intero");
+	await expect(editing.getByRole("button", { name: "Continua" })).toBeDisabled();
+	for (let i = 0; i < 3; i++) await page.keyboard.press("Backspace");
+	await expect(editing).toContainText("¥12");
+	await expect(why).toHaveCount(0);
+	await expect(editing.getByRole("button", { name: "Continua" })).toBeEnabled();
+	await page.keyboard.press("Escape");
+	await expect(editing).toHaveCount(0);
+	await open(page, "/?conto=");
 
 	// Il tastierino non ha la virgola, e la tastiera fisica non la scrive.
 	await page.locator(".fab").first().click();

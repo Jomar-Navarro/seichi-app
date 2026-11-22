@@ -124,6 +124,50 @@ Qui ogni utente ha una valuta sola: `currencySymbol()` usa `narrowSymbol` («$»
 - Screenshot nei due temi: l'avviso sotto la valuta, il tastierino in yen, la
   home in yen.
 
+### La review, e il menu
+
+La code review prima del merge ha trovato tre cose vere, tutte nate dal fatto
+che la valuta ora decide anche i decimali, e una che il cookie apriva:
+
+- **Un movimento coi centesimi, riaperto dopo il passaggio allo yen**, partiva
+  dal passo dell'importo con «¥12,50» e «Continua» spento, senza un perché. Ora
+  sotto la cifra c'è «Questa valuta non ha decimali: scrivi un numero intero».
+  Arrotondarlo da solo sarebbe stato il terzo numero plausibile: si cancellano i
+  decimali col tasto ⌫ e si prosegue.
+- **L'avviso diceva il falso in yen**: «gli importi restano quelli che hai
+  scritto» è vero nel database, non a schermo, dove 12,50 si legge ¥ 13. Per una
+  valuta senza decimali l'avviso aggiunge che i centesimi si vedono arrotondati.
+- ⚠️ **Il cookie sopravviveva all'uscita.** Chi entrava dopo sullo stesso
+  dispositivo per una strada che non lo riallinea (una registrazione, un OAuth
+  con `next` diverso da «/») vedeva i propri importi col simbolo e i decimali
+  dell'altro — e le action li validavano con quei decimali. Il proxy non poteva
+  accorgersene: ripara un cookie che MANCA. Ora ogni `auth.signOut()` (cinque
+  punti: le due route di uscita, l'action delle Impostazioni, l'eliminazione
+  dell'account, la password reimpostata) chiama `clearCurrencyCookie()`. La
+  lingua resta: è una preferenza di chi legge, non un fatto dei dati.
+- Minori: «CHF» toccava i bordi delle pastiglie da 32 e 36px (tre, non una:
+  preferenze, limite mensile, card del budget), e ora prende un corpo più
+  piccolo; `amountMax` si ricava dalle cifre intere in aritmetica intera; il
+  commento del proxy dichiarava un costo più basso del vero (ogni richiesta
+  dell'onboarding, prefetch e action comprese — e limitarlo ai documenti
+  lascerebbe un prefetch col simbolo del ripiego nella cache del router).
+
+**Il menu.** Collaudando, Jomar ha notato che le righe di valuta e lingua
+aprivano il menu del browser: erano `<select>` native invisibili sopra la riga.
+Il blocco con PIN l'aveva già scartata e disegnato un menu a mano per «richiedi
+il PIN dopo»; ora quel menu è `RowMenu` (`components/UI/RowMenu.tsx`) e lo
+usano tutte e tre le righe, invece di tre copie. Aggiunge ciò che al primo
+mancava: `aria-haspopup`, `role="option"` con `aria-selected`, il fuoco sulla
+scelta attuale all'apertura, frecce, Home ed End, l'apertura verso l'alto
+quando sotto c'è la `BottomNav` (la regola di `Select.tsx`), la chiusura allo
+scorrimento.
+
+Controprove dei test aggiunti: senza `clearCurrencyCookie()` nell'uscita delle
+Impostazioni cade il test del proxy su «all'uscita il cookie della valuta se ne
+va»; senza la riga sotto la cifra cade quello dello yen su «il passo
+dell'importo dice perché». Screenshot del menu nei due temi, sul telefono e da
+desktop, con «CHF» nella pastiglia.
+
 ### Residui
 
 - Le scorciatoie sopra il tastierino del movimento (5, 10, 20, 50, 100) restano

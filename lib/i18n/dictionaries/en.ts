@@ -1192,6 +1192,7 @@ export const en: Dictionary = {
 			currency: "Currency",
 			language: "Language",
 			currencyHint: "Only the symbol changes: your amounts stay as you entered them, with no conversion.",
+			currencyHintNoDecimals: "This currency has no decimals: amounts with cents are shown rounded, and editing them means removing the cents.",
 		},
 		currencies: {
 			EUR: "Euro",

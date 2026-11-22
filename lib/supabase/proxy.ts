@@ -178,9 +178,12 @@ export async function updateSession(request: NextRequest) {
 	 *
 	 * Un profilo senza valuta (onboarding da fare) o una lettura fallita non
 	 * scrivono niente: la richiesta passa com'è, e si riprova alla prossima.
-	 * Il costo dichiarato: durante l'onboarding ogni richiesta paga questa
-	 * lettura, finché \`savePreferences()\` non scrive il cookie — tre pagine e le
-	 * loro action, una volta nella vita dell'account.
+	 * Il costo dichiarato: durante l'onboarding OGNI richiesta autenticata paga
+	 * questa lettura — pagine, prefetch RSC e server action — finché
+	 * `savePreferences()` non scrive il cookie. Una volta nella vita
+	 * dell'account, e per poche pagine. Limitarla alle sole navigazioni di
+	 * documento lascerebbe un prefetch RSC renderizzato col ripiego, e la cache
+	 * del router lo riuserebbe: il simbolo sbagliato tornerebbe a schermo.
 	 */
 	if (user && !isCurrency(request.cookies.get(CURRENCY_COOKIE)?.value)) {
 		const { data: profile, error: profileError } = await supabase

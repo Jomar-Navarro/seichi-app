@@ -107,7 +107,11 @@ function BudgetCard({
 				) : (
 					// Il simbolo della valuta dell'utente (#171): era un «€» scritto a
 					// mano, sfuggito alla Fase 19 perché non passava da `formatMoney`.
-					<span className="text-[13px] font-semibold" style={{ color: baseColor }}>
+					// Un simbolo di più lettere («CHF») più piccolo: la pastiglia è di 32px.
+					<span
+						className={`${currencySymbol(currency, locale).length > 1 ? "text-[10px]" : "text-[13px]"} font-semibold`}
+						style={{ color: baseColor }}
+					>
 						{currencySymbol(currency, locale)}
 					</span>
 				)}

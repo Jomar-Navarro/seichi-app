@@ -2077,6 +2077,11 @@ export const it = {
 			 * deve saperlo prima, non scoprirlo davanti al saldo.
 			 */
 			currencyHint: "Cambia solo il simbolo: gli importi restano quelli che hai scritto, senza conversione.",
+			/**
+			 * In coda all'avviso, per una valuta senza decimali (lo yen): lì la
+			 * frase sopra da sola non è vera a schermo, dove 12,50 si legge 13.
+			 */
+			currencyHintNoDecimals: "Questa valuta non ha decimali: gli importi con i centesimi si vedono arrotondati, e per modificarli vanno tolti.",
 		},
 		/**
 		 * Nomi delle valute. Il CODICE ISO non si traduce, il nome sì:

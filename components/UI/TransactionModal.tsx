@@ -13,6 +13,7 @@ import { useI18n } from "@/components/features/I18nProvider";
 import { useDialog } from "./useDialog";
 import { currencyDecimals, currencySymbol, formatMoney } from "@/lib/i18n/format";
 import {
+	amountErrorMessage,
 	applyAmountKey,
 	decimalSeparator,
 	formatAmountInput,
@@ -141,6 +142,14 @@ function TransactionModalContent() {
 	);
 	const parsedAmount = parseAmountInput(amount, locale, currency);
 	const amountValid = parsedAmount.status === "ok" && parsedAmount.value > 0;
+	/*
+	 * Un importo che il tastierino non può produrre, ma che può ARRIVARE (#171,
+	 * review): un movimento salvato con i centesimi e aperto in modifica dopo il
+	 * passaggio allo yen. «Continua» resta spento — salvarlo arrotondato sarebbe
+	 * il terzo numero plausibile — e questa riga dice perché, e cosa fare:
+	 * cancellare i decimali col tasto ⌫.
+	 */
+	const amountProblem = amountErrorMessage(parsedAmount, t, locale, currency);
 	/*
 	 * La cifra si rimpicciolisce con la lunghezza. Con il tetto di
 	 * `DECIMAL(10,2)` "99999999,99" è un importo valido e raggiungibile, e a
@@ -515,6 +524,11 @@ function TransactionModalContent() {
 								<span className="text-4xl mr-1">{currencySymbol(currency, locale)}</span>
 								{amount || "0"}
 							</div>
+							{amountProblem && (
+								<p role="alert" className="mt-2 px-4 text-center text-[13px] leading-snug text-aka-ink">
+									{amountProblem}
+								</p>
+							)}
 						</div>
 
 						{/*

@@ -9,6 +9,7 @@ import { requireLiveUser } from "@/lib/auth";
 import { consumeRateLimit, rateLimitMessage } from "@/lib/rate-limit";
 import type { Dictionary } from "@/lib/i18n/dictionaries/it";
 import { fill } from "@/lib/i18n/format";
+import { clearCurrencyCookie } from "@/lib/i18n/server";
 import { SITE_URL } from "@/lib/site-url";
 import { RECEIPT_BUCKET } from "@/lib/attachments";
 import { purgeStorageFolder } from "@/lib/storage-files";
@@ -375,6 +376,8 @@ export async function deleteAccount(confirmEmail: string, password: string) {
 	}
 
 	await supabase.auth.signOut();
+	// La valuta era dei dati appena eliminati (#171).
+	await clearCurrencyCookie();
 	revalidatePath("/", "layout");
 	redirect("/welcome");
 }

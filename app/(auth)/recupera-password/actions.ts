@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { authErrorMessage } from "@/lib/errors";
 import { PASSWORD_MIN_LENGTH, validateNewPassword } from "@/lib/password";
 import { clearRecoverySession, hasRecoverySession } from "@/lib/recovery";
-import { getDictionary } from "@/lib/i18n/server";
+import { clearCurrencyCookie, getDictionary } from "@/lib/i18n/server";
 import { fill } from "@/lib/i18n/format";
 import { SITE_URL } from "@/lib/site-url";
 
@@ -120,6 +120,8 @@ export async function resetPassword(
 	// Marcatore monouso: bruciato appena la password è stata cambiata.
 	await clearRecoverySession();
 	await supabase.auth.signOut();
+	// Come a ogni uscita: la valuta è dei dati di chi esce (#171).
+	await clearCurrencyCookie();
 
 	redirect("/sign?reset=1");
 }

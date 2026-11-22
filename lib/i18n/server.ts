@@ -133,3 +133,18 @@ export async function setCurrencyCookie(currency: Currency) {
 	const store = await cookies();
 	store.set(CURRENCY_COOKIE, currency, CURRENCY_COOKIE_OPTIONS);
 }
+
+/**
+ * Toglie il cookie della valuta all'uscita (#171, review). Si chiama accanto a
+ * ogni `auth.signOut()`.
+ *
+ * ⚠️ La lingua può restare: è una preferenza di chi legge, e chi entra dopo la
+ * ritrova uguale o la cambia. La valuta no: è un fatto dei DATI dell'utente.
+ * Rimasta sul dispositivo, chi entra dopo per una strada che non la riallinea
+ * (una registrazione, un OAuth con `next` diverso da "/") vedrebbe i propri
+ * importi col simbolo e i decimali di un altro, e il proxy non interverrebbe:
+ * ripara un cookie che MANCA, non uno che appartiene a un altro.
+ */
+export async function clearCurrencyCookie() {
+	(await cookies()).delete(CURRENCY_COOKIE);
+}

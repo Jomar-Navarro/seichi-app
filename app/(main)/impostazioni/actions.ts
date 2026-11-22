@@ -5,7 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { isCurrency, normalizeLocale } from "@/lib/i18n/config";
-import { setCurrencyCookie, setLocaleCookie } from "@/lib/i18n/server";
+import { clearCurrencyCookie, setCurrencyCookie, setLocaleCookie } from "@/lib/i18n/server";
 import { plural } from "@/lib/i18n/format";
 import { genericError } from "@/lib/errors";
 import type { Category } from "@/types";
@@ -223,5 +223,7 @@ export async function updatePreferences(currency: string, language: string) {
 export async function signOut() {
 	const supabase = await createClient();
 	await supabase.auth.signOut();
+	// La valuta è dei dati di chi esce, non del dispositivo (#171).
+	await clearCurrencyCookie();
 	redirect("/welcome");
 }

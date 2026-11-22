@@ -2,10 +2,11 @@
 
 import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Globe, ChevronDown } from "lucide-react";
+import { Globe } from "lucide-react";
 import { updatePreferences } from "@/app/(main)/impostazioni/actions";
 import { useI18n } from "@/components/features/I18nProvider";
-import { currencySymbol } from "@/lib/i18n/format";
+import RowMenu from "@/components/UI/RowMenu";
+import { currencyDecimals, currencySymbol } from "@/lib/i18n/format";
 import {
 	CURRENCIES,
 	DEFAULT_LOCALE,
@@ -76,82 +77,62 @@ export default function PreferencesSection({ currency, language }: PreferencesSe
 		}
 	}
 
+	// Il simbolo nella pastiglia da 36px: «$» a 15px, «CHF» più piccolo, o
+	// esce dai bordi.
+	const symbol = currencySymbol(cur, locale);
+
 	return (
 		<div className="rounded-[22px] bg-card card-shadow-ring overflow-hidden" aria-busy={saving}>
 			{/* Valuta — con l'avviso sotto (#171): Seichi non converte, e chi
 			    cambia valuta deve saperlo PRIMA di vedere il saldo col simbolo
-			    nuovo. Il filo sta sotto l'avviso, che appartiene alla riga. */}
+			    nuovo. Il filo sta sotto l'avviso, che appartiene alla riga.
+			    ⚠️ Menu disegnato (`RowMenu`), non una `<select>` nativa: il menu
+			    del sistema operativo non è il design. Le righe si spengono durante
+			    il salvataggio (review della #124): con due salvataggi sovrapposti
+			    il ripristino del primo cancellava la scelta del secondo. */}
 			<div className="border-b border-subtle">
-				<label className="relative flex items-center gap-3 h-15.5 px-4 cursor-pointer">
-					<span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-control">
-						<span className="text-[15px] font-semibold text-secondary">{currencySymbol(cur, locale)}</span>
-					</span>
-					<span className="flex-1 text-sm font-medium">{t.settings.preferences.currency}</span>
-					<span className="inline-flex items-center gap-1.5 text-[13px] text-muted">
-						{cur} — {currencies[cur]}
-						<ChevronDown size={12} />
-					</span>
-					<select
-						value={cur}
-						// ⚠️ Spente durante il salvataggio (review della #124): con due
-						// salvataggi sovrapposti il ripristino del primo cancellava la
-						// scelta del secondo, che intanto era andata a buon fine.
-						disabled={saving}
-						onChange={(e) => {
-							// La guardia stringe il `string` del DOM al codice tipizzato.
-							// Le opzioni le generiamo noi, quindi non può fallire — ma è
-							// il compilatore a saperlo, non un commento.
-							const next = e.target.value;
-							if (!isCurrency(next)) return;
-							setCur(next);
-							save(next, lang, { cur, lang });
-						}}
-						className="absolute inset-0 opacity-0 cursor-pointer"
-						aria-label={t.settings.preferences.currency}
-						aria-describedby={currencyHintId}
-					>
-						{CURRENCIES.map((code) => (
-							<option key={code} value={code}>
-								{code} — {currencies[code]}
-							</option>
-						))}
-					</select>
-				</label>
+				<RowMenu
+					label={t.settings.preferences.currency}
+					icon={
+						<span className={`${symbol.length > 1 ? "text-[11px]" : "text-[15px]"} font-semibold text-secondary`}>
+							{symbol}
+						</span>
+					}
+					valueText={`${cur} — ${currencies[cur]}`}
+					options={CURRENCIES.map((code) => ({ value: code, label: `${code} — ${currencies[code]}` }))}
+					selected={cur}
+					disabled={saving}
+					describedBy={currencyHintId}
+					onSelect={(next) => {
+						// La guardia stringe lo `string` al codice tipizzato. Le opzioni
+						// le generiamo noi, quindi non può fallire — ma è il compilatore
+						// a saperlo, non un commento.
+						if (!isCurrency(next)) return;
+						setCur(next);
+						save(next, lang, { cur, lang });
+					}}
+				/>
 				<p id={currencyHintId} className="px-4 pb-3.5 -mt-1.5 text-[11.5px] leading-snug text-muted">
 					{t.settings.preferences.currencyHint}
+					{currencyDecimals(cur) === 0 && <> {t.settings.preferences.currencyHintNoDecimals}</>}
 				</p>
 			</div>
 
-			{/* Lingua */}
-			<label className="relative flex items-center gap-3 h-15.5 px-4 cursor-pointer">
-				<span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-control">
-					<Globe size={17} className="text-secondary" />
-				</span>
-				<span className="flex-1 text-sm font-medium">{t.settings.preferences.language}</span>
-				<span className="inline-flex items-center gap-1.5 text-[13px] text-muted">
-					{LOCALE_LABELS[lang as keyof typeof LOCALE_LABELS] ?? LOCALE_LABELS[DEFAULT_LOCALE]}
-					<ChevronDown size={12} />
-				</span>
-				<select
-					value={lang}
-					disabled={saving}
-					onChange={(e) => {
-						setLang(e.target.value);
-						save(cur, e.target.value, { cur, lang });
-					}}
-					className="absolute inset-0 opacity-0 cursor-pointer"
-					aria-label={t.settings.preferences.language}
-				>
-					{/* Gli endonimi non passano dal dizionario: restano "Italiano" e
-					    "English" in entrambe le lingue, altrimenti chi cerca la propria
-					    non la riconoscerebbe. */}
-					{LOCALES.map((code) => (
-						<option key={code} value={code}>
-							{LOCALE_LABELS[code]}
-						</option>
-					))}
-				</select>
-			</label>
+			{/* Lingua. Gli endonimi non passano dal dizionario: restano «Italiano» e
+			    «English» in entrambe le lingue, altrimenti chi cerca la propria non
+			    la riconoscerebbe. */}
+			<RowMenu
+				label={t.settings.preferences.language}
+				icon={<Globe size={17} className="text-secondary" />}
+				valueText={LOCALE_LABELS[lang as keyof typeof LOCALE_LABELS] ?? LOCALE_LABELS[DEFAULT_LOCALE]}
+				options={LOCALES.map((code) => ({ value: code, label: LOCALE_LABELS[code] }))}
+				selected={lang}
+				disabled={saving}
+				onSelect={(next) => {
+					setLang(next);
+					save(cur, next, { cur, lang });
+				}}
+			/>
 
 			{error && (
 				<p role="alert" className="px-4 pb-3.5 -mt-1 text-[11.5px] leading-snug text-aka-ink">

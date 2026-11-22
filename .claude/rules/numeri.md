@@ -98,10 +98,12 @@ Storia: `docs/storia/fase-20a-conti`, `fase-20b-trasferimenti`,
    (`parseAmountInput()` in `lib/amount.ts`):
    - virgola e punto sono entrambi decimali;
    - l'ambiguo («1.200») lo decide la lingua;
-   - tre decimali sono un errore;
+   - più decimali di quanti ne abbia la valuta sono un errore: oltre il
+     secondo, o già il primo in yen (`currencyDecimals()`, #171);
    - uno zero davanti non è mai un gruppo di migliaia.
 2. **Un campo importo**:
-   - è `type="text"` con `inputMode="decimal"`;
+   - è `type="text"` con `inputMode={amountInputMode(currency)}`: `decimal`, o
+     `numeric` per una valuta senza decimali;
    - distingue vuoto da illeggibile;
    - si valida PRIMA di qualunque scrittura.
 3. **I due parser divergono di proposito.** Quello dell'import (`parseAmount`)
@@ -109,7 +111,9 @@ Storia: `docs/storia/fase-20a-conti`, `fase-20b-trasferimenti`,
    arriva da chiunque. Condividono solo `couldBeThousandsGroup()`
    (`lib/thousands.ts`).
 4. **Il tastierino è un campo vincolato** (`applyAmountKey`): non entrano né il
-   terzo decimale né la nona cifra intera.
+   terzo decimale né la nona cifra intera, e in yen nemmeno il separatore. Un
+   importo che può comunque arrivarci (un movimento coi centesimi riaperto dopo
+   il passaggio allo yen) si spiega sotto la cifra, non si arrotonda.
 
 ## Letture lunghe
 

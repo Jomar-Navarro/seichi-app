@@ -252,7 +252,10 @@ export default function GlobalBudgetSection() {
 				*/}
 				<label className="flex items-center gap-3 min-h-15.5 py-2.5 px-4 border-b border-subtle cursor-text">
 					<span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-control">
-						<span className="text-[15px] font-semibold text-secondary">{currencySymbol(currency, locale)}</span>
+						{/* «CHF» a 15px tocca i bordi della pastiglia da 36px (#171). */}
+						<span className={`${currencySymbol(currency, locale).length > 1 ? "text-[11px]" : "text-[15px]"} font-semibold text-secondary`}>
+							{currencySymbol(currency, locale)}
+						</span>
 					</span>
 					<span className="flex-1 min-w-0">
 						<span className="block text-sm font-medium">{t.budget.monthlyLimit}</span>

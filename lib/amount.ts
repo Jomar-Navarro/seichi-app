@@ -35,8 +35,11 @@ const AMOUNT_MAX_DECIMALS = 2;
  * `formatMoney` scriverebbe arrotondando `AMOUNT_MAX` (#171).
  */
 export function amountMax(currency: string): number {
+	// Dalle cifre intere, in aritmetica intera: «10⁸ unità minori meno una»,
+	// lo stesso limite che `parseAmountInput` impone contando le cifre. Un
+	// `Math.floor(AMOUNT_MAX * scale)` dipenderebbe dall'arrotondamento dei float.
 	const scale = 10 ** currencyDecimals(currency);
-	return Math.floor(AMOUNT_MAX * scale) / scale;
+	return (10 ** AMOUNT_MAX_INTEGER_DIGITS * scale - 1) / scale;
 }
 
 export type AmountInput =
