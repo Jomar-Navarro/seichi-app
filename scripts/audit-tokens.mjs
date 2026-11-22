@@ -381,7 +381,10 @@ if (cssBuilt.length === 0) {
 	// Si cerca il selettore seguito da un terminatore, o `.bg-card` combacerebbe
 	// dentro `.bg-card-elevated`. I due punti sono fra i terminatori perché dopo
 	// una variante segue la pseudo-classe (`.last\:border-b-0:last-child`).
-	const TERMINATORI = [" ", ",", "{", ":", ">", "+", "~", ")", "\n", "\r", "\t"];
+	// E la parentesi quadra, perché le varianti `aria-*` e `data-*` diventano un
+	// selettore d'attributo (`.aria-pressed\:text-foreground[aria-pressed=true]`):
+	// senza, l'audit dava per mai generata una classe che c'era (#175).
+	const TERMINATORI = [" ", ",", "{", ":", ">", "+", "~", ")", "[", "\n", "\r", "\t"];
 	const esisteNelCss = (cls) =>
 		TERMINATORI.some((t) => generato.includes(selettore(cls) + t));
 

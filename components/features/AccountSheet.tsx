@@ -23,7 +23,13 @@ import {
 	accountTypeLabel,
 } from "@/lib/accounts";
 import { ACCOUNT_TYPES, type AccountTypeId, type AccountWithBalance } from "@/types";
-import { amountErrorMessage, formatAmountInput, parseAmountInput } from "@/lib/amount";
+import {
+	amountErrorMessage,
+	formatAmountInput,
+	hasMinusSign,
+	parseAmountInput,
+	toggleAmountSign,
+} from "@/lib/amount";
 
 /**
  * ⚠️ Nessuna prop `isOpen`: il pannello si MONTA, non si nasconde. È il
@@ -376,8 +382,32 @@ export default function AccountSheet({ account, canArchive, onClose }: AccountSh
 								value={initialBalance}
 								onChange={(e) => setInitialBalance(e.target.value)}
 								aria-invalid={balanceError || undefined}
-								className="flex-1 bg-transparent outline-none text-base placeholder:text-muted/60"
+								className="flex-1 min-w-0 bg-transparent outline-none text-base placeholder:text-muted/60"
 							/>
+							{/*
+								#175 — il tastierino decimale di iOS non ha il meno: senza
+								questo comando un conto in rosso (una carta di credito) non
+								si apriva dal telefono. Un interruttore, con lo stato in
+								`aria-pressed`.
+
+								`onPointerDown` + `preventDefault` tiene il fuoco nel campo:
+								sul telefono la tastiera resta aperta e si continua a
+								scrivere. Il gesto vero è `onClick`, che vale anche da
+								tastiera (react.md, «Ogni comando funziona anche da
+								tastiera»).
+							*/}
+							<button
+								type="button"
+								onPointerDown={(e) => e.preventDefault()}
+								onClick={() => setInitialBalance((v) => toggleAmountSign(v))}
+								aria-label={t.accounts.negativeBalance}
+								aria-pressed={hasMinusSign(initialBalance)}
+								// issue #69 — 44px di bersaglio, rientrati nel padding del
+								// campo per non alzarlo.
+								className="-my-2 -mr-2 w-11 h-11 shrink-0 rounded-xl bg-control ring-border flex items-center justify-center text-base font-semibold text-muted aria-pressed:text-foreground"
+							>
+								±
+							</button>
 						</div>
 						{balanceError && balanceErrorText && (
 							<p className="text-xs mt-1.5 ml-1" style={{ color: "var(--ink-aka)" }}>
