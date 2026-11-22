@@ -59,6 +59,24 @@ export const WIZARD_FOOTER_BUTTON_CLASS =
 export const WIZARD_FOOTER_BUTTON_STYLE = {
 	bottom: "max(1.625rem, env(safe-area-inset-bottom))",
 } as const;
+/*
+ * In modifica il fondo è una RIGA: il cestino accanto a «Salva modifiche»,
+ * nella stessa posizione e con lo stesso stile del bottone singolo. Prima
+ * «Elimina movimento» stava in fondo al contenuto che scorre, staccato dal
+ * gesto con cui si chiude il pannello.
+ */
+const WIZARD_FOOTER_ROW_CLASS = "fixed lg:absolute left-6 right-6 flex gap-2";
+const WIZARD_FOOTER_ROW_PRIMARY_CLASS =
+	"flex-1 py-4 rounded-2xl btn-primary font-semibold flex items-center justify-center gap-2 disabled:opacity-40";
+/*
+ * issue #81 — anello (box-shadow), non bordo: il colore è traslucido (40%).
+ * Fondo SOLIDO (`bg-deep`): il bottone galleggia sopra il contenuto che scorre,
+ * e su `bg-card`, traslucido, si leggerebbe il testo sotto.
+ */
+const DELETE_RING_STYLE = {
+	boxShadow: "color-mix(in srgb, var(--color-aka) 40%, transparent) 0px 0px 0px 1px inset",
+	color: "var(--ink-aka)",
+} as const;
 
 interface TransactionFormProps {
 	selectedType: TransactionType;
@@ -906,42 +924,6 @@ export default function TransactionForm({
 				</p>
 			)}
 
-			{isEditing && (
-				<div className="mt-2">
-					{isDeleteConfirm ? (
-						<div className="flex gap-2">
-							<button
-								onClick={() => setIsDeleteConfirm(false)}
-								className="flex-1 py-3.5 rounded-2xl bg-card ring-border text-sm font-semibold"
-							>
-								{t.common.cancel}
-							</button>
-							<button
-								onClick={handleDelete}
-								className="flex-1 py-3.5 rounded-2xl text-sm font-semibold"
-								// `--on-accent`, non "#fff": vedi CLAUDE.md, Fase 18.
-								style={{ background: "var(--color-aka)", color: "var(--on-accent)" }}
-							>
-								{t.transactions.form.deleteConfirm}
-							</button>
-						</div>
-					) : (
-						<button
-							onClick={() => setIsDeleteConfirm(true)}
-							className="w-full py-3.5 rounded-2xl text-sm font-semibold flex items-center justify-center gap-2"
-							// issue #81 — anello (box-shadow), non bordo: il colore è traslucido (40%).
-							style={{
-								boxShadow:
-									"color-mix(in srgb, var(--color-aka) 40%, transparent) 0px 0px 0px 1px inset",
-								color: "var(--ink-aka)",
-							}}
-						>
-							<Trash2 size={15} />
-							{t.transactions.form.delete}
-						</button>
-					)}
-				</div>
-			)}
 		</div>
 
 		{/*
@@ -961,6 +943,53 @@ export default function TransactionForm({
 				<Check size={18} />
 				{t.common.close}
 			</button>
+		) : isEditing ? (
+			<div className={WIZARD_FOOTER_ROW_CLASS} style={WIZARD_FOOTER_BUTTON_STYLE}>
+				{isDeleteConfirm ? (
+					<>
+						<button
+							onClick={() => setIsDeleteConfirm(false)}
+							className="flex-1 py-4 rounded-2xl bg-deep ring-border text-sm font-semibold whitespace-nowrap"
+						>
+							{t.common.cancel}
+						</button>
+						<button
+							onClick={handleDelete}
+							disabled={isSaving}
+							// Niente icona e una riga sola: con l'icona, sul telefono la frase andava
+							// a capo e la riga del fondo si alzava.
+							className="flex-1 py-4 rounded-2xl text-sm font-semibold whitespace-nowrap disabled:opacity-40"
+							// `--on-accent`, non "#fff": vedi CLAUDE.md, Fase 18.
+							style={{ background: "var(--color-aka)", color: "var(--on-accent)" }}
+						>
+							{t.transactions.form.deleteConfirm}
+						</button>
+					</>
+				) : (
+					<>
+						{/* Solo l'icona, accanto al gesto principale: il nome lo dice
+						    `aria-label`, e il secondo tocco chiede conferma. */}
+						<button
+							onClick={() => setIsDeleteConfirm(true)}
+							disabled={isSaving}
+							aria-label={t.transactions.form.delete}
+							title={t.transactions.form.delete}
+							className="shrink-0 w-14 rounded-2xl bg-deep flex items-center justify-center disabled:opacity-40"
+							style={DELETE_RING_STYLE}
+						>
+							<Trash2 size={18} />
+						</button>
+						<button
+							onClick={handleSave}
+							disabled={!isValid || isSaving}
+							className={WIZARD_FOOTER_ROW_PRIMARY_CLASS}
+						>
+							<Check size={18} />
+							{t.transactions.form.saveChanges}
+						</button>
+					</>
+				)}
+			</div>
 		) : (
 			<button
 				onClick={handleSave}

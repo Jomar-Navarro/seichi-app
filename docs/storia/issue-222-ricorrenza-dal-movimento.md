@@ -81,3 +81,21 @@ regola.
   regola è aperto»; c2 (parametro non tolto) su «l'URL non porta più
   ?regola»; c3 (riga su ogni movimento) fa cadere il gemello su «un movimento
   senza regola non la offre». Nessun'altra. Suite intera: 26 su 26.
+
+### Il cestino accanto a «Salva modifiche» (chiesto da Jomar, 2026-11-22)
+
+Guardando il collegamento nell'app, Jomar ha chiesto di portare «Elimina
+movimento» accanto al salvataggio: stava in fondo al contenuto che scorre,
+staccato dal gesto con cui si chiude il pannello. In modifica il fondo è ora
+una riga fissa: il cestino (solo icona, nome in `aria-label`, anello e
+inchiostro `aka`, fondo SOLIDO `bg-deep` perché galleggia sopra il contenuto
+che scorre) e «Salva modifiche». Il primo tocco trasforma la riga in
+«Annulla» · «Conferma eliminazione».
+
+- Visto negli screenshot, nei due temi: con l'icona, «Conferma eliminazione»
+  andava a capo sul telefono e la riga si alzava. Ora niente icona, `text-sm`
+  e una riga sola.
+- Nessuno scenario eliminava un movimento: lo scenario nuovo in
+  `movimento.spec.ts` prova la posizione, «Annulla» e l'eliminazione.
+  Controprova: con il `TransactionForm` di prima cade su «sta nella riga del
+  fondo, accanto al salvataggio».
