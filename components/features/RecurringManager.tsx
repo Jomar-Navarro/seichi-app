@@ -13,16 +13,16 @@ import { announce } from "@/components/UI/Announcer";
 import { whenModalEntryGone } from "@/components/UI/useCloseOnBack";
 import RecurringSheet from "./RecurringSheet";
 import { useI18n } from "./I18nProvider";
-import { DISPLAY_CURRENCY, formatMoney, lookup, plural } from "@/lib/i18n/format";
+import { formatMoney, lookup, plural } from "@/lib/i18n/format";
 import { deleteRecurringRule, setRecurringActive } from "@/app/(main)/action";
 import { useUIStore } from "@/store/useUIStore";
 import { RULE_PARAM, ruleFromParam } from "@/lib/recurring";
 import type { Locale } from "@/lib/i18n/config";
 import type { RecurringRule } from "@/types";
 
-function formatRuleAmount(r: RecurringRule, locale: Locale) {
+function formatRuleAmount(r: RecurringRule, locale: Locale, currency: string) {
 	const sign = r.type === "entrata" ? "+ " : "";
-	return `${sign}${formatMoney(r.amount, { locale, currency: DISPLAY_CURRENCY, decimals: 2 })}`;
+	return `${sign}${formatMoney(r.amount, { locale, currency, decimals: 2 })}`;
 }
 
 export default function RecurringManager({
@@ -34,7 +34,7 @@ export default function RecurringManager({
 	openRuleParam?: string | string[];
 }) {
 	const router = useRouter();
-	const { locale, t } = useI18n();
+	const { locale, t, currency } = useI18n();
 	const { openTransactionModal, transactionSavedAt } = useUIStore();
 	const [pending, setPending] = useState<RecurringRule | null>(null);
 	/*
@@ -174,7 +174,7 @@ export default function RecurringManager({
 											{r.categories?.name ?? t.types[r.type as keyof typeof t.types]}
 										</span>
 										<span className="text-[13.5px] font-semibold whitespace-nowrap" style={{ color: ink }}>
-											{formatRuleAmount(r, locale)}
+											{formatRuleAmount(r, locale, currency)}
 										</span>
 									</div>
 									<div className="flex items-center gap-1.5 mt-1">

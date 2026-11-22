@@ -48,7 +48,7 @@ type AccountInput = {
  * dall'elenco invece no, e va fermato qui perché il `CHECK` del database darebbe
  * un errore di vincolo, corretto ma illeggibile.
  */
-function validate(input: AccountInput, t: Awaited<ReturnType<typeof requireUser>>["t"]) {
+function validate(input: AccountInput, t: Awaited<ReturnType<typeof requireUser>>["t"], currency: string) {
 	const name = input.name.trim();
 	if (!name) return { error: t.accounts.errors.nameRequired };
 	if (name.length > NAME_MAX) return { error: t.accounts.errors.nameTooLong };
@@ -70,7 +70,7 @@ function validate(input: AccountInput, t: Awaited<ReturnType<typeof requireUser>
 	// Il saldo iniziale può essere zero o negativo (una carta di credito), ma
 	// deve stare in `DECIMAL(10,2)`: prima l'overflow arrivava da Postgres come
 	// `saveFailed`, che non dice cosa correggere (issue #119).
-	if (!isStorableAmount(input.initialBalance, { allowNegative: true, allowZero: true })) {
+	if (!isStorableAmount(input.initialBalance, currency, { allowNegative: true, allowZero: true })) {
 		return { error: t.errors.amountInvalid };
 	}
 	// Il tipo esce RISTRETTO: chi scrive usa questo, non il valore grezzo arrivato
@@ -147,10 +147,10 @@ export async function getAccountOptions(): Promise<
 }
 
 export async function createAccount(input: AccountInput) {
-	const { supabase, user, t } = await requireUser();
+	const { supabase, user, t, currency } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
-	const checked = validate(input, t);
+	const checked = validate(input, t, currency);
 	if ("error" in checked) return checked;
 
 	// L'id torna al chiamante come in `createCategory`: serve a selezionare
@@ -191,10 +191,10 @@ export async function createAccount(input: AccountInput) {
  * stessa operazione*, e l'intenzione non va chiesta all'utente.
  */
 export async function updateAccount(id: string, input: AccountInput) {
-	const { supabase, user, t } = await requireUser();
+	const { supabase, user, t, currency } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
-	const checked = validate(input, t);
+	const checked = validate(input, t, currency);
 	if ("error" in checked) return checked;
 
 	/*

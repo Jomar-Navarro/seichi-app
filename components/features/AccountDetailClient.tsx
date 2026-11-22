@@ -12,7 +12,6 @@ import { useI18n } from "./I18nProvider";
 import { useViewedAccount } from "./ViewedAccount";
 import { useUIStore } from "@/store/useUIStore";
 import {
-	DISPLAY_CURRENCY,
 	currencySymbol,
 	formatMoney,
 	splitAmount,
@@ -41,7 +40,7 @@ interface AccountDetailClientProps {
  * delle due cose è esprimibile in un server component.
  */
 export default function AccountDetailClient({ account }: AccountDetailClientProps) {
-	const { locale, t } = useI18n();
+	const { locale, t, currency } = useI18n();
 	const [sheetOpen, setSheetOpen] = useState(false);
 	const [accounts, setAccounts] = useState<AccountOption[]>([]);
 	const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -56,7 +55,7 @@ export default function AccountDetailClient({ account }: AccountDetailClientProp
 
 	const Icon = (account.type && ACCOUNT_TYPE_ICON[account.type]) || ACCOUNT_ICON_FALLBACK;
 	const color = accountColor(account.type, account.color);
-	const { sign, integer, decimal } = splitAmount(account.balance, locale);
+	const { sign, integer, decimal } = splitAmount(account.balance, { locale, currency });
 
 	/*
 	 * I conti servono a NOMINARE i due lati di un trasferimento (vedi
@@ -175,7 +174,7 @@ export default function AccountDetailClient({ account }: AccountDetailClientProp
 
 				<p className="font-semibold tracking-tight flex items-baseline gap-0.5">
 					<span className="text-xl font-semibold mr-1">
-						{currencySymbol(DISPLAY_CURRENCY, locale)}
+						{currencySymbol(currency, locale)}
 					</span>
 					<span className="text-3xl">{sign}{integer}</span>
 					<span className="text-xl font-medium text-muted">{decimal}</span>
@@ -190,7 +189,7 @@ export default function AccountDetailClient({ account }: AccountDetailClientProp
 						<p className="text-[13px] font-medium mt-0.5">
 							{formatMoney(account.initial_balance, {
 								locale,
-								currency: DISPLAY_CURRENCY,
+								currency,
 								decimals: 2,
 							})}
 						</p>

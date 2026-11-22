@@ -4,9 +4,13 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { safeNext } from "@/lib/safe-redirect";
 import {
+	CURRENCY_COOKIE,
+	CURRENCY_COOKIE_OPTIONS,
+	isCurrency,
 	LOCALE_COOKIE,
 	LOCALE_COOKIE_OPTIONS,
 	normalizeLocale,
+	type Currency,
 	type Locale,
 } from "@/lib/i18n/config";
 import { markRecoverySession } from "@/lib/recovery";
@@ -40,6 +44,9 @@ export async function GET(request: Request) {
 
 			// La lingua salvata sul profilo, da riversare nel cookie più sotto.
 			let locale: Locale | null = null;
+			// E la valuta (#171): `undefined` = non letta, il cookie non si tocca;
+			// `null` = onboarding da fare, il cookie di chi c'era prima si toglie.
+			let currency: Currency | null | undefined;
 
 			// Redirect new users (no onboarding completed) to /start
 			if (next === "/") {
@@ -67,6 +74,7 @@ export async function GET(request: Request) {
 						console.error("[callback] lettura del profilo:", profileError.message);
 					} else {
 						locale = normalizeLocale(profile?.language);
+						currency = isCurrency(profile?.currency) ? profile.currency : null;
 						if (!profile?.currency) {
 							next = "/start";
 						}
@@ -89,6 +97,9 @@ export async function GET(request: Request) {
 			if (locale) {
 				response.cookies.set(LOCALE_COOKIE, locale, LOCALE_COOKIE_OPTIONS);
 			}
+			// Stessa regola di `syncPreferencesFromProfile()`, sulla risposta.
+			if (currency) response.cookies.set(CURRENCY_COOKIE, currency, CURRENCY_COOKIE_OPTIONS);
+			else if (currency === null) response.cookies.delete(CURRENCY_COOKIE);
 			return response;
 		}
 	}

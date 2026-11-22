@@ -6,7 +6,7 @@ import { ArrowUpRight } from "lucide-react";
 import { RepeatIcon } from "@/lib/seichi-icons";
 import { getAvailableThisMonth } from "@/app/(main)/budget-actions";
 import { useI18n } from "@/components/features/I18nProvider";
-import { DISPLAY_CURRENCY, formatMoney } from "@/lib/i18n/format";
+import { formatMoney } from "@/lib/i18n/format";
 import { clientClock } from "@/lib/dates";
 
 /**
@@ -44,7 +44,7 @@ import { clientClock } from "@/lib/dates";
  *   dirlo si leggerebbe come la cifra di quel conto (#121).
  */
 export default function FixedOutflowsLink({ accountFiltered = false }: { accountFiltered?: boolean }) {
-	const { locale, t } = useI18n();
+	const { locale, t, currency } = useI18n();
 	const [amount, setAmount] = useState<number | null>(null);
 
 	useEffect(() => {
@@ -94,7 +94,7 @@ export default function FixedOutflowsLink({ accountFiltered = false }: { account
 					</div>
 					<div>
 						<p className="text-lg font-bold tracking-tight lg:text-2xl lg:font-semibold">
-							{formatMoney(amount, { locale, currency: DISPLAY_CURRENCY, decimals: 2 })}
+							{formatMoney(amount, { locale, currency, decimals: 2 })}
 						</p>
 						{/* ⚠️ "Uscite fisse" da solo non dice di cosa — chiesto usando
 						    l'app. Seconda riga più muta, stessa frase usata dallo stato

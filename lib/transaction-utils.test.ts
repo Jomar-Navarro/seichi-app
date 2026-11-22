@@ -62,11 +62,11 @@ describe("formatAmount", () => {
 		// Il segno lo decide amountSign, non il segno del numero.
 		[-12.5, "−", "it", "− € 12,50"],
 	] as const)("%d %j %s → %j", (amount, sign, locale, text) => {
-		expect(formatAmount(amount, sign, locale)).toBe(text);
+		expect(formatAmount(amount, sign, locale, "EUR")).toBe(text);
 	});
 
 	it("il meno è tipografico (U+2212), non il trattino", () => {
-		expect(formatAmount(1, "−", "it").charCodeAt(0)).toBe(0x2212);
+		expect(formatAmount(1, "−", "it", "EUR").charCodeAt(0)).toBe(0x2212);
 	});
 });
 

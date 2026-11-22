@@ -4,7 +4,6 @@ import { Eye, EyeOff, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useI18n } from "@/components/features/I18nProvider";
 import {
-	DISPLAY_CURRENCY,
 	currencySymbol,
 	plural,
 	splitAmount,
@@ -39,7 +38,7 @@ export default function AccountsBalanceCard({
 	hidden,
 	onToggleHidden,
 }: AccountsBalanceCardProps) {
-	const { locale, t } = useI18n();
+	const { locale, t, currency } = useI18n();
 
 	const active = accounts.filter((a) => !a.archived);
 	/*
@@ -68,7 +67,7 @@ export default function AccountsBalanceCard({
 		? t.accounts.balanceExplainOne
 		: t.accounts.balanceExplainAll;
 
-	const { sign, integer, decimal } = splitAmount(amount, locale);
+	const { sign, integer, decimal } = splitAmount(amount, { locale, currency });
 
 	return (
 		/*
@@ -121,7 +120,7 @@ export default function AccountsBalanceCard({
 			<p className="font-semibold tracking-tight mb-1.5 flex items-baseline gap-0.5 text-foreground lg:tracking-[-1.4px] lg:leading-none lg:mb-2.5">
 				{/* Da `lg:` il simbolo ha la stessa misura della cifra, come nel mockup. */}
 				<span className="text-2xl font-semibold mr-1 lg:mr-2 lg:text-[42px] xl:text-[52px]">
-					{currencySymbol(DISPLAY_CURRENCY, locale)}
+					{currencySymbol(currency, locale)}
 				</span>
 				{hidden ? (
 					<span className="text-4xl lg:text-[42px] xl:text-[52px]">••••••</span>

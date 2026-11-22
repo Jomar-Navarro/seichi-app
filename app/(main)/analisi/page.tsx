@@ -14,7 +14,7 @@ import ViewedAccount from "@/components/features/ViewedAccount";
 import { getSelectedAccount } from "@/lib/accounts-server";
 import { getI18n } from "@/lib/i18n/server";
 import { periodoLabel } from "@/lib/analytics";
-import { DISPLAY_CURRENCY, currencySymbol, lookup, splitAmount } from "@/lib/i18n/format";
+import { currencySymbol, lookup, splitAmount } from "@/lib/i18n/format";
 
 export default async function AnalyticsPage({
 	searchParams,
@@ -40,7 +40,7 @@ export default async function AnalyticsPage({
 		getAnalyticsData(periodo, accountId),
 		getAccounts(),
 	]);
-	const { locale, t } = await getI18n();
+	const { locale, t, currency } = await getI18n();
 	if ("error" in analytics) return <LoadError message={t.common.pageLoadFailed} className="min-h-dvh justify-center" />;
 
 	/*
@@ -83,7 +83,7 @@ export default async function AnalyticsPage({
 	 * legge la stessa stringa di prima — "+ € 1.540,70" — carattere per carattere:
 	 * il valore è in modulo, e il segno resta quello tipografico scritto qui.
 	 */
-	const flow = splitAmount(Math.abs(analytics.saldoMese), locale);
+	const flow = splitAmount(Math.abs(analytics.saldoMese), { locale, currency });
 
 	return (
 		<div className="px-5 pt-7 pb-36 flex flex-col lg:px-10 lg:pt-9 lg:pb-12 lg:max-w-6xl lg:mx-auto lg:w-full">
@@ -187,7 +187,7 @@ export default async function AnalyticsPage({
 						    a capo invece di stringere la cifra. */}
 						<div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
 							<p className="text-[34px] font-semibold tracking-[-0.5px] text-foreground lg:text-[40px] lg:tracking-[-1px] lg:leading-none">
-								{isPositive ? "+" : "−"} {currencySymbol(DISPLAY_CURRENCY, locale)} {flow.integer}
+								{isPositive ? "+" : "−"} {currencySymbol(currency, locale)} {flow.integer}
 								<span className="lg:text-2xl lg:font-medium lg:tracking-[-0.4px] lg:text-muted">{flow.decimal}</span>
 							</p>
 							{analytics.variazionePct !== null ? (

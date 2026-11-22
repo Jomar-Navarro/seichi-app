@@ -4,9 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { Lightbulb, Repeat, Wallet } from "lucide-react";
 import { getAvailableThisMonth, getGlobalBudget, setBudget } from "@/app/(main)/budget-actions";
 import { useI18n } from "@/components/features/I18nProvider";
-import { DISPLAY_CURRENCY, currencySymbol, fill, formatMoney } from "@/lib/i18n/format";
+import { currencySymbol, fill, formatMoney } from "@/lib/i18n/format";
 import { clientClock } from "@/lib/dates";
-import { amountErrorMessage, formatAmountInput, parseAmountInput } from "@/lib/amount";
+import { amountErrorMessage, formatAmountInput, parseAmountInput, amountInputMode } from "@/lib/amount";
 
 /**
  * Stesso involucro di PreferencesSection e SettingsGroup: card `bg-card`,
@@ -26,7 +26,7 @@ import { amountErrorMessage, formatAmountInput, parseAmountInput } from "@/lib/a
  * non si può accettare con un tocco.
  */
 export default function GlobalBudgetSection() {
-	const { locale, t } = useI18n();
+	const { locale, t, currency } = useI18n();
 	const [amount, setAmount] = useState("");
 	/** valore confermato dal server: il confronto evita scritture inutili */
 	const [current, setCurrent] = useState<number | null>(null);
@@ -164,8 +164,8 @@ export default function GlobalBudgetSection() {
 		 * `Number(amount.replace(",", "."))`, che leggeva "1.200" — le migliaia
 		 * italiane — come 1,2, e salvava un limite mille volte più basso.
 		 */
-		const input = parseAmountInput(amount, locale);
-		const unreadable = amountErrorMessage(input, t, locale);
+		const input = parseAmountInput(amount, locale, currency);
+		const unreadable = amountErrorMessage(input, t, locale, currency);
 		if (unreadable) {
 			setError(unreadable);
 			return;
@@ -229,7 +229,7 @@ export default function GlobalBudgetSection() {
 	function readout(value: number) {
 		if (loading) return "…";
 		if (loadFailed) return "—";
-		return formatMoney(value, { locale, currency: DISPLAY_CURRENCY, decimals: 2 });
+		return formatMoney(value, { locale, currency, decimals: 2 });
 	}
 
 	return (
@@ -252,7 +252,10 @@ export default function GlobalBudgetSection() {
 				*/}
 				<label className="flex items-center gap-3 min-h-15.5 py-2.5 px-4 border-b border-subtle cursor-text">
 					<span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-control">
-						<span className="text-[15px] font-semibold text-secondary">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
+						{/* «CHF» a 15px tocca i bordi della pastiglia da 36px (#171). */}
+						<span className={`${currencySymbol(currency, locale).length > 1 ? "text-[11px]" : "text-[15px]"} font-semibold text-secondary`}>
+							{currencySymbol(currency, locale)}
+						</span>
 					</span>
 					<span className="flex-1 min-w-0">
 						<span className="block text-sm font-medium">{t.budget.monthlyLimit}</span>
@@ -273,7 +276,7 @@ export default function GlobalBudgetSection() {
 						*/}
 						<input
 							type="text"
-							inputMode="decimal"
+							inputMode={amountInputMode(currency)}
 							placeholder={loading ? "…" : loadFailed ? "—" : t.budget.none}
 							value={amount}
 							disabled={disabled}
@@ -380,7 +383,7 @@ export default function GlobalBudgetSection() {
 					<span className="flex-1 min-w-0">
 						<span className="block text-sm font-medium">
 							{fill(t.budget.useAvailable, {
-								amount: formatMoney(suggestion, { locale, currency: DISPLAY_CURRENCY }),
+								amount: formatMoney(suggestion, { locale, currency }),
 							})}
 						</span>
 						<span className="block text-xs text-muted text-pretty mt-0.5">

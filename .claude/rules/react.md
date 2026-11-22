@@ -120,7 +120,13 @@ Storia: `docs/storia/issue-122-form-movimento`, `issue-148-movimenti`,
      seconda voce per lo stesso pannello.
 
    Perché: #165 (`issue-165-dialog`), #214 (`issue-214-indietro`).
-5. **Un pannello che si chiude dopo una scrittura riuscita lo annuncia** con
+5. **Una scelta fra poche voci in una riga delle impostazioni è `RowMenu`**
+   (`components/UI/RowMenu.tsx`), mai una `<select>` nativa invisibile: il menu
+   che apre è quello del sistema operativo, non il design. `RowMenu` porta
+   `aria-haspopup`, `role="option"`, frecce, Esc e il fuoco sulla scelta
+   attuale. In un modulo la scelta è `Select`. Perché: #171
+   (`issue-171-valuta`).
+6. **Un pannello che si chiude dopo una scrittura riuscita lo annuncia** con
    `announce(t.announce.…)` (`components/UI/Announcer.tsx`), prima di
    chiudere: il suo testo se ne va con lui. Un errore nel pannello aperto ha
    `role="alert"` sul suo paragrafo, separato dal testo che non è un avviso.

@@ -261,7 +261,7 @@ export default async function RootLayout({
 	// `.dark` e l'attributo `lang`, e questo è l'unico punto in cui si decidono
 	// prima che il browser abbia dipinto o che uno screen reader abbia scelto la
 	// voce con cui leggere la pagina.
-	const { locale, t } = await getI18n();
+	const { locale, t, currency } = await getI18n();
 	const { choice, resolved } = await resolveServerTheme();
 
 	return (
@@ -326,7 +326,7 @@ export default async function RootLayout({
 					cacheOnNavigation={false}
 					reloadOnOnline={false}
 				>
-					<I18nProvider locale={locale} dictionary={t}>
+					<I18nProvider locale={locale} dictionary={t} currency={currency}>
 						<ThemeProvider initialChoice={choice} initialResolved={resolved}>
 							{children}
 						</ThemeProvider>

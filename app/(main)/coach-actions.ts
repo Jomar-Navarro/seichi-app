@@ -3,7 +3,6 @@
 import { requireUser } from "@/lib/auth";
 import { genericError } from "@/lib/errors";
 import { localMidnightInstant, monthBoundsOf } from "@/lib/dates";
-import { DISPLAY_CURRENCY } from "@/lib/i18n/format";
 import { disponibileDaTotali, flussoDaTotali } from "@/lib/totals";
 import { getBudgetOverview } from "./budget-actions";
 import { getGoals } from "./risparmi/actions";
@@ -36,7 +35,7 @@ import type { CoachSnapshot } from "@/types";
 export async function getCoachSnapshot(
 	clock: ClientClock,
 ): Promise<{ data: CoachSnapshot } | { error: string }> {
-	const { supabase, user, t } = await requireUser();
+	const { supabase, user, t, currency } = await requireUser();
 	if (!user) return { error: t.errors.notAuthenticated };
 
 	const { start, end } = monthBoundsOf(clock.today);
@@ -95,7 +94,7 @@ export async function getCoachSnapshot(
 
 	return {
 		data: {
-			currency: DISPLAY_CURRENCY,
+			currency,
 			month: {
 				income,
 				variableExpenses,

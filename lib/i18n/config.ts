@@ -157,3 +157,34 @@ export const LOCALE_COOKIE_OPTIONS = {
 	// diversi a seconda di chi lo aveva scritto per ultimo.
 	secure: process.env.NODE_ENV === "production",
 } as const;
+
+/* ---------------------------------------------------------------- valuta --- */
+
+/**
+ * La valuta dell'utente per il RENDERING (#171): un cookie, come la lingua, e
+ * per la stessa ragione. `profiles.currency` resta la persistenza fra
+ * dispositivi; leggerla a ogni pagina sarebbe una query su ogni render, root
+ * layout compreso, per un valore che cambia forse una volta nella vita di un
+ * account.
+ *
+ * La scrivono le action che salvano la preferenza (`savePreferences`,
+ * `updatePreferences`), il login (`syncPreferencesFromProfile`, in
+ * `lib/i18n/server.ts`) e, dove manca a un utente autenticato, il proxy
+ * (`lib/supabase/proxy.ts`), che la ricava dal profilo una volta sola.
+ *
+ * ⚠️ Come la lingua, è una fotografia per dispositivo: cambiata la valuta sul
+ * telefono, il computer mostra la vecchia fino al prossimo accesso. È la stessa
+ * concessione della lingua, e vale per lo stesso motivo.
+ */
+export const CURRENCY_COOKIE = "seichi-currency";
+
+/**
+ * La valuta dove il cookie non c'è e il profilo non può dirla: le pagine prima
+ * dell'accesso e l'onboarding prima della scelta, dove nessun importo dell'utente
+ * è ancora a schermo. Non è la valuta di nessuno: un utente autenticato senza
+ * cookie lo riceve dal proxy prima del render.
+ */
+export const FALLBACK_CURRENCY: Currency = "EUR";
+
+/** Gli stessi attributi del cookie della lingua: niente da proteggere, un anno. */
+export const CURRENCY_COOKIE_OPTIONS = LOCALE_COOKIE_OPTIONS;

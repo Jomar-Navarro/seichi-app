@@ -11,8 +11,9 @@ import TransactionForm, {
 } from "./TransactionForm";
 import { useI18n } from "@/components/features/I18nProvider";
 import { useDialog } from "./useDialog";
-import { DISPLAY_CURRENCY, currencySymbol, formatMoney } from "@/lib/i18n/format";
+import { currencyDecimals, currencySymbol, formatMoney } from "@/lib/i18n/format";
 import {
+	amountErrorMessage,
 	applyAmountKey,
 	decimalSeparator,
 	formatAmountInput,
@@ -57,7 +58,7 @@ function TransactionModalContent() {
 		setTransactionType,
 		notifyTransactionSaved,
 	} = useUIStore();
-	const { t, locale } = useI18n();
+	const { t, locale, currency } = useI18n();
 
 	/*
 	 * ⚠️ Terzo passo, non due — issue #86. Importo e tastierino stavano IN
@@ -122,9 +123,9 @@ function TransactionModalContent() {
 	 * lo porta scritto così. Prima era una virgola per tutti.
 	 */
 	const AMOUNT_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "sep", "0", "⌫"];
-	// `useCallback` con la sola lingua fra le dipendenze (usa l'updater
-	// funzionale di `setAmount`, mai `amount` per chiusura, e la lingua non
-	// cambia a modale aperto): serve un riferimento STABILE
+	// `useCallback` con lingua e valuta fra le dipendenze (usa l'updater
+	// funzionale di `setAmount`, mai `amount` per chiusura, e nessuna delle
+	// due cambia a modale aperto): serve un riferimento STABILE
 	// perché anche la tastiera fisica, qui sotto, lo richiama da un
 	// `useEffect` — con una funzione ricreata a ogni render quell'effetto
 	// dovrebbe riattaccarsi ogni volta, o il lint (`exhaustive-deps`) lo
@@ -136,11 +137,19 @@ function TransactionModalContent() {
 	// "100000000" ne superava la precisione e il salvataggio falliva senza dirlo.
 	// Ora la terza cifra decimale e la nona intera semplicemente non entrano.
 	const handleAmountKey = useCallback(
-		(key: string) => setAmount((prev) => applyAmountKey(prev, key, locale)),
-		[locale],
+		(key: string) => setAmount((prev) => applyAmountKey(prev, key, locale, currency)),
+		[locale, currency],
 	);
-	const parsedAmount = parseAmountInput(amount, locale);
+	const parsedAmount = parseAmountInput(amount, locale, currency);
 	const amountValid = parsedAmount.status === "ok" && parsedAmount.value > 0;
+	/*
+	 * Un importo che il tastierino non può produrre, ma che può ARRIVARE (#171,
+	 * review): un movimento salvato con i centesimi e aperto in modifica dopo il
+	 * passaggio allo yen. «Continua» resta spento — salvarlo arrotondato sarebbe
+	 * il terzo numero plausibile — e questa riga dice perché, e cosa fare:
+	 * cancellare i decimali col tasto ⌫.
+	 */
+	const amountProblem = amountErrorMessage(parsedAmount, t, locale, currency);
 	/*
 	 * La cifra si rimpicciolisce con la lunghezza. Con il tetto di
 	 * `DECIMAL(10,2)` "99999999,99" è un importo valido e raggiungibile, e a
@@ -512,9 +521,14 @@ function TransactionModalContent() {
 						<div className="flex flex-col items-center justify-center min-h-0" style={{ flex: 4 }}>
 							<p className="text-muted text-base mb-2">{t.transactions.form.amount}</p>
 							<div className={`${amountSize} font-bold tracking-tight whitespace-nowrap`}>
-								<span className="text-4xl mr-1">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
+								<span className="text-4xl mr-1">{currencySymbol(currency, locale)}</span>
 								{amount || "0"}
 							</div>
+							{amountProblem && (
+								<p role="alert" className="mt-2 px-4 text-center text-[13px] leading-snug text-aka-ink">
+									{amountProblem}
+								</p>
+							)}
 						</div>
 
 						{/*
@@ -541,7 +555,7 @@ function TransactionModalContent() {
 									// sempre 5 voci, una riga sola.
 									className="px-1 py-3 rounded-full text-sm font-semibold card-shadow-ring"
 								>
-									{formatMoney(v, { locale, currency: DISPLAY_CURRENCY })}
+									{formatMoney(v, { locale, currency })}
 								</button>
 							))}
 						</div>
@@ -557,19 +571,26 @@ function TransactionModalContent() {
 							className="grid grid-cols-3 gap-2.5 min-h-0"
 							style={{ flex: 6, gridTemplateRows: "repeat(4, minmax(0, 1fr))" }}
 						>
-							{AMOUNT_KEYS.map((key, i) => (
-								<button
-									key={i}
-									type="button"
-									onPointerDown={(e) => {
-										e.preventDefault();
-										handleAmountKey(key);
-									}}
-									className="flex items-center justify-center rounded-2xl bg-card ring-border text-2xl font-medium"
-								>
-									{key === "⌫" ? <Delete size={20} /> : key === "sep" ? decimalSeparator(locale) : key}
-								</button>
-							))}
+							{AMOUNT_KEYS.map((key, i) =>
+								// Una valuta senza decimali (lo yen) non ha un separatore da
+								// scrivere (#171): al suo posto una casella vuota, così la
+								// griglia resta 3×4 e lo zero resta sotto l'8.
+								key === "sep" && currencyDecimals(currency) === 0 ? (
+									<span key={i} aria-hidden="true" />
+								) : (
+									<button
+										key={i}
+										type="button"
+										onPointerDown={(e) => {
+											e.preventDefault();
+											handleAmountKey(key);
+										}}
+										className="flex items-center justify-center rounded-2xl bg-card ring-border text-2xl font-medium"
+									>
+										{key === "⌫" ? <Delete size={20} /> : key === "sep" ? decimalSeparator(locale) : key}
+									</button>
+								),
+							)}
 						</div>
 
 						{/*

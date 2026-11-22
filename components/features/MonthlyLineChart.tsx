@@ -9,6 +9,7 @@ import {
 	ResponsiveContainer,
 } from "recharts";
 import { useI18n } from "./I18nProvider";
+import { formatMoney } from "@/lib/i18n/format";
 
 interface MonthlyLineChartProps {
 	trend: { mese: string; entrate: number; uscite: number }[];
@@ -44,7 +45,7 @@ interface MonthlyLineChartProps {
 }
 
 export default function MonthlyLineChart({ trend, animated = true, inCard = false }: MonthlyLineChartProps) {
-	const { t } = useI18n();
+	const { t, locale, currency } = useI18n();
 	const id = useId();
 	const gradE = `gradientEntrate-${id}`;
 	const gradU = `gradientUscite-${id}`;
@@ -136,7 +137,9 @@ export default function MonthlyLineChart({ trend, animated = true, inCard = fals
 							fontSize: 12,
 							color: "var(--text-primary)",
 						}}
-						formatter={(value) => [`€ ${Number(value).toFixed(2)}`, ""]}
+						// Era `€ ${toFixed(2)}`: il simbolo cablato e il punto decimale
+						// anche in italiano. Ora è la cifra di ogni altra schermata (#171).
+						formatter={(value) => [formatMoney(Number(value), { locale, currency, decimals: 2 }), ""]}
 					/>
 					<Area
 						type="monotone"

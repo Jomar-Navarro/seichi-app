@@ -10,6 +10,8 @@ import {
 	plural,
 	relativePastLabel,
 	splitAmount,
+	currencyDecimals,
+	currencySymbol,
 	weekdayInitials,
 } from "./format";
 
@@ -53,7 +55,45 @@ describe("formatMoney e splitAmount", () => {
 		[12345.5, "it", { sign: "", integer: "12.345", decimal: ",50" }],
 		[-12.5, "it", { sign: "−", integer: "12", decimal: ",50" }],
 	] as const)("%d (%s)", (value, locale, parts) => {
-		expect(splitAmount(value, locale)).toEqual(parts);
+		expect(splitAmount(value, { locale, currency: "EUR" })).toEqual(parts);
+	});
+});
+
+/*
+ * #171 — la valuta del profilo arriva a ogni cifra. Due difetti possibili, e
+ * le due prove: il simbolo (in `it-IT` il `symbol` di default del dollaro è
+ * «USD», in `en-GB` «US$») e i decimali (lo yen non ne ha).
+ */
+describe("formatMoney nelle valute del profilo (#171)", () => {
+	it.each([
+		["USD", "it", "$ 12.345,50"],
+		["USD", "en", "$ 12,345.50"],
+		["GBP", "it", "£ 12.345,50"],
+		["CHF", "it", "CHF 12.345,50"],
+		["JPY", "it", "¥ 12.346"],
+		["JPY", "en", "¥ 12,346"],
+		// Il gemello: l'euro resta com'era.
+		["EUR", "it", "€ 12.345,50"],
+	] as const)("%s (%s) → %j", (currency, locale, text) => {
+		expect(formatMoney(12345.5, { locale, currency, decimals: 2 })).toBe(text);
+	});
+
+	it("i decimali sono quelli della valuta", () => {
+		expect(currencyDecimals("EUR")).toBe(2);
+		expect(currencyDecimals("USD")).toBe(2);
+		expect(currencyDecimals("CHF")).toBe(2);
+		expect(currencyDecimals("JPY")).toBe(0);
+	});
+
+	it("splitAmount in yen non ha parte decimale", () => {
+		expect(splitAmount(12345.5, { locale: "it", currency: "JPY" })).toEqual({ sign: "", integer: "12.346", decimal: "" });
+		expect(splitAmount(-12, { locale: "en", currency: "JPY" })).toEqual({ sign: "−", integer: "12", decimal: "" });
+	});
+
+	it("il simbolo da solo, per i campi", () => {
+		expect(currencySymbol("USD", "it")).toBe("$");
+		expect(currencySymbol("JPY", "en")).toBe("¥");
+		expect(currencySymbol("EUR", "en")).toBe("€");
 	});
 });
 

@@ -1,7 +1,7 @@
 import { ElementType } from "react";
 import Sparkline from "@/components/UI/Sparkline";
 import { getI18n } from "@/lib/i18n/server";
-import { DISPLAY_CURRENCY, currencySymbol, splitAmount } from "@/lib/i18n/format";
+import { currencySymbol, splitAmount } from "@/lib/i18n/format";
 
 /**
  * ⚠️ RESTA UN SERVER COMPONENT, e non è un dettaglio.
@@ -60,7 +60,7 @@ function CircularProgress({ progress, color }: { progress: number; color: string
 }
 
 export default async function SummaryCard({ label, amount, icon, color, trend, progress }: SummaryCardProps) {
-	const { locale } = await getI18n();
+	const { locale, currency } = await getI18n();
 	const Icon = icon;
 	/*
 	 * ⚠️ L'importo passa da `splitAmount` e non più da `formatMoney` in un pezzo
@@ -71,7 +71,7 @@ export default async function SummaryCard({ label, amount, icon, color, trend, p
 	 * questa card somma: `splitAmount` scrive l'eventuale meno tipografico (U+2212),
 	 * `formatMoney` il trattino.
 	 */
-	const { sign, integer, decimal } = splitAmount(amount, locale);
+	const { sign, integer, decimal } = splitAmount(amount, { locale, currency });
 	return (
 		/*
 			⚠️ TRE livelli — issue #81 (i quadrati di Firefox). `overflow-hidden`
@@ -102,7 +102,7 @@ export default async function SummaryCard({ label, amount, icon, color, trend, p
 				</div>
 				<div>
 					<p className="text-lg font-bold tracking-tight lg:text-[21px] lg:font-semibold lg:tracking-[-0.3px] lg:leading-[1.2]">
-						{currencySymbol(DISPLAY_CURRENCY, locale)} {sign}{integer}
+						{currencySymbol(currency, locale)} {sign}{integer}
 						<span className="lg:text-sm lg:font-medium lg:text-muted">{decimal}</span>
 					</p>
 					<p className="text-xs text-muted mt-0.5 lg:mt-1.25">{label}</p>

@@ -1,5 +1,4 @@
 import {
-	DISPLAY_CURRENCY,
 	capitalize,
 	formatDate as formatDateIntl,
 	formatMoney,
@@ -238,10 +237,10 @@ export function amountSign(
  * dedurlo richiede di sapere quale conto si sta guardando — un'informazione che
  * appartiene alla schermata, non al formattatore.
  */
-export function formatAmount(amount: number, sign: AmountSign, locale: Locale): string {
+export function formatAmount(amount: number, sign: AmountSign, locale: Locale, currency: string): string {
 	const money = formatMoney(Math.abs(amount), {
 		locale,
-		currency: DISPLAY_CURRENCY,
+		currency,
 		decimals: 2,
 	});
 	return sign ? `${sign} ${money}` : money;

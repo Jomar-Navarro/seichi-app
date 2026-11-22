@@ -81,7 +81,7 @@ describe("i contenuti (#162)", () => {
 });
 
 describe("LEGGIMI.txt (#162)", () => {
-	const base = { now: NOW, avatarFile: null, avatar: "none" as const, missingReceipts: [] };
+	const base = { now: NOW, avatarFile: null, avatar: "none" as const, missingReceipts: [], currency: "EUR" };
 
 	it("BOM, a capo di Windows, ogni tabella nominata", () => {
 		const text = archiveReadme(itDict, "it", base);
@@ -118,6 +118,15 @@ describe("LEGGIMI.txt (#162)", () => {
 		expect(text).toContain("Cosa manca");
 		expect(text).toContain("La foto profilo non si è potuta scaricare");
 		expect(text).not.toContain("ricevuta non si è");
+	});
+
+	// #171: «la valuta è quella del profilo» mandava a cercarla in profile.json.
+	it("la valuta si dice per nome; senza profilo la riga tace", () => {
+		expect(archiveReadme(itDict, "it", { ...base, currency: "USD" })).toContain("Gli importi sono in USD, la valuta del profilo.");
+		expect(archiveReadme(en, "en", { ...base, currency: "JPY" })).toContain("Amounts are in JPY");
+		const none = archiveReadme(itDict, "it", { ...base, currency: null });
+		expect(none).not.toContain("Gli importi sono in");
+		expect(none).toContain("Gli importi sono sempre positivi");
 	});
 
 	it("la foto inclusa compare fra i file", () => {

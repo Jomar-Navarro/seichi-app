@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useMemo } from "react";
-import type { Locale } from "@/lib/i18n/config";
+import type { Currency, Locale } from "@/lib/i18n/config";
 // Import di SOLO TIPO: viene cancellato in compilazione, quindi `it.ts` non entra
 // nel bundle del browser. Le parole arrivano come prop, non come modulo.
 import type { Dictionary } from "@/lib/i18n/dictionaries/it";
@@ -10,6 +10,12 @@ interface I18nContextValue {
 	locale: Locale;
 	/** Il dizionario stesso: si scrive `t.nav.home`. */
 	t: Dictionary;
+	/**
+	 * La valuta dell'utente (#171), dal cookie che legge il root layout. Sta
+	 * qui accanto alla lingua perché viaggia come lei, e perché ogni
+	 * componente che formatta denaro chiede già `locale` a questo contesto.
+	 */
+	currency: Currency;
 }
 
 const I18nContext = createContext<I18nContextValue | null>(null);
@@ -40,6 +46,7 @@ interface I18nProviderProps {
 	 * In cambio, nel bundle JS viaggia UNA lingua sola: quella in uso.
 	 */
 	dictionary: Dictionary;
+	currency: Currency;
 	children: React.ReactNode;
 }
 
@@ -56,8 +63,8 @@ interface I18nProviderProps {
  * che scrive `profiles.language` E il cookie, e il `router.refresh()` che segue
  * riporta giù le parole nuove.
  */
-export default function I18nProvider({ locale, dictionary, children }: I18nProviderProps) {
-	const value = useMemo(() => ({ locale, t: dictionary }), [locale, dictionary]);
+export default function I18nProvider({ locale, dictionary, currency, children }: I18nProviderProps) {
+	const value = useMemo(() => ({ locale, t: dictionary, currency }), [locale, dictionary, currency]);
 
 	return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }

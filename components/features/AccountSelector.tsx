@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, Check, ArrowRight } from "lucide-react";
 import { useI18n } from "@/components/features/I18nProvider";
 import { useDismissLayer } from "@/components/UI/useDialog";
-import { DISPLAY_CURRENCY, formatMoney, plural } from "@/lib/i18n/format";
+import { formatMoney, plural } from "@/lib/i18n/format";
 import { accountTypeLabel, rememberAccount } from "@/lib/accounts";
 import type { AccountWithBalance } from "@/types";
 
@@ -204,6 +204,7 @@ function AccountRow({
 	onClick: () => void;
 	locale: Parameters<typeof formatMoney>[1]["locale"];
 }) {
+	const { currency } = useI18n();
 	return (
 		<button
 			onClick={onClick}
@@ -217,7 +218,7 @@ function AccountRow({
 				<span className="block text-[11px] text-muted">{sublabel}</span>
 			</span>
 			<span className="text-sm font-semibold text-foreground shrink-0">
-				{formatMoney(amount, { locale, currency: DISPLAY_CURRENCY, decimals: 2 })}
+				{formatMoney(amount, { locale, currency, decimals: 2 })}
 			</span>
 		</button>
 	);

@@ -5,7 +5,6 @@ import { ICON_MAP } from "@/lib/icon-map";
 import { INVESTMENT_TYPE_FALLBACK } from "@/lib/investment-types";
 import { useI18n } from "./I18nProvider";
 import {
-	DISPLAY_CURRENCY,
 	currencySymbol,
 	fill,
 	formatMoney,
@@ -69,10 +68,10 @@ export default function InvestimentiTab({
 }: {
 	data: InvestmentData | null;
 }) {
-	const { locale, t } = useI18n();
+	const { locale, t, currency } = useI18n();
 	/** Importi con i decimali, nel formato del locale. */
 	const money = (v: number) =>
-		formatMoney(v, { locale, currency: DISPLAY_CURRENCY, decimals: 2 });
+		formatMoney(v, { locale, currency, decimals: 2 });
 	// Prima del return anticipato: le regole degli Hook vietano di chiamarlo
 	// solo quando ci sono posizioni.
 	const { style: tooltipStyle, pieHandlers } = useDonutTooltipPosition();
@@ -85,7 +84,7 @@ export default function InvestimentiTab({
 	 * di `/conti`: stesso `splitAmount`, quindi lo stesso meno tipografico e la
 	 * stessa parte decimale in ogni lingua. Su mobile resta `money(total)`.
 	 */
-	const { sign, integer, decimal } = splitAmount(total, locale);
+	const { sign, integer, decimal } = splitAmount(total, { locale, currency });
 
 	const items = positions.map((pos, i) => {
 		const typeKey = (pos.investment_type ??
@@ -171,7 +170,7 @@ export default function InvestimentiTab({
 					</p>
 					{/* lg: 46px con i decimali a 28px attenuati, come il saldo di `/conti`. */}
 					<p className="hidden lg:flex items-baseline gap-0.5 mt-2.5 font-semibold tracking-tight leading-[1.1] text-foreground">
-						<span className="text-[28px] mr-1">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
+						<span className="text-[28px] mr-1">{currencySymbol(currency, locale)}</span>
 						<span className="text-[46px]">{sign}{integer}</span>
 						<span className="text-[28px] font-medium text-muted">{decimal}</span>
 					</p>

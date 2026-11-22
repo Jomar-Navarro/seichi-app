@@ -157,8 +157,10 @@ export async function requireUser() {
 	// internamente e lo buttava via, quindi chi deve formattare un numero, una
 	// data o un plurale (`plural()`, `formatMoney()`) era costretto a una seconda
 	// chiamata a `getI18n()` per un valore che era già stato risolto.
-	const [user, { locale, t }] = await Promise.all([getSessionUser(), getI18n()]);
-	return { supabase, user, t, locale };
+	// E la `currency` (#171), per lo stesso motivo: chi formatta un importo o
+	// ne controlla i decimali la trova qui.
+	const [user, { locale, t, currency }] = await Promise.all([getSessionUser(), getI18n()]);
+	return { supabase, user, t, locale, currency };
 }
 
 /**

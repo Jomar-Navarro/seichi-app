@@ -95,12 +95,12 @@ export async function saveTransaction(
 	conto_id: string,
 	a_conto_id: string | null = null,
 ) {
-	const { supabase, user, t } = await requireUser();
+	const { supabase, user, t, currency } = await requireUser();
 
 	if (!user) return { error: t.errors.notAuthenticated };
 	// Un importo che `DECIMAL(10,2)` non scrive così com'è: i campi lo fermano
 	// prima (issue #119), questa è la stessa regola per una POST diretta.
-	if (!isStorableAmount(importo)) return { error: t.errors.amountInvalid };
+	if (!isStorableAmount(importo, currency)) return { error: t.errors.amountInvalid };
 	// La descrizione entro il limite della colonna, contata come la conta
 	// Postgres (#220): i campi si fermano prima, questa è la regola per una POST.
 	if (!isStorableNotes(nota)) return { error: fill(t.errors.notesTooLong, { max: NOTES_MAX }) };
@@ -326,10 +326,10 @@ export async function updateTransaction(
 	conto_id: string,
 	a_conto_id: string | null = null,
 ) {
-	const { supabase, user, t } = await requireUser();
+	const { supabase, user, t, currency } = await requireUser();
 
 	if (!user) return { error: t.errors.notAuthenticated };
-	if (!isStorableAmount(importo)) return { error: t.errors.amountInvalid };
+	if (!isStorableAmount(importo, currency)) return { error: t.errors.amountInvalid };
 	// La descrizione entro il limite della colonna, contata come la conta
 	// Postgres (#220): i campi si fermano prima, questa è la regola per una POST.
 	if (!isStorableNotes(nota)) return { error: fill(t.errors.notesTooLong, { max: NOTES_MAX }) };
@@ -414,10 +414,10 @@ export async function createRecurringRule(
 	frequency: string,
 	conto_id: string,
 ) {
-	const { supabase, user, t } = await requireUser();
+	const { supabase, user, t, currency } = await requireUser();
 
 	if (!user) return { error: t.errors.notAuthenticated };
-	if (!isStorableAmount(importo)) return { error: t.errors.amountInvalid };
+	if (!isStorableAmount(importo, currency)) return { error: t.errors.amountInvalid };
 	// La stessa regola del CHECK, con una frase invece della violazione (#122).
 	if (!canRepeat(tipo)) return { error: t.errors.invalidType };
 	// La descrizione entro il limite della colonna, contata come la conta
@@ -522,10 +522,10 @@ export async function updateRecurringRule(
 	next_run: string, // YYYY-MM-DD
 	conto_id: string,
 ) {
-	const { supabase, user, t } = await requireUser();
+	const { supabase, user, t, currency } = await requireUser();
 
 	if (!user) return { error: t.errors.notAuthenticated };
-	if (!isStorableAmount(importo)) return { error: t.errors.amountInvalid };
+	if (!isStorableAmount(importo, currency)) return { error: t.errors.amountInvalid };
 	// La descrizione entro il limite della colonna, contata come la conta
 	// Postgres (#220): i campi si fermano prima, questa è la regola per una POST.
 	if (!isStorableNotes(nota)) return { error: fill(t.errors.notesTooLong, { max: NOTES_MAX }) };

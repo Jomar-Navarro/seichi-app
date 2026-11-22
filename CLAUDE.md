@@ -106,16 +106,20 @@ perché. Le regole di dettaglio sono nei file di `.claude/rules/`.
 1. **Denaro**: `numeric(10,2)` nel database, mai float; a schermo solo tramite
    `lib/i18n/format.ts` (`formatMoney`); importi scritti a mano solo tramite
    `lib/amount.ts`, e `isStorableAmount()` nelle action.
-2. **Un numero mostrato in due posti viene dalla stessa funzione**
+2. **La valuta è quella del profilo, per tutto l'account, e Seichi non
+   converte** (#171): cambiarla cambia il simbolo, non i numeri. Arriva da
+   `useI18n()`, `getI18n()` o `requireUser()` (un cookie, come la lingua),
+   e decide anche i decimali: lo yen non ne ha. Storia: `issue-171-valuta`.
+3. **Un numero mostrato in due posti viene dalla stessa funzione**
    (`lib/totals.ts`, `sommaUscite()`). Due schermate non possono rispondere
    diversamente alla stessa domanda; una differenza di ambito è ammessa solo se
    la pagina la dichiara («su tutti i conti»).
-3. **Nessun totale memorizzato** (speso, saldo, risparmiato, conteggi): si
+4. **Nessun totale memorizzato** (speso, saldo, risparmiato, conteggi): si
    calcolano alla lettura, o divergono al primo punto di scrittura dimenticato.
-4. **Una lettura che può superare 1000 righe passa da `readAll()`**
+5. **Una lettura che può superare 1000 righe passa da `readAll()`**
    (`lib/read-all.ts`), ordinata su una chiave univoca: PostgREST tronca in
    silenzio a 1000, e una paginazione senza ordine totale perde righe.
-5. **L'oggi lo dice il client.** Il server è in UTC: data e fuso arrivano dal
+6. **L'oggi lo dice il client.** Il server è in UTC: data e fuso arrivano dal
    browser (`ClientClock`, `todayLocalISO()`), e i confronti con
    `transactions.date` passano da `dbInstant()`.
 
@@ -372,7 +376,7 @@ Flow»: quei titoli sono rimasti identici nei file, quindi li trovi con
 | ricevute, avatar, Storage | `fase-22-ricevute`, `issue-120-ricevute-orfane`, `fase-16-storage` |
 | coach | `fase-24a-disponibile`, `fase-24b-coach`, `fase-24c-chat-progetto` |
 | tema, stili, accessibilità | `fase-18-tema`, `issue-081-firefox-bordi`, `issue-126-contrasto`, `issue-153-movimento-ridotto`, `issue-165-dialog`, `issue-214-indietro` |
-| lingua | `fase-19-lingua` |
+| lingua e valuta | `fase-19-lingua`, `issue-171-valuta` |
 | accesso, onboarding, sessione | `auth-flusso`, `costo-richieste-supabase` |
 | errori e letture fallite | `issue-124-errori` |
 | PWA, avvio, splash | `fase-25-pwa`, `issue-127-pwa-audit`, `splash-avvio` |

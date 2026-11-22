@@ -8,9 +8,9 @@ import { announce } from "@/components/UI/Announcer";
 import { GOAL_ICONS } from "@/lib/goal-icons";
 import { createGoal, updateGoal, deleteGoal, getGoalDeletionImpact } from "@/app/(main)/risparmi/actions";
 import { useI18n } from "./I18nProvider";
-import { DISPLAY_CURRENCY, currencySymbol, fill, formatMoney, plural } from "@/lib/i18n/format";
+import { currencySymbol, fill, formatMoney, plural } from "@/lib/i18n/format";
 import DatePicker from "@/components/UI/DatePicker";
-import { amountErrorMessage, formatAmountInput, parseAmountInput } from "@/lib/amount";
+import { amountErrorMessage, formatAmountInput, parseAmountInput, amountInputMode } from "@/lib/amount";
 import type { GoalWithProgress } from "@/types";
 import { useUIStore } from "@/store/useUIStore";
 
@@ -48,7 +48,7 @@ const EMPTY_FORM: FormState = {
 };
 
 export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
-	const { locale, t } = useI18n();
+	const { locale, t, currency } = useI18n();
 	const titleId = useId();
 	const router = useRouter();
 	const notifyTransactionSaved = useUIStore((s) => s.notifyTransactionSaved);
@@ -82,12 +82,12 @@ export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 	 * (issue #119). Ora il vuoto resta "nessun traguardo" — il campo è
 	 * facoltativo — e un testo illeggibile è un errore che ferma il salvataggio.
 	 */
-	const parsedTarget = parseAmountInput(form.targetAmount, locale);
+	const parsedTarget = parseAmountInput(form.targetAmount, locale, currency);
 	const targetInvalid =
 		parsedTarget.status !== "empty" &&
 		(parsedTarget.status !== "ok" || parsedTarget.value <= 0);
 	const amountError = submitted && targetInvalid;
-	const amountErrorText = amountErrorMessage(parsedTarget, t, locale) ?? t.goals.amountInvalid;
+	const amountErrorText = amountErrorMessage(parsedTarget, t, locale, currency) ?? t.goals.amountInvalid;
 
 	async function handleSubmit() {
 		setSubmitted(true);
@@ -199,10 +199,10 @@ export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 							className={`flex items-center gap-2 rounded-[18px] px-4 py-3.5 bg-input ${amountError ? "" : "ring-border"}`}
 							style={amountError ? { boxShadow: "var(--color-aka) 0px 0px 0px 1px inset" } : undefined}
 						>
-							<span className="text-[14.5px] text-muted">{currencySymbol(DISPLAY_CURRENCY, locale)}</span>
+							<span className="text-[14.5px] text-muted">{currencySymbol(currency, locale)}</span>
 							<input
 								type="text"
-								inputMode="decimal"
+								inputMode={amountInputMode(currency)}
 								placeholder="0"
 								value={form.targetAmount}
 								aria-invalid={amountError || undefined}
@@ -296,7 +296,7 @@ export default function GoalSheet({ goal, onClose }: GoalSheetProps) {
 									{fill(plural(t.goals.deleteImpact, impact.deposits, locale), {
 										amount: formatMoney(goal.saved_amount, {
 											locale,
-											currency: DISPLAY_CURRENCY,
+											currency,
 											decimals: 2,
 										}),
 									})}

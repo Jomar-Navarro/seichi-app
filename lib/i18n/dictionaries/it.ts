@@ -112,6 +112,8 @@ export const it = {
 	amountInput: {
 		invalid: "Importo non leggibile: scrivi solo cifre, per esempio {example}",
 		decimals: "Al massimo due cifre decimali",
+		/** Una valuta senza unità minori, lo yen (#171). */
+		noDecimals: "Questa valuta non ha decimali: scrivi un numero intero",
 		tooLarge: "L'importo massimo è {max}",
 	},
 
@@ -2069,6 +2071,17 @@ export const it = {
 		preferences: {
 			currency: "Valuta",
 			language: "Lingua",
+			/**
+			 * Sotto la riga della valuta (#171). Seichi non converte: cambiare
+			 * valuta cambia il simbolo accanto agli stessi numeri, e chi la cambia
+			 * deve saperlo prima, non scoprirlo davanti al saldo.
+			 */
+			currencyHint: "Cambia solo il simbolo: gli importi restano quelli che hai scritto, senza conversione.",
+			/**
+			 * In coda all'avviso, per una valuta senza decimali (lo yen): lì la
+			 * frase sopra da sola non è vera a schermo, dove 12,50 si legge 13.
+			 */
+			currencyHintNoDecimals: "Questa valuta non ha decimali: gli importi con i centesimi si vedono arrotondati, e per modificarli vanno tolti.",
 		},
 		/**
 		 * Nomi delle valute. Il CODICE ISO non si traduce, il nome sì:
@@ -2418,7 +2431,9 @@ export const it = {
 				notesHeading: "Come leggere i numeri",
 				notes: {
 					amounts:
-						"Gli importi sono sempre positivi: la direzione la dice il campo «type» (spesa, entrata, trasferimento…). La valuta è quella del profilo.",
+						"Gli importi sono sempre positivi: la direzione la dice il campo «type» (spesa, entrata, trasferimento…).",
+					/** La valuta per nome (#171): «quella del profilo» mandava a cercarla. */
+					currency: "Gli importi sono in {currency}, la valuta del profilo. Seichi non converte fra valute.",
 					dates:
 						"La data dei movimenti (date) è scritta senza fuso orario, così com'è salvata: va letta com'è. I campi created_at sono in UTC.",
 					balance:

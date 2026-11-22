@@ -118,7 +118,7 @@ export default function TransactionForm({
 	createdId,
 	onWrite,
 }: TransactionFormProps) {
-	const { t, locale } = useI18n();
+	const { t, locale, currency } = useI18n();
 	const isEditing = !!transaction;
 	/*
 	 * Il movimento ESISTE: aperto in modifica, oppure creato da questo modale e
@@ -369,7 +369,7 @@ export default function TransactionForm({
 	// `transactions_dest_distinct_check`.
 	// L'importo arriva dal tastierino, già vincolato a due decimali e a
 	// `DECIMAL(10,2)`: lo si legge con lo stesso parser dei fogli (issue #119).
-	const parsedAmount = parseAmountInput(amount, locale);
+	const parsedAmount = parseAmountInput(amount, locale, currency);
 	const isValid =
 		parsedAmount.status === "ok" &&
 		parsedAmount.value > 0 &&

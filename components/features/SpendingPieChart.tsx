@@ -1,7 +1,7 @@
 "use client";
 import { PieChart, Pie, Tooltip, ResponsiveContainer } from "recharts";
 import { useI18n } from "./I18nProvider";
-import { DISPLAY_CURRENCY, fill, formatMoney } from "@/lib/i18n/format";
+import { fill, formatMoney } from "@/lib/i18n/format";
 import { useDonutTooltipPosition } from "@/components/UI/useDonutTooltipPosition";
 
 interface SpendingPieChartProps {
@@ -62,10 +62,10 @@ export default function SpendingPieChart({
 	animated = true,
 	inCard = false,
 }: SpendingPieChartProps) {
-	const { locale, t } = useI18n();
+	const { locale, t, currency } = useI18n();
 	/** Importi con i decimali, nel formato del locale. */
 	const money = (v: number) =>
-		formatMoney(v, { locale, currency: DISPLAY_CURRENCY, decimals: 2 });
+		formatMoney(v, { locale, currency, decimals: 2 });
 	const { style: tooltipStyle, pieHandlers } = useDonutTooltipPosition();
 
 	/*

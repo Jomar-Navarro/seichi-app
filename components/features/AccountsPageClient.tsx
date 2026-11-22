@@ -9,7 +9,6 @@ import { announce } from "@/components/UI/Announcer";
 import DashedAddButton from "@/components/UI/DashedAddButton";
 import { useI18n } from "./I18nProvider";
 import {
-	DISPLAY_CURRENCY,
 	currencySymbol,
 	formatMoney,
 	plural,
@@ -39,7 +38,7 @@ interface AccountsPageClientProps {
 const TRAY_WIDTH = 44 * 2 + 8 + 12 + 12;
 
 export default function AccountsPageClient({ accounts }: AccountsPageClientProps) {
-	const { locale, t } = useI18n();
+	const { locale, t, currency } = useI18n();
 	const router = useRouter();
 	const [sheetOpen, setSheetOpen] = useState(false);
 	const [editing, setEditing] = useState<AccountWithBalance | null>(null);
@@ -64,7 +63,7 @@ export default function AccountsPageClient({ accounts }: AccountsPageClientProps
 	 * peggio di un numero assente.
 	 */
 	const total = active.reduce((sum, a) => sum + a.balance, 0);
-	const { sign, integer, decimal } = splitAmount(total, locale);
+	const { sign, integer, decimal } = splitAmount(total, { locale, currency });
 
 	function openCreate() {
 		setEditing(null);
@@ -194,7 +193,7 @@ export default function AccountsPageClient({ accounts }: AccountsPageClientProps
 						*/}
 						<p className="font-semibold tracking-tight flex items-baseline gap-0.5">
 							<span className="text-2xl font-semibold mr-1 lg:text-[28px]">
-								{currencySymbol(DISPLAY_CURRENCY, locale)}
+								{currencySymbol(currency, locale)}
 							</span>
 							<span className="text-4xl lg:text-[46px]">{sign}{integer}</span>
 							<span className="text-2xl font-medium text-muted lg:text-[28px]">{decimal}</span>
@@ -371,7 +370,7 @@ function ActiveAccountRow({
 	onEdit: () => void;
 	onArchive: () => void;
 }) {
-	const { t } = useI18n();
+	const { t, currency } = useI18n();
 	const router = useRouter();
 	const Icon = (account.type && ACCOUNT_TYPE_ICON[account.type]) || ACCOUNT_ICON_FALLBACK;
 	const color = accountColor(account.type, account.color);
@@ -635,7 +634,7 @@ function ActiveAccountRow({
 					</span>
 
 					<span className="text-[14.5px] font-semibold text-foreground shrink-0 lg:text-[16px]">
-						{formatMoney(account.balance, { locale, currency: DISPLAY_CURRENCY, decimals: 2 })}
+						{formatMoney(account.balance, { locale, currency, decimals: 2 })}
 					</span>
 				</span>
 			</button>
@@ -671,7 +670,7 @@ function ArchivedAccountRow({
 	onCloseOthers: () => void;
 	action?: ReactNode;
 }) {
-	const { t } = useI18n();
+	const { t, currency } = useI18n();
 	const router = useRouter();
 	const Icon = (account.type && ACCOUNT_TYPE_ICON[account.type]) || ACCOUNT_ICON_FALLBACK;
 	const color = accountColor(account.type, account.color);
@@ -711,7 +710,7 @@ function ArchivedAccountRow({
 
 			<div className="flex flex-col items-end gap-1 shrink-0">
 				<span className="text-[14.5px] font-semibold text-foreground lg:text-[16px]">
-					{formatMoney(account.balance, { locale, currency: DISPLAY_CURRENCY, decimals: 2 })}
+					{formatMoney(account.balance, { locale, currency, decimals: 2 })}
 				</span>
 				{action}
 			</div>
