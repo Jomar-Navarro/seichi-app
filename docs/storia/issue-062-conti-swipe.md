@@ -110,6 +110,8 @@ provato (Playwright col mouse simula un click, non un trascinamento touch —
 la stessa ragione per cui la Fase 22 e la 23b avevano richiesto un
 dispositivo reale). Funziona.
 
+✅ **Ripreso e provato il 2026-11-22 dalla #175** (`tests/e2e/conti.spec.ts`), con controprova. Il testo qui sotto è com'era.
+
 ⚠️ **Il ramo "riattiva" non è stato verificato**: l'account di collaudo non
 aveva conti archiviati in questo giro. Resta dichiarato, non provato — vale
 la regola già scritta per la prova `b2` della Fase 22: *una prova che si

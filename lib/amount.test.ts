@@ -6,8 +6,10 @@ import {
 	applyAmountKey,
 	decimalSeparator,
 	formatAmountInput,
+	hasMinusSign,
 	isStorableAmount,
 	parseAmountInput,
+	toggleAmountSign,
 	type AmountInput,
 } from "./amount";
 import { it as itDict } from "./i18n/dictionaries/it";
@@ -250,5 +252,44 @@ describe("amountErrorMessage", () => {
 	it("tace su un importo leggibile o vuoto: lo zero e il vuoto li decide il campo", () => {
 		expect(amountErrorMessage(ok(12), itDict, "it")).toBeNull();
 		expect(amountErrorMessage(EMPTY, itDict, "it")).toBeNull();
+	});
+});
+
+describe("toggleAmountSign — il comando ± del saldo iniziale (#175)", () => {
+	it.each([
+		["120,50", "-120,50"],
+		["-120,50", "120,50"],
+		["−120,50", "120,50"], // il meno tipografico, incollato
+		["  -120,50", "120,50"],
+		["", "-"], // il segno prima delle cifre: poi si scrive il numero
+		["-", ""],
+	])("%j → %j", (raw, atteso) => {
+		expect(toggleAmountSign(raw)).toBe(atteso);
+	});
+
+	// Il punto della issue: il testo col segno messo dal comando si legge come
+	// −120,50, cioè ciò che il database deve ricevere.
+	it("il risultato si legge come importo negativo", () => {
+		const out = parseAmountInput(toggleAmountSign("120,50"), "it", { allowNegative: true });
+		expect(out).toEqual({ status: "ok", value: -120.5 });
+	});
+
+	// Il gemello: due tocchi tornano al positivo.
+	it("due tocchi tornano al valore di partenza", () => {
+		expect(toggleAmountSign(toggleAmountSign("120,50"))).toBe("120,50");
+	});
+
+	it("lo stesso trattino di formatAmountInput", () => {
+		expect(toggleAmountSign(formatAmountInput(120.5, "it"))).toBe(formatAmountInput(-120.5, "it"));
+	});
+
+	it.each([
+		["-3", true],
+		["−3", true],
+		[" -3", true],
+		["3", false],
+		["", false],
+	])("hasMinusSign(%j) → %s", (raw, atteso) => {
+		expect(hasMinusSign(raw)).toBe(atteso);
 	});
 });

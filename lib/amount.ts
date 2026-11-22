@@ -227,3 +227,25 @@ export function isStorableAmount(
 	const cents = value * 100;
 	return Math.abs(cents - Math.round(cents)) < 1e-6;
 }
+
+/**
+ * Il segno di un importo scritto, invertito (#175).
+ *
+ * Il tastierino decimale di iOS (`inputMode="decimal"`) non ha il meno: un
+ * conto in rosso — una carta di credito — non si apriva dal telefono. Il
+ * comando ± accanto al campo del saldo iniziale chiama questa funzione: toglie
+ * un segno davanti (il trattino o il meno tipografico, che `parseAmountInput`
+ * legge entrambi) o ne mette uno, e il resto del testo non lo tocca.
+ *
+ * Si scrive il trattino `-`, lo stesso di `formatAmountInput`: un saldo
+ * negativo aperto in modifica e uno scritto col ± si leggono uguali.
+ */
+export function toggleAmountSign(raw: string): string {
+	const s = raw.trimStart();
+	return /^[-−]/.test(s) ? s.slice(1).trimStart() : `-${s}`;
+}
+
+/** Il testo comincia con un segno meno (per lo stato del comando ±). */
+export function hasMinusSign(raw: string): boolean {
+	return /^\s*[-−]/.test(raw);
+}

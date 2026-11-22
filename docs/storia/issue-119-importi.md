@@ -53,7 +53,8 @@ la persona intendeva, o dice che non ci riesce.** Mai un terzo numero plausibile
 
 Residuo dichiarato, precedente: il tastierino decimale di iOS **non ha il segno
 meno**, quindi un saldo iniziale negativo non si scrive da iPhone — né prima
-con `type="number"`, né ora.
+con `type="number"`, né ora. ✅ **Chiuso dalla #175** (2026-11-22): il comando ±
+accanto al campo (`toggleAmountSign`).
 
 Collaudo del 2026-09-30 nell'app vera, su un account di prova usa e getta
 (eliminato alla fine): 33 controlli in italiano e 33 in inglese, ciascuno letto

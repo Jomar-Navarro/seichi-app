@@ -879,6 +879,11 @@ export const it = {
 		type: "Tipo",
 		initialBalance: "Saldo iniziale",
 		/**
+		 * Il nome del comando ± accanto al saldo iniziale (#175), un interruttore:
+		 * premuto, il saldo è negativo. Il tastierino decimale di iOS non ha il meno.
+		 */
+		negativeBalance: "Saldo negativo",
+		/**
 		 * ⚠️ Dice cosa NON fa, perché è la domanda che l'utente si pone: 2.400 €
 		 * che compaiono senza un movimento sembrano un'entrata, e se lo fossero
 		 * gonfierebbero i redditi del mese e ogni grafico.

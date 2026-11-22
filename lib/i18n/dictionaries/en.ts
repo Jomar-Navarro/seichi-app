@@ -532,6 +532,7 @@ export const en: Dictionary = {
 		},
 		type: "Type",
 		initialBalance: "Opening balance",
+		negativeBalance: "Negative balance",
 		initialBalanceHint:
 			"Where this account starts — it is never counted as income or spending.",
 		initialBalanceEditHint:
