@@ -10,7 +10,6 @@ import TransactionForm, {
 	WIZARD_FOOTER_BUTTON_STYLE,
 } from "./TransactionForm";
 import { useI18n } from "@/components/features/I18nProvider";
-import { useCloseOnBack } from "./useCloseOnBack";
 import { useDialog } from "./useDialog";
 import { DISPLAY_CURRENCY, currencySymbol, formatMoney } from "@/lib/i18n/format";
 import {
@@ -237,12 +236,9 @@ function TransactionModalContent() {
 		closeTransactionModal();
 	}
 
-	// issue #86 — vedi useCloseOnBack: neutralizza l'edge-swipe di WKWebView
-	// che altrimenti naviga la pagina SOTTO invece di restare nel modale. È
-	// il caso esplicitamente segnalato dall'issue: aggiungere un movimento.
-	useCloseOnBack(handleClose);
-
-	// #165 — ruolo, nome dal titolo, fuoco, sfondo inerte, Esc. Vedi useDialog.
+	// #165 — ruolo, nome dal titolo, fuoco, sfondo inerte, Esc, e la voce nella
+	// cronologia (#86: lo swipe di WKWebView non naviga la pagina sotto; #214:
+	// Indietro col visore aperto chiude il visore, non il wizard). Vedi useDialog.
 	// Il passo dell'importo ascolta la tastiera fisica, ma solo cifre, virgola
 	// e Backspace: Esc non lo tocca, e arriva qui.
 	const { rootRef, dialogProps, titleId } = useDialog(handleClose);

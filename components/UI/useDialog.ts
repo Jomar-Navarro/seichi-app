@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef } from "react";
+import { useCloseOnBack } from "./useCloseOnBack";
 
 /*
  * #165 — i pannelli dell'app come finestre di dialogo vere.
@@ -174,6 +175,12 @@ function useLatest<T>(value: T) {
  *
  * Esc chiama `onClose`: la stessa strada del tocco sullo sfondo e della X, così
  * `useCloseOnBack` tiene in ordine la cronologia come con loro (#86).
+ *
+ * E Indietro chiude il pannello in cima, e solo lui (#214): ogni pannello che
+ * passa da qui ha la sua voce nella cronologia (`useCloseOnBack`), anche se è
+ * aperto dentro un altro. Prima la chiamavano a parte il wizard e i fogli, e il
+ * visore e le conferme non ce l'avevano: Indietro col visore aperto chiudeva
+ * il wizard, e con una conferma aperta lasciava la pagina.
  */
 export function useDialog(
 	onClose: () => void,
@@ -184,6 +191,7 @@ export function useDialog(
 	const ownTitleId = useId();
 	const titleId = options.labelledBy ?? ownTitleId;
 	const closeRef = useLatest(onClose);
+	useCloseOnBack(onClose);
 
 	useEffect(() => {
 		const panel = panelRef.current;
