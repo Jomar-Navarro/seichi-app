@@ -28,6 +28,8 @@ import { useUIStore } from "@/store/useUIStore";
 import DatePicker from "@/components/UI/DatePicker";
 import { announce } from "@/components/UI/Announcer";
 import { useI18n } from "@/components/features/I18nProvider";
+import NotesCounter from "@/components/UI/NotesCounter";
+import { limitNotesInput } from "@/lib/notes";
 import { useScrollFocusedIntoView } from "@/components/UI/useScrollFocusedIntoView";
 import { parseAmountInput } from "@/lib/amount";
 import { canRepeat, recurringRuleHref } from "@/lib/recurring";
@@ -734,11 +736,17 @@ export default function TransactionForm({
 							type="text"
 							placeholder={t.transactions.form.descriptionPlaceholder}
 							value={description ?? ""}
-							onChange={(e) => setDescription(e.target.value)}
+							// #220 — si ferma a 255 caratteri contati come li conta
+							// Postgres, non con `maxLength` (unità UTF-16): vedi lib/notes.
+							onChange={(e) => {
+								const typed = e.target.value;
+								setDescription((prev) => limitNotesInput(prev ?? "", typed));
+							}}
 							// issue #69 — text-base: sotto i 16px iOS zooma da solo al focus.
 							className="bg-transparent text-base flex-1 outline-none placeholder:text-muted"
 						/>
 					</div>
+					<NotesCounter value={description ?? ""} />
 				</div>
 
 				{/* Data */}

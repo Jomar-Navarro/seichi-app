@@ -4,9 +4,9 @@
 --
 -- Il guasto è INIETTATO: un CHECK su `transactions` che rifiuta le note
 -- «guasto 173», aggiunto dentro questa transazione e tolto prima della fine.
--- Non una nota oltre i 255 caratteri, che oggi fa fallire una regola davvero
--- (`recurring_rules.notes` è `text`, `transactions.notes` `varchar(255)`):
--- quel buco è la #220, e chiuso lui questa prova non perderebbe il guasto.
+-- Non una nota oltre i 255 caratteri, che fino alla #220 faceva fallire una
+-- regola davvero (`recurring_rules.notes` era `text`, `transactions.notes` è
+-- `varchar(255)`): la #220 l'ha chiuso, e questa prova non ha perso il guasto.
 --
 -- Tre utenti, ognuno col suo ruolo:
 --   · uno — R1 guasta e R2 sana, entrambe scadute: la regola guasta non ferma

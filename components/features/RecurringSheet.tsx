@@ -20,6 +20,8 @@ import { updateRecurringRule } from "@/app/(main)/action";
 import { useI18n } from "./I18nProvider";
 import { DISPLAY_CURRENCY, currencySymbol } from "@/lib/i18n/format";
 import DatePicker from "@/components/UI/DatePicker";
+import NotesCounter from "@/components/UI/NotesCounter";
+import { limitNotesInput } from "@/lib/notes";
 import { amountErrorMessage, formatAmountInput, parseAmountInput } from "@/lib/amount";
 import type { RecurringRule, Frequency } from "@/types";
 
@@ -215,10 +217,15 @@ export default function RecurringSheet({ rule, onClose }: RecurringSheetProps) {
 							type="text"
 							placeholder={t.recurring.descriptionPlaceholder}
 							value={notes}
-							onChange={(e) => setNotes(e.target.value)}
+							// #220 — lo stesso limite del form del movimento: vedi lib/notes.
+							onChange={(e) => {
+								const typed = e.target.value;
+								setNotes((prev) => limitNotesInput(prev, typed));
+							}}
 							// issue #69 — text-base: sotto i 16px iOS zooma da solo al focus.
 							className="w-full rounded-2xl px-4 py-3 text-base bg-card ring-border outline-none placeholder:text-muted/60"
 						/>
+						<NotesCounter value={notes} />
 					</div>
 				</div>
 

@@ -45,6 +45,12 @@ export const it = {
 		edit: "Modifica",
 		close: "Chiudi",
 		back: "Indietro",
+		/**
+		 * Il contatore della descrizione (#220), da 200 caratteri in su. La barra
+		 * si vede; allo screen reader va la frase intera.
+		 */
+		notesCounter: "{n}/{max}",
+		notesCounterLabel: "{n} caratteri su {max}",
 		/** Le frecce del calendario di `DatePicker`. */
 		previousMonth: "Mese precedente",
 		nextMonth: "Mese successivo",
@@ -363,6 +369,11 @@ export const it = {
 		/** Un importo che la colonna non può scrivere: arriva solo da una POST
 		 *  diretta, i campi lo fermano prima (issue #119). */
 		amountInvalid: "Importo non valido",
+		/**
+		 * Una descrizione oltre il limite della colonna (#220). I campi si
+		 * fermano prima: arriva solo da una POST costruita a mano.
+		 */
+		notesTooLong: "La descrizione supera i {max} caratteri",
 		invalidEmail: "Indirizzo email non valido",
 		sameEmail: "È già la tua email attuale",
 		samePassword: "La nuova password deve essere diversa da quella attuale",
