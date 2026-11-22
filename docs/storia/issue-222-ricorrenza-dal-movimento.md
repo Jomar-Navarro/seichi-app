@@ -64,3 +64,20 @@ regola.
   regola, modifica dell'importo, URL ripulito, importo nuovo in lista, movimento
   generato invariato, ricaricamento senza riapertura; il gemello senza regola e
   i parametri sbagliati. Tre controprove dichiarate nel commento del file.
+
+### Dalla review e dall'esecuzione dell'e2e (2026-11-22)
+
+- **Lo scenario era scritto senza essere stato eseguito**, e alla prima corsa
+  cadeva: il pannello «Modifica movimento» si apre sul passo dell'IMPORTO, e
+  il collegamento sta nel form, un «Continua» più in là. Un difetto del test,
+  non dell'app.
+- ⚠️ **E il gemello passava senza aver guardato** (lezione 2 di CLAUDE.md):
+  «un movimento senza regola non offre il collegamento» era vero anche sul
+  passo dell'importo, dove il collegamento non c'è mai. Ora il gemello tocca
+  «Continua» e si accerta di essere nel form («Descrizione» visibile) prima
+  di controllare l'assenza.
+- Controprove eseguite, ciascuna dichiarata prima e con la sua build: c1
+  (parametro ignorato) fa cadere il primo scenario su «il pannello della
+  regola è aperto»; c2 (parametro non tolto) su «l'URL non porta più
+  ?regola»; c3 (riga su ogni movimento) fa cadere il gemello su «un movimento
+  senza regola non la offre». Nessun'altra. Suite intera: 26 su 26.

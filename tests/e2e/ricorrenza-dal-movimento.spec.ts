@@ -60,6 +60,8 @@ test("dal movimento generato si apre la sua regola, la si modifica, e il movimen
 	await page.getByRole("button", { name: /Spotify/ }).first().click();
 	const movement = page.getByRole("dialog", { name: "Modifica movimento" });
 	await expect(movement).toBeVisible();
+	// Il pannello si apre sul passo dell'importo: il collegamento sta nel form.
+	await movement.getByRole("button", { name: "Continua" }).click();
 	const hint = "Le modifiche alla ricorrenza valgono per i prossimi movimenti: questo resta com'è.";
 	await expect(movement.getByText(hint)).toBeVisible();
 	const link = movement.getByRole("button", { name: "Modifica la ricorrenza" });
@@ -123,6 +125,10 @@ test("un movimento senza regola non la offre, e un ?regola= sbagliato non apre n
 	await page.getByRole("button", { name: /Ristoranti/ }).first().click();
 	const movement = page.getByRole("dialog", { name: "Modifica movimento" });
 	await expect(movement).toBeVisible();
+	await movement.getByRole("button", { name: "Continua" }).click();
+	// Il form c'è davvero: senza, l'assenza qui sotto sarebbe vera anche sul
+	// passo dell'importo, e il gemello non proverebbe niente.
+	await expect(movement.getByText("Descrizione")).toBeVisible();
 	await expect(
 		movement.getByRole("button", { name: "Modifica la ricorrenza" }),
 		"un movimento senza regola non la offre",
