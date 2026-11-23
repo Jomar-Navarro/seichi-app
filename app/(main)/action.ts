@@ -20,7 +20,7 @@ import { removeStorageFiles } from "@/lib/storage-files";
 import { readAll } from "@/lib/read-all";
 import { endOfDayInMonth } from "@/lib/dates";
 import { receiptPathsOf } from "@/lib/attachment-paths";
-import { genericError } from "@/lib/errors";
+import { genericError, logServerError } from "@/lib/errors";
 import type { Frequency, Transaction } from "@/types";
 
 /**
@@ -75,14 +75,14 @@ function contoError(
 	 * scatta è un difetto nostro, e il posto dove leggerlo sono i log.
 	 */
 	if (error.code === FK_VIOLATION) {
-		console.error("[transactions] conto non appartenente:", error.message);
+		logServerError("[transactions] conto non appartenente:", error.message);
 		return t.accounts.errors.notFound;
 	}
 	if (error.code === CHECK_VIOLATION) {
-		console.error("[transactions] forma illegale del movimento:", error.message);
+		logServerError("[transactions] forma illegale del movimento:", error.message);
 		return t.common.genericError;
 	}
-	console.error("[transactions]", error.message);
+	logServerError("[transactions]", error.message);
 	return t.common.genericError;
 }
 
@@ -293,7 +293,7 @@ export async function getTransactions(opts: {
 		 * secondo giro, e allora l'errore è quello vero.
 		 */
 		if (withAttachmentCounts) {
-			console.error("[movimenti] lettura con le ricevute, riprovo senza:", error.code, error.message);
+			logServerError("[movimenti] lettura con le ricevute, riprovo senza:", error.code, error.message);
 			return getTransactions({ ...opts, withAttachmentCounts: false });
 		}
 		return { error: genericError("movimenti: lettura", error, t) };
@@ -395,7 +395,7 @@ export async function deleteTransaction(id: string) {
 	if (paths.length > 0) {
 		const removed = await removeStorageFiles(supabase, RECEIPT_BUCKET, paths);
 		if (removed.error) {
-			console.error("[transazioni] ricevute orfane dopo l'eliminazione:", removed.error, paths);
+			logServerError("[transazioni] ricevute orfane dopo l'eliminazione:", removed.error, paths);
 		}
 	}
 
@@ -471,7 +471,7 @@ export async function createRecurringRule(
 		skipped,
 	});
 	if (notGenerated && !rpcError) {
-		console.error("[ricorrenti: generazione alla creazione] regola saltata:", rule.id);
+		logServerError("[ricorrenti: generazione alla creazione] regola saltata:", rule.id);
 	}
 
 	revalidatePath("/", "layout");
@@ -506,7 +506,7 @@ export async function deleteRecurringRule(id: string) {
 
 	// Ora l'errore arriva allo schermo (#117): il testo grezzo di Postgres no.
 	if (error) {
-		console.error("[recurring] eliminazione:", error.message);
+		logServerError("[recurring] eliminazione:", error.message);
 		return { error: t.recurring.deleteFailed };
 	}
 	revalidatePath("/", "layout");
@@ -586,7 +586,7 @@ export async function setRecurringActive(id: string, active: boolean) {
 			.eq("user_id", user.id)
 			.maybeSingle();
 		if (ruleError || !rule) {
-			if (ruleError) console.error("[recurring] riprendi, lettura regola:", ruleError.message);
+			if (ruleError) logServerError("[recurring] riprendi, lettura regola:", ruleError.message);
 			return { error: t.recurring.toggleFailed };
 		}
 
@@ -605,7 +605,7 @@ export async function setRecurringActive(id: string, active: boolean) {
 			.eq("user_id", user.id)
 			.maybeSingle();
 		if (accountError || !account) {
-			if (accountError) console.error("[recurring] riprendi, lettura conto:", accountError.message);
+			if (accountError) logServerError("[recurring] riprendi, lettura conto:", accountError.message);
 			return { error: t.recurring.toggleFailed };
 		}
 		if (account.archived) return { error: t.recurring.resumeArchivedAccount };
@@ -623,7 +623,7 @@ export async function setRecurringActive(id: string, active: boolean) {
 		.eq("user_id", user.id);
 
 	if (error) {
-		console.error("[recurring] pausa/riprendi:", error.message);
+		logServerError("[recurring] pausa/riprendi:", error.message);
 		return { error: t.recurring.toggleFailed };
 	}
 	revalidatePath("/", "layout");
@@ -1114,7 +1114,7 @@ export async function getAnalyticsData(periodo: string = "mese", accountId?: str
 		 * l'intera `/analisi` — e il report, che la didascalia non la mostra
 		 * nemmeno — per una query di contorno (review della #121).
 		 */
-		if (primaError) console.error("[analisi] primo mese:", primaError.message);
+		if (primaError) logServerError("[analisi] primo mese:", primaError.message);
 		else primoMese = (prima ?? []).length === 0;
 	}
 

@@ -16,6 +16,7 @@ import type {
 	ImportSummary,
 	ParsedRow,
 } from "@/lib/import";
+import { logServerError } from "@/lib/errors";
 
 /**
  * L'import di transazioni da file (Fase 21, issue #35).
@@ -161,7 +162,7 @@ export async function runImport(form: FormData): Promise<ImportResult> {
 	 * solo perché arrivano dalla stessa `catch`.
 	 */
 	if (accErr || catErr) {
-		console.error("[import] conti/categorie:", accErr?.message ?? catErr?.message);
+		logServerError("[import] conti/categorie:", accErr?.message ?? catErr?.message);
 		return { error: t.common.genericError };
 	}
 
@@ -212,7 +213,7 @@ export async function runImport(form: FormData): Promise<ImportResult> {
 		// e si dice come tale, non come un guasto.
 		const wait = retryAfterFromError(error);
 		if (wait !== null) return { error: rateLimitMessage(t, locale, "import", wait) };
-		console.error("[import] import_transactions:", error.code, error.message);
+		logServerError("[import] import_transactions:", error.code, error.message);
 		return { error: t.common.genericError };
 	}
 
@@ -382,7 +383,7 @@ export async function listImports(): Promise<{ data: ImportSummary[] } | { error
 		.limit(20);
 
 	if (error) {
-		console.error("[import] listImports:", error.message);
+		logServerError("[import] listImports:", error.message);
 		return { error: t.common.genericError };
 	}
 
@@ -446,7 +447,7 @@ export async function undoImport(importId: string): Promise<{ ok: true } | { err
 		.eq("user_id", user.id);
 
 	if (error) {
-		console.error("[import] undoImport:", error.message);
+		logServerError("[import] undoImport:", error.message);
 		return { error: t.common.genericError };
 	}
 
@@ -468,7 +469,7 @@ export async function undoImport(importId: string): Promise<{ ok: true } | { err
 	if (paths.length > 0) {
 		const removed = await removeStorageFiles(supabase, RECEIPT_BUCKET, paths);
 		if (removed.error) {
-			console.error("[import] ricevute orfane dopo undoImport:", removed.error, paths);
+			logServerError("[import] ricevute orfane dopo undoImport:", removed.error, paths);
 		}
 	}
 

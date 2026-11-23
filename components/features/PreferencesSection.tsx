@@ -16,6 +16,7 @@ import {
 	normalizeLocale,
 	type Currency,
 } from "@/lib/i18n/config";
+import { logClientError } from "@/lib/client-errors";
 
 /**
  * I codici ISO sono dati, i nomi sono testo: la riga si compone "EUR — Euro".
@@ -65,7 +66,7 @@ export default function PreferencesSection({ currency, language }: PreferencesSe
 			if ("error" in res) failed = res.error ?? t.common.genericError;
 			else router.refresh();
 		} catch (e) {
-			console.error("[preferenze] salvataggio:", e);
+			logClientError("[preferenze] salvataggio:", e);
 			failed = t.common.genericError;
 		} finally {
 			setSaving(false);

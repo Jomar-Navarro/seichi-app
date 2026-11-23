@@ -8,6 +8,7 @@ import { getAvailableThisMonth } from "@/app/(main)/budget-actions";
 import { useI18n } from "@/components/features/I18nProvider";
 import { formatMoney } from "@/lib/i18n/format";
 import { clientClock } from "@/lib/dates";
+import { logClientError } from "@/lib/client-errors";
 
 /**
  * Scorciatoia da `/analisi` a `/impostazioni/ricorrenti` (issue #86, chiesto
@@ -56,7 +57,7 @@ export default function FixedOutflowsLink({ accountFiltered = false }: { account
 			})
 			// Degrada anche su una promise RIFIUTATA, come sull'errore restituito:
 			// senza, il rifiuto restava non gestito (stessa classe della #124).
-			.catch((e) => console.error("[analisi] uscite fisse:", e));
+			.catch((e) => logClientError("[analisi] uscite fisse:", e));
 		return () => {
 			cancelled = true;
 		};

@@ -21,6 +21,7 @@ import { amountErrorMessage, formatAmountInput, parseAmountInput, amountInputMod
 import { useI18n } from "./I18nProvider";
 import { currencySymbol, fill } from "@/lib/i18n/format";
 import type { BudgetPeriod, Category } from "@/types";
+import { logClientError } from "@/lib/client-errors";
 
 /** Solo l'ordine: le etichette abbreviate stanno in `t.typesShort`. */
 const TYPE_ORDER = [
@@ -117,7 +118,7 @@ export default function CategorySheet({
 			.then((res) => {
 				if (cancelled) return;
 				if (!("data" in res)) {
-					console.error("[categorie] lettura budget:", res.error);
+					logClientError("[categorie] lettura budget:", res.error);
 					setBudgetLoad("failed");
 					return;
 				}
@@ -132,7 +133,7 @@ export default function CategorySheet({
 			// per sempre, senza un messaggio.
 			.catch((e) => {
 				if (cancelled) return;
-				console.error("[categorie] lettura budget:", e);
+				logClientError("[categorie] lettura budget:", e);
 				setBudgetLoad("failed");
 			});
 		return () => {

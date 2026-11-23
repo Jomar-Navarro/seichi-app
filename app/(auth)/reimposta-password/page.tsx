@@ -7,6 +7,7 @@ import ResetPasswordForm from "@/components/features/ResetPasswordForm";
 import { createClient } from "@/lib/supabase/server";
 import { hasRecoverySession } from "@/lib/recovery";
 import { getDictionary } from "@/lib/i18n/server";
+import { logServerError } from "@/lib/errors";
 
 export async function generateMetadata(): Promise<Metadata> {
 	const t = await getDictionary();
@@ -31,7 +32,7 @@ export default async function ReimpostaPasswordPage() {
 	 * "riprova" rifà questa stessa pagina — col marcatore ancora valido.
 	 */
 	if (!user && error && isAuthRetryableFetchError(error)) {
-		console.error("[reimposta password] servizio non raggiungibile:", error.message);
+		logServerError("[reimposta password] servizio non raggiungibile:", error.message);
 		const t = await getDictionary();
 		return (
 			<AuthShell>

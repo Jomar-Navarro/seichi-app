@@ -22,6 +22,7 @@ import {
 	type AvatarStatus,
 } from "@/lib/export/archive";
 import type { SupabaseServerClient } from "@/lib/supabase/server";
+import { logServerError } from "@/lib/errors";
 
 /**
  * L'archivio completo: tutti i dati dell'utente in uno ZIP (issue #162).
@@ -92,7 +93,7 @@ async function download(
 			// Il path no: è l'indirizzo di un documento privato. Bastano il bucket e
 			// il tentativo per leggere il guasto; l'id della ricevuta lo scrive
 			// l'archivio stesso.
-			console.error(`[archivio] download da ${bucket}, tentativo ${attempt}:`, e instanceof Error ? e.message : e);
+			logServerError(`[archivio] download da ${bucket}, tentativo ${attempt}:`, e instanceof Error ? e.message : e);
 		}
 	}
 	return null;
@@ -110,7 +111,7 @@ export async function GET(req: NextRequest) {
 
 	const limit = await consumeRateLimit(supabase, "archive");
 	if ("error" in limit) {
-		console.error("[archivio] limite:", limit.error.code, limit.error.message);
+		logServerError("[archivio] limite:", limit.error.code, limit.error.message);
 		return fail(req, { target: "archivio", code: "lettura" });
 	}
 	if (limit.wait > 0) return fail(req, { target: "archivio", code: "limite", wait: limit.wait });
@@ -151,7 +152,7 @@ export async function GET(req: NextRequest) {
 		attachments.error,
 	].filter(Boolean);
 	if (failed.length > 0) {
-		console.error("[archivio] letture:", failed);
+		logServerError("[archivio] letture:", failed);
 		return fail(req, { target: "archivio", code: "lettura" });
 	}
 
@@ -237,7 +238,7 @@ export async function GET(req: NextRequest) {
 		256 * 1024;
 	const entries = dataJson.length + 1 + receipts.length + (avatarPath ? 1 : 0) + 3;
 	if (!fitsInZip(entries, knownBytes, receipts.reduce((sum, r) => sum + r.name.length * 2, 0))) {
-		console.error(`[archivio] oltre i limiti dello ZIP: ${entries} voci, ~${knownBytes} byte`);
+		logServerError(`[archivio] oltre i limiti dello ZIP: ${entries} voci, ~${knownBytes} byte`);
 		return fail(req, { target: "archivio", code: "troppo-grande" });
 	}
 
@@ -339,7 +340,7 @@ export async function GET(req: NextRequest) {
 		yield zip.finish();
 
 		if (missing.length > 0 || avatar === "missing") {
-			console.error(`[archivio] consegnato con ${missing.length} ricevute mancanti, avatar: ${avatar}`);
+			logServerError(`[archivio] consegnato con ${missing.length} ricevute mancanti, avatar: ${avatar}`);
 		}
 	}
 
@@ -354,7 +355,7 @@ export async function GET(req: NextRequest) {
 				// Dopo il 200 un errore non è più una risposta: la connessione si
 				// interrompe, e il browser segnala il download come fallito invece di
 				// salvare un archivio a metà come se fosse intero.
-				console.error("[archivio] interrotto:", e instanceof Error ? e.message : e);
+				logServerError("[archivio] interrotto:", e instanceof Error ? e.message : e);
 				controller.error(e);
 			}
 		},

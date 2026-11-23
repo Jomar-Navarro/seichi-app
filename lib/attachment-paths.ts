@@ -1,5 +1,6 @@
 import type { SupabaseServerClient } from "@/lib/supabase/server";
 import { readAll } from "@/lib/read-all";
+import { logServerError } from "@/lib/errors";
 
 /**
  * Quali righe di `transactions` sta per cancellare il chiamante — e quindi di
@@ -53,7 +54,7 @@ export async function receiptPathsOf(
 	}, "ricevute");
 
 	if (error) {
-		console.error("[ricevute] lettura dei path prima di una cancellazione:", error, scope);
+		logServerError("[ricevute] lettura dei path prima di una cancellazione:", error, scope);
 		return { error };
 	}
 	return { paths: rows.map((r) => r.storage_path) };

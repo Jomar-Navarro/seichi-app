@@ -14,6 +14,7 @@ import {
 	type Locale,
 } from "@/lib/i18n/config";
 import { markRecoverySession } from "@/lib/recovery";
+import { logServerError } from "@/lib/errors";
 
 const RESET_PATH = "/reimposta-password";
 
@@ -71,7 +72,7 @@ export async function GET(request: Request) {
 					// "La riga non c'è" invece sì, ed è ciò che `maybeSingle()`
 					// distingue da un errore.
 					if (profileError) {
-						console.error("[callback] lettura del profilo:", profileError.message);
+						logServerError("[callback] lettura del profilo:", profileError.message);
 					} else {
 						locale = normalizeLocale(profile?.language);
 						currency = isCurrency(profile?.currency) ? profile.currency : null;

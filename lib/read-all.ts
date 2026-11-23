@@ -1,3 +1,4 @@
+import { logServerError } from "@/lib/errors";
 /**
  * Il lettore a blocchi, in un posto solo.
  *
@@ -68,6 +69,6 @@ export async function readAll<T>(
 
 	// Centomila righe senza mai un blocco corto: è un difetto nostro, non un
 	// archivio grande. Si dichiara invece di restituire dati a metà.
-	console.error(`[${label}] troppi blocchi: la lettura non si è mai chiusa`);
+	logServerError(`[${label}] troppi blocchi: la lettura non si è mai chiusa`);
 	return { rows, error: `${label}: lettura non conclusa` };
 }

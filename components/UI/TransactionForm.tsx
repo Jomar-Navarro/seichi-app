@@ -35,6 +35,7 @@ import { parseAmountInput } from "@/lib/amount";
 import { canRepeat, recurringRuleHref } from "@/lib/recurring";
 import { whenModalEntryGone } from "@/components/UI/useCloseOnBack";
 import { scrollBehavior } from "@/lib/motion";
+import { logClientError } from "@/lib/client-errors";
 
 /**
  * ⚠️ Il calendario NON sta più qui.
@@ -500,7 +501,7 @@ export default function TransactionForm({
 			 * Se il movimento era già scritto, a fallire è stata una ricevuta: la
 			 * frase lo dice, e le ricevute non passate restano in coda nel picker.
 			 */
-			console.error("[movimento] salvataggio:", e);
+			logClientError("[movimento] salvataggio:", e);
 			if (saved) setAttachmentError(t.attachments.errors.notSaved);
 			else setSaveError(t.common.genericError);
 		} finally {
@@ -539,7 +540,7 @@ export default function TransactionForm({
 			notifyTransactionSaved();
 			closeTransactionModal();
 		} catch (e) {
-			console.error("[movimento] eliminazione:", e);
+			logClientError("[movimento] eliminazione:", e);
 			setSaveError(t.common.genericError);
 		} finally {
 			setIsSaving(false);

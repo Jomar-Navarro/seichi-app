@@ -12,7 +12,7 @@ import { removeStorageFiles } from "@/lib/storage-files";
 import { readAll } from "@/lib/read-all";
 import { endOfDayInMonth } from "@/lib/dates";
 import { receiptPathsOf } from "@/lib/attachment-paths";
-import { genericError } from "@/lib/errors";
+import { genericError, logServerError } from "@/lib/errors";
 import type { SupabaseServerClient } from "@/lib/supabase/server";
 
 export async function getGoals(): Promise<{ data: GoalWithProgress[] } | { error: string }> {
@@ -568,6 +568,6 @@ async function removeOrphanedReceipts(supabase: SupabaseServerClient, paths: str
 	if (paths.length === 0) return;
 	const removed = await removeStorageFiles(supabase, RECEIPT_BUCKET, paths);
 	if (removed.error) {
-		console.error("[obiettivi] ricevute orfane dopo l'eliminazione:", removed.error, paths);
+		logServerError("[obiettivi] ricevute orfane dopo l'eliminazione:", removed.error, paths);
 	}
 }

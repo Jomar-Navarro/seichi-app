@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode 
 import AppLockScreen from "@/components/features/AppLockScreen";
 import { setAppLockCookie } from "@/app/(main)/app-lock-actions";
 import { enabledCookieFix, isLockedOnClient, isPinEnabledOnClient, markActiveNow } from "@/lib/app-lock";
+import { logClientError } from "@/lib/client-errors";
 
 /**
  * Lo stato "bloccato" vive FUORI da React, in un piccolo store per istanza
@@ -86,7 +87,7 @@ export default function AppLockProvider({
 		// prossimo caricamento: il blocco intanto lo decide `localStorage`, e
 		// il guasto resta nei log (#124: un fallimento non è un non-evento).
 		const fix = enabledCookieFix(!store.get());
-		if (fix !== null) setAppLockCookie(fix).catch((e) => console.error("[app-lock] cookie del PIN:", e));
+		if (fix !== null) setAppLockCookie(fix).catch((e) => logClientError("[app-lock] cookie del PIN:", e));
 	}, [store]);
 
 	useEffect(() => {

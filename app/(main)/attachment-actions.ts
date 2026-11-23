@@ -10,7 +10,7 @@ import {
 	receiptPath,
 } from "@/lib/attachments";
 import { fill } from "@/lib/i18n/format";
-import { genericError } from "@/lib/errors";
+import { genericError, logServerError } from "@/lib/errors";
 import { consumeRateLimit, rateLimitMessage } from "@/lib/rate-limit";
 import type { Attachment } from "@/types";
 
@@ -38,7 +38,7 @@ export async function getAttachments(
 	// errore" sotto l'elenco delle ricevute non dice se a mancare sono le
 	// ricevute o il movimento, e il rimedio è diverso.
 	if (error) {
-		console.error("[attachments] getAttachments:", error.message);
+		logServerError("[attachments] getAttachments:", error.message);
 		return { error: t.attachments.errors.loadFailed };
 	}
 
@@ -50,7 +50,7 @@ export async function getAttachments(
 		.createSignedUrls(rows.map((r) => r.storage_path), SIGNED_URL_TTL);
 
 	if (signError) {
-		console.error("[attachments] createSignedUrls:", signError.message);
+		logServerError("[attachments] createSignedUrls:", signError.message);
 		return { error: t.attachments.errors.loadFailed };
 	}
 
@@ -134,7 +134,7 @@ async function countAttachments(
 			.in("transaction_id", transactionIds.slice(i, i + IN_CHUNK));
 
 		if (error) {
-			console.error("[attachments] countAttachments:", error.message);
+			logServerError("[attachments] countAttachments:", error.message);
 			return { counts, complete: false };
 		}
 
@@ -216,7 +216,7 @@ export async function uploadAttachment(
 		.upload(path, file, { contentType: file.type, upsert: false });
 
 	if (uploadError) {
-		console.error("[attachments] upload:", uploadError.message);
+		logServerError("[attachments] upload:", uploadError.message);
 		return { error: t.common.genericError };
 	}
 
@@ -242,7 +242,7 @@ export async function uploadAttachment(
 		 * Stesso gesto che `uploadAvatar` fa nel proprio ramo di errore.
 		 */
 		await supabase.storage.from(RECEIPT_BUCKET).remove([path]);
-		console.error("[attachments] insert:", insertError.message);
+		logServerError("[attachments] insert:", insertError.message);
 		// Il caso tipico è una transazione che non è (più) dell'utente: la FK
 		// composita della 20260818 la rifiuta, ed è esattamente ciò che deve fare.
 		return { error: t.attachments.errors.notSaved };
@@ -295,7 +295,7 @@ export async function deleteAttachment(id: string): Promise<{ error?: string }> 
 		.remove([row.storage_path]);
 
 	if (removeError) {
-		console.error("[attachments] remove:", removeError.message);
+		logServerError("[attachments] remove:", removeError.message);
 		return { error: t.attachments.errors.removeFailed };
 	}
 
@@ -306,7 +306,7 @@ export async function deleteAttachment(id: string): Promise<{ error?: string }> 
 		.eq("user_id", user.id);
 
 	if (error) {
-		console.error("[attachments] delete row:", error.message);
+		logServerError("[attachments] delete row:", error.message);
 		return { error: t.attachments.errors.removeFailed };
 	}
 

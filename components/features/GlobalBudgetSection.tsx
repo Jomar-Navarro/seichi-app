@@ -7,6 +7,7 @@ import { useI18n } from "@/components/features/I18nProvider";
 import { currencySymbol, fill, formatMoney } from "@/lib/i18n/format";
 import { clientClock } from "@/lib/dates";
 import { amountErrorMessage, formatAmountInput, parseAmountInput, amountInputMode } from "@/lib/amount";
+import { logClientError } from "@/lib/client-errors";
 
 /**
  * Stesso involucro di PreferencesSection e SettingsGroup: card `bg-card`,
@@ -105,7 +106,7 @@ export default function GlobalBudgetSection() {
 			if (cancelled) return;
 			// Il messaggio di un'eccezione non è una frase per l'utente: in
 			// produzione Next lo sostituisce con un testo generico in inglese (#124).
-			console.error("[budget globale] lettura:", e);
+			logClientError("[budget globale] lettura:", e);
 			setLoadFailed(true);
 			setError(t.budget.readFailed);
 			setLoading(false);
@@ -142,7 +143,7 @@ export default function GlobalBudgetSection() {
 			 * esista, non che sia rotto — ed è quello già registrato nella Fase 22
 			 * per `crypto.randomUUID()`.
 			 */
-			console.error("[budget globale] salvataggio:", e);
+			logClientError("[budget globale] salvataggio:", e);
 			setError(t.budget.saveFailed);
 			return false;
 		} finally {

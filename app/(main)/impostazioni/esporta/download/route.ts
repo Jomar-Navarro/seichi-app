@@ -11,6 +11,7 @@ import { consumeRateLimit } from "@/lib/rate-limit";
 import { exportErrorRedirect } from "@/lib/export/download-response";
 import type { ExportError } from "@/lib/export/download-error";
 import { TRANSACTION_TYPES, type Transaction } from "@/types";
+import { logServerError } from "@/lib/errors";
 
 /**
  * Il file CSV dei movimenti (Fase 23a, issue #37).
@@ -132,7 +133,7 @@ export async function GET(req: NextRequest) {
 	]);
 
 	if (accountsError) {
-		console.error("[export] conti:", accountsError.message);
+		logServerError("[export] conti:", accountsError.message);
 		return fail(req, { target: "csv", code: "lettura" });
 	}
 
@@ -153,7 +154,7 @@ export async function GET(req: NextRequest) {
 
 	if (categoryRes) {
 		if (categoryRes.error) {
-			console.error("[export] categoria:", categoryRes.error.message);
+			logServerError("[export] categoria:", categoryRes.error.message);
 			return fail(req, { target: "csv", code: "lettura" });
 		}
 		if (!categoryRes.data) return fail(req, { target: "csv", code: "filtro" });
@@ -164,7 +165,7 @@ export async function GET(req: NextRequest) {
 	// torna alla pagina con l'attesa, che compone la frase (#162).
 	const limit = await consumeRateLimit(supabase, "export");
 	if ("error" in limit) {
-		console.error("[export] limite:", limit.error.code, limit.error.message);
+		logServerError("[export] limite:", limit.error.code, limit.error.message);
 		return fail(req, { target: "csv", code: "lettura" });
 	}
 	if (limit.wait > 0) return fail(req, { target: "csv", code: "limite", wait: limit.wait });
@@ -182,7 +183,7 @@ export async function GET(req: NextRequest) {
 		});
 
 		if ("error" in result) {
-			console.error("[export] movimenti:", result.error);
+			logServerError("[export] movimenti:", result.error);
 			return fail(req, { target: "csv", code: "lettura" });
 		}
 
@@ -200,7 +201,7 @@ export async function GET(req: NextRequest) {
 		 */
 		const { counts, complete } = await getAttachmentCountsChecked(page.map((tx) => tx.id));
 		if (!complete) {
-			console.error("[export] conteggio ricevute incompleto");
+			logServerError("[export] conteggio ricevute incompleto");
 			return fail(req, { target: "csv", code: "lettura" });
 		}
 
@@ -251,6 +252,6 @@ export async function GET(req: NextRequest) {
 
 	// Ci si arriva solo se `hasMore` resta vero per centomila righe: è un difetto
 	// nostro, non un archivio grande. Meglio un errore di un file monco.
-	console.error("[export] troppi giri: hasMore non si è mai chiuso");
+	logServerError("[export] troppi giri: hasMore non si è mai chiuso");
 	return fail(req, { target: "csv", code: "lettura" });
 }

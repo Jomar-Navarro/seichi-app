@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/auth";
+import { logServerError } from "@/lib/errors";
 
 /**
  * Chi ha già finito l'onboarding non ci rientra (#116).
@@ -50,7 +51,7 @@ export default async function OnboardingLayout({
 	]);
 
 	if (profile.error || categories.error) {
-		console.error(
+		logServerError(
 			"[onboarding] controllo di accesso:",
 			profile.error?.message ?? categories.error?.message,
 		);

@@ -122,3 +122,102 @@ già successo davvero), poi la raccolta degli errori.
 4. Il merge. Dopo il deploy, una chiamata a mano alla route con il segreto
    (`curl -H "Authorization: Bearer …"`): il check deve passare a «up». E la
    prova dell'email, con un `fail` mandato a mano all'URL del check.
+
+Collaudato in produzione il 2026-11-23: con il segreto la route ha risposto
+`{"ping":"ok","delivered":true}`, il check è passato a «up» con un ping da un
+IP AWS di Dublino (la funzione in `dub1`) e il testo «Job giornaliero sano»;
+un `fail` mandato a mano ha portato l'email «DOWN | Seichi — job notturno» in
+Posta in arrivo.
+
+### La PR 2 — gli errori a Sentry
+
+- **Senza SDK.** `@sentry/nextjs` porta un albero di dipendenze, uno script
+  d'installazione (`@sentry/cli`) e un wrapper della config da far convivere
+  con Serwist e Turbopack. Qui sono quattro file e nessuna dipendenza:
+  - `lib/error-report.ts`, puro: `scrub()`, `scrubPath()`, `parseStack()`,
+    `fromConsoleArgs()`, `buildEvent()`, l'envelope;
+  - `lib/error-sink.ts`, solo server: spedisce con `after()`, così l'utente
+    non aspetta Sentry e la funzione resta viva fino alla fine dell'invio; un
+    tetto di 30 eventi al minuto per istanza;
+  - `app/api/errori/route.ts`: gli errori del browser passano dal server, così
+    Sentry non vede l'IP di chi usa l'app e il DSN resta fuori dal bundle. Una
+    route e non un'action, perché le action vanno in coda una alla volta e un
+    rapporto davanti al «salva» lo rallenterebbe; solo con una sessione;
+  - `instrumentation.ts`: `onRequestError`, ciò che Next cattura da sé.
+- ⚠️ **L'evento si costruisce per elenco**: etichetta, codice, messaggio
+  ripulito, rotta senza id né query string, pila, versione. Niente utente,
+  niente IP, niente richiesta, niente breadcrumb. La ripulitura toglie email,
+  UUID, token, numeri e i valori tra virgolette, e tiene gli identificatori
+  tra virgolette (`"transactions_amount_check"`), perché Postgres quota allo
+  stesso modo i valori e i nomi. Limite dichiarato: un testo libero SENZA
+  virgolette dentro un messaggio scritto da noi non si riconosce; le `raise`
+  dell'app interpolano solo un periodo o un'azione.
+- ⚠️ **Tutti i `console.error`, non solo `genericError()`** (lezione 3): 105
+  punti fra server e client, migrati con uno script a `logServerError()` e
+  `logClientError()`, che prendono gli stessi argomenti e scrivono la stessa
+  riga di log. Resta `console.warn` per le claims non valide (non è un
+  guasto) e `console.error` dentro le funzioni stesse.
+- **`error.tsx` riferisce solo gli errori nati nel browser** (senza
+  `digest`): uno col `digest` l'ha già riferito il server da
+  `onRequestError`, col messaggio vero.
+- ⚠️ **Gli errori di rete del browser non partono.** Il primo giro verde
+  dell'end-to-end portava anche due `[pagina] errore di render: TypeError:
+  network error` sulla home: con tre scenari in parallelo, la home lasciata a
+  metà caricamento interrompeva una richiesta e `error.tsx` lo riferiva.
+  Diagnosticato prima di filtrarlo (non compare da solo, compare in parallelo,
+  sempre sulla pagina abbandonata): dice la rete del dispositivo, non un
+  difetto. Un server davvero giù lo dicono i suoi log e healthchecks.
+
+### Il collaudo della PR 2
+
+- **Vitest** (`lib/error-report.test.ts`, 21 casi): ciò che si toglie, ciò che
+  resta, la rotta, la pila, l'evento per elenco, il DSN.
+- **Playwright** (`errori.spec.ts`): un finto Sentry acceso dal
+  `globalSetup` per tutta la suite scrive ogni envelope in un file.
+  - Un guasto iniettato in un'action (un trigger con la forma dei messaggi di
+    Postgres, più email e importo fuori dalle virgolette) arriva con il nome
+    del vincolo e senza nota, importo, email né id.
+  - Un'eccezione non gestita nel browser arriva ripulita, con la rotta senza
+    `?q=`.
+  - Senza sessione `/api/errori` non accetta niente.
+- **Tre difetti veri trovati dall'end-to-end**, tutti del codice (il terzo
+  leggendo i 15 eventi che gli altri scenari producono durante la suite: zero
+  email, zero UUID, ma le date ridotte a `<n>-<n>-23T19:<n>`, ora `<data>`):
+  - la regola dei numeri girava dopo le virgolette e smontava l'identificatore
+    appena tenuto (`"e2e_guasto_160"` → `"e<n>e_guasto_<n>"`). Ora un solo
+    passaggio, e un numero si toglie solo se sta da solo;
+  - i nomi dei file nella pila passavano da `scrubPath()`, e ogni chunk di
+    Turbopack (un hash con cifre) diventava `[id]`.
+- **Dalla review della PR intera**: i componenti client riferivano anche gli
+  errori delle action, che arrivano al browser col solo `digest` e il testo
+  generico di Next, mentre il server li aveva già riferiti col messaggio vero.
+  `error.tsx` aveva la regola, `logClientError()` e l'ascoltatore delle
+  promise no: la migrazione a campione, di nuovo. Ora `cameFromServer()` vale
+  per tutti e tre.
+- Un rosso della prova, non dell'app: il trigger leggeva `auth.users` col
+  ruolo dell'utente (`permission denied`); ora è `security definer`.
+- **Controprove**: senza `queueReport()` in `logServerError()` cade solo lo
+  scenario dell'action; senza `scrub()` in `buildEvent()` cadono i due
+  scenari, sul primo dato personale.
+- `onRequestError` provato una volta con una route temporanea che solleva
+  (non committata): arriva come `next: route`, con la rotta come file e il
+  messaggio ripulito.
+
+### Il rilascio della PR 2
+
+Nessuna migration. Senza `SENTRY_DSN` il codice non spedisce niente, quindi
+l'ordine è libero:
+
+1. Su sentry.io, un'organizzazione nella regione **EU** (si sceglie alla
+   creazione e non si cambia) e un progetto «Seichi», piattaforma JavaScript.
+   Nelle impostazioni del progetto: *Security & Privacy* → *Prevent Storing of
+   IP Addresses* acceso, e un avviso via email al primo evento di un problema.
+2. Su Vercel, in *Production*: `SENTRY_DSN` (Secret), dal progetto Sentry
+   (*Client Keys (DSN)*). Poi un redeploy.
+3. La prova, da loggato, nella console del browser su seichi-app.vercel.app:
+   `fetch("/api/errori", { method: "POST", headers: { "content-type":
+   "application/json" }, body: JSON.stringify({ scope: "prova", message:
+   "prova di rilascio #160" }) })` → risponde 204, e in Sentry compare un
+   problema `[prova]` con `source: client`. È la strada vera degli errori del
+   browser, senza fabbricare un guasto.
+

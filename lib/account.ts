@@ -6,6 +6,7 @@ import { getSessionUser } from "@/lib/auth";
 import { getInitials, getDisplayName } from "@/lib/profile";
 import { DEFAULT_LOCALE, normalizeLocale } from "@/lib/i18n/config";
 import type { AccountContext, ProfileHeader } from "@/types";
+import { logServerError } from "@/lib/errors";
 
 /**
  * Dati di account per /impostazioni e le sue sottopagine.
@@ -48,7 +49,7 @@ export async function getAccountContext(): Promise<AccountContext> {
 	} = await supabase.auth.getUser();
 
 	if (!user && userError && isAuthRetryableFetchError(userError)) {
-		console.error("[account] getUser non raggiungibile:", userError.message);
+		logServerError("[account] getUser non raggiungibile:", userError.message);
 		throw userError;
 	}
 	if (!user) redirect("/sign");
@@ -62,7 +63,7 @@ export async function getAccountContext(): Promise<AccountContext> {
 		.maybeSingle();
 
 	if (profileError) {
-		console.error("[account] lettura del profilo:", profileError.message);
+		logServerError("[account] lettura del profilo:", profileError.message);
 		throw new Error("profile read failed");
 	}
 
@@ -152,7 +153,7 @@ const loadProfile = cache(async (): Promise<LoadedProfile | null> => {
 
 	// L'intestazione degrada come ha sempre fatto (nome dall'email, nessun
 	// avatar); il motivo però si registra, non sparisce più.
-	if (error) console.error("[account] lettura del profilo:", error.message);
+	if (error) logServerError("[account] lettura del profilo:", error.message);
 
 	const fullName = profile?.full_name ?? null;
 
@@ -197,7 +198,7 @@ export async function getFirstStepsVisibility(): Promise<FirstStepsVisibility> {
 	try {
 		return (await loadProfile())?.firstSteps ?? "unknown";
 	} catch (error) {
-		console.error("[account] primi passi, lettura del profilo:", error);
+		logServerError("[account] primi passi, lettura del profilo:", error);
 		return "unknown";
 	}
 }
@@ -254,7 +255,7 @@ async function getActiveAccountCount(): Promise<number | null> {
 	const supabase = await createClient();
 	const result = await countActiveAccounts(supabase, user.id);
 	if ("error" in result) {
-		console.error("[account] conteggio dei conti attivi:", result.error);
+		logServerError("[account] conteggio dei conti attivi:", result.error);
 		return null;
 	}
 	return result.data;
@@ -287,7 +288,7 @@ export async function getSidebarProfile(): Promise<SidebarProfile | null> {
 		]);
 		return header ? { ...header, activeAccounts } : null;
 	} catch (error) {
-		console.error("[account] footer della sidebar:", error);
+		logServerError("[account] footer della sidebar:", error);
 		return null;
 	}
 }

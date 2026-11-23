@@ -85,7 +85,11 @@ perché. Le regole di dettaglio sono nei file di `.claude/rules/`.
    `signInWithPassword`: lo stato del passo precedente vive nel client.
 6. **Nessun testo del server arriva a schermo.** `genericError()` e
    `authErrorMessage()` (`lib/errors.ts`) registrano il motivo vero e mostrano
-   una frase del dizionario.
+   una frase del dizionario. Un guasto si registra con `logServerError()` sul
+   server e `logClientError()` nel browser, mai con `console.error`: stessi
+   argomenti, e in più l'evento va a Sentry, ripulito da `buildEvent()`
+   (`lib/error-report.ts`), che sceglie i campi per elenco. Perché: i log di
+   Vercel non li legge nessuno (#160).
 7. **Un valore dell'utente non diventa sintassi**: un id interpolato in `.or()`
    passa da `isAccountId()`; le liste di `.in()` vanno a blocchi; il testo libero
    esportato in CSV ha la difesa dalle formule.
@@ -96,7 +100,8 @@ perché. Le regole di dettaglio sono nei file di `.claude/rules/`.
    inlinizzate in compilazione, quindi i controlli stanno in `next.config.ts`.
    La chiave segreta di Supabase non va nell'ambiente di Vercel: scavalca la
    RLS su tutto, e l'app non ne ha bisogno. Le sole variabili del server sono
-   quelle della sorveglianza (`CRON_SECRET`, `HEALTHCHECKS_PING_URL`, #160).
+   quelle della sorveglianza (`CRON_SECRET`, `HEALTHCHECKS_PING_URL`,
+   `SENTRY_DSN`, #160).
 10. **Il proxy è una comodità di navigazione, non il perimetro**: ogni pagina e
     ogni action si autentica da sé, perché un'action si raggiunge con una POST.
 11. **Un'azione che costa (upload, import, export) consuma un posto del suo
