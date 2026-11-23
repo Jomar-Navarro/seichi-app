@@ -22,7 +22,15 @@
 import { execSync, spawn } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { assertLocal, E2E_BASE_URL, E2E_MARKER, E2E_PORT, readLocalStatus } from "./e2e-local.mjs";
+import {
+	assertLocal,
+	E2E_BASE_URL,
+	E2E_CRON_SECRET,
+	E2E_MARKER,
+	E2E_PING_URL,
+	E2E_PORT,
+	readLocalStatus,
+} from "./e2e-local.mjs";
 
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
 const MODE = process.argv[2];
@@ -119,6 +127,9 @@ function serve() {
 			NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: s.publishableKey,
 			NEXT_PUBLIC_SITE_URL: E2E_BASE_URL,
 			NEXT_TELEMETRY_DISABLED: "1",
+			// #160: lette a runtime dalla route del cron, non inlinizzate.
+			CRON_SECRET: E2E_CRON_SECRET,
+			HEALTHCHECKS_PING_URL: E2E_PING_URL,
 		},
 	});
 	child.on("exit", (code) => {

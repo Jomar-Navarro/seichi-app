@@ -33,7 +33,13 @@ export const config = {
 		 * salterebbe silenziosamente il controllo di sessione — lo stesso
 		 * difetto, di un ordine di grandezza più subdolo, dei prefissi non
 		 * ancorati che questo file evita altrove.
+		 *
+		 * #160 — `api/cron`: le chiama il cron di Vercel, che non ha sessione.
+		 * Dal proxy riceverebbero un redirect a /welcome, cioè un 307 che per
+		 * il cron è un «riuscito» senza aver controllato niente. Ognuna si
+		 * autentica da sé con `CRON_SECRET` (regola 10: il proxy non è il
+		 * perimetro). Ancorata come le altre.
 		 */
-		"/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon(?=$|/)|apple-icon(?=$|/)|serwist(?=$|/)|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+		"/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon(?=$|/)|apple-icon(?=$|/)|serwist(?=$|/)|api/cron(?=$|/)|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
 	],
 };

@@ -1,0 +1,34 @@
+-- ============================================================================
+-- 20261124 — il controllo esterno del job legge il suo stato (issue #160)
+-- ============================================================================
+-- Un Vercel Cron alle 06:00 UTC (`app/api/cron/salute-job/route.ts`) chiede
+-- `daily_job_health()` e avvisa un servizio di sorveglianza esterno, che manda
+-- l'email. Il cron non ha una sessione: chiama come `anon`, con la chiave
+-- pubblicabile. Questo file gli concede quella funzione, e niente altro.
+-- Storia: docs/storia/issue-160-osservabilita.md.
+--
+-- ⚠️ È l'UNICO privilegio di `anon` in `public` (#154), ed è un'eccezione
+-- motivata, non un ritorno al default:
+--   - `daily_job_health()` restituisce cinque fatti GLOBALI — tre date, un
+--     booleano, i nomi dei passi falliti — e nessun dato di un utente:
+--     `job_runs.details`, dove stanno gli id delle regole saltate, non esce;
+--   - chiunque abbia la chiave pubblicabile (cioè chiunque: è nel bundle)
+--     saprà a che ora ha girato il job stanotte. Non apre niente;
+--   - l'alternativa era la chiave SEGRETA di Supabase nell'ambiente di Vercel,
+--     dove oggi non c'è: una chiave che scavalca la RLS su tutto, per leggere
+--     cinque fatti. Il conto non torna.
+-- `job_runs` resta senza grant ad `anon`: la funzione è `security definer`, e
+-- legge la tabella coi privilegi del proprietario.
+--
+-- `supabase/tests/anon.test.sql` lo sa: c2 esclude questa funzione per nome,
+-- e c10 prova che `anon` la esegue ma non legge `job_runs`.
+--
+-- Ordine di deploy: QUESTO FILE PRIMA, poi il codice. Il cron senza il grant
+-- riceverebbe `42501` e manderebbe al servizio «stato non leggibile» — un
+-- allarme vero, ma sul monitor e non sul job. Al contrario il grant senza il
+-- codice non cambia niente: nessuno lo usa.
+--
+-- Rieseguibile: un grant già concesso non fa nulla.
+-- ============================================================================
+
+grant execute on function public.daily_job_health() to anon;

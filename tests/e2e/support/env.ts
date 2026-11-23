@@ -1,11 +1,19 @@
-import { assertLocal, E2E_BASE_URL, E2E_MARKER, E2E_PORT, readLocalStatus } from "../../../scripts/e2e-local.mjs";
+import {
+	assertLocal,
+	E2E_BASE_URL,
+	E2E_CRON_SECRET,
+	E2E_MARKER,
+	E2E_PING_PORT,
+	E2E_PORT,
+	readLocalStatus,
+} from "../../../scripts/e2e-local.mjs";
 
 /**
  * Dove girano i test end-to-end (#156): un Supabase LOCALE in Docker, mai
  * quello di produzione. Porta, marcatore e lettura delle chiavi stanno in
  * `scripts/e2e-local.mjs`, condiviso con lo script che costruisce la build.
  */
-export { assertLocal, E2E_MARKER, E2E_PORT };
+export { assertLocal, E2E_CRON_SECRET, E2E_MARKER, E2E_PING_PORT, E2E_PORT };
 export const BASE_URL = E2E_BASE_URL;
 
 /** Gli indirizzi degli account di prova: un dominio riservato, mai consegnabile. */
