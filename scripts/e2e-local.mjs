@@ -13,6 +13,15 @@ export const E2E_BASE_URL = `http://localhost:${E2E_PORT}`;
 export const E2E_MARKER = ".next/e2e-supabase.json";
 
 /**
+ * Il controllo esterno del job (#160) nei test: il segreto del cron e il finto
+ * servizio di sorveglianza, che lo scenario `salute-job.spec.ts` ascolta su
+ * questa porta. Valori dei soli test, mai della produzione.
+ */
+export const E2E_CRON_SECRET = "e2e-cron-secret";
+export const E2E_PING_PORT = 3299;
+export const E2E_PING_URL = `http://localhost:${E2E_PING_PORT}/ping/e2e`;
+
+/**
  * Le chiavi del database locale, lette dalla CLI e mai scritte nel repo.
  * Solleva con una frase che dice cosa fare se lo stack è spento.
  */

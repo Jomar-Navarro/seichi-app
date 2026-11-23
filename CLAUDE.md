@@ -66,8 +66,9 @@ perché. Le regole di dettaglio sono nei file di `.claude/rules/`.
    toccare (`job_runs`, `rate_events`): RLS accesa e zero policy, con la
    migration che dice perché, o alla rilettura sembra una dimenticanza.
 2. **`anon` non ha privilegi in `public`** (#154), e i default di `postgres` fanno
-   nascere così anche gli oggetti nuovi. Un grant ad `anon` si dà a una tabella e
-   a un privilegio, in una migration che lo motiva.
+   nascere così anche gli oggetti nuovi. Un grant ad `anon` si dà a un oggetto e
+   a un privilegio, in una migration che lo motiva. L'unico oggi:
+   `daily_job_health()`, per il controllo esterno del job (#160).
 3. **Ogni scrittura passa da una Server Action.** Unica eccezione dichiarata: le
    letture di conti e categorie dei moduli (`components/UI/useClientRows.ts`,
    #150) partono dal browser, perché Next spedisce le server action una alla
@@ -93,6 +94,9 @@ perché. Le regole di dettaglio sono nei file di `.claude/rules/`.
 9. **Variabili d'ambiente**: Supabase in `.env.local`, mai nel codice;
    `NEXT_PUBLIC_SITE_URL` solo tramite `lib/site-url.ts`. Le `NEXT_PUBLIC_*` sono
    inlinizzate in compilazione, quindi i controlli stanno in `next.config.ts`.
+   La chiave segreta di Supabase non va nell'ambiente di Vercel: scavalca la
+   RLS su tutto, e l'app non ne ha bisogno. Le sole variabili del server sono
+   quelle della sorveglianza (`CRON_SECRET`, `HEALTHCHECKS_PING_URL`, #160).
 10. **Il proxy è una comodità di navigazione, non il perimetro**: ogni pagina e
     ogni action si autentica da sé, perché un'action si raggiunge con una POST.
 11. **Un'azione che costa (upload, import, export) consuma un posto del suo
@@ -306,7 +310,8 @@ Ogni tabella ha anche `created_at`.
 - `generate_recurring_transactions()`, che restituisce gli id delle regole saltate;
 - `run_daily_jobs()`, lanciata da pg_cron alle 03:00 UTC: ricorrenti, poi
   notifiche;
-- `daily_job_health()`;
+- `daily_job_health()`, che legge anche il controllo esterno delle 06:00
+  (`/api/cron/salute-job`, Vercel Cron → healthchecks.io);
 - `import_transactions()` (`security invoker`), con il tetto degli import:
   oltre, `SR429` con i secondi nel `detail`;
 - `consume_rate_limit(action)`: 0 e registra, o i secondi da aspettare;
@@ -366,7 +371,7 @@ Flow»: quei titoli sono rimasti identici nei file, quindi li trovi con
 | area | file in `docs/storia/` |
 |---|---|
 | database, migration, schema | `schema-annotato`, `issue-043-ricostruzione-schema`, `issue-123-database-integrita`, `issue-154-anon`, `issue-157-supabase-cli`, `issue-158-categorie-proprietario` |
-| job notturno, ricorrenti, notifiche | `issue-047-job-giornaliero`, `fase-17-budget-notifiche`, `issue-117-ricorrenti-obiettivi`, `issue-173-ricorrenti-esito` |
+| job notturno, ricorrenti, notifiche | `issue-047-job-giornaliero`, `fase-17-budget-notifiche`, `issue-117-ricorrenti-obiettivi`, `issue-173-ricorrenti-esito`, `issue-160-osservabilita` |
 | budget e disponibile | `fase-17-budget-notifiche`, `fase-24a-disponibile` |
 | conti, saldi, trasferimenti, conto ricordato | `fase-20a-conti`, `fase-20b-trasferimenti`, `issue-112-conto-guardato`, `issue-217-conto-durante-scheletro`, `issue-062-conti-swipe`, `issue-175-collaudi-conti` |
 | movimenti: lista, form, importi | `issue-009-lista-movimenti`, `issue-148-movimenti`, `issue-150-form-tre-stati`, `issue-122-form-movimento`, `issue-119-importi`, `issue-220-note-lunghe`, `issue-222-ricorrenza-dal-movimento` |
@@ -378,7 +383,7 @@ Flow»: quei titoli sono rimasti identici nei file, quindi li trovi con
 | tema, stili, accessibilità | `fase-18-tema`, `issue-081-firefox-bordi`, `issue-126-contrasto`, `issue-153-movimento-ridotto`, `issue-165-dialog`, `issue-214-indietro` |
 | lingua e valuta | `fase-19-lingua`, `issue-171-valuta` |
 | accesso, onboarding, sessione | `auth-flusso`, `costo-richieste-supabase` |
-| errori e letture fallite | `issue-124-errori` |
+| errori e letture fallite | `issue-124-errori`, `issue-160-osservabilita` |
 | PWA, avvio, splash | `fase-25-pwa`, `issue-127-pwa-audit`, `splash-avvio` |
 | blocco app | `fase-26a-pin`, `fase-26b-biometrico`, `issue-125-pin` |
 | telefono, tablet, desktop | `fase-27-mobile`, `fase-28-responsive`, `fase-28e-desktop` |

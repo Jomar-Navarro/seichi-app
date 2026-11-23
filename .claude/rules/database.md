@@ -2,6 +2,7 @@
 paths:
   - "supabase/**"
   - "lib/jobs.ts"
+  - "lib/job-health.ts"
   - "lib/notifications.ts"
   - "app/**/notification-actions.ts"
   - "app/**/budget-actions.ts"
@@ -13,7 +14,7 @@ Si carica quando apri un file di `supabase/` o i moduli di job, notifiche e
 budget. Il perché sta in `docs/storia/`: `issue-043-ricostruzione-schema`,
 `issue-123-database-integrita`, `issue-154-anon`, `issue-047-job-giornaliero`,
 `fase-17-budget-notifiche`, `schema-annotato`, `issue-157-supabase-cli`,
-`issue-158-categorie-proprietario`.
+`issue-158-categorie-proprietario`, `issue-160-osservabilita`.
 
 ## Scrivere una migration
 
@@ -123,7 +124,8 @@ Con `db push`, mai dal SQL Editor: la procedura sta in `rilascio.md`.
    proposito.
 8. **I file dello Storage non si cancellano in SQL**: Supabase rifiuta il
    `DELETE` su `storage.objects`. Li toglie l'app, vedi `storage.md`.
-9. **`anon` resta a zero privilegi** (#154). I default di `supabase_admin`
+9. **`anon` resta a zero privilegi** (#154), salvo `daily_job_health()`
+   (#160), che c2 esclude per nome. I default di `supabase_admin`
    concedono ancora tutto ad `anon`: se la piattaforma creasse un oggetto in
    `public`, lo direbbero le query c1 e c2 (le viste in testa a
    `supabase/tests/anon.test.sql`) eseguite sulla produzione con `db query
@@ -163,5 +165,7 @@ Con `db push`, mai dal SQL Editor: la procedura sta in `rilascio.md`.
 8. **Le join verso `categories` confrontano anche `user_id`**: ridondante
    dalle FK composite (#158), costa zero, e le prove c2 lo pretendono.
 9. **L'allarme «job fermo» si calcola alla lettura** (`daily_job_health()`,
-   `lib/jobs.ts`, soglia di 36 ore in TypeScript). Mai da una notifica o da un
-   secondo cron: un job morto non può annunciarsi.
+   `judgeDailyJob()`, soglia di 36 ore in TypeScript). Mai da una notifica o da
+   un secondo pg_cron: un job morto non può annunciarsi. Lo leggono l'app e il
+   Vercel Cron delle 06:00, con lo stesso verdetto; il cron avvisa un servizio
+   a «uomo morto», che scrive anche quando non sente niente (#160).

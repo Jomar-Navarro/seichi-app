@@ -14,7 +14,7 @@
 -- Storia: docs/storia/issue-154-anon.md.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(17);
+select plan(21);
 
 -- Le due query di c1 e c2, scritte UNA volta: c9 le rilegge dopo aver
 -- iniettato un guasto, per dimostrare che vedono ciò che dicono di cercare.
@@ -29,7 +29,11 @@ create temporary view anon_funzioni as
 	select string_agg(p.oid::regprocedure::text, ', ' order by p.oid::regprocedure::text) as nomi
 	from pg_proc p
 	join pg_namespace n on n.oid = p.pronamespace
-	where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'EXECUTE');
+	where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'EXECUTE')
+	  -- L'unica eccezione dichiarata (#160, migration `20261124`): cinque fatti
+	  -- globali sul job, per il controllo esterno che non ha sessione. c10 la
+	  -- prova; qui si esclude PER NOME, così ogni altra funzione resta vista.
+	  and p.oid <> 'public.daily_job_health()'::regprocedure;
 
 select is((select nomi from anon_relazioni), null, 'c1 · nessuna relazione di public concessa ad anon o a PUBLIC');
 select is((select nomi from anon_funzioni), null, 'c2 · nessuna funzione di public eseguibile da anon');
@@ -100,6 +104,30 @@ select lives_ok(
 );
 reset role;
 select is((select x from public._prova_154), 42, 'c8 · il trigger è scattato');
+
+-- c10 · l'eccezione della #160: anon esegue `daily_job_health()` e riceve una
+-- riga, ma la tabella da cui la funzione legge gli resta chiusa. Il gemello
+-- (anon che NON esegue un'altra funzione) è c6; c9 fa cadere c2 se l'eccezione
+-- si allarga. ⚠️ Sta PRIMA di c9, che concede proprio `job_runs` ad anon per
+-- vedere se c1 se ne accorge: dopo, l'ultima prova qui sarebbe falsa.
+select ok(has_function_privilege('anon', 'public.daily_job_health()', 'EXECUTE'),
+	'c10 · anon esegue daily_job_health()');
+select lives_ok(
+	$$ set local role anon; select * from public.daily_job_health() $$,
+	'c10 · e la chiamata come anon riesce (security definer: legge job_runs da proprietario)'
+);
+reset role;
+select is(
+	(select count(*) from public.daily_job_health()),
+	1::bigint,
+	'c10 · una riga sola, quella che il cron legge'
+);
+select throws_ok(
+	$$ set local role anon; select 1 from public.job_runs limit 1 $$,
+	'42501', 'permission denied for table job_runs',
+	'c10 · ma anon non legge job_runs, da cui stanno details e gli id delle regole'
+);
+reset role;
 
 -- c9 · le query di c1 e c2 VEDONO un guasto: un grant ad anon su una tabella,
 -- uno a PUBLIC su una funzione. Senza, una verifica che non guarda niente
