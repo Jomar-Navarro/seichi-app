@@ -172,6 +172,19 @@ function shortFile(file: string): string {
  * `("[scope] testo:", dettaglio, …)`. Un `Error` porta messaggio e pila, un
  * errore di PostgREST o di GoTrue il suo `code`; il resto diventa testo.
  */
+/**
+ * L'errore viene dal server, che l'ha già riferito: porta il `digest` di Next.
+ *
+ * Quando un'action o un server component solleva in produzione, il server lo
+ * manda a Sentry da `onRequestError` col messaggio vero; al browser arriva un
+ * `Error` col solo `digest` e il testo generico di Next. Riferirlo di nuovo
+ * dal client sarebbe un doppione che non dice niente. È la regola di
+ * `(main)/error.tsx`, qui per ogni rapporto del browser.
+ */
+export function cameFromServer(value: unknown): boolean {
+	return !!value && typeof value === "object" && typeof (value as { digest?: unknown }).digest === "string";
+}
+
 export function fromConsoleArgs(args: unknown[]): Omit<ErrorReport, "source"> {
 	let scope = "senza-etichetta";
 	let code: string | undefined;

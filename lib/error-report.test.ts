@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildEvent, fromConsoleArgs, parseDsn, parseStack, scrub, scrubPath, toEnvelope } from "@/lib/error-report";
+import { buildEvent, cameFromServer, fromConsoleArgs, parseDsn, parseStack, scrub, scrubPath, toEnvelope } from "@/lib/error-report";
 
 /*
  * Ciò che parte verso Sentry (#160). La domanda di ogni caso: un dato
@@ -105,6 +105,20 @@ describe("fromConsoleArgs", () => {
 
 	it("senza etichetta non inventa: lo dice", () => {
 		expect(fromConsoleArgs([new Error("x")]).scope).toBe("senza-etichetta");
+	});
+});
+
+describe("cameFromServer", () => {
+	it("un errore col digest viene dal server, che l'ha già riferito", () => {
+		const e = Object.assign(new Error("An error occurred in the Server Components render."), { digest: "1234567890" });
+		expect(cameFromServer(e)).toBe(true);
+	});
+
+	it("un errore nato nel browser no, e nemmeno un valore qualunque", () => {
+		expect(cameFromServer(new TypeError("x is undefined"))).toBe(false);
+		expect(cameFromServer("[movimento] salvataggio:")).toBe(false);
+		expect(cameFromServer(null)).toBe(false);
+		expect(cameFromServer({ digest: 42 })).toBe(false);
 	});
 });
 

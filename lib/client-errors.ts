@@ -1,4 +1,4 @@
-import { fromConsoleArgs } from "@/lib/error-report";
+import { cameFromServer, fromConsoleArgs } from "@/lib/error-report";
 
 /**
  * Il `console.error` del browser, che in più manda l'errore a Sentry passando
@@ -54,6 +54,8 @@ export function sendClientReport(report: { scope: string; message: string; code?
 export function logClientError(...args: unknown[]): void {
 	console.error(...args);
 	try {
+		// Un'action che ha sollevato: l'ha già riferita il server (`cameFromServer`).
+		if (args.some(cameFromServer)) return;
 		sendClientReport(fromConsoleArgs(args));
 	} catch {
 		// niente: vedi sopra

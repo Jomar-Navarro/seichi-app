@@ -188,6 +188,12 @@ Posta in arrivo.
     passaggio, e un numero si toglie solo se sta da solo;
   - i nomi dei file nella pila passavano da `scrubPath()`, e ogni chunk di
     Turbopack (un hash con cifre) diventava `[id]`.
+- **Dalla review della PR intera**: i componenti client riferivano anche gli
+  errori delle action, che arrivano al browser col solo `digest` e il testo
+  generico di Next, mentre il server li aveva già riferiti col messaggio vero.
+  `error.tsx` aveva la regola, `logClientError()` e l'ascoltatore delle
+  promise no: la migrazione a campione, di nuovo. Ora `cameFromServer()` vale
+  per tutti e tre.
 - Un rosso della prova, non dell'app: il trigger leggeva `auth.users` col
   ruolo dell'utente (`permission denied`); ora è `security definer`.
 - **Controprove**: senza `queueReport()` in `logServerError()` cade solo lo

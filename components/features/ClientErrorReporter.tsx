@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { sendClientReport } from "@/lib/client-errors";
+import { cameFromServer } from "@/lib/error-report";
 
 /**
  * Gli errori del browser che nessuno ha preso (#160): eccezioni non gestite e
@@ -23,6 +24,7 @@ export default function ClientErrorReporter() {
 		const onError = (e: ErrorEvent) => {
 			if (e.filename && !e.filename.startsWith(window.location.origin)) return;
 			if (!e.error && /^Script error\.?$/.test(e.message)) return;
+			if (cameFromServer(e.error)) return;
 			sendClientReport({
 				scope: "browser",
 				message: e.error instanceof Error ? `${e.error.name}: ${e.error.message}` : e.message,
@@ -31,6 +33,8 @@ export default function ClientErrorReporter() {
 		};
 		const onRejection = (e: PromiseRejectionEvent) => {
 			const r = e.reason;
+			// Un'action rifiutata senza `catch`: il server l'ha già riferita.
+			if (cameFromServer(r)) return;
 			sendClientReport({
 				scope: "browser: promise",
 				message: r instanceof Error ? `${r.name}: ${r.message}` : String(r),
