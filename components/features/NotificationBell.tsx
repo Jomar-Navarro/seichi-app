@@ -14,6 +14,7 @@ import { BADGE_MAX, notificationMeta, relativeTime } from "@/lib/notifications";
 import type { RenderedNotification } from "@/types";
 import { useDismissLayer } from "@/components/UI/useDialog";
 import { useI18n } from "./I18nProvider";
+import { logClientError } from "@/lib/client-errors";
 
 interface NotificationBellProps {
 	/** conteggio risolto lato server: evita che il badge lampeggi all'apertura */
@@ -154,7 +155,7 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 			setUnread((u) => Math.max(0, u - 1));
 			// Il `catch` (#124): un'azione che SOLLEVA era un errore non gestito.
 			// Il resto non cambia — la riga torna non letta alla prossima apertura.
-			markNotificationRead(n.id).catch((e) => console.error("[notifiche] segna letta:", e));
+			markNotificationRead(n.id).catch((e) => logClientError("[notifiche] segna letta:", e));
 		}
 		router.push(n.destination);
 	}
@@ -173,7 +174,7 @@ export default function NotificationBell({ initialUnread }: NotificationBellProp
 			// Un'azione che SOLLEVA invece di restituire `{ error }` lasciava il
 			// pannello tutto "letto" e il badge a zero, senza un messaggio e con il
 			// database fermo dov'era (#124): lo stesso ramo del rifiuto qui sotto.
-			console.error("[notifiche] segna tutte:", e);
+			logClientError("[notifiche] segna tutte:", e);
 			res = { error: t.common.genericError };
 		}
 		if ("error" in res) {

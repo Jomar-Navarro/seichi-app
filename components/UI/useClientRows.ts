@@ -4,6 +4,7 @@ import { useCallback, useEffect, useEffectEvent, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { OptionsLoad } from "@/components/UI/Select";
 import type { Account, Category } from "@/types";
+import { logClientError } from "@/lib/client-errors";
 
 /**
  * Le letture di conti e categorie che fanno i moduli (#150): il form del
@@ -88,7 +89,7 @@ function useRows<T>(
 				if (cancelled) return;
 				// Il motivo vero resta nella console, come `genericError()` (#124):
 				// a schermo va solo la frase del dizionario.
-				console.error(`[${scope}]`, [error?.code, error?.message].filter(Boolean).join(" ") || error);
+				logClientError(`[${scope}]`, [error?.code, error?.message].filter(Boolean).join(" ") || error);
 				setStored({ key, attempt, load: { status: "failed" } });
 			},
 		);

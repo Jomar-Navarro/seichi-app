@@ -6,6 +6,7 @@ import TransactionModal from "@/components/UI/TransactionModal";
 import AppLockProvider from "@/components/features/AppLockProvider";
 import Announcer from "@/components/UI/Announcer";
 import PwaStatus from "@/components/features/PwaStatus";
+import ClientErrorReporter from "@/components/features/ClientErrorReporter";
 import { getSidebarProfile } from "@/lib/account";
 import { SIDEBAR_COOKIE, sidebarVisibleFromCookie } from "@/lib/sidebar";
 import {
@@ -110,6 +111,7 @@ export default async function RootLayout({
 			{/* #165 — la regione degli annunci: una sola, sempre montata, fuori dal
 			    contenuto che il velo del PIN rende inerte. Vedi Announcer. */}
 			<Announcer />
+			<ClientErrorReporter />
 		</div>
 	);
 }

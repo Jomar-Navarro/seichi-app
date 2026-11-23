@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getFirstStepsVisibility } from "@/lib/account";
 import { firstStepsFromRow, type FirstStepsState } from "@/lib/first-steps";
+import { logServerError } from "@/lib/errors";
 
 /**
  * Lo stato della card «Primi passi» per la home (#163), o `null` se la card
@@ -27,12 +28,12 @@ export async function loadFirstSteps(): Promise<FirstStepsState | null> {
 		const supabase = await createClient();
 		const { data, error } = await supabase.rpc("first_steps").single();
 		if (error) {
-			console.error("[home] first_steps:", error.message);
+			logServerError("[home] first_steps:", error.message);
 			return null;
 		}
 		return firstStepsFromRow(data);
 	} catch (error) {
-		console.error("[home] primi passi:", error);
+		logServerError("[home] primi passi:", error);
 		return null;
 	}
 }

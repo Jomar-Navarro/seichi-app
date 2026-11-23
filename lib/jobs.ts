@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { judgeDailyJob, type DailyJobHealth, type DailyJobHealthRow } from "@/lib/job-health";
 import { createClient } from "@/lib/supabase/server";
 import type { AppDatabase } from "@/types/database-app";
+import { logServerError } from "@/lib/errors";
 
 export { DAILY_JOB_STALE_HOURS, type DailyJobHealth, type DailyJobScope } from "@/lib/job-health";
 
@@ -47,7 +48,7 @@ export async function readDailyJobHealth(
 export async function getDailyJobHealth(): Promise<DailyJobHealth | null> {
 	const result = await readDailyJobHealth(await createClient());
 	if ("reason" in result) {
-		console.error("[jobs] daily_job_health:", result.reason);
+		logServerError("[jobs] daily_job_health:", result.reason);
 		return null;
 	}
 	return result.health;

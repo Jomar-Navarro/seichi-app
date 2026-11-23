@@ -8,6 +8,7 @@ import { parseExportError, type ExportError } from "@/lib/export/download-error"
 import { rateLimitMessage } from "@/lib/rate-limit";
 import type { Dictionary } from "@/lib/i18n/dictionaries/it";
 import type { Locale } from "@/lib/i18n/config";
+import { logServerError } from "@/lib/errors";
 
 /**
  * L'export dei movimenti in CSV (Fase 23a, issue #37) e, sotto, l'archivio
@@ -101,8 +102,8 @@ export default async function EsportaPage({
 			.eq("user_id", user.id),
 	]);
 
-	if (accountsRes.error) console.error("[export] conti:", accountsRes.error.message);
-	if (categoriesRes.error) console.error("[export] categorie:", categoriesRes.error.message);
+	if (accountsRes.error) logServerError("[export] conti:", accountsRes.error.message);
+	if (categoriesRes.error) logServerError("[export] categorie:", categoriesRes.error.message);
 
 	/*
 	 * ⚠️ Una lettura FALLITA non è "non hai movimenti".
@@ -117,11 +118,11 @@ export default async function EsportaPage({
 	 * si otterrà un file con la sola intestazione o un errore leggibile —
 	 * entrambi preferibili a una funzione che scompare senza spiegazione.
 	 */
-	if (countRes.error) console.error("[export] conteggio movimenti:", countRes.error.message);
+	if (countRes.error) logServerError("[export] conteggio movimenti:", countRes.error.message);
 	const hasTransactions = countRes.error !== null || (countRes.count ?? 0) > 0;
 
 	// Un conteggio non letto NON è «nessuna ricevuta» (#124): la riga si omette.
-	if (receiptsRes.error) console.error("[export] conteggio ricevute:", receiptsRes.error.message);
+	if (receiptsRes.error) logServerError("[export] conteggio ricevute:", receiptsRes.error.message);
 	const receiptCount = receiptsRes.error ? null : (receiptsRes.count ?? 0);
 
 	// `pb-34` come ogni altra pagina di impostazioni: la `BottomNav` è `fixed`, e

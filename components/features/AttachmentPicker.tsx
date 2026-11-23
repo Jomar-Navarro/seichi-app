@@ -19,6 +19,7 @@ import { useI18n } from "@/components/features/I18nProvider";
 import { useDialog } from "@/components/UI/useDialog";
 import { fill, plural } from "@/lib/i18n/format";
 import type { Attachment } from "@/types";
+import { logClientError } from "@/lib/client-errors";
 
 /**
  * Riduce una foto prima di caricarla.
@@ -233,7 +234,7 @@ export default function AttachmentPicker({
 			 */
 			.catch((e) => {
 				if (cancelled) return;
-				console.error("[attachments] lettura:", e);
+				logClientError("[attachments] lettura:", e);
 				setLoadError(loadFailed);
 			})
 			.finally(() => {
@@ -315,7 +316,7 @@ export default function AttachmentPicker({
 							URL.revokeObjectURL(p.preview);
 						}
 					} catch (e) {
-						console.error("[attachments] caricamento in coda:", e);
+						logClientError("[attachments] caricamento in coda:", e);
 						primoErrore ??= t.attachments.errors.notSaved;
 						rimasti.push(p);
 					}
@@ -377,7 +378,7 @@ export default function AttachmentPicker({
 			 * La causa vera è stata corretta (vedi `chiaveLocale`), ma il `catch`
 			 * resta: qualunque altra cosa vada storta qui deve DIRLO.
 			 */
-			console.error("[attachments] scelta file:", e);
+			logClientError("[attachments] scelta file:", e);
 			setError(t.common.genericError);
 		} finally {
 			/*
@@ -409,7 +410,7 @@ export default function AttachmentPicker({
 			// rifiutata — un errore sul server, non una rete caduta (vedi la lettura
 			// qui sopra) — spariva in silenzio, e la ricevuta restava a schermo come
 			// se il secondo tocco non fosse mai arrivato. Stessa classe di `pick()`.
-			console.error("[attachments] rimozione:", e);
+			logClientError("[attachments] rimozione:", e);
 			setError(t.attachments.errors.removeFailed);
 		} finally {
 			setPending(false);

@@ -6,7 +6,7 @@ import { plural } from "@/lib/i18n/format";
 import { isAccountId } from "@/lib/accounts";
 import { countActiveAccounts } from "@/lib/account";
 import { isStorableAmount } from "@/lib/amount";
-import { genericError } from "@/lib/errors";
+import { genericError, logServerError } from "@/lib/errors";
 import type { Dictionary } from "@/lib/i18n/dictionaries/it";
 import { ACCOUNT_TYPES, type Account, type AccountTypeId, type AccountWithBalance } from "@/types";
 import type { RowUpdate } from "@/types/database-app";
@@ -173,7 +173,7 @@ export async function createAccount(input: AccountInput) {
 		// `numeric(10,2)` direbbe all'utente "A field with precision 10, scale 2…",
 		// che non lo aiuta e racconta la forma dello schema. È la convenzione già
 		// stabilita in `page.tsx` per i loader della home.
-		console.error("[conti] createAccount:", error.message);
+		logServerError("[conti] createAccount:", error.message);
 		return { error: t.accounts.errors.saveFailed };
 	}
 	revalidatePath("/", "layout");
@@ -224,7 +224,7 @@ export async function updateAccount(id: string, input: AccountInput) {
 		.maybeSingle();
 
 	if (error) {
-		console.error("[conti] updateAccount:", error.message);
+		logServerError("[conti] updateAccount:", error.message);
 		return { error: t.accounts.errors.saveFailed };
 	}
 	// ⚠️ Un UPDATE su zero righe NON è un errore: senza questo controllo l'app
@@ -535,7 +535,7 @@ export async function deleteAccount(id: string): Promise<{ success: true } | { e
 		.eq("user_id", user.id);
 
 	if (error) {
-		console.error("[conti] deleteAccount:", error.message);
+		logServerError("[conti] deleteAccount:", error.message);
 		return { error: t.accounts.errors.saveFailed };
 	}
 

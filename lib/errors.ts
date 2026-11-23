@@ -1,4 +1,6 @@
 import { isAuthRetryableFetchError, type AuthError } from "@supabase/supabase-js";
+import { fromConsoleArgs } from "@/lib/error-report";
+import { queueReport } from "@/lib/error-sink";
 import type { Dictionary } from "@/lib/i18n/dictionaries/it";
 
 /**
@@ -15,6 +17,29 @@ import type { Dictionary } from "@/lib/i18n/dictionaries/it";
  * Fuori da un file `"use server"`: da là ogni funzione esportata diventerebbe
  * un'azione raggiungibile con una POST.
  */
+
+/**
+ * Il `console.error` del server, che in più manda l'errore a Sentry (#160).
+ *
+ * Prende gli STESSI argomenti, nella forma del progetto
+ * (`"[scope] testo:", dettaglio`), e scrive nel log la stessa riga di prima:
+ * la migrazione da `console.error` è una sostituzione del nome, niente altro.
+ * Cosa parte verso Sentry lo decide `fromConsoleArgs()` + `buildEvent()`
+ * (`lib/error-report.ts`): l'etichetta, il codice, il messaggio ripulito.
+ *
+ * ⚠️ **Ogni `console.error` del server passa da qui** (lezione 3: la
+ * migrazione a campione). Restano `console.warn` le cose che non sono guasti
+ * (claims scadute, `lib/auth.ts`), e `console.error` solo dentro
+ * `lib/error-sink.ts`, dove un guasto di Sentry non deve riparlare a Sentry.
+ */
+export function logServerError(...args: unknown[]): void {
+	console.error(...args);
+	try {
+		queueReport({ ...fromConsoleArgs(args), source: "server" });
+	} catch {
+		// riferire un errore non deve mai produrne un altro
+	}
+}
 
 /** Un errore di PostgREST o dello Storage, o la stringa che `readAll` ne ha già estratto. */
 type ServerError = { message: string; code?: string } | string;
@@ -36,6 +61,12 @@ type ServerError = { message: string; code?: string } | string;
 export function genericError(scope: string, error: ServerError, t: Dictionary): string {
 	const detail = typeof error === "string" ? error : [error.code, error.message].filter(Boolean).join(" ");
 	console.error(`[${scope}]`, detail);
+	// A Sentry codice e messaggio separati: il codice è il raggruppamento.
+	queueReport(
+		typeof error === "string"
+			? { scope, message: error, source: "server" }
+			: { scope, code: error.code, message: error.message, source: "server" },
+	);
 	return t.common.genericError;
 }
 
@@ -73,7 +104,7 @@ export function authErrorMessage(
 	phrases: { wrongCredentials?: string; emailTaken?: string } = {},
 ): string {
 	if (isAuthRetryableFetchError(error)) {
-		console.error(`[${scope}] servizio non raggiungibile:`, error.message);
+		logServerError(`[${scope}] servizio non raggiungibile:`, error.message);
 		return t.errors.authUnavailable;
 	}
 

@@ -15,6 +15,7 @@ import { clientClock } from "@/lib/dates";
 import { useI18n } from "@/components/features/I18nProvider";
 import { fill } from "@/lib/i18n/format";
 import type { Account, BudgetOverview, Category, Transaction } from "@/types";
+import { logClientError } from "@/lib/client-errors";
 
 /** Quel poco che serve al filtro: vedi `getAccountOptions`. */
 type AccountOption = Pick<Account, "id" | "name" | "archived">;
@@ -389,7 +390,7 @@ export default function MovimentiClient({
 			} catch (e) {
 				// L'azione ha SOLLEVATO invece di restituire `{ error }`: stesso ramo.
 				if (myRequest !== requestId.current) return;
-				console.error("[movimenti] lettura:", e);
+				logClientError("[movimenti] lettura:", e);
 				fail();
 			} finally {
 				if (myRequest === requestId.current && !restarting) {
@@ -471,7 +472,7 @@ export default function MovimentiClient({
 				const m = memoryFor(userId);
 				if (m) m.budgets = data;
 			})
-			.catch((e) => console.error("[movimenti] budget:", e));
+			.catch((e) => logClientError("[movimenti] budget:", e));
 		return () => { cancelled = true; };
 	}, [transactionSavedAt, userId]);
 

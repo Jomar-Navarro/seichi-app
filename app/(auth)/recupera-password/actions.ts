@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
-import { authErrorMessage } from "@/lib/errors";
+import { authErrorMessage, logServerError } from "@/lib/errors";
 import { PASSWORD_MIN_LENGTH, validateNewPassword } from "@/lib/password";
 import { clearRecoverySession, hasRecoverySession } from "@/lib/recovery";
 import { clearCurrencyCookie, getDictionary } from "@/lib/i18n/server";
@@ -56,7 +56,7 @@ export async function requestPasswordReset(email: string): Promise<ActionResult>
 		if (isAuthRetryableFetchError(error) && error.status === 0) {
 			return { error: authErrorMessage("recupero password", error, await getDictionary()) };
 		}
-		console.error("[recupero password]", error.code ?? "", error.message);
+		logServerError("[recupero password]", error.code ?? "", error.message);
 	}
 
 	// Rispondiamo "ok" anche quando l'indirizzo non è registrato: distinguere i

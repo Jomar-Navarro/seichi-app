@@ -22,6 +22,16 @@ export const E2E_PING_PORT = 3299;
 export const E2E_PING_URL = `http://localhost:${E2E_PING_PORT}/ping/e2e`;
 
 /**
+ * La raccolta degli errori (#160) nei test: un finto Sentry, acceso dal
+ * `globalSetup` per tutta la suite, che scrive ogni envelope ricevuto in
+ * `E2E_SENTRY_LOG`, una riga JSON ciascuno. Lo scenario `errori.spec.ts` lo
+ * legge cercando il proprio marcatore.
+ */
+export const E2E_SENTRY_PORT = 3298;
+export const E2E_SENTRY_DSN = `http://e2e@localhost:${E2E_SENTRY_PORT}/1`;
+export const E2E_SENTRY_LOG = ".next/e2e-sentry.jsonl";
+
+/**
  * Le chiavi del database locale, lette dalla CLI e mai scritte nel repo.
  * Solleva con una frase che dice cosa fare se lo stack è spento.
  */

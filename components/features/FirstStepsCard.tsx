@@ -14,6 +14,7 @@ import {
 	type FirstStepsState,
 } from "@/lib/first-steps";
 import { dismissFirstSteps } from "@/app/(main)/first-steps-actions";
+import { logClientError } from "@/lib/client-errors";
 
 /**
  * Le pietre di passaggio (tobi-ishi): ognuna con la sua forma e un piccolo
@@ -83,7 +84,7 @@ export default function FirstStepsCard({ state }: { state: FirstStepsState }) {
 				setError(result.error);
 			}
 		} catch (e) {
-			console.error("[primi passi] chiusura:", e);
+			logClientError("[primi passi] chiusura:", e);
 			setHidden(false);
 			setError(t.common.genericError);
 		}

@@ -8,6 +8,7 @@ import LoadError from "@/components/UI/LoadError";
 import { getSelectedAccount } from "@/lib/accounts-server";
 import { getI18n } from "@/lib/i18n/server";
 import { plural } from "@/lib/i18n/format";
+import { logServerError } from "@/lib/errors";
 
 export default async function InvestimentiPage({
 	searchParams,
@@ -49,7 +50,7 @@ export default async function InvestimentiPage({
 	 */
 	const accounts = "error" in accountsResult ? [] : accountsResult.data;
 	if ("error" in accountsResult) {
-		console.error("[investimenti] getAccounts:", accountsResult.error);
+		logServerError("[investimenti] getAccounts:", accountsResult.error);
 	}
 
 	/*

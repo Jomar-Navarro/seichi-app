@@ -7,7 +7,7 @@ import { getDictionary, syncPreferencesFromProfile } from "@/lib/i18n/server";
 import { fill } from "@/lib/i18n/format";
 import { PASSWORD_MIN_LENGTH } from "@/lib/password";
 import { SITE_URL } from "@/lib/site-url";
-import { authErrorMessage } from "@/lib/errors";
+import { authErrorMessage, logServerError } from "@/lib/errors";
 
 export async function login(_prevState: { error: string }, formData: FormData) {
 	const supabase = await createClient();
@@ -51,7 +51,7 @@ export async function login(_prevState: { error: string }, formData: FormData) {
 			.maybeSingle();
 
 		if (profileError) {
-			console.error("[login] lettura del profilo:", profileError.message);
+			logServerError("[login] lettura del profilo:", profileError.message);
 			redirect("/");
 		}
 

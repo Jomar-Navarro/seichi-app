@@ -3,6 +3,7 @@ import type { AppDatabase } from "@/types/database-app";
 import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 import { CURRENCY_COOKIE, CURRENCY_COOKIE_OPTIONS, isCurrency } from "@/lib/i18n/config";
+import { logServerError } from "@/lib/errors";
 
 /**
  * Percorsi raggiungibili senza sessione. Il recupero password ci deve stare:
@@ -107,7 +108,7 @@ export async function updateSession(request: NextRequest) {
 	 * mente e costringe a ridigitare le credenziali.
 	 */
 	if (error && isAuthRetryableFetchError(error)) {
-		console.error("[proxy] getClaims non raggiungibile:", error.message);
+		logServerError("[proxy] getClaims non raggiungibile:", error.message);
 		return supabaseResponse;
 	}
 
@@ -191,7 +192,7 @@ export async function updateSession(request: NextRequest) {
 			.select("currency")
 			.eq("id", user.sub)
 			.maybeSingle();
-		if (profileError) console.error("[proxy] valuta dal profilo:", profileError.message);
+		if (profileError) logServerError("[proxy] valuta dal profilo:", profileError.message);
 		const currency = profile?.currency;
 		if (isCurrency(currency)) {
 			request.cookies.set(CURRENCY_COOKIE, currency);

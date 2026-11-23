@@ -31,6 +31,7 @@ import {
 	writeGraceMs,
 } from "@/lib/app-lock";
 import { setAppLockCookie } from "@/app/(main)/app-lock-actions";
+import { logClientError } from "@/lib/client-errors";
 
 /**
  * `/impostazioni/blocco` (Fase 26a) — imposta, cambia o rimuove il PIN.
@@ -279,7 +280,7 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 			// del cookie è ancora in viaggio — un PIN messo e tolto offline — il suo
 			// `Set-Cookie` arriverebbe DOPO la cancellazione e lo riaccenderebbe.
 			// Next esegue le server action una alla volta, quindi questa arriva dopo.
-			setAppLockCookie(false).catch((e) => console.error("[app-lock] cookie del PIN:", e));
+			setAppLockCookie(false).catch((e) => logClientError("[app-lock] cookie del PIN:", e));
 			reset();
 			return;
 		}
@@ -322,7 +323,7 @@ export default function AppLockSettings({ initialHasPin }: { initialHasPin: bool
 		// Il cookie del PIN lo scrive il server (#125, vedi `lib/app-lock.ts`).
 		// Se la richiesta fallisce, lo ricorregge `AppLockProvider` alla
 		// prossima apertura: intanto il blocco lo decide `localStorage`.
-		if (saved) setAppLockCookie(true).catch((e) => console.error("[app-lock] cookie del PIN:", e));
+		if (saved) setAppLockCookie(true).catch((e) => logClientError("[app-lock] cookie del PIN:", e));
 		setStep(saved ? "done" : "save-error");
 	}
 

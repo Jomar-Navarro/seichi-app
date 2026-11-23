@@ -11,6 +11,7 @@ import LoadError from "@/components/UI/LoadError";
 import MonthlyLineChart from "@/components/features/MonthlyLineChart";
 import SpendingPieChart from "@/components/features/SpendingPieChart";
 import PrintButton from "@/components/features/PrintButton";
+import { logServerError } from "@/lib/errors";
 
 /**
  * Il report stampabile (Fase 23b, issue #60).
@@ -95,7 +96,7 @@ export default async function ReportPage({
 	 * filtro "Tutti i conti" è vero comunque, e la pagina può proseguire.
 	 */
 	if ("error" in accountsResult) {
-		console.error("[report] getAccountOptions:", accountsResult.error);
+		logServerError("[report] getAccountOptions:", accountsResult.error);
 		if (accountId) return <LoadError message={t.common.pageLoadFailed} className="min-h-dvh justify-center" />;
 	}
 	const accounts = "error" in accountsResult ? [] : accountsResult.data;

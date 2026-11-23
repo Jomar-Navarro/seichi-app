@@ -26,6 +26,7 @@ import { getSelectedAccount } from "@/lib/accounts-server";
 import { getI18n } from "@/lib/i18n/server";
 import { fill, formatDate } from "@/lib/i18n/format";
 import { ChartNoAxesCombinedIcon } from "@/lib/seichi-icons";
+import { logServerError } from "@/lib/errors";
 
 export default async function MainPage({
 	searchParams,
@@ -141,11 +142,11 @@ async function DashboardContent({
 	 * — ma al server resta la traccia.
 	 */
 	if ("error" in result) {
-		console.error("[home] getDashboardTotals:", result.error);
+		logServerError("[home] getDashboardTotals:", result.error);
 		return <LoadError message={t.common.pageLoadFailed} className="min-h-dvh justify-center" />;
 	}
 	if ("error" in transaction) {
-		console.error("[home] getTransactions:", transaction.error);
+		logServerError("[home] getTransactions:", transaction.error);
 		return <LoadError message={t.common.pageLoadFailed} className="min-h-dvh justify-center" />;
 	}
 
@@ -155,7 +156,7 @@ async function DashboardContent({
 	// mostrare. Stesso trattamento già riservato agli obiettivi qui sotto.
 	const accounts = "error" in accountsResult ? [] : accountsResult.data;
 	if ("error" in accountsResult) {
-		console.error("[home] getAccounts:", accountsResult.error);
+		logServerError("[home] getAccounts:", accountsResult.error);
 	}
 
 	/*

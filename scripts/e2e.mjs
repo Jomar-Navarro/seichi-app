@@ -29,6 +29,7 @@ import {
 	E2E_MARKER,
 	E2E_PING_URL,
 	E2E_PORT,
+	E2E_SENTRY_DSN,
 	readLocalStatus,
 } from "./e2e-local.mjs";
 
@@ -130,6 +131,7 @@ function serve() {
 			// #160: lette a runtime dalla route del cron, non inlinizzate.
 			CRON_SECRET: E2E_CRON_SECRET,
 			HEALTHCHECKS_PING_URL: E2E_PING_URL,
+			SENTRY_DSN: E2E_SENTRY_DSN,
 		},
 	});
 	child.on("exit", (code) => {

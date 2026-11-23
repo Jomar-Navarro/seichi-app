@@ -15,6 +15,7 @@ import { getSelectedAccount } from "@/lib/accounts-server";
 import { getI18n } from "@/lib/i18n/server";
 import { periodoLabel } from "@/lib/analytics";
 import { currencySymbol, lookup, splitAmount } from "@/lib/i18n/format";
+import { logServerError } from "@/lib/errors";
 
 export default async function AnalyticsPage({
 	searchParams,
@@ -50,7 +51,7 @@ export default async function AnalyticsPage({
 	 */
 	const accounts = "error" in accountsResult ? [] : accountsResult.data;
 	if ("error" in accountsResult) {
-		console.error("[analisi] getAccounts:", accountsResult.error);
+		logServerError("[analisi] getAccounts:", accountsResult.error);
 	}
 
 	/*

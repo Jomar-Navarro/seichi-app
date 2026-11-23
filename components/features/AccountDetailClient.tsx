@@ -23,6 +23,7 @@ import {
 	accountTypeLabel,
 } from "@/lib/accounts";
 import type { Account, AccountWithBalance, Transaction } from "@/types";
+import { logClientError } from "@/lib/client-errors";
 
 /** Quel poco che serve al nome dei conti nei trasferimenti: vedi `getAccountOptions`. */
 type AccountOption = Pick<Account, "id" | "name" | "archived">;
@@ -70,7 +71,7 @@ export default function AccountDetailClient({ account }: AccountDetailClientProp
 				if (cancelled || !("data" in res)) return;
 				setAccounts(res.data);
 			})
-			.catch((e) => console.error("[conto] conti:", e));
+			.catch((e) => logClientError("[conto] conti:", e));
 		return () => { cancelled = true; };
 	}, [transactionSavedAt]);
 
@@ -122,7 +123,7 @@ export default function AccountDetailClient({ account }: AccountDetailClientProp
 				setAttachmentCounts((prev) => (append ? { ...prev, ...counts } : counts));
 			} catch (e) {
 				if (myRequest !== requestId.current) return;
-				console.error("[conto] movimenti:", e);
+				logClientError("[conto] movimenti:", e);
 				if (!append) {
 					setTransactions([]);
 					setHasMore(false);

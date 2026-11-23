@@ -15,6 +15,7 @@ import {
 } from "@/lib/app-lock";
 import { signOut } from "@/app/(main)/impostazioni/actions";
 import { setAppLockCookie } from "@/app/(main)/app-lock-actions";
+import { logClientError } from "@/lib/client-errors";
 
 /**
  * Schermata di sblocco (Fase 26a) — velo a schermo intero, montato da
@@ -141,7 +142,7 @@ export default function AppLockScreen({ onUnlock }: { onUnlock: () => void }) {
 			// Anche dal server (#125): un'accensione ancora in viaggio non deve
 			// riaccenderlo dopo. Le server action vanno una alla volta, e un suo
 			// guasto non deve fermare l'uscita.
-			await setAppLockCookie(false).catch((e) => console.error("[app-lock] cookie del PIN:", e));
+			await setAppLockCookie(false).catch((e) => logClientError("[app-lock] cookie del PIN:", e));
 			await signOut();
 		});
 	}

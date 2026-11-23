@@ -9,6 +9,7 @@ import { clientClock } from "@/lib/dates";
 import { coachOpening, coachReplies } from "@/lib/coach";
 import type { CoachReply, CoachTopic } from "@/lib/coach";
 import type { CoachSnapshot } from "@/types";
+import { logClientError } from "@/lib/client-errors";
 
 /**
  * Il coach in home (Fase 24b).
@@ -118,7 +119,7 @@ function CoachPanel({
 			 */
 			.catch((e) => {
 				if (annullato) return;
-				console.error("[coach] snapshot:", e);
+				logClientError("[coach] snapshot:", e);
 				setFallito(true);
 			});
 		return () => { annullato = true; };

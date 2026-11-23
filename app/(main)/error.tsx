@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import LoadError from "@/components/UI/LoadError";
 import { useI18n } from "@/components/features/I18nProvider";
+import { logClientError } from "@/lib/client-errors";
 
 /**
  * Una pagina dell'app che non si è potuta costruire (issue #124).
@@ -22,6 +23,11 @@ import { useI18n } from "@/components/features/I18nProvider";
  * Il testo dell'errore non si mostra: in produzione Next lo sostituisce con un
  * messaggio generico, e in sviluppo sarebbe quello grezzo del server. Va nella
  * console, col `digest` che lo lega al log del server.
+ *
+ * #160 — a Sentry va solo l'errore NATO NEL BROWSER (senza `digest`). Uno con
+ * il `digest` viene dal server, che l'ha già riferito da `onRequestError`
+ * (`instrumentation.ts`) col messaggio vero: qui avremmo solo il testo
+ * generico di Next, cioè un doppione che non dice niente.
  */
 export default function MainError({
 	error,
@@ -33,7 +39,8 @@ export default function MainError({
 	const { t } = useI18n();
 
 	useEffect(() => {
-		console.error(error);
+		if (error.digest) console.error(error);
+		else logClientError("[pagina] errore di render:", error);
 	}, [error]);
 
 	return (

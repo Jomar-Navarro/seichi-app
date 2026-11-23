@@ -28,6 +28,7 @@ import ThemeSection from "@/components/features/ThemeSection";
 import GlobalBudgetSection from "@/components/features/GlobalBudgetSection";
 import { signOut } from "./actions";
 import pkg from "@/package.json";
+import { logServerError } from "@/lib/errors";
 
 /** Icone, anelli e pastiglie: l'accento pieno (`accent` di SettingsRow, `tone` di SettingsGroup). */
 const AKA = "var(--color-aka)";
@@ -58,7 +59,7 @@ export default async function ImpostazioniPage() {
 		.eq("user_id", account.userId);
 	// ⚠️ Su un errore la riga non dice "0" (#124): uno zero è un'affermazione —
 	// "non hai categorie" — e su una lettura fallita è falsa.
-	if (categoriesError) console.error("[impostazioni] conteggio categorie:", categoriesError.message);
+	if (categoriesError) logServerError("[impostazioni] conteggio categorie:", categoriesError.message);
 
 	// Fase 26a — il PIN vero non lascia mai questo dispositivo (localStorage),
 	// ma il flag "un PIN è configurato" è nel cookie apposta per questo: farlo

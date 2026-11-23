@@ -5,6 +5,7 @@ import PageHeader from "@/components/UI/PageHeader";
 import ImportFlow from "@/components/features/ImportFlow";
 import LoadError from "@/components/UI/LoadError";
 import { listImports } from "./actions";
+import { logServerError } from "@/lib/errors";
 
 /**
  * L'import di transazioni da file (Fase 21, issue #35).
@@ -61,7 +62,7 @@ export default async function ImportaPage() {
 	 * grezzo resta nel log.
 	 */
 	const readFailed = accountsRes.error ?? categoriesRes.error;
-	if (readFailed) console.error("[import] conti/categorie:", readFailed.message);
+	if (readFailed) logServerError("[import] conti/categorie:", readFailed.message);
 
 	return (
 		<div className="flex flex-col min-h-dvh px-5 pt-7 pb-34 lg:max-w-2xl lg:mx-auto lg:w-full">

@@ -2,7 +2,7 @@ import { cache } from "react";
 import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { getI18n } from "@/lib/i18n/server";
-import { authErrorMessage } from "@/lib/errors";
+import { authErrorMessage, logServerError } from "@/lib/errors";
 
 /**
  * L'identità dell'utente per questa richiesta, letta dalle CLAIMS del JWT.
@@ -109,7 +109,7 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
 	 */
 	if (error) {
 		if (isAuthRetryableFetchError(error)) {
-			console.error("[auth] getClaims non raggiungibile:", error.message);
+			logServerError("[auth] getClaims non raggiungibile:", error.message);
 			throw error;
 		}
 		console.warn("[auth] claims non valide:", error.message);

@@ -1,5 +1,6 @@
-import { readFileSync } from "node:fs";
-import { localSupabase } from "./env";
+import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
+import { createServer } from "node:http";
+import { E2E_SENTRY_LOG, E2E_SENTRY_PORT, localSupabase } from "./env";
 
 /**
  * Prima di qualunque test, ciò che si può controllare a server già acceso.
@@ -29,4 +30,35 @@ export default async function globalSetup() {
 	if (!jwks.keys?.some((k) => k.kid === kid)) {
 		throw new Error("Auth non firma con supabase/signing_keys.json: `npx supabase stop --no-backup` e di nuovo `npm run e2e:db`.");
 	}
+
+	return startFakeSentry();
+}
+
+/**
+ * Il finto Sentry (#160), acceso per tutta la suite: il server dei test ha
+ * `SENTRY_DSN` puntato qui (`e2e.mjs serve`), quindi ogni errore che l'app
+ * riferisce durante un qualunque scenario arriva in `E2E_SENTRY_LOG`, una riga
+ * per envelope, con l'intestazione d'autenticazione. Se fosse acceso solo da
+ * `errori.spec.ts`, gli errori degli altri scenari finirebbero nel log del
+ * server come «invio a Sentry fallito».
+ *
+ * Restituisce la chiusura: Playwright la usa come teardown.
+ */
+async function startFakeSentry() {
+	writeFileSync(E2E_SENTRY_LOG, "");
+	const server = createServer((req, res) => {
+		let body = "";
+		req.on("data", (c) => (body += c));
+		req.on("end", () => {
+			appendFileSync(E2E_SENTRY_LOG, JSON.stringify({ path: req.url, auth: req.headers["x-sentry-auth"], body }) + "\n");
+			res.writeHead(200, { "content-type": "application/json" }).end("{}");
+		});
+	});
+	await new Promise<void>((resolve, reject) => {
+		server.once("error", reject);
+		server.listen(E2E_SENTRY_PORT, "localhost", resolve);
+	});
+	return async () => {
+		await new Promise<void>((resolve) => server.close(() => resolve()));
+	};
 }

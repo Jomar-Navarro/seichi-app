@@ -5,7 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { isCurrency, normalizeLocale } from "@/lib/i18n/config";
 import { dictionaryFor, setCurrencyCookie, setLocaleCookie } from "@/lib/i18n/server";
 import type { Dictionary } from "@/lib/i18n/dictionaries/it";
-import { genericError } from "@/lib/errors";
+import { genericError, logServerError } from "@/lib/errors";
 
 export async function savePreferences(currency: string, language: string) {
 	const { supabase, user, t } = await requireUser();
@@ -198,7 +198,7 @@ export async function saveCategories(selected: string[]) {
 		// ⚠️ Una lettura fallita non si tratta come "nessuna categoria": si
 		// inserirebbero doppioni di tutto ciò che l'utente ha già.
 		if (readError) {
-			console.error("[onboarding] saveCategories, lettura:", readError.message);
+			logServerError("[onboarding] saveCategories, lettura:", readError.message);
 			return { error: t.common.genericError };
 		}
 
@@ -208,7 +208,7 @@ export async function saveCategories(selected: string[]) {
 		if (missing.length > 0) {
 			const { error } = await supabase.from("categories").insert(missing);
 			if (error) {
-				console.error("[onboarding] saveCategories, inserimento:", error.message);
+				logServerError("[onboarding] saveCategories, inserimento:", error.message);
 				return { error: t.common.genericError };
 			}
 		}

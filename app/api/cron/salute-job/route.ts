@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { pingFor } from "@/lib/job-health";
 import { readDailyJobHealth } from "@/lib/jobs";
 import type { AppDatabase } from "@/types/database-app";
+import { logServerError } from "@/lib/errors";
 
 /**
  * Il controllo esterno del job notturno (#160).
@@ -53,7 +54,7 @@ function authorized(request: Request): boolean {
 
 export async function GET(request: Request) {
 	if (!process.env.CRON_SECRET) {
-		console.error("[salute-job] CRON_SECRET mancante: la route rifiuta ogni chiamata");
+		logServerError("[salute-job] CRON_SECRET mancante: la route rifiuta ogni chiamata");
 		return Response.json({ error: "non configurata" }, { status: 500 });
 	}
 	if (!authorized(request)) return Response.json({ error: "non autorizzato" }, { status: 401 });
@@ -61,7 +62,7 @@ export async function GET(request: Request) {
 	const pingUrl = process.env.HEALTHCHECKS_PING_URL;
 	if (!pingUrl) {
 		// Nessun ping: il servizio non riceve niente e avvisa da sé.
-		console.error("[salute-job] HEALTHCHECKS_PING_URL mancante");
+		logServerError("[salute-job] HEALTHCHECKS_PING_URL mancante");
 		return Response.json({ error: "non configurata" }, { status: 500 });
 	}
 
@@ -83,7 +84,7 @@ export async function GET(request: Request) {
 	}
 
 	const ping = pingFor("reason" in result ? { readFailure: result.reason } : result, Date.now());
-	if (ping.status === "fail") console.error("[salute-job]", ping.body);
+	if (ping.status === "fail") logServerError("[salute-job]", ping.body);
 
 	try {
 		const res = await fetch(ping.status === "ok" ? pingUrl : `${pingUrl.replace(/\/+$/, "")}/fail`, {
@@ -95,7 +96,7 @@ export async function GET(request: Request) {
 		if (!res.ok) throw new Error(`HTTP ${res.status}`);
 	} catch (e) {
 		// Il ping non è partito: il servizio, non sentendo nulla, avviserà da sé.
-		console.error("[salute-job] ping non consegnato:", e instanceof Error ? e.message : e);
+		logServerError("[salute-job] ping non consegnato:", e instanceof Error ? e.message : e);
 		return Response.json({ ping: ping.status, delivered: false }, { status: 502 });
 	}
 

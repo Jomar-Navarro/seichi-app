@@ -4,6 +4,7 @@ import { getTransactions } from "@/app/(main)/action";
 import { getAccountOptions } from "@/app/(main)/conti/actions";
 import { getCategories } from "@/app/(main)/impostazioni/actions";
 import { TRANSACTIONS_PAGE_SIZE } from "@/lib/transaction-utils";
+import { logServerError } from "@/lib/errors";
 
 /**
  * Tutto ciò che serve ad APRIRE Movimenti, in una richiesta sola (#148).
@@ -50,8 +51,8 @@ export async function getMovimentiData(filters: {
 		getCategories(),
 	]);
 
-	if ("error" in accounts) console.error("[movimenti] conti del filtro:", accounts.error);
-	if ("error" in categories) console.error("[movimenti] categorie del filtro:", categories.error);
+	if ("error" in accounts) logServerError("[movimenti] conti del filtro:", accounts.error);
+	if ("error" in categories) logServerError("[movimenti] categorie del filtro:", categories.error);
 
 	const accountList = "data" in accounts ? accounts.data : null;
 	const contoUnknown = Boolean(
