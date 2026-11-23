@@ -221,3 +221,26 @@ l'ordine è libero:
    problema `[prova]` con `source: client`. È la strada vera degli errori del
    browser, senza fabbricare un guasto.
 
+
+Collaudato in produzione il 2026-11-23, dopo il merge della #231:
+
+- **Sentry configurato con la CLI** (`sentry`, installata col codice di
+  passaggio dell'interfaccia di Sentry): organizzazione `jomar-navarro` in
+  regione UE (`regionUrl` `https://de.sentry.io`), progetto `seichi`, *Prevent
+  Storing of IP Addresses* e scrubber di Sentry accesi, avviso email predefinito
+  sui problemi nuovi ad alta priorità verificato attivo. ⚠️ Dopo il login la CLI
+  propone una «guida per agenti» che porta a installare l'SDK: non seguita,
+  perché è ciò che questa issue ha scelto di evitare.
+- **Il vero Sentry accetta l'envelope scritto a mano**: prima del merge, un
+  evento costruito da `buildEvent()` e mandato dalla macchina di sviluppo è
+  arrivato e salvato senza email, importo, UUID né query string, con l'utente
+  tutto `null`. Il finto Sentry dell'end-to-end non poteva dirlo: accetta
+  qualunque formato.
+- ⚠️ **Sentry ricava una posizione dall'IP di chi spedisce**, anche con la
+  conservazione degli IP spenta: la prova dalla macchina di sviluppo diceva
+  Torino. È la conferma che gli errori del browser devono passare dal server.
+- **La prova di rilascio**, dalla console del browser da loggato: 204, e su
+  Sentry `[prova]` con `environment=production`, `release` uguale al commit del
+  merge, `source=client`, utente vuoto e posizione **Dublino** (Vercel), non
+  quella di chi usava l'app. Risolto subito dopo; il token della CLI non può
+  eliminare un problema (403), solo risolverlo.

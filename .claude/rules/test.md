@@ -14,7 +14,7 @@ paths:
 # Test e collaudo
 
 Storia: `docs/storia/issue-155-test-unitari`, `issue-156-e2e`,
-`issue-157-supabase-cli`. Le trappole dei driver Playwright stanno in
+`issue-157-supabase-cli`, `issue-160-osservabilita`. Le trappole dei driver Playwright stanno in
 `.claude/skills/collauda-app/metodo.md`.
 
 ## Test unitari (Vitest)
@@ -114,6 +114,19 @@ rollback;`: niente resta, e la suite end-to-end trova il database com'era.
    - con più worker di quanti la macchina ne regga, cadono anche scenari
      sani: richieste da 25 secondi, timeout ovunque. Prima di dare la colpa
      al codice, riprova con meno worker e guarda la RAM libera (#217).
+8. **I servizi esterni sono finti, e locali** (#160): Sentry sulla 3298,
+   acceso dal `globalSetup` per tutta la suite, scrive ogni envelope in
+   `.next/e2e-sentry.jsonl`; healthchecks sulla 3299, lo accende
+   `salute-job.spec.ts` (scenario seriale). Le variabili le passa `e2e.mjs
+   serve`, i valori stanno in `scripts/e2e-local.mjs`.
+   - Uno scenario cerca nel file il PROPRIO marcatore: gli altri, in
+     parallelo, riferiscono errori loro. Un marcatore passa dalla ripulitura:
+     niente cifre isolate né testo tra virgolette.
+   - Dopo la suite, leggere gli eventi degli altri scenari è un controllo
+     gratuito della ripulitura (#160: ha trovato le date a pezzi).
+   - ⚠️ Un finto servizio accetta qualunque formato: una volta, la prova si
+     ripete col servizio vero (#160: l'envelope scritto a mano, accettato dal
+     vero Sentry).
 
 ## Collaudo nell'app vera
 
