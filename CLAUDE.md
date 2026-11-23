@@ -237,6 +237,11 @@ produzione o una giornata persa.
 - Vitest per `lib/`, Playwright per l'end-to-end.
 - Deploy su Vercel con le funzioni a `dub1`, accanto al database (`eu-west-1`):
   la regione sta in `vercel.json`.
+- Sorveglianza (#160): un Vercel Cron alle 06:00 UTC avvisa healthchecks.io
+  sul job notturno, che scrive a Jomar anche quando non sente niente; gli
+  errori vanno a Sentry, regione UE, **senza SDK**, con l'evento costruito per
+  elenco (`lib/error-report.ts`). La «guida per agenti» della CLI di Sentry
+  porta a installare l'SDK: non si segue.
 - Design: minimalismo giapponese, superfici di vetro satinato, tema chiaro e
   scuro (classe `.dark` su `<html>`, scelta da cookie). Token, classi e trappole
   in `.claude/rules/stili.md`.
@@ -256,12 +261,16 @@ app/
 │   └── impostazioni/  account, profilo, email, password, elimina, categorie,
 │                      ricorrenti, blocco (PIN), importa, esporta
 ├── auth/confirm/      verifyOtp per i link email
+├── api/               cron/salute-job (il job → healthchecks) · errori (browser → Sentry);
+│                      fuori dal proxy solo `api/cron`, che si autentica con CRON_SECRET
 ├── sw.ts, ~offline/, manifest.ts, icon.tsx, apple-icon.tsx   la PWA
 └── layout.tsx         root layout: legge i cookie e decide `.dark` e `lang`
+instrumentation.ts     onRequestError: gli errori che Next cattura da sé, a Sentry
 components/UI/         componenti generici (Select, BottomSheetShell, LoadError…)
 components/features/   componenti con logica di business
 lib/                   meccanica senza testo: auth, account, totals, dates, amount,
-                       read-all, errors, attachments, storage-files, import/,
+                       read-all, errors, error-report/error-sink/client-errors
+                       (Sentry), job-health, attachments, storage-files, import/,
                        export/, i18n/, supabase/ (client, server, proxy)…
 store/useUIStore.ts    stato UI condiviso (modale, refresh, conto guardato)
 supabase/migrations/   rilasciate con `db push` · supabase/config.toml: SOLO il locale
@@ -399,14 +408,19 @@ Flow»: quei titoli sono rimasti identici nei file, quindi li trovi con
 | documentazione, README, memoria del progetto | `issue-159-documentazione` |
 | l'ordine delle fasi com'era | `ordine-delle-fasi` |
 
-## Stato, al 2026-11-17
+## Stato, al 2026-11-23
 
-- **Fatto**: fasi 1-28, eccetto 24c e 29, le issue fino alla #159, e la #161.
+- **Fatto**: fasi 1-28, eccetto 24c e 29; le issue fino alla #163, e #165,
+  #171, #173, #175, #211, #214, #217, #220, #222.
+- **In produzione e sorvegliata** (#160): il job notturno da healthchecks.io,
+  gli errori da Sentry. Un'email di uno dei due è un guasto vero.
 - **Aperte**:
   - 24c, la chat del coach (#74): ultima di proposito, non proporla prima;
-  - 29, le animazioni (#71);
+  - 29, le animazioni (#71), e la 30, la rifinitura del design (#225);
   - #146, Pianifica;
   - #147, le icone;
+  - #135, pagine legali e privacy: l'inventario dei dati ha già i destinatari
+    della #160;
   - #40, i debiti prima di aprire le registrazioni: SMTP, *Confirm email* e la
     riautenticazione degli account solo-OAuth.
 - La lista viva è la board del progetto su GitHub.
