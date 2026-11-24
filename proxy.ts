@@ -15,8 +15,8 @@ export const config = {
 		 * - favicon.ico (favicon file)
 		 * Feel free to modify this pattern to include more paths.
 		 *
-		 * Fase 25 (PWA) — aggiunte manifest.webmanifest, icon, apple-icon,
-		 * serwist: infrastruttura che il BROWSER richiede da sé (icone, il
+		 * Fase 25 (PWA) — aggiunte manifest.webmanifest, icon, apple-icon e il
+		 * service worker: infrastruttura che il BROWSER richiede da sé (icone, il
 		 * manifest, l'installazione/aggiornamento del service worker), non
 		 * pagine su cui un utente naviga. Un controllo di sessione su queste
 		 * richieste sarebbe overhead puro — lo stesso principio già scritto
@@ -27,7 +27,13 @@ export const config = {
 		 * service worker vero. `/~offline` invece PASSA da qui — è una pagina
 		 * reale, resa a chiunque tramite PUBLIC_PATHS in lib/supabase/proxy.ts.
 		 *
-		 * ⚠️ `icon`/`apple-icon`/`serwist` sono ANCORATI al confine di segmento
+		 * #233 — il worker è `/sw.js` (con `/sw.js.map`), un file di `public/`
+		 * generato in build: prima era la route `/serwist/[path]`. Escluso per
+		 * nome intero e ancorato alla fine, perché un file di `public/` con
+		 * un'estensione qualunque PASSA dal proxy: senza questa voce `/sw.js`
+		 * andrebbe a /welcome, e il browser rifiuterebbe un worker rediretto.
+		 *
+		 * ⚠️ `icon`/`apple-icon` sono ANCORATI al confine di segmento
 		 * (`(?=$|/)`), non prefissi nudi: senza l'ancora, un'ipotetica rotta
 		 * futura che comincia per quelle lettere (es. `/icone-personalizzate`)
 		 * salterebbe silenziosamente il controllo di sessione — lo stesso
@@ -40,6 +46,6 @@ export const config = {
 		 * autentica da sé con `CRON_SECRET` (regola 10: il proxy non è il
 		 * perimetro). Ancorata come le altre.
 		 */
-		"/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon(?=$|/)|apple-icon(?=$|/)|serwist(?=$|/)|api/cron(?=$|/)|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+		"/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon(?=$|/)|apple-icon(?=$|/)|sw\\.js(?:\\.map)?$|api/cron(?=$|/)|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
 	],
 };

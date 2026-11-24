@@ -37,6 +37,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.65.0",
+    "@serwist/build": "^9.5.13",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^24",
     "@types/react": "^19",

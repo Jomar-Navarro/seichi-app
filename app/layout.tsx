@@ -297,12 +297,23 @@ export default async function RootLayout({
 				*/}
 				<BootSplash />
 				{/*
-					Fase 25 — PWA. ⚠️⚠️ `withSerwist` in next.config.ts NON registra nulla:
-					è solo un wrapper di config (verificato nel sorgente del pacchetto —
-					spreadta la config e basta). Senza QUESTO provider il service worker
+					Fase 25 — PWA. ⚠️⚠️ La build GENERA il worker, non lo registra: nella
+					Fase 25 si credeva lo facesse `withSerwist` (era solo un wrapper di
+					config, tolto con la #233). Senza QUESTO provider il service worker
 					non si installa in NESSUN browser: precache, fallback offline e
 					l'avviso "nuova versione" di PwaStatus restano tutti inerti, anche se
-					`/serwist/sw.js` risponde 200 al curl.
+					`/sw.js` risponde 200 al curl.
+
+					#233 — `/sw.js` è un file di `public/`, generato in build da
+					`scripts/build-sw.mjs`. Fino alla #233 era `/serwist/sw.js`, una route
+					che Vercel rieseguiva a runtime. Un browser che ha ancora il worker
+					vecchio passa a questo alla prima pagina aperta: stesso scope (`/`),
+					URL diverso, e la registrazione si aggiorna invece di raddoppiare.
+					⚠️ Spento in `next dev` (`disable`): il file lo scrive solo
+					`next build`, quindi in sviluppo `/sw.js` è quello dell'ultima build
+					(o non c'è), con un precache di chunk che il dev server non ha. La
+					route di prima, in sviluppo, dava un worker col precache vuoto: la
+					PWA si prova su `next start`, come ha sempre richiesto.
 
 					⚠️⚠️ `cacheOnNavigation` e `reloadOnOnline` sono `true` di DEFAULT nel
 					pacchetto, e vanno spenti entrambi:
@@ -322,7 +333,8 @@ export default async function RootLayout({
 					  domani).
 				*/}
 				<SerwistProvider
-					swUrl="/serwist/sw.js"
+					swUrl="/sw.js"
+					disable={process.env.NODE_ENV === "development"}
 					cacheOnNavigation={false}
 					reloadOnOnline={false}
 				>

@@ -4,15 +4,16 @@
 // allo stesso programma — le due lib dichiarano `self` in modo incompatibile.
 // È per questo escluso dal type-check di `tsc`/`next build`, non con un
 // `@ts-nocheck` (bandito dal lint di questo repo, `ban-ts-comment`) ma in
-// `tsconfig.json` (`exclude`). Serwist lo compila con un proprio esbuild
-// indipendente da quel tsconfig (vedi app/serwist/[path]/route.ts), quindi
-// l'esclusione non lo esclude dalla build REALE — solo dal type-check.
+// `tsconfig.json` (`exclude`). Lo compila un esbuild a parte, indipendente da
+// quel tsconfig (scripts/build-sw.mjs), quindi l'esclusione non lo esclude
+// dalla build REALE — solo dal type-check.
 //
 // Fase 25 (PWA). ⚠️ Sorgente del service worker, NON la sua configurazione —
-// quella (swSrc, globDirectory, ecc.) sta in app/serwist/[path]/route.ts.
+// quella (glob del precache, target, uscita in `public/sw.js`) sta in
+// scripts/build-sw.mjs, chiamato da `next build` (#233).
 // ⚠️⚠️ E non basta da sola: senza `<SerwistProvider>` in app/layout.tsx
-// questo file non si registra in NESSUN browser (verificato — `withSerwist`
-// in next.config.ts non lo fa, è solo un wrapper di config).
+// questo file non si registra in NESSUN browser: la build lo compila, non lo
+// registra (verificato nella Fase 25).
 //
 // ⚠️⚠️ Il vincolo che conta più di ogni riga qui sotto: NESSUNA cache di
 // pagine applicative. Ogni pagina di Seichi è dinamica — cookie di sessione
