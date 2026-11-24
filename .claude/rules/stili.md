@@ -6,7 +6,7 @@ paths:
 
 # Stili: Zen Glass, temi, Tailwind
 
-Storia: `docs/storia/fase-18-tema`, `issue-081-firefox-bordi`,
+Storia: `docs/storia/zen-glass-origine`, `fase-18-tema`, `issue-081-firefox-bordi`,
 `issue-126-contrasto`, `issue-153-movimento-ridotto`, `fase-27-mobile`,
 `fase-28-responsive`, `fase-28e-desktop`.
 
