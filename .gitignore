@@ -20,6 +20,9 @@
 # next.js
 /.next/
 /out/
+# Il service worker, generato da `next build` (scripts/build-sw.mjs, #233).
+/public/sw.js
+/public/sw.js.map
 
 # production
 /build

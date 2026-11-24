@@ -232,8 +232,10 @@ produzione o una giornata persa.
 - Next.js 16 App Router, TypeScript strict, Tailwind CSS v4 con i token «Zen
   Glass», Supabase cloud (Postgres, Auth con JWT ES256 + RLS, Storage), Zustand,
   Recharts, Lucide.
-- PWA con Serwist (`@serwist/turbopack`): non `next-pwa`, che è un plugin webpack
-  e Turbopack non lo aggancia.
+- PWA con Serwist: non `next-pwa`, che è un plugin webpack e Turbopack non lo
+  aggancia. Il worker è un file, `public/sw.js`, generato da `next build`
+  (`scripts/build-sw.mjs`); mai una route, che Vercel rieseguirebbe a runtime
+  (#233).
 - Vitest per `lib/`, Playwright per l'end-to-end.
 - Deploy su Vercel con le funzioni a `dub1`, accanto al database (`eu-west-1`):
   la regione sta in `vercel.json`.
@@ -276,7 +278,7 @@ store/useUIStore.ts    stato UI condiviso (modale, refresh, conto guardato)
 supabase/migrations/   rilasciate con `db push` · supabase/config.toml: SOLO il locale
 supabase/tests/        prove pgTAP · types/database.ts: generato, mai a mano
 tests/e2e/             scenari Playwright, uno per difetto storico
-scripts/               audit, e2e, generatori di icone e splash
+scripts/               audit, e2e, il service worker, generatori di icone e splash
 docs/storia/           la storia delle fasi e delle issue
 .claude/rules/         le regole per area · .claude/skills/collauda-app
 ```
@@ -398,7 +400,7 @@ Flow»: quei titoli sono rimasti identici nei file, quindi li trovi con
 | lingua e valuta | `fase-19-lingua`, `issue-171-valuta` |
 | accesso, onboarding, sessione | `auth-flusso`, `costo-richieste-supabase` |
 | errori e letture fallite | `issue-124-errori`, `issue-160-osservabilita` |
-| PWA, avvio, splash | `fase-25-pwa`, `issue-127-pwa-audit`, `splash-avvio` |
+| PWA, avvio, splash | `fase-25-pwa`, `issue-127-pwa-audit`, `splash-avvio`, `issue-233-sw-statico` |
 | blocco app | `fase-26a-pin`, `fase-26b-biometrico`, `issue-125-pin` |
 | telefono, tablet, desktop | `fase-27-mobile`, `fase-28-responsive`, `fase-28e-desktop` |
 | prestazioni, regione | `costo-richieste-supabase` |
@@ -408,10 +410,10 @@ Flow»: quei titoli sono rimasti identici nei file, quindi li trovi con
 | documentazione, README, memoria del progetto | `issue-159-documentazione` |
 | l'ordine delle fasi com'era | `ordine-delle-fasi` |
 
-## Stato, al 2026-11-23
+## Stato, al 2026-11-24
 
 - **Fatto**: fasi 1-28, eccetto 24c e 29; le issue fino alla #163, e #165,
-  #171, #173, #175, #211, #214, #217, #220, #222.
+  #171, #173, #175, #211, #214, #217, #220, #222, #233.
 - **In produzione e sorvegliata** (#160): il job notturno da healthchecks.io,
   gli errori da Sentry. Un'email di uno dei due è un guasto vero.
 - **Aperte**:

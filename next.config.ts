@@ -1,5 +1,4 @@
 import type { NextConfig } from "next";
-import { withSerwist } from "@serwist/turbopack";
 
 // Gli avatar sono serviti dallo Storage di Supabase: next/image accetta host
 // remoti solo se dichiarati esplicitamente.
@@ -30,6 +29,25 @@ const supabaseHost = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname;
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["172.30.224.1", "192.168.1.224", "192.168.1.*"],
+  compiler: {
+    /*
+     * #233 — il service worker nasce QUI, durante `next build`, e finisce in
+     * `public/sw.js`: un file statico, non una route che Vercel possa
+     * rieseguire a runtime. Il perché sta in `scripts/build-sw.mjs`.
+     * L'hook gira dopo la compilazione (`.next/static` esiste) e prima della
+     * generazione statica; se lancia, la build fallisce.
+     * Import dinamico: `next dev` non lo chiama, e non deve caricare esbuild.
+     */
+    runAfterProductionCompile: async ({ projectDir, distDir }) => {
+      const { buildServiceWorker } = await import("./scripts/build-sw.mjs");
+      await buildServiceWorker({
+        projectDir,
+        distDir,
+        basePath: nextConfig.basePath,
+        assetPrefix: nextConfig.assetPrefix,
+      });
+    },
+  },
   experimental: {
     serverActions: {
       // L'avatar viaggia in una server action, e il limite di default è 1 MB:
@@ -105,19 +123,17 @@ const nextConfig: NextConfig = {
   },
 };
 
-// Fase 25 — PWA. `withSerwist` compone la config esistente, non la sostituisce.
+// Fase 25 — PWA, con Serwist. Il worker lo genera `compiler.runAfterProductionCompile`
+// qui sopra (#233); la registrazione la fa `<SerwistProvider>` in app/layout.tsx,
+// senza la quale il worker non si installa in nessun browser, anche se
+// `/sw.js` risponde 200 al curl.
 //
-// ⚠️⚠️ NON registra nulla lato client — verificato nel sorgente del
-// pacchetto: spreadta `nextConfig` e aggiunge `esbuild`/`esbuild-wasm` a
-// `serverExternalPackages`, punto. La registrazione vera è
-// `<SerwistProvider>` in app/layout.tsx: senza quella il service worker
-// servito da app/serwist/[path]/route.ts non si installa in nessun
-// browser, anche se risponde 200 al curl.
+// ⚠️ Niente `withSerwist` di `@serwist/turbopack` (#233): aggiungeva soltanto
+// esbuild a `serverExternalPackages`, per la route che compilava il worker a
+// runtime, e la route non c'è più. Il pacchetto resta per `SerwistProvider`.
 //
 // ⚠️ NON `next-pwa`: quel plugin è webpack-only e Next 16 usa Turbopack di
 // default sia per `next dev` sia per `next build` (verificato in
 // node_modules/next/dist/docs/.../upgrading/version-16.md) — un plugin
-// webpack non si aggancia più alla pipeline. La guida ufficiale Next per le
-// PWA rimanda a Serwist, che ha un pacchetto dedicato al Turbopack
-// (`@serwist/turbopack`, non `@serwist/next`, che è per webpack).
-export default withSerwist(nextConfig);
+// webpack non si aggancia più alla pipeline.
+export default nextConfig;

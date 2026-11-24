@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Il service worker compilato da `next build` (scripts/build-sw.mjs, #233):
+    // minificato, generato, e letto da `audit:pwa-cache`, non dal lint.
+    "public/sw.js",
+    "public/sw.js.map",
   ]),
 ]);
 

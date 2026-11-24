@@ -24,8 +24,10 @@
  *      più a ogni deploy. Altrimenti, dopo un deploy che cambia solo gli
  *      stili, la pagina offline può uscire senza stile.
  *
- * ⚠️ Legge il worker REALMENTE COMPILATO in `.next/server/app/serwist/`, non
- * `app/sw.ts`: solo la build sa cosa Serwist ha messo dentro per davvero.
+ * ⚠️ Legge il worker REALMENTE COMPILATO, `public/sw.js` con la sua source map
+ * (lo scrive `next build` tramite `scripts/build-sw.mjs`, #233; prima stava in
+ * `.next/server/app/serwist/`), non `app/sw.ts` né la configurazione di
+ * `build-sw.mjs`: solo il file dice cosa ci è finito dentro per davvero.
  * Serve quindi una build recente — se manca, il controllo lo dichiara invece di
  * passare in silenzio. E ogni forma che lo script non sa leggere è un
  * FALLIMENTO, non un passaggio.
@@ -47,10 +49,9 @@ import { join } from "node:path";
 import * as espree from "espree";
 import * as eslintScope from "eslint-scope";
 import { OFFLINE_URL, offlineRevision } from "../lib/offline-revision.mjs";
+import { SW_OUTPUT } from "./build-sw.mjs";
 
-const DIR = join(process.cwd(), ".next/server/app/serwist");
-const SW_BODY = join(DIR, "sw.js.body");
-const SW_MAP = join(DIR, "sw.js.map.body");
+const [SW_BODY, SW_MAP] = SW_OUTPUT.map((file) => join(process.cwd(), file));
 const OUR_SOURCE = "app/sw.ts";
 
 if (!existsSync(SW_BODY) || !existsSync(SW_MAP)) {
